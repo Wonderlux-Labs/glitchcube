@@ -80,6 +80,44 @@ module GlitchCube
         {}
       end
 
+      def store_conversation_summary(summary_data)
+        return unless persistence_enabled?
+
+        # For now, track conversation summaries as a special type of execution
+        # This allows us to query them later and maintain consistency with existing structure
+        execution = Desiru::Persistence[:module_executions].create_for_module(
+          'conversation_summarizer',
+          summary_data[:key_points] || 'Summary generation'
+        )
+
+        Desiru::Persistence[:module_executions].complete(
+          execution.id,
+          summary_data.to_json,
+          {
+            session_id: summary_data[:session_id],
+            summary_type: 'conversation',
+            interaction_count: summary_data[:interaction_count]
+          }
+        )
+
+        puts "Conversation summary stored for session #{summary_data[:session_id]}"
+      rescue StandardError => e
+        puts "Failed to store summary: #{e.message}"
+      end
+
+      def get_conversation_summaries(limit: 10)
+        return [] unless persistence_enabled?
+
+        Desiru::Persistence[:module_executions]
+          .where(module_name: 'conversation_summarizer')
+          .order(Sequel.desc(:created_at))
+          .limit(limit)
+          .map { |exec| JSON.parse(exec[:output]) rescue exec[:output] }
+      rescue StandardError => e
+        puts "Failed to get conversation summaries: #{e.message}"
+        []
+      end
+
       private
 
       def persistence_enabled?

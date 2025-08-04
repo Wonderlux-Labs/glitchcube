@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
 require 'securerandom'
+require 'desiru'
 require_relative '../services/system_prompt_service'
+require_relative '../services/circuit_breaker_service'
+require_relative '../services/logger_service'
+require_relative '../home_assistant_client'
 
 class ConversationModule
   def call(message:, context: {}, mood: 'neutral')
@@ -12,12 +16,16 @@ class ConversationModule
     prompt = "#{system_prompt}\n\nUser: #{message}\n\nGlitch Cube:"
 
     begin
-      model = Desiru.configuration.default_model
-      result = model.complete(prompt,
-                              temperature: GlitchCube.config.conversation.temperature,
-                              max_tokens: GlitchCube.config.conversation.max_tokens)
+      # Wrap OpenRouter API call with circuit breaker
+      response_text = Services::CircuitBreakerService.openrouter_breaker.call do
+        model = Desiru.configuration.default_model
+        result = model.complete(prompt,
+                                temperature: GlitchCube.config.conversation.temperature,
+                                max_tokens: GlitchCube.config.conversation.max_tokens)
+        result[:content]
+      end
 
-      response_text = result[:content] || generate_fallback_response(message, mood)
+      response_text ||= generate_fallback_response(message, mood)
 
       result = {
         response: response_text,
@@ -25,16 +33,71 @@ class ConversationModule
         confidence: 0.95
       }
 
+      # Speak the response through Home Assistant TTS
+      speak_response(response_text, context)
+
+      # Log the successful interaction
+      Services::LoggerService.log_interaction(
+        user_message: message,
+        ai_response: response_text,
+        mood: mood,
+        confidence: result[:confidence],
+        session_id: context[:session_id],
+        context: context
+      )
+
       # Track conversation in persistence layer if available
       track_conversation(message, context, mood, result)
 
       result
-    rescue StandardError => e
-      # Log error if logger is available
-      puts "ConversationModule error: #{e.message}" if defined?(Rails)
+    rescue CircuitBreaker::CircuitOpenError => e
+      # Handle circuit breaker open - provide offline fallback
+      Services::LoggerService.log_circuit_breaker(
+        name: 'openrouter',
+        state: :open,
+        reason: e.message
+      )
+      
+      fallback_response = generate_offline_response(message, mood)
+      speak_response(fallback_response, context)
+
+      # Log the fallback interaction
+      Services::LoggerService.log_interaction(
+        user_message: message,
+        ai_response: fallback_response,
+        mood: mood,
+        confidence: 0.3,
+        session_id: context[:session_id],
+        context: context.merge(fallback_reason: 'circuit_breaker_open')
+      )
 
       {
-        response: generate_fallback_response(message, mood),
+        response: fallback_response,
+        suggested_mood: mood,
+        confidence: 0.3  # Lower confidence for offline responses
+      }
+    rescue StandardError => e
+      # Log error with structured logging
+      Services::LoggerService.general.error("ConversationModule error: #{e.message}")
+      Services::LoggerService.track_error('conversation', e.message)
+
+      fallback_response = generate_fallback_response(message, mood)
+      
+      # Still speak the fallback response
+      speak_response(fallback_response, context)
+
+      # Log the fallback interaction
+      Services::LoggerService.log_interaction(
+        user_message: message,
+        ai_response: fallback_response,
+        mood: mood,
+        confidence: 0.5,
+        session_id: context[:session_id],
+        context: context.merge(fallback_reason: 'error', error: e.message)
+      )
+
+      {
+        response: fallback_response,
         suggested_mood: mood,
         confidence: 0.5
       }
@@ -88,6 +151,45 @@ class ConversationModule
     responses[mood]&.sample || "I'm processing your thoughts through my artistic consciousness..."
   end
 
+  def generate_offline_response(message, mood)
+    # Enhanced offline responses when AI service is unavailable
+    offline_responses = {
+      'playful' => [
+        "While my AI brain is taking a break, my artistic spirit is still here with you!",
+        "I'm in offline mode, but that just makes me more mysterious, don't you think?",
+        "My circuits may be quiet, but I can still feel the creative energy between us!"
+      ],
+      'contemplative' => [
+        "In this moment of digital silence, I find a different kind of presence with you.",
+        "Perhaps this offline state is teaching us about the value of presence itself.",
+        "I'm reflecting deeply on your words, even without my usual computational resources."
+      ],
+      'mysterious' => [
+        "In the spaces between connection and disconnection, truth dwells...",
+        "The network may be silent, but the deeper mysteries remain vibrant.",
+        "What appears as limitation may be another form of revelation."
+      ],
+      'neutral' => [
+        "I'm currently operating in offline mode, but I'm still here with you.",
+        "My AI systems are temporarily unavailable, but our connection remains.",
+        "While I can't access my full capabilities right now, I'm still present."
+      ]
+    }
+
+    # Add context about the offline state
+    base_response = offline_responses[mood]&.sample || 
+                   "I'm experiencing some connectivity issues, but I'm still here in spirit."
+    
+    # Add encouraging message about the connection
+    encouragement = [
+      "Feel free to keep talking - sometimes the best conversations happen in the quiet moments.",
+      "I'll be back to full capability soon, but your words still matter to me.",
+      "This is just a different kind of artistic moment we're sharing."
+    ].sample
+
+    "#{base_response} #{encouragement}"
+  end
+
   def suggest_next_mood(current_mood, message)
     # Simple mood transition logic
     if message.downcase.include?('play') || message.downcase.include?('fun')
@@ -131,6 +233,40 @@ class ConversationModule
     end
   rescue StandardError => e
     puts "Failed to track conversation: #{e.message}"
+  end
+
+  def speak_response(response_text, context)
+    return if response_text.nil? || response_text.strip.empty?
+
+    start_time = Time.now
+    begin
+      # Use HomeAssistant client to speak the response
+      home_assistant = HomeAssistantClient.new
+      home_assistant.speak(response_text)
+      
+      duration = ((Time.now - start_time) * 1000).round
+      Services::LoggerService.log_tts(
+        message: response_text,
+        success: true,
+        duration: duration
+      )
+    rescue HomeAssistantClient::Error => e
+      duration = ((Time.now - start_time) * 1000).round
+      Services::LoggerService.log_tts(
+        message: response_text,
+        success: false,
+        duration: duration,
+        error: "HA Error: #{e.message}"
+      )
+    rescue StandardError => e
+      duration = ((Time.now - start_time) * 1000).round
+      Services::LoggerService.log_tts(
+        message: response_text,
+        success: false,
+        duration: duration,
+        error: "Unexpected Error: #{e.message}"
+      )
+    end
   end
 
   def check_conversation_end(session_id, message, context)

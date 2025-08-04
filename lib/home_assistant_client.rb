@@ -3,11 +3,15 @@
 require 'net/http'
 require 'json'
 require 'uri'
+require 'timeout'
+require_relative 'services/circuit_breaker_service'
+require_relative 'services/logger_service'
 
 class HomeAssistantClient
   class Error < StandardError; end
   class AuthenticationError < Error; end
   class NotFoundError < Error; end
+  class TimeoutError < Error; end
 
   attr_reader :base_url, :token
 
@@ -25,12 +29,24 @@ class HomeAssistantClient
 
   # Get all entity states
   def states
-    get('/api/states')
+    Services::CircuitBreakerService.home_assistant_breaker.call do
+      get('/api/states')
+    end
+  rescue CircuitBreaker::CircuitOpenError => e
+    puts "⚠️  Home Assistant circuit breaker is open: #{e.message}"
+    # Return empty states when circuit is open
+    []
   end
 
   # Get specific entity state
   def state(entity_id)
-    get("/api/states/#{entity_id}")
+    Services::CircuitBreakerService.home_assistant_breaker.call do
+      get("/api/states/#{entity_id}")
+    end
+  rescue CircuitBreaker::CircuitOpenError => e
+    puts "⚠️  Home Assistant circuit breaker is open: #{e.message}"
+    # Return default state when circuit is open
+    { 'state' => 'unavailable', 'attributes' => {} }
   end
 
   # Update entity state
@@ -43,7 +59,12 @@ class HomeAssistantClient
 
   # Call a service
   def call_service(domain, service, data = {})
-    post("/api/services/#{domain}/#{service}", data)
+    Services::CircuitBreakerService.home_assistant_breaker.call do
+      post("/api/services/#{domain}/#{service}", data)
+    end
+  rescue CircuitBreaker::CircuitOpenError => e
+    puts "⚠️  Home Assistant circuit breaker is open: #{e.message}"
+    raise Error, "Home Assistant temporarily unavailable"
   end
 
   # Light control methods
@@ -101,11 +122,46 @@ class HomeAssistantClient
     request['Authorization'] = "Bearer #{@token}"
     request['Content-Type'] = 'application/json'
 
-    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|
-      http.request(request)
+    start_time = Time.now
+    begin
+      response = Net::HTTP.start(uri.hostname, uri.port, 
+                                 use_ssl: uri.scheme == 'https',
+                                 open_timeout: 5,
+                                 read_timeout: 10) do |http|
+        http.request(request)
+      end
+      
+      duration = ((Time.now - start_time) * 1000).round
+      Services::LoggerService.log_api_call(
+        service: 'home_assistant',
+        endpoint: path,
+        method: 'GET',
+        status: response.code.to_i,
+        duration: duration
+      )
+      
+      handle_response(response)
+    rescue Net::OpenTimeout, Net::ReadTimeout, Timeout::Error => e
+      duration = ((Time.now - start_time) * 1000).round
+      Services::LoggerService.log_api_call(
+        service: 'home_assistant',
+        endpoint: path,
+        method: 'GET',
+        duration: duration,
+        error: "Timeout: #{e.message}"
+      )
+      raise TimeoutError, "Request timed out: #{e.message}"
+    rescue SocketError, Errno::ECONNREFUSED => e
+      duration = ((Time.now - start_time) * 1000).round
+      Services::LoggerService.log_api_call(
+        service: 'home_assistant',
+        endpoint: path,
+        method: 'GET',
+        duration: duration,
+        error: "Connection failed: #{e.message}"
+      )
+      raise Error, "Connection failed: #{e.message}"
     end
-
-    handle_response(response)
   end
 
   def post(path, data)
@@ -115,11 +171,46 @@ class HomeAssistantClient
     request['Content-Type'] = 'application/json'
     request.body = data.to_json
 
-    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|
-      http.request(request)
+    start_time = Time.now
+    begin
+      response = Net::HTTP.start(uri.hostname, uri.port, 
+                                 use_ssl: uri.scheme == 'https',
+                                 open_timeout: 5,
+                                 read_timeout: 15) do |http|  # Longer timeout for TTS requests
+        http.request(request)
+      end
+      
+      duration = ((Time.now - start_time) * 1000).round
+      Services::LoggerService.log_api_call(
+        service: 'home_assistant',
+        endpoint: path,
+        method: 'POST',
+        status: response.code.to_i,
+        duration: duration
+      )
+      
+      handle_response(response)
+    rescue Net::OpenTimeout, Net::ReadTimeout, Timeout::Error => e
+      duration = ((Time.now - start_time) * 1000).round
+      Services::LoggerService.log_api_call(
+        service: 'home_assistant',
+        endpoint: path,
+        method: 'POST',
+        duration: duration,
+        error: "Timeout: #{e.message}"
+      )
+      raise TimeoutError, "Request timed out: #{e.message}"
+    rescue SocketError, Errno::ECONNREFUSED => e
+      duration = ((Time.now - start_time) * 1000).round
+      Services::LoggerService.log_api_call(
+        service: 'home_assistant',
+        endpoint: path,
+        method: 'POST',
+        duration: duration,
+        error: "Connection failed: #{e.message}"
+      )
+      raise Error, "Connection failed: #{e.message}"
     end
-
-    handle_response(response)
   end
 
   def handle_response(response)

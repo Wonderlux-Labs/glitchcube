@@ -11,7 +11,7 @@ class HomeAssistantTool
   end
 
   def self.description
-    'Control Home Assistant devices and check sensors. Args: action (string) - get_sensors, set_light, speak, or run_script; params (string) - JSON parameters for the action'
+    'Control Home Assistant devices and check sensors. For sensor readings use action: "get_sensors". For lights use action: "set_light" with params like {"brightness": 50, "rgb_color": [255,0,0]}. For speaking use action: "speak" with params {"message": "text"}. Args: action (string), params (string) - JSON parameters'
   end
 
   def self.call(action:, params: '{}')

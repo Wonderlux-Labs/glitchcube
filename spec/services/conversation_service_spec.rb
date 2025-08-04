@@ -158,12 +158,14 @@ RSpec.describe Services::ConversationService do
   end
 
   describe 'integration with system prompt' do
-    it 'passes context through to system prompt generation' do
+    it 'passes context through to system prompt generation', :vcr do
       # This is tested more thoroughly in integration specs
       # but we verify the flow is connected
       allow(Services::SystemPromptService).to receive(:new).and_call_original
 
-      service.process_message('Hello', mood: 'playful')
+      VCR.use_cassette('conversation_service/system_prompt_integration') do
+        service.process_message('Hello', mood: 'playful')
+      end
 
       expect(Services::SystemPromptService).to have_received(:new).with(
         character: 'playful',

@@ -19,6 +19,12 @@ require 'redis'
 # Load patches for gem compatibility issues
 require_relative 'lib/patches/desiru_openrouter_errors'
 
+# Load circuit breaker service
+require_relative 'lib/services/circuit_breaker_service'
+
+# Load logger service
+require_relative 'lib/services/logger_service'
+
 # Load application constants and config first
 require_relative 'config/constants'
 
@@ -81,15 +87,24 @@ class GlitchCubeApp < Sinatra::Base
     end
   end
 
+  # Initialize logger service
+  Services::LoggerService.setup_loggers
+
   get '/' do
     json({ message: 'Welcome to Glitch Cube!', status: 'online' })
   end
 
   get '/health' do
+    # Check circuit breaker status
+    circuit_status = Services::CircuitBreakerService.status
+    overall_health = circuit_status.all? { |breaker| breaker[:state] == :closed } ? 'healthy' : 'degraded'
+
     json({
-           status: 'healthy',
+           status: overall_health,
            timestamp: Time.now.iso8601,
-           version: '0.1.0'
+           version: GlitchCube.config.app.version,
+           environment: GlitchCube.config.app.environment,
+           circuit_breakers: circuit_status
          })
   end
 
@@ -245,6 +260,35 @@ class GlitchCubeApp < Sinatra::Base
              error: e.message,
              backtrace: e.backtrace[0..5]
            })
+    end
+  end
+
+  # Error statistics endpoint (development and test only)
+  if development? || test?
+    get '/api/v1/logs/errors' do
+      content_type :json
+      
+      json({
+             error_summary: Services::LoggerService.error_summary,
+             error_stats: Services::LoggerService.error_stats
+           })
+    end
+
+    get '/api/v1/logs/circuit_breakers' do
+      content_type :json
+      
+      json({
+             circuit_breakers: Services::CircuitBreakerService.status,
+             actions: {
+               reset_all: '/api/v1/logs/circuit_breakers/reset',
+               reset_single: '/api/v1/logs/circuit_breakers/:name/reset'
+             }
+           })
+    end
+
+    post '/api/v1/logs/circuit_breakers/reset' do
+      Services::CircuitBreakerService.reset_all
+      json({ message: 'All circuit breakers reset', status: 'success' })
     end
   end
 
