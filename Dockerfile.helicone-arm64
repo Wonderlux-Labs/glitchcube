@@ -2,7 +2,7 @@
 # Multi-stage Dockerfile for Helicone AI Gateway with ARM64 support
 # Based on: https://github.com/Helicone/ai-gateway
 
-FROM rust:1.85 as builder
+FROM rustlang/rust:nightly as builder
 
 WORKDIR /usr/src/app
 
@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Add ARM target (Rust 1.85+ supports 2024 edition in stable)
+# Add ARM target for nightly
 RUN rustup target add aarch64-unknown-linux-gnu
 
 # Set cross-compilation environment variables
