@@ -307,8 +307,8 @@ class GlitchCubeApp < Sinatra::Base
     json({
            status: overall_health,
            timestamp: Time.now.iso8601,
-           version: GlitchCube.config.app.version,
-           environment: GlitchCube.config.app.environment,
+           version: GlitchCube.config.device&.version || 'unknown',
+           environment: GlitchCube.config&.rack_env || 'unknown',
            circuit_breakers: circuit_status
          })
   end
