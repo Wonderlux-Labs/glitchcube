@@ -58,6 +58,14 @@ if [ -d "data/context_documents" ]; then
     cp -r data/context_documents/* data/production/context_documents/ 2>/dev/null || true
 fi
 
+# Copy Home Assistant custom components
+if [ -d "homeassistant_components" ]; then
+    echo "🏠 Installing Home Assistant custom components..."
+    mkdir -p data/production/homeassistant/custom_components
+    cp -r homeassistant_components/* data/production/homeassistant/custom_components/
+    echo "✅ Installed custom components: $(ls homeassistant_components/)"
+fi
+
 # Check for .env file
 if [ ! -f .env ]; then
     if [ -f .env.production.example ]; then
@@ -100,6 +108,19 @@ docker-compose -f docker-compose.yml -f docker-compose.production.yml --profile 
 # Wait for services to be healthy
 echo "⏳ Waiting for services to be healthy..."
 sleep 10
+
+# Install custom components into running Home Assistant container
+if [ -d "homeassistant_components" ]; then
+    echo "🔧 Installing custom components into Home Assistant container..."
+    for component in homeassistant_components/*/; do
+        component_name=$(basename "$component")
+        echo "   Installing: $component_name"
+        docker cp "$component" glitchcube_homeassistant:/config/custom_components/
+    done
+    echo "🔄 Restarting Home Assistant to load components..."
+    docker-compose restart homeassistant
+    sleep 5
+fi
 
 # Check service status
 echo "📊 Service status:"
