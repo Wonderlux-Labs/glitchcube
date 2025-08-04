@@ -17,17 +17,17 @@ RSpec.describe Services::OpenRouter::ModelCache do
     context 'when cache is empty' do
       it 'fetches models from the client' do
         expect(client).to receive(:models).and_return(models_response)
-        
+
         result = cache.available_models(client)
         expect(result).to eq(models_response)
       end
 
       it 'caches the fetched models' do
         expect(client).to receive(:models).once.and_return(models_response)
-        
+
         # First call fetches from API
         cache.available_models(client)
-        
+
         # Second call should use cache (no API call)
         result = cache.available_models(client)
         expect(result).to eq(models_response)
@@ -39,14 +39,14 @@ RSpec.describe Services::OpenRouter::ModelCache do
         # First call to populate cache
         expect(client).to receive(:models).and_return(models_response)
         cache.available_models(client)
-        
+
         # Simulate cache expiration
         allow(Time).to receive(:now).and_return(Time.now + 3601)
-        
+
         # Should fetch again
         expect(client).to receive(:models).and_return(models_response)
         result = cache.available_models(client)
-        
+
         expect(result).to eq(models_response)
       end
     end
@@ -56,7 +56,7 @@ RSpec.describe Services::OpenRouter::ModelCache do
         # Populate cache
         expect(client).to receive(:models).once.and_return(models_response)
         cache.available_models(client)
-        
+
         # Use cache
         result = cache.available_models(client)
         expect(result).to eq(models_response)
@@ -69,10 +69,10 @@ RSpec.describe Services::OpenRouter::ModelCache do
       # Populate cache
       expect(client).to receive(:models).and_return(models_response)
       cache.available_models(client)
-      
+
       # Clear cache
       cache.clear!
-      
+
       # Next call should fetch from API again
       expect(client).to receive(:models).and_return(models_response)
       cache.available_models(client)

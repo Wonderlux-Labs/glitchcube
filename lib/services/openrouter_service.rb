@@ -8,7 +8,7 @@ require_relative 'openrouter/request_handler'
 # Abstracted OpenRouter service for direct API calls with context management
 class OpenRouterService
   @model_cache = Services::OpenRouter::ModelCache.new
-  
+
   class << self
     attr_reader :model_cache
 

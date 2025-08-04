@@ -96,3 +96,10 @@ Style/GlobalVars:
 
 Style/ClassVars:
   Enabled: false  # May need class variables for shared state
+
+# Disable RSpec linting cops that are too strict
+RSpec/StubbedMock:
+  Enabled: false  # Allow expect for stubbing in tests
+
+RSpec/SpecFilePathFormat:
+  Enabled: false  # Allow flexible spec file naming

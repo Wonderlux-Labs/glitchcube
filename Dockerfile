@@ -29,6 +29,9 @@ RUN adduser --disabled-password --gecos '' glitchcube
 # Copy application code
 COPY . .
 
+# Remove any data/logs that might exist (as files, directories, or symlinks) from COPY
+RUN rm -rf /app/data /app/logs || true
+
 # Create data and logs directories with correct ownership from the start
 RUN mkdir -p /app/data/context_documents /app/data/memories /app/logs && \
     chown -R glitchcube:glitchcube /app/data /app/logs && \

@@ -10,7 +10,7 @@ module Services
 
       def available_models(client)
         cache_key = :models
-        
+
         if cached?(cache_key)
           @cache[cache_key][:data]
         else
