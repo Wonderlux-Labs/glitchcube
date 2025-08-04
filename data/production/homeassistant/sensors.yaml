@@ -38,24 +38,28 @@
     {% endif %}
   icon: "mdi:web"
 
-# Template Sensors for Dynamic State Management (Modern Format)
-- sensor:
+# Template Sensors for Dynamic State Management
+- platform: template
+  sensors:
     # Last Interaction Time (updated via webhook)
-    - name: "Last Interaction Time"
+    last_interaction_time:
       unique_id: "last_interaction_time"
-      state: "{{ states('input_datetime.last_interaction') | as_timestamp | timestamp_custom('%Y-%m-%d %H:%M:%S') if states('input_datetime.last_interaction') != 'unknown' else 'Never' }}"
-      icon: "mdi:clock-outline"
+      friendly_name: "Last Interaction Time"
+      value_template: "{{ states('input_datetime.last_interaction') | as_timestamp | timestamp_custom('%Y-%m-%d %H:%M:%S') if states('input_datetime.last_interaction') != 'unknown' else 'Never' }}"
+      icon_template: "mdi:clock-outline"
       
     # Current Persona (updated via webhook)
-    - name: "Current Persona"
+    current_persona:
       unique_id: "current_persona"
-      state: "{{ states('input_text.current_persona') if states('input_text.current_persona') != 'unknown' else 'Default' }}"
-      icon: "mdi:account-multiple"
+      friendly_name: "Current Persona"
+      value_template: "{{ states('input_text.current_persona') if states('input_text.current_persona') != 'unknown' else 'Default' }}"
+      icon_template: "mdi:account-multiple"
       
     # Installation Health Summary
-    - name: "Installation Health"
+    installation_health:
       unique_id: "installation_health"
-      state: >
+      friendly_name: "Installation Health"
+      value_template: >
         {% set app_health = states('sensor.glitch_cube_app_health') %}
         {% set internet = states('sensor.internet_connectivity') %}
         {% set temp = states('sensor.cube_cpu_thermal_0_temperature') | float(0) %}
@@ -72,7 +76,7 @@
         {% else %}
           healthy
         {% endif %}
-      icon: >
+      icon_template: >
         {% set health = states('sensor.installation_health') %}
         {% if health == 'critical' %}
           mdi:alert-circle

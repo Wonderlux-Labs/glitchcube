@@ -74,8 +74,8 @@ http:
     - 172.16.0.0/12
     - 10.0.0.0/8
 
-# Network discovery
-discovery:
+# Network discovery (removed - deprecated in modern HA)
+# discovery:
 
 # Enable mobile app support
 mobile_app:
