@@ -1,30 +1,38 @@
 # syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for Helicone AI Gateway with ARM64 support
-# Based on: https://github.com/Helicone/ai-gateway
+# Based on official: https://github.com/Helicone/ai-gateway/blob/main/Dockerfile
 
-FROM rustlang/rust:nightly as builder
+FROM lukemathwalker/cargo-chef:0.1.71-rust-1.88-bookworm as chef
 
 WORKDIR /usr/src/app
 
-# Install cross-compilation tools and native dependencies
+# Install cross-compilation tools for ARM64
 RUN apt-get update && apt-get install -y \
     gcc-aarch64-linux-gnu \
     libc6-dev-arm64-cross \
-    pkg-config \
-    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Add ARM target for nightly
+# Add ARM64 target
 RUN rustup target add aarch64-unknown-linux-gnu
 
 # Set cross-compilation environment variables
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 ENV CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
-ENV CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
 
-# Clone Helicone AI Gateway source and build
+FROM chef AS planner
+# Clone source and prepare recipe
 RUN git clone https://github.com/Helicone/ai-gateway.git . && \
-    cargo build --release --target aarch64-unknown-linux-gnu
+    cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
+COPY --from=planner /usr/src/app/recipe.json recipe.json
+
+# Build dependencies (cached layer)
+RUN cargo chef cook --release --target aarch64-unknown-linux-gnu --recipe-path recipe.json
+
+# Clone source again and build the project
+RUN git clone https://github.com/Helicone/ai-gateway.git . && \
+    cargo build --release --target aarch64-unknown-linux-gnu -p ai-gateway
 
 # Runtime stage
 FROM debian:bullseye-slim
