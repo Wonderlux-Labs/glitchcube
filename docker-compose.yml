@@ -34,14 +34,13 @@ services:
       - glitchcube_data:/app/data
       - glitchcube_context:/app/data/context_documents
       - /etc/localtime:/etc/localtime:ro
-    ports:
-      - "4567:4567"
+    network_mode: host
     restart: unless-stopped
     env_file: .env  # Pull all vars from .env file
     environment:
-      # Override specific vars for Docker networking
-      - REDIS_URL=redis://redis:6379/0
-      - HA_URL=http://host.docker.internal:8123
+      # All containers use host networking - can use localhost
+      - REDIS_URL=redis://localhost:6379/0
+      - HA_URL=http://localhost:8123
     depends_on:
       - homeassistant
       - redis
@@ -64,6 +63,7 @@ services:
     volumes:
       - ./data/redis:/data
     restart: unless-stopped
+    network_mode: host
     command: redis-server --save 60 1 --loglevel warning
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -87,11 +87,12 @@ services:
       - glitchcube_context:/app/data/context_documents
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
+    network_mode: host
     env_file: .env  # Pull all vars from .env file
     environment:
-      # Override specific vars for Docker networking
-      - REDIS_URL=redis://redis:6379/0
-      - HA_URL=http://host.docker.internal:8123
+      # All containers use host networking - can use localhost
+      - REDIS_URL=redis://localhost:6379/0
+      - HA_URL=http://localhost:8123
     depends_on:
       - redis
       - homeassistant
@@ -106,9 +107,7 @@ services:
     container_name: glitchcube_portainer
     image: portainer/portainer-ce:latest
     restart: unless-stopped
-    ports:
-      - "9000:9000"
-      - "9443:9443"  # HTTPS port
+    network_mode: host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data

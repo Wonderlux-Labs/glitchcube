@@ -19,7 +19,8 @@ _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("enable", default=True): bool,
+        vol.Required("host", default="localhost"): str,
+        vol.Required("port", default=4567): int,
     }
 )
 
@@ -27,8 +28,10 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
     
-    # Hardcoded connection for Docker setup
-    url = "http://localhost:4567/health"
+    # Use user-provided host and port for validation (all containers use host networking)
+    host = data.get("host", "localhost")
+    port = data.get("port", 4567)
+    url = f"http://{host}:{port}/health"
     timeout = aiohttp.ClientTimeout(total=10)
     
     try:
@@ -37,7 +40,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
                 if response.status == 200:
                     health_data = await response.json()
                     return {
-                        "title": "Glitch Cube (localhost)",
+                        "title": f"Glitch Cube ({host}:{port})",
                         "version": health_data.get("version", "unknown")
                     }
                 else:
@@ -65,7 +68,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 # Set unique ID to prevent duplicate configurations
-                unique_id = "glitchcube_localhost"
+                unique_id = f"{user_input['host']}:{user_input['port']}"
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
                 
