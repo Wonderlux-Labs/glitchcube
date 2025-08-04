@@ -1,29 +1,31 @@
+# syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for Helicone AI Gateway with ARM64 support
 # Based on: https://github.com/Helicone/ai-gateway
 
 FROM rust:1.70 as builder
 
-# Install ARM cross-compilation toolchain
+WORKDIR /usr/src/app
+
+# Install cross-compilation tools and native dependencies
 RUN apt-get update && apt-get install -y \
     gcc-aarch64-linux-gnu \
-    g++-aarch64-linux-gnu \
+    libc6-dev-arm64-cross \
+    pkg-config \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Add ARM target
 RUN rustup target add aarch64-unknown-linux-gnu
 
-WORKDIR /app
-
-# Clone Helicone AI Gateway source (correct repo)
-RUN git clone https://github.com/Helicone/ai-gateway.git . 
-
-# Set cross-compilation environment
+# Set cross-compilation environment variables
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 ENV CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
 ENV CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
-ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 
-# Build for ARM64 (main binary in ai-gateway directory)
-WORKDIR /app
+# Clone Helicone AI Gateway source
+RUN git clone https://github.com/Helicone/ai-gateway.git .
+
+# Build for ARM64 with optimizations
 RUN cargo build --release --target aarch64-unknown-linux-gnu
 
 # Runtime stage
@@ -36,7 +38,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy binary from builder
-COPY --from=builder /app/target/aarch64-unknown-linux-gnu/release/ai-gateway /usr/local/bin/
+COPY --from=builder /usr/src/app/target/aarch64-unknown-linux-gnu/release/ai-gateway /usr/local/bin/
 
 # Create non-root user
 RUN groupadd -r helicone && useradd -r -g helicone helicone
