@@ -11,7 +11,6 @@ module GlitchCube
         openai_api_key: ENV.fetch('OPENAI_API_KEY', nil),
         anthropic_api_key: ENV.fetch('ANTHROPIC_API_KEY', nil),
         helicone_api_key: ENV.fetch('HELICONE_API_KEY', nil),
-        ai_gateway_url: ENV.fetch('AI_GATEWAY_URL', nil),
         default_ai_model: ENV.fetch('DEFAULT_AI_MODEL', 'google/gemini-2.5-flash'),
         port: ENV.fetch('PORT', '4567').to_i,
         session_secret: ENV.fetch('SESSION_SECRET') { SecureRandom.hex(64) },

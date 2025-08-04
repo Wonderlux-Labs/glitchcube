@@ -1,6 +1,0 @@
-# Helicone AI Gateway Configuration for Glitch Cube
-# Simple configuration for OpenRouter observability
-
-# Enable observability features for monitoring
-helicone:
-  features: observability
