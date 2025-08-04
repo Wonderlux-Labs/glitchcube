@@ -23,9 +23,8 @@ RUN bundle config set --local deployment 'true' && \
     bundle config set --local without 'development test' && \
     bundle install --jobs 4
 
-# Create non-root user with specific UID for consistency
-# Using UID 1000 which is standard for first user on Linux/RPi
-RUN useradd -m -u 1000 -s /bin/bash glitchcube
+# Create non-root user (Debian syntax)
+RUN adduser --disabled-password --gecos '' glitchcube
 
 # Copy application code
 COPY . .
