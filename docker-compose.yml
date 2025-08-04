@@ -219,56 +219,6 @@ services:
           cpus: '0.25'
           memory: 256M
 
-  # Log viewer for monitoring all container logs
-  dozzle:
-    container_name: glitchcube_logviewer
-    image: amir20/dozzle:latest
-    restart: unless-stopped
-    ports:
-      - "8888:8080"  # Web UI on port 8888
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      - DOZZLE_LEVEL=info
-      - DOZZLE_TAILSIZE=300
-      - DOZZLE_FILTER="name=glitchcube_*"  # Only show Glitch Cube containers
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/logs"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 128M
-
-  # File Editor (exact equivalent of HA File Editor addon)
-  file-editor:
-    container_name: glitchcube_file_editor
-    image: causticlab/hass-configurator-docker:latest
-    restart: unless-stopped
-    ports:
-      - "3218:3218"  # File editor on port 3218
-    volumes:
-      - homeassistant_config:/config  # HA config directory
-      - .:/app  # Project directory for editing glitchcube files
-      - ./data/configurator:/configurator_config  # Configurator settings
-    environment:
-      - HC_BASEPATH=/config
-      - HC_ENFORCE_BASEPATH=true
-      - HC_USERNAME=${MASTER_PASSWORD:-admin}
-      - HC_PASSWORD=${MASTER_PASSWORD:-glitchcube}
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3218/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 256M
 
 volumes:
   homeassistant_config:
@@ -280,6 +230,4 @@ volumes:
   redis_data:
     driver: local
   portainer_data:
-    driver: local
-  code_server_data:
     driver: local
