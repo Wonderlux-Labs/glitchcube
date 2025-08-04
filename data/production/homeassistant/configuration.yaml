@@ -1,5 +1,6 @@
 # Glitch Cube Home Assistant Configuration
 # Main configuration file for the art installation
+template: !include templates.yml
 
 # Basic configuration
 homeassistant:
