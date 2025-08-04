@@ -22,11 +22,9 @@ ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 ENV CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
 ENV CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
 
-# Clone Helicone AI Gateway source
-RUN git clone https://github.com/Helicone/ai-gateway.git .
-
-# Build for ARM64 with optimizations
-RUN cargo build --release --target aarch64-unknown-linux-gnu
+# Clone Helicone AI Gateway source and build
+RUN git clone https://github.com/Helicone/ai-gateway.git . && \
+    cargo build --release --target aarch64-unknown-linux-gnu
 
 # Runtime stage
 FROM debian:bullseye-slim
