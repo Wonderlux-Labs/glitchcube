@@ -24,9 +24,7 @@ RSpec.describe HomeAssistantClient do
 
   describe 'with mock disabled' do
     before do
-      allow(GlitchCube.config.home_assistant).to receive(:mock_enabled).and_return(false)
-      allow(GlitchCube.config.home_assistant).to receive(:url).and_return('http://real-ha:8123')
-      allow(GlitchCube.config.home_assistant).to receive(:token).and_return('real-token')
+      allow(GlitchCube.config.home_assistant).to receive_messages(mock_enabled: false, url: 'http://real-ha:8123', token: 'real-token')
     end
 
     it 'uses real HA URL' do

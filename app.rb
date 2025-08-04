@@ -3,13 +3,21 @@
 require 'sinatra'
 require 'sinatra/json'
 require 'sinatra/reloader' if development?
-require 'dotenv/load' if development? || test?
+
+# Load environment variables
+if development? || test?
+  require 'dotenv'
+  # Load defaults first, then override with .env
+  Dotenv.load('.env.defaults', '.env')
+end
+
 require 'desiru'
 require 'json'
 require 'sidekiq'
 require 'redis'
 
-# No patches needed - using forked Desiru gem with fixes
+# Load patches for gem compatibility issues
+require_relative 'lib/patches/desiru_openrouter_errors'
 
 # Load application constants and config first
 require_relative 'config/constants'

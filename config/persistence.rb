@@ -14,7 +14,7 @@ module GlitchCube
         # This can be changed to PostgreSQL later if needed:
         # postgres://username:password@localhost/glitchcube
 
-        database_url = if GlitchCube.config.database_url
+        database_url = if GlitchCube.config.database_url && !GlitchCube.config.database_url.empty?
                          # Production: Use PostgreSQL if DATABASE_URL is set
                          GlitchCube.config.database_url
                        elsif GlitchCube.config.test?

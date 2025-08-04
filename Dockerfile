@@ -2,11 +2,15 @@
 FROM ruby:3.3-alpine
 
 # Install dependencies for building native extensions
+# sqlite-dev, pkgconfig, linux-headers needed for SQLite3 gem compilation
 RUN apk add --no-cache \
     build-base \
     git \
     tzdata \
-    curl
+    curl \
+    sqlite-dev \
+    pkgconfig \
+    linux-headers
 
 # Create app directory
 WORKDIR /app

@@ -13,7 +13,6 @@ RSpec.describe TestTool do
     end
   end
 
-
   describe '.call' do
     context 'when requesting battery info' do
       it 'returns battery status' do
