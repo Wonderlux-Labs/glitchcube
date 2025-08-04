@@ -2,7 +2,6 @@
 FROM ruby:3.3-slim
 
 # Install dependencies for building native extensions
-# Simple apt install approach for Raspberry Pi compatibility
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
@@ -23,24 +22,15 @@ RUN bundle config set --local deployment 'true' && \
     bundle config set --local without 'development test' && \
     bundle install --jobs 4
 
-# Create non-root user (Debian syntax)
-RUN adduser --disabled-password --gecos '' glitchcube
-
 # Copy application code
 COPY . .
 
-# Remove any data/logs that might exist (as files, directories, or symlinks) from COPY
-RUN rm -rf /app/data /app/logs || true
+# Create directories
+RUN mkdir -p /app/data/context_documents /app/data/memories /app/logs
 
-# Create data and logs directories with correct ownership from the start
-RUN mkdir -p /app/data/context_documents /app/data/memories /app/logs && \
-    chown -R glitchcube:glitchcube /app/data /app/logs && \
-    chmod -R 755 /app/logs
-
-# Only change ownership of essential app files (avoid vendor/ and other large dirs)
-RUN chown glitchcube:glitchcube /app/app.rb /app/config.ru /app/Gemfile* && \
-    test -d /app/lib && chown -R glitchcube:glitchcube /app/lib || true && \
-    test -d /app/config && chown -R glitchcube:glitchcube /app/config || true
+# Create non-root user and set ownership
+RUN adduser --disabled-password --gecos '' glitchcube && \
+    chown -R glitchcube:glitchcube /app
 
 # Switch to non-root user
 USER glitchcube
