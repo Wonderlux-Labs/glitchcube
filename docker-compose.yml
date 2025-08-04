@@ -80,7 +80,7 @@ services:
     container_name: glitchcube_sidekiq
     build: .
     image: glitchcube:latest
-    command: bundle exec sidekiq
+    command: bundle exec sidekiq -r ./app.rb
     volumes:
       - glitchcube_data:/app/data
       - glitchcube_context:/app/data/context_documents
