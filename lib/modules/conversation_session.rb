@@ -16,7 +16,7 @@ class ConversationSession
 
   # Add message to conversation history
   def add_message(message, response, mood, suggested_mood)
-    messages = get_messages
+    current_messages = messages
 
     message_data = {
       message: message,
@@ -27,61 +27,61 @@ class ConversationSession
       from_user: true
     }
 
-    messages << message_data
+    current_messages << message_data
 
     # Keep only the last N messages (configurable)
     max_messages = GlitchCube.config.conversation.max_session_messages
-    messages = messages.last(max_messages) if messages.length > max_messages
+    current_messages = current_messages.last(max_messages) if current_messages.length > max_messages
 
-    set_data(:messages, messages)
+    set_data(:messages, current_messages)
   end
 
   # Get conversation history
-  def get_messages
+  def messages
     get_data(:messages) || []
   end
 
   # Get message count
   def message_count
-    get_messages.length
+    messages.length
   end
 
   # Set session context data
   def set_context(key, value)
-    context = get_context
-    context[key.to_s] = value
-    set_data(:context, context)
+    current_context = context
+    current_context[key.to_s] = value
+    set_data(:context, current_context)
   end
 
   # Get session context data
-  def get_context
+  def context
     get_data(:context) || {}
   end
 
   # Get specific context value
   def get_context_value(key)
-    get_context[key.to_s]
+    context[key.to_s]
   end
 
   # Set current mood
-  def set_mood(mood)
+  def mood=(mood)
     set_data(:current_mood, mood)
   end
 
   # Get current mood
-  def get_mood
+  def mood
     get_data(:current_mood) || 'neutral'
   end
 
   # Update interaction count
   def increment_interaction_count
-    count = get_interaction_count + 1
+    count = interaction_count + 1
     set_data(:interaction_count, count)
     count
   end
 
   # Get interaction count
-  def get_interaction_count
+  def interaction_count
     get_data(:interaction_count) || 0
   end
 
@@ -101,13 +101,13 @@ class ConversationSession
   end
 
   # Get session summary for persistence
-  def get_summary
+  def summary
     {
       session_id: @session_id,
       message_count: message_count,
-      interaction_count: get_interaction_count,
-      current_mood: get_mood,
-      context: get_context,
+      interaction_count: interaction_count,
+      current_mood: mood,
+      context: context,
       created_at: get_data(:created_at) || Time.now.iso8601,
       updated_at: Time.now.iso8601
     }
