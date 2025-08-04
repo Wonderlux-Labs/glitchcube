@@ -29,9 +29,9 @@ COPY . .
 # Create non-root user first
 RUN adduser -D -s /bin/sh glitchcube
 
-# Create data directories with correct ownership from the start
-RUN mkdir -p /app/data/context_documents /app/data/memories && \
-    chown -R glitchcube:glitchcube /app/data
+# Create data and logs directories with correct ownership from the start
+RUN mkdir -p /app/data/context_documents /app/data/memories /app/logs && \
+    chown -R glitchcube:glitchcube /app/data /app/logs
 
 # Only change ownership of essential app files (avoid vendor/ and other large dirs)
 RUN chown glitchcube:glitchcube /app/app.rb /app/config.ru /app/Gemfile* && \

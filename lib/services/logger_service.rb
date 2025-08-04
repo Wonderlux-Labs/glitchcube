@@ -11,10 +11,16 @@ module Services
         ensure_log_directory
 
         @general_logger = create_logger('general.log', Logger::INFO)
-        @interaction_logger = create_file_logger('interactions.log')
-        @api_logger = create_file_logger('api_calls.log')
-        @tts_logger = create_file_logger('tts.log')
-        @requests_logger = create_file_logger('requests.log')
+        @interaction_logger = create_logger('interactions.log', Logger::INFO)
+        @api_logger = create_logger('api_calls.log', Logger::INFO)
+        @tts_logger = create_logger('tts.log', Logger::INFO)
+        @requests_logger = create_logger('requests.log', Logger::INFO)
+        @error_tracker = ErrorTracker.new
+      rescue StandardError => e
+        # Fallback to STDOUT if file logging fails
+        puts "Failed to setup file loggers: #{e.message}. Using STDOUT."
+        @general_logger = Logger.new($stdout)
+        @interaction_logger = @api_logger = @tts_logger = @requests_logger = @general_logger
         @error_tracker = ErrorTracker.new
       end
 
@@ -37,7 +43,7 @@ module Services
         }
 
         # Human-readable interaction log
-        @interaction_logger.puts format_interaction(interaction_data)
+        @interaction_logger.info(format_interaction(interaction_data))
         
         # Also log to general with JSON for structured parsing
         general.info("INTERACTION: #{interaction_data.to_json}")
@@ -64,7 +70,7 @@ module Services
                       else '🔄'
                       end
 
-        @api_logger.puts "#{Time.now.strftime('%H:%M:%S')} #{status_emoji} #{service.upcase} #{method} #{endpoint} #{status} (#{duration}ms)#{error ? " - #{error}" : ''}"
+        @api_logger.info("#{status_emoji} #{service.upcase} #{method} #{endpoint} #{status} (#{duration}ms)#{error ? " - #{error}" : ''}")
         
         # Also log to general
         general.info("API_CALL: #{api_data.to_json}")
@@ -100,7 +106,7 @@ module Services
         params_str = params.empty? ? '' : " #{params.to_json}"
         error_str = error ? " - ERROR: #{error}" : ''
         
-        @requests_logger.puts "#{Time.now.strftime('%H:%M:%S')} #{status_emoji} #{method} #{path} #{status} (#{duration}ms)#{params_str}#{error_str}"
+        @requests_logger.info("#{status_emoji} #{method} #{path} #{status} (#{duration}ms)#{params_str}#{error_str}")
         
         # Also log to general with JSON
         general.info("REQUEST: #{request_data.to_json}")
@@ -122,7 +128,7 @@ module Services
 
         # Human-readable TTS log
         status_emoji = success ? '🔊' : '🔇'
-        @tts_logger.puts "#{Time.now.strftime('%H:%M:%S')} #{status_emoji} \"#{tts_data[:message]}\"#{error ? " - #{error}" : ''}"
+        @tts_logger.info("#{status_emoji} \"#{tts_data[:message]}\"#{error ? " - #{error}" : ''}")
         
         # Also log to general
         general.info("TTS: #{tts_data.to_json}")
@@ -169,23 +175,31 @@ module Services
       end
 
       def log_directory
-        File.join(Dir.pwd, 'logs')
+        # Use APP_ROOT if set (for containers), otherwise use current directory
+        root_dir = ENV['APP_ROOT'] || Dir.pwd
+        File.join(root_dir, 'logs')
       end
 
       def create_logger(filename, level = Logger::INFO)
         logger = Logger.new(File.join(log_directory, filename), 'daily')
         logger.level = level
-        logger.formatter = proc do |severity, datetime, progname, msg|
-          "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}] #{severity}: #{msg}\n"
+        
+        # Use simple formatter for specialized logs (interactions, api, etc.)
+        # Use detailed formatter for general log
+        if filename == 'general.log'
+          logger.formatter = proc do |severity, datetime, progname, msg|
+            "[#{datetime.strftime('%Y-%m-%d %H:%M:%S')}] #{severity}: #{msg}\n"
+          end
+        else
+          # Simpler format for specialized logs - message only
+          logger.formatter = proc do |severity, datetime, progname, msg|
+            "#{msg}\n"
+          end
         end
+        
         logger
       end
 
-      def create_file_logger(filename)
-        File.open(File.join(log_directory, filename), 'a').tap do |file|
-          file.sync = true  # Auto-flush for real-time viewing
-        end
-      end
 
       def format_interaction(data)
         <<~INTERACTION
