@@ -88,8 +88,13 @@ diagnostics:
 
 # Include separate configuration files
 automation: !include automations.yaml
-sensor: !include sensors.yaml
 script: !include scripts.yaml
+
+# Include all input helpers (input_datetime, input_text, input_number, input_boolean)
+<<: !include helpers.yaml
+
+# Include all sensors (REST sensors and template sensors)
+sensor: !include sensors.yaml
 
 # Enable webhook integration (for external API calls)
 webhook:
