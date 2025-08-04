@@ -2,7 +2,7 @@
 # Multi-stage Dockerfile for Helicone AI Gateway with ARM64 support
 # Based on: https://github.com/Helicone/ai-gateway
 
-FROM rust:1.70 as builder
+FROM rust:1.82 as builder
 
 WORKDIR /usr/src/app
 
