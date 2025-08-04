@@ -13,14 +13,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN
+from .const import DOMAIN, DEFAULT_HOST, DEFAULT_PORT, DEFAULT_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("host", default="localhost"): str,
-        vol.Required("port", default=4567): int,
+        vol.Required("host", default=DEFAULT_HOST): str,
+        vol.Required("port", default=DEFAULT_PORT): int,
     }
 )
 
@@ -29,10 +29,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     """Validate the user input allows us to connect."""
     
     # Use user-provided host and port for validation (all containers use host networking)
-    host = data.get("host", "localhost")
-    port = data.get("port", 4567)
+    host = data.get("host", DEFAULT_HOST)
+    port = data.get("port", DEFAULT_PORT)
     url = f"http://{host}:{port}/health"
-    timeout = aiohttp.ClientTimeout(total=10)
+    timeout = aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT)
     
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:

@@ -15,6 +15,9 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    DEFAULT_TIMEOUT,
     RESPONSE_KEY,
     ACTIONS_KEY,
     CONTINUE_KEY,
@@ -43,15 +46,15 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         """Initialize the conversation entity."""
         self._config_entry = config_entry
         # Get connection details from config (all containers use host networking)
-        host = config_entry.data.get("host", "localhost")
-        port = config_entry.data.get("port", 4567)
+        host = config_entry.data.get("host", DEFAULT_HOST)
+        port = config_entry.data.get("port", DEFAULT_PORT)
         
         self._attr_name = f"Glitch Cube ({host}:{port})"
         self._attr_unique_id = f"{DOMAIN}_{config_entry.entry_id}"
         
         # Build API URL from config
         self._api_url = f"http://{host}:{port}/api/v1/conversation"
-        self._timeout = 10  # Optimized for voice interactions
+        self._timeout = DEFAULT_TIMEOUT  # Optimized for voice interactions
         
         _LOGGER.info("Initialized Glitch Cube conversation agent: %s", self._api_url)
 

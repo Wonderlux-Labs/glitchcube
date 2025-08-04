@@ -99,6 +99,13 @@ rest_command:
 # Scene configuration for different installation modes
 scene: !include scenes.yaml
 
+# Logger configuration to suppress Python deprecation/import warnings
+logger:
+  default: warning
+  logs:
+    # Suppress all Python warnings (deprecation, import, version mismatches, etc.)
+    py.warnings: error
+
 # Note: panel_iframe has been deprecated in newer HA versions
 # Use the Home Assistant Community Store (HACS) integrations for file editing
 # or access services directly via their URLs:
