@@ -11,12 +11,12 @@ module GlitchCube
     class << self
       def configure!
         # Check database safety before attempting migration
-        unless GlitchCube.config.safe_to_migrate?
-          puts "⚠️  Database migration blocked for safety - check existing data"
-          puts "   Using SQLite fallback for this session"
-          database_url = GlitchCube.config.test? ? 'sqlite::memory:' : 'sqlite://data/glitchcube.db'
-        else
+        if GlitchCube.config.safe_to_migrate?
           database_url = determine_database_url
+        else
+          puts '⚠️  Database migration blocked for safety - check existing data'
+          puts '   Using SQLite fallback for this session'
+          database_url = GlitchCube.config.test? ? 'sqlite::memory:' : 'sqlite://data/glitchcube.db'
         end
 
         # Configure Desiru persistence
@@ -134,8 +134,6 @@ module GlitchCube
         puts "Failed to get conversation summaries: #{e.message}"
         []
       end
-
-      private
 
       def persistence_enabled?
         defined?(Desiru::Persistence::Database) && Desiru::Persistence::Database.connected?

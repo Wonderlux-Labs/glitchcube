@@ -19,10 +19,10 @@ RSpec.describe Services::Kiosk::StatusFormatter do
       result = described_class.format(status_data)
 
       expect(result[:persona]).to eq({
-        current_mood: 'playful',
-        display_name: 'Playful Spirit',
-        description: 'Bubbling with creative energy and ready for artistic play!'
-      })
+                                       current_mood: 'playful',
+                                       display_name: 'Playful Spirit',
+                                       description: 'Bubbling with creative energy and ready for artistic play!'
+                                     })
       expect(result[:inner_thoughts]).to eq(status_data[:inner_thoughts])
       expect(result[:environment]).to eq(status_data[:environment])
       expect(result[:interactions]).to eq(status_data[:interactions])
@@ -45,10 +45,10 @@ RSpec.describe Services::Kiosk::StatusFormatter do
       result = described_class.format(mood: 'unknown')
 
       expect(result[:persona]).to eq({
-        current_mood: 'unknown',
-        display_name: 'Unknown State',
-        description: 'Processing current state...'
-      })
+                                       current_mood: 'unknown',
+                                       display_name: 'Unknown State',
+                                       description: 'Processing current state...'
+                                     })
     end
   end
 
@@ -57,17 +57,17 @@ RSpec.describe Services::Kiosk::StatusFormatter do
       result = described_class.format_offline
 
       expect(result[:persona]).to eq({
-        current_mood: 'offline',
-        display_name: 'System Offline',
-        description: 'Currently processing in offline mode'
-      })
+                                       current_mood: 'offline',
+                                       display_name: 'System Offline',
+                                       description: 'Currently processing in offline mode'
+                                     })
       expect(result[:inner_thoughts]).to include('My systems are experiencing some turbulence...')
       expect(result[:environment]).to eq(status: 'unavailable')
       expect(result[:interactions]).to eq(status: 'unavailable')
       expect(result[:system_status]).to eq({
-        status: 'degraded',
-        error: 'System temporarily offline'
-      })
+                                             status: 'degraded',
+                                             error: 'System temporarily offline'
+                                           })
     end
 
     it 'includes custom error message when provided' do

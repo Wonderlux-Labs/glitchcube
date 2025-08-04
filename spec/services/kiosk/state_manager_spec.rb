@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'services/kiosk/state_manager'
 
 RSpec.describe Services::Kiosk::StateManager do
-  before(:each) do
+  before do
     described_class.reset!
   end
 
@@ -37,7 +37,7 @@ RSpec.describe Services::Kiosk::StateManager do
 
       it 'stores the interaction with timestamp' do
         described_class.update_interaction(interaction_data)
-        
+
         last = described_class.last_interaction
         expect(last[:message]).to eq('Hello!')
         expect(last[:response]).to eq('Greetings, creative soul!')
@@ -58,7 +58,7 @@ RSpec.describe Services::Kiosk::StateManager do
 
       it 'maintains only the last 5 thoughts' do
         6.times { |i| described_class.add_inner_thought("Thought #{i}") }
-        
+
         expect(described_class.inner_thoughts.size).to eq(5)
         expect(described_class.inner_thoughts).not_to include('Thought 0')
         expect(described_class.inner_thoughts).to include('Thought 5')

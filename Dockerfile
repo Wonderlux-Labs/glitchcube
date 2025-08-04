@@ -26,11 +26,8 @@ RUN bundle config set --local deployment 'true' && \
 # Create non-root user first (Debian syntax)
 RUN adduser --disabled-password --gecos '' glitchcube
 
-# Copy application code (excluding data directories via .dockerignore)
+# Copy application code
 COPY . .
-
-# Remove any data directories that might have been copied despite .dockerignore
-RUN rm -rf /app/data/production /app/data/development /app/logs || true
 
 # Create data and logs directories with correct ownership from the start
 RUN mkdir -p /app/data/context_documents /app/data/memories /app/logs && \

@@ -163,21 +163,19 @@ namespace :deploy do
     sh 'docker-compose up -d glitchcube sidekiq'
     puts '✅ Rollback complete!'
   end
-  
+
   desc 'Manual pull from GitHub (run on Raspberry Pi)'
   task :pull do
     puts '📥 Manually pulling and deploying from GitHub...'
     sh './scripts/pull-from-github.sh'
   end
-  
+
   desc 'Check for updates (run on Raspberry Pi)'
   task :check do
     puts '🔍 Checking for updates from GitHub...'
     sh './scripts/check-for-updates.sh' do |ok, res|
       # Don't fail if exit code is 1 (no updates)
-      if !ok && res.exitstatus == 1
-        puts 'No updates available.'
-      end
+      puts 'No updates available.' if !ok && res.exitstatus == 1
     end
   end
 end

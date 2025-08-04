@@ -9,7 +9,7 @@ class ConversationSession
 
   def initialize(session_id = nil)
     @session_id = session_id || SecureRandom.uuid
-    
+
     # Initialize session storage if not already configured
     Helpers::SessionStorage.configure! unless storage_configured?
   end
@@ -17,7 +17,7 @@ class ConversationSession
   # Add message to conversation history
   def add_message(message, response, mood, suggested_mood)
     messages = get_messages
-    
+
     message_data = {
       message: message,
       response: response,
@@ -26,13 +26,13 @@ class ConversationSession
       timestamp: Time.now.iso8601,
       from_user: true
     }
-    
+
     messages << message_data
-    
+
     # Keep only the last N messages (configurable)
     max_messages = GlitchCube.config.conversation.max_session_messages
     messages = messages.last(max_messages) if messages.length > max_messages
-    
+
     set_data(:messages, messages)
   end
 
@@ -140,13 +140,14 @@ class ConversationSession
   def idle?(timeout_minutes = 30)
     last = last_activity
     return true unless last
-    
+
     Time.now - last > (timeout_minutes * 60)
   end
 
   private
 
-  def set_data(key, value, ttl: 7200) # 2 hours default TTL
+  # 2 hours default TTL
+  def set_data(key, value, ttl: 7200)
     touch! unless key == :last_activity
     Helpers::SessionStorage.set(@session_id, key, value, ttl: ttl)
   end
@@ -171,7 +172,7 @@ class ConversationSession
     # Find existing session or create new one
     def find_or_create(session_id)
       session = new(session_id)
-      
+
       if session.exists?
         session
       else
@@ -181,7 +182,7 @@ class ConversationSession
 
     # Cleanup expired sessions
     def cleanup_expired!
-      puts "🧹 Cleaning up expired conversation sessions..."
+      puts '🧹 Cleaning up expired conversation sessions...'
       Helpers::SessionStorage.cleanup_expired!
     end
 

@@ -62,7 +62,6 @@ module Services
 
     private
 
-
     def generate_inner_thoughts
       base_thoughts = self.class.inner_thoughts
 
@@ -133,7 +132,6 @@ module Services
         version: GlitchCube.config&.app&.version || 'v1.0.0'
       }
     end
-
 
     def get_uptime
       # Simple uptime calculation - in production might track from app start

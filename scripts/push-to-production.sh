@@ -44,7 +44,8 @@ echo "🚀 Deploying to glitchcube.local..."
 echo "📸 Creating deployment snapshot..."
 ssh "$REMOTE_HOST" "cd $REMOTE_PATH && \
     mkdir -p deploy-snapshots && \
-    cp docker-compose.yml deploy-snapshots/docker-compose-\$(date +%Y%m%d-%H%M%S).yml"
+    cp docker-compose.yml deploy-snapshots/docker-compose-\$(date +%Y%m%d-%H%M%S).yml && \
+    ls -t deploy-snapshots/docker-compose-*.yml 2>/dev/null | tail -n +2 | xargs rm -f 2>/dev/null || true"
 
 ssh "$REMOTE_HOST" "cd $REMOTE_PATH && git pull && \
     if [ -d 'config/homeassistant' ]; then \

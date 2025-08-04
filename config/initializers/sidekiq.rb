@@ -11,8 +11,7 @@ Sidekiq.configure_server do |config|
   config.concurrency = 1 # Single worker thread
   config.queues = ['default'] # Single queue
 
-  # Configure Sidekiq-cron
-  config.cron_poll_interval = 10 # Check every 10 seconds
+  # Sidekiq-cron configuration is done via Sidekiq::Cron directly
 
   # Load cron jobs after Sidekiq starts
   config.on(:startup) do

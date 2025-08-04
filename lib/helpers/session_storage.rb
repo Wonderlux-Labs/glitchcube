@@ -2,7 +2,6 @@
 
 require 'redis'
 require 'json'
-require 'thread'
 
 module Helpers
   # Flexible session storage helper that can use Redis or fall back to thread-safe memory storage
@@ -14,7 +13,7 @@ module Helpers
         @storage_backend = determine_backend
         @memory_storage = {} if @storage_backend == :memory
         @memory_mutex = Mutex.new if @storage_backend == :memory
-        
+
         puts "📦 SessionStorage configured with #{@storage_backend} backend"
       end
 
@@ -89,7 +88,7 @@ module Helpers
       # Cleanup expired sessions (mainly for memory backend)
       def cleanup_expired!
         return unless @storage_backend == :memory
-        
+
         @memory_mutex.synchronize do
           current_time = Time.now.to_i
           @memory_storage.delete_if do |session_id, session_data|
@@ -119,7 +118,7 @@ module Helpers
         if redis_available?
           :redis
         else
-          puts "⚠️  Redis not available, falling back to thread-safe memory storage"
+          puts '⚠️  Redis not available, falling back to thread-safe memory storage'
           :memory
         end
       end
@@ -141,7 +140,7 @@ module Helpers
       def redis_set(session_id, key, value, ttl)
         session_key = "session:#{session_id}"
         field_key = key.to_s
-        
+
         redis_client.hset(session_key, field_key, serialize_value(value))
         redis_client.expire(session_key, ttl)
       end
@@ -149,7 +148,7 @@ module Helpers
       def redis_get(session_id, key)
         session_key = "session:#{session_id}"
         field_key = key.to_s
-        
+
         value = redis_client.hget(session_key, field_key)
         deserialize_value(value)
       end
@@ -157,14 +156,14 @@ module Helpers
       def redis_get_session(session_id)
         session_key = "session:#{session_id}"
         session_data = redis_client.hgetall(session_key)
-        
+
         session_data.transform_values { |v| deserialize_value(v) }
       end
 
       def redis_delete(session_id, key)
         session_key = "session:#{session_id}"
         field_key = key.to_s
-        
+
         redis_client.hdel(session_key, field_key)
       end
 
@@ -175,7 +174,7 @@ module Helpers
 
       def redis_exists?(session_id)
         session_key = "session:#{session_id}"
-        redis_client.exists?(session_key) > 0
+        redis_client.exists?(session_key).positive?
       end
 
       def redis_stats
@@ -202,7 +201,7 @@ module Helpers
           session_data = @memory_storage[session_id]
           return nil unless session_data
           return nil if session_expired?(session_data)
-          
+
           session_data[:data][key.to_s]
         end
       end
@@ -212,7 +211,7 @@ module Helpers
           session_data = @memory_storage[session_id]
           return {} unless session_data
           return {} if session_expired?(session_data)
-          
+
           session_data[:data] || {}
         end
       end
@@ -221,7 +220,7 @@ module Helpers
         @memory_mutex.synchronize do
           session_data = @memory_storage[session_id]
           return unless session_data
-          
+
           session_data[:data].delete(key.to_s)
         end
       end
@@ -236,7 +235,7 @@ module Helpers
         @memory_mutex.synchronize do
           session_data = @memory_storage[session_id]
           return false unless session_data
-          
+
           !session_expired?(session_data)
         end
       end
@@ -246,7 +245,7 @@ module Helpers
           active_sessions = @memory_storage.count do |_session_id, session_data|
             !session_expired?(session_data)
           end
-          
+
           {
             backend: 'memory',
             sessions: active_sessions,
@@ -269,7 +268,7 @@ module Helpers
 
       def deserialize_value(value)
         return nil if value.nil?
-        
+
         JSON.parse(value)
       rescue JSON::ParserError
         value

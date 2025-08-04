@@ -103,7 +103,7 @@ module GlitchCube
     def mariadb_url
       return mariadb.url if mariadb.url && !mariadb.url.empty?
       return nil unless mariadb_available?
-      
+
       "mysql2://#{mariadb.username}:#{mariadb.password}@#{mariadb.host}:#{mariadb.port}/#{mariadb.database}?encoding=utf8mb4"
     end
 
@@ -121,22 +121,20 @@ module GlitchCube
     # Database safety checks to prevent data loss
     def safe_to_migrate?
       return true if test? # Always safe in test with in-memory SQLite
-      
+
       # Check if we're switching database types
       current_db = database_url || mariadb_url
       return false unless current_db
-      
+
       # Don't migrate if we detect existing SQLite data in production
       if production? && File.exist?('data/production/glitchcube.db')
-        puts "⚠️  WARNING: Existing SQLite database detected in production!"
-        puts "   Please backup your data before switching to MariaDB"
+        puts '⚠️  WARNING: Existing SQLite database detected in production!'
+        puts '   Please backup your data before switching to MariaDB'
         return false
       end
-      
+
       true
     end
-
-    private
 
     def self.build_mariadb_url
       host = ENV.fetch('MARIADB_HOST', 'localhost')
@@ -144,9 +142,9 @@ module GlitchCube
       database = ENV.fetch('MARIADB_DATABASE', 'glitchcube')
       username = ENV.fetch('MARIADB_USERNAME', 'glitchcube')
       password = ENV.fetch('MARIADB_PASSWORD', 'glitchcube')
-      
+
       return nil if ENV.fetch('MARIADB_ENABLED', 'false') != 'true'
-      
+
       "mysql2://#{username}:#{password}@#{host}:#{port}/#{database}?encoding=utf8mb4"
     end
   end
