@@ -5,7 +5,7 @@
 set -e  # Exit on any error
 
 # Configuration
-REPO_URL="${GLITCHCUBE_REPO:-https://github.com/your-org/glitchcube.git}"
+REPO_URL="${GLITCHCUBE_REPO:-https://github.com/Wonderlux-Labs/glitchcube.git}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SERVICES=("homeassistant" "glitchcube" "sidekiq" "mosquitto" "esphome" "music-assistant" "glances")
 LOG_FILE="$APP_DIR/update.log"
