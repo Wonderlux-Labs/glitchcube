@@ -1,0 +1,24 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Glitch Cube Conversation Agent",
+        "description": "Configure connection to your Glitch Cube conversation backend.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "use_https": "Use HTTPS",
+          "api_path": "API Path",
+          "timeout": "Request Timeout (seconds)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Glitch Cube. Check host, port, and ensure the service is running.",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Service is already configured"
+    }
+  }
+}
