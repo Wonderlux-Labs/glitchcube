@@ -1,0 +1,272 @@
+# Glitch Cube Scripts
+# Reusable scripts for the art installation
+
+# Script to test all health sensors
+test_health_sensors:
+  alias: "Test All Health Sensors"
+  sequence:
+    - service: homeassistant.update_entity
+      target:
+        entity_id:
+          - sensor.glitch_cube_app_health
+          - sensor.internet_connectivity
+          - sensor.cube_cpu_thermal_0_temperature
+          - sensor.cube_uptime
+    - delay: "00:00:05"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Test"
+        message: >
+          Health Test Results - 
+          App: {{ states('sensor.glitch_cube_app_health') }}, 
+          Internet: {{ states('sensor.internet_connectivity') }}, 
+          Temp: {{ states('sensor.cube_cpu_thermal_0_temperature') }}°F,
+          Uptime: {{ states('sensor.cube_uptime') }},
+          Overall: {{ states('sensor.installation_health') }}
+
+# Script to simulate an interaction (for testing)
+simulate_interaction:
+  alias: "Simulate User Interaction"
+  sequence:
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.last_interaction
+      data:
+        datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Test"
+        message: "Simulated interaction at {{ now().strftime('%H:%M:%S') }}"
+
+# Script to change persona (for testing)
+change_persona:
+  alias: "Change AI Persona"
+  fields:
+    persona_name:
+      description: "Name of the persona to switch to"
+      example: "Mysterious Guide"
+  sequence:
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.current_persona
+      data:
+        value: "{{ persona_name }}"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube"
+        message: "Persona changed to {{ persona_name }}"
+
+# Script to speak a message with persona-appropriate voice
+speak_with_persona:
+  alias: "Speak with Current Persona"
+  fields:
+    message:
+      description: "Message to speak"
+      example: "Welcome to the Glitch Cube experience"
+    media_player:
+      description: "Media player to use"
+      example: "media_player.glitchcube_speaker"
+      default: "media_player.glitchcube_speaker"
+  sequence:
+    - service: tts.speak
+      data:
+        media_player_entity_id: "{{ media_player }}"
+        message: "{{ message }}"
+        language: "en"
+        options:
+          # Could add persona-specific voice selection here
+          voice: >
+            {% set persona = states('input_text.current_persona') %}
+            {% if persona == 'Mysterious Guide' %}
+              slow
+            {% elif persona == 'Energetic Artist' %}
+              fast
+            {% else %}
+              default
+            {% endif %}
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.last_interaction
+      data:
+        datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+
+# Script for emergency shutdown sequence
+emergency_shutdown:
+  alias: "Emergency Shutdown Sequence"
+  sequence:
+    - service: tts.speak
+      data:
+        media_player_entity_id: "media_player.glitchcube_speaker"
+        message: "Initiating emergency shutdown. Please stand clear."
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Emergency"
+        message: "⚠️ Emergency shutdown initiated"
+        domain: "glitchcube"
+    - delay: "00:00:10"
+    # Add actual shutdown commands as needed for your hardware
+
+# Script to generate health report for beacon service
+generate_health_report:
+  alias: "Generate Health Report"
+  sequence:
+    - service: homeassistant.update_entity
+      target:
+        entity_id:
+          - sensor.glitch_cube_app_health
+          - sensor.internet_connectivity
+          - sensor.cube_cpu_thermal_0_temperature
+          - sensor.cube_uptime
+          - sensor.installation_health
+    - delay: "00:00:02"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Health Report"
+        message: >
+          📊 Health Report {{ now().strftime('%Y-%m-%d %H:%M:%S') }} -
+          Overall: {{ states('sensor.installation_health') }},
+          App: {{ states('sensor.glitch_cube_app_health') }},
+          Internet: {{ states('sensor.internet_connectivity') }},
+          Temperature: {{ states('sensor.cube_cpu_thermal_0_temperature') }}°F,
+          Uptime: {{ states('sensor.cube_uptime') }},
+          Last Interaction: {{ states('sensor.last_interaction_time') }},
+          Current Persona: {{ states('sensor.current_persona') }},
+          Offline Mode: {{ states('input_boolean.offline_mode') }}
+        domain: "glitchcube"
+
+# Script to manually toggle offline mode (for testing or emergency)
+toggle_offline_mode:
+  alias: "Toggle Offline Mode"
+  sequence:
+    - service: input_boolean.toggle
+      target:
+        entity_id: input_boolean.offline_mode
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Manual"
+        message: >
+          🔄 Offline mode manually toggled to {{ states('input_boolean.offline_mode') }}
+        domain: "glitchcube"
+
+# Script to simulate motion detection
+simulate_motion:
+  alias: "Simulate Motion Detection"
+  sequence:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.motion_detected
+    - delay: "00:00:05"
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.motion_detected
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Test"
+        message: "🚶 Motion detection simulated (5 second pulse)"
+
+# Script to simulate human interaction sequence
+simulate_human_interaction:
+  alias: "Simulate Human Interaction Sequence"
+  sequence:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.motion_detected
+    - delay: "00:00:02"
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.human_detected
+    - delay: "00:00:03"
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.motion_detected
+    - delay: "00:00:10"
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.human_detected
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Test"
+        message: "👤 Human interaction sequence simulated"
+
+# Script to simulate cube movement
+simulate_cube_movement:
+  alias: "Simulate Cube Movement"
+  sequence:
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.cube_stable
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.cube_is_moving
+    - delay: "00:00:08"
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.cube_is_moving
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.cube_stopped_moving
+    - delay: "00:00:02"
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.cube_stopped_moving
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.cube_stable
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Test"
+        message: "🚚 Cube movement simulated (moving → stopped → stable)"
+
+# Script to test all sensors
+test_all_sensors:
+  alias: "Test All Sensors"
+  sequence:
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Test"
+        message: >
+          📊 Current Sensor Status:
+          Motion: {{ states('input_boolean.motion_detected') }},
+          Human: {{ states('input_boolean.human_detected') }},
+          Moving: {{ states('input_boolean.cube_is_moving') }},
+          Stable: {{ states('input_boolean.cube_stable') }},
+          Tilted: {{ states('input_boolean.cube_tilted') }},
+          Battery Low: {{ states('input_boolean.battery_low') }},
+          Resources Low: {{ states('input_boolean.resources_low') }},
+          Temp Critical: {{ states('input_boolean.temp_critical') }},
+          Sound Level: {{ states('input_number.avg_sound_db') }}dB,
+          Environment: {{ states('input_text.current_environment') }}
+
+# Script to reset all sensors to default state
+reset_all_sensors:
+  alias: "Reset All Sensors to Default"
+  sequence:
+    - service: input_boolean.turn_off
+      target:
+        entity_id:
+          - input_boolean.motion_detected
+          - input_boolean.human_detected
+          - input_boolean.cube_is_moving
+          - input_boolean.cube_stopped_moving
+          - input_boolean.cube_tilted
+          - input_boolean.battery_low
+          - input_boolean.resources_low
+          - input_boolean.temp_critical
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.cube_stable
+    - service: input_number.set_value
+      target:
+        entity_id: input_number.avg_sound_db
+      data:
+        value: 40.0
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.current_environment
+      data:
+        value: "Unknown location"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Test"
+        message: "🔄 All sensors reset to default state"
+        domain: "glitchcube"

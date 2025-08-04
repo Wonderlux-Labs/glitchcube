@@ -1,1 +1,343 @@
-[]
+# Glitch Cube Automations
+# These handle webhooks and automated responses for the art installation
+
+# Webhook Automation: Update Last Interaction Time
+- id: update_last_interaction
+  alias: "Update Last Interaction Time"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_interaction"
+      allowed_methods:
+        - POST
+      local_only: false  # Allow external access for art installation
+  action:
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.last_interaction
+      data:
+        datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube"
+        message: "Interaction recorded from {{ trigger.data.source | default('unknown') }}"
+
+# Webhook Automation: Update Current Persona
+- id: update_current_persona
+  alias: "Update Current Persona"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_persona"
+      allowed_methods:
+        - POST
+      local_only: false
+  condition:
+    - condition: template
+      value_template: "{{ trigger.data.persona is defined }}"
+  action:
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.current_persona
+      data:
+        value: "{{ trigger.data.persona }}"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube"
+        message: "Persona changed to {{ trigger.data.persona }}"
+
+# Webhook Automation: Text-to-Speech
+- id: glitchcube_tts
+  alias: "Glitch Cube Text-to-Speech"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_speak"
+      allowed_methods:
+        - POST
+      local_only: false
+  condition:
+    - condition: template
+      value_template: "{{ trigger.data.message is defined }}"
+  action:
+    - service: tts.speak
+      data:
+        media_player_entity_id: "{{ trigger.data.media_player | default('media_player.glitchcube_speaker') }}"
+        message: "{{ trigger.data.message }}"
+        language: "{{ trigger.data.language | default('en') }}"
+        options:
+          voice: "{{ trigger.data.voice | default('default') }}"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube"
+        message: "Spoke: {{ trigger.data.message[:50] }}{{ '...' if trigger.data.message|length > 50 else '' }}"
+
+# Health Monitoring: Alert on App Offline
+- id: app_health_alert
+  alias: "Alert on App Health Issues"
+  trigger:
+    - platform: state
+      entity_id: sensor.glitch_cube_app_health
+      to: "offline"
+      for:
+        minutes: 2  # Alert after 2 minutes offline
+  action:
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Alert"
+        message: "⚠️ Main application is offline!"
+        domain: "glitchcube"
+
+# Health Monitoring: Alert on High Temperature
+- id: temperature_alert
+  alias: "Alert on High Temperature"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.cube_cpu_thermal_0_temperature
+      above: 158  # Alert at 158°F (70°C equivalent for desert conditions)
+      for:
+        minutes: 5
+  action:
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Alert"
+        message: "🌡️ High temperature detected: {{ states('sensor.cube_cpu_thermal_0_temperature') }}°F"
+        domain: "glitchcube"
+
+# Health Monitoring: Alert on Internet Loss
+- id: internet_connectivity_alert
+  alias: "Alert on Internet Connectivity Loss"
+  trigger:
+    - platform: state
+      entity_id: sensor.internet_connectivity
+      to: "disconnected"
+      for:
+        minutes: 5  # Alert after 5 minutes without internet
+  action:
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Alert"
+        message: "🌐 Internet connectivity lost - Starlink may be down"
+        domain: "glitchcube"
+
+# Daily Health Summary (for beacon service)
+- id: daily_health_summary
+  alias: "Daily Health Summary"
+  trigger:
+    - platform: time
+      at: "23:59:00"  # End of day summary
+  action:
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Daily"
+        message: >
+          Daily Summary - 
+          Health: {{ states('sensor.installation_health') }}, 
+          Last Interaction: {{ states('sensor.last_interaction_time') }},
+          Persona: {{ states('sensor.current_persona') }}
+        domain: "glitchcube"
+
+# Offline Mode Management: Enable offline mode when internet is down
+- id: enable_offline_mode
+  alias: "Enable Offline Mode"
+  trigger:
+    - platform: state
+      entity_id: sensor.internet_connectivity
+      to: "disconnected"
+      for:
+        minutes: 2  # Wait 2 minutes before enabling offline mode
+  condition:
+    - condition: state
+      entity_id: input_boolean.offline_mode
+      state: "off"  # Only trigger if not already in offline mode
+  action:
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.offline_mode
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Offline"
+        message: "🔌 Offline mode ENABLED - Internet connectivity lost"
+        domain: "glitchcube"
+
+# Offline Mode Management: Disable offline mode when internet returns
+- id: disable_offline_mode
+  alias: "Disable Offline Mode"
+  trigger:
+    - platform: state
+      entity_id: sensor.internet_connectivity
+      to: "connected"
+      for:
+        minutes: 1  # Wait 1 minute to ensure stable connection
+  condition:
+    - condition: state
+      entity_id: input_boolean.offline_mode
+      state: "on"  # Only trigger if currently in offline mode
+  action:
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.offline_mode
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Online"
+        message: "🌐 Offline mode DISABLED - Internet connectivity restored"
+        domain: "glitchcube"
+
+# Webhook Automation: Update Environment Description
+- id: update_environment
+  alias: "Update Current Environment"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_environment"
+      allowed_methods:
+        - POST
+      local_only: false
+  condition:
+    - condition: template
+      value_template: "{{ trigger.data.environment is defined }}"
+  action:
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.current_environment
+      data:
+        value: "{{ trigger.data.environment }}"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube"
+        message: "🌍 Environment updated: {{ trigger.data.environment }}"
+
+# Webhook Automation: Update Weather Summary
+- id: update_weather
+  alias: "Update Weather Summary"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_weather"
+      allowed_methods:
+        - POST
+      local_only: false
+  condition:
+    - condition: template
+      value_template: "{{ trigger.data.weather is defined }}"
+  action:
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.current_weather
+      data:
+        value: "{{ trigger.data.weather }}"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube"
+        message: "🌤️ Weather summary updated: {{ trigger.data.weather }}"
+
+# Webhook Automation: Update Sound Level
+- id: update_sound_level
+  alias: "Update Average Sound Level"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_sound"
+      allowed_methods:
+        - POST
+      local_only: false
+  condition:
+    - condition: template
+      value_template: "{{ trigger.data.sound_db is defined }}"
+  action:
+    - service: input_number.set_value
+      target:
+        entity_id: input_number.avg_sound_db
+      data:
+        value: "{{ trigger.data.sound_db | float }}"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube"
+        message: "🔊 Sound level updated: {{ trigger.data.sound_db }}dB"
+
+# Webhook Automation: Update Binary Sensors
+- id: update_sensors
+  alias: "Update Binary Sensors"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_sensors"
+      allowed_methods:
+        - POST
+      local_only: false
+  action:
+    # Update motion detected
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.motion_detected is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.motion_detected else 'off' }}"
+          target:
+            entity_id: input_boolean.motion_detected
+    
+    # Update human detected
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.human_detected is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.human_detected else 'off' }}"
+          target:
+            entity_id: input_boolean.human_detected
+    
+    # Update cube movement states
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.cube_is_moving is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.cube_is_moving else 'off' }}"
+          target:
+            entity_id: input_boolean.cube_is_moving
+    
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.cube_stopped_moving is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.cube_stopped_moving else 'off' }}"
+          target:
+            entity_id: input_boolean.cube_stopped_moving
+    
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.cube_tilted is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.cube_tilted else 'off' }}"
+          target:
+            entity_id: input_boolean.cube_tilted
+    
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.cube_stable is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.cube_stable else 'off' }}"
+          target:
+            entity_id: input_boolean.cube_stable
+    
+    # Update system health sensors
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.battery_low is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.battery_low else 'off' }}"
+          target:
+            entity_id: input_boolean.battery_low
+    
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.resources_low is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.resources_low else 'off' }}"
+          target:
+            entity_id: input_boolean.resources_low
+    
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.temp_critical is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.temp_critical else 'off' }}"
+          target:
+            entity_id: input_boolean.temp_critical
+    
+    # Log the sensor update
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Sensors"
+        message: "📡 Sensors updated via webhook"
+        domain: "glitchcube"
