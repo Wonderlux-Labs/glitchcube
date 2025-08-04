@@ -26,62 +26,25 @@ class WeatherService
   
   private
   
-  # Fetch weather-related sensor data from Home Assistant
+  # Fetch weather data from the Playa Weather API sensor
   def fetch_weather_sensors
-    states = @ha_client.states
-    return {} if states.empty?
+    playa_weather_state = @ha_client.get_state('sensor.playa_weather_api')
+    return {} if playa_weather_state.nil?
     
-    extract_weather_data(states)
-  end
-  
-  # Extract weather-related information from HA states
-  def extract_weather_data(states)
-    weather_data = {
-      temperature: nil,
-      humidity: nil,
-      pressure: nil,
-      wind_speed: nil,
-      wind_direction: nil,
-      weather_condition: nil,
-      forecast: nil,
-      location: GlitchCube.config.device.location || "Unknown"
-    }
+    attributes = playa_weather_state['attributes'] || {}
+    weather_data_json = attributes['weather_data']
     
-    states.each do |state|
-      entity_id = state['entity_id']
-      state_value = state['state']
-      attributes = state['attributes'] || {}
-      
-      case entity_id
-      when /weather\./
-        # Weather entity (comprehensive weather data)
-        weather_data[:temperature] = attributes['temperature']
-        weather_data[:humidity] = attributes['humidity']
-        weather_data[:pressure] = attributes['pressure']
-        weather_data[:wind_speed] = attributes['wind_speed']
-        weather_data[:wind_direction] = attributes['wind_bearing']
-        weather_data[:weather_condition] = state_value
-        weather_data[:forecast] = attributes['forecast']&.first(3) # Next 3 periods
-      when /sensor.*temperature/
-        # Temperature sensors
-        if state_value != 'unknown' && state_value != 'unavailable'
-          weather_data[:temperature] ||= state_value.to_f
-        end
-      when /sensor.*humidity/
-        # Humidity sensors
-        if state_value != 'unknown' && state_value != 'unavailable'
-          weather_data[:humidity] ||= state_value.to_f
-        end
-      when /sensor.*pressure/
-        # Pressure sensors
-        if state_value != 'unknown' && state_value != 'unavailable'
-          weather_data[:pressure] ||= state_value.to_f
-        end
-      end
+    return {} if weather_data_json.nil? || weather_data_json.empty?
+    
+    begin
+      weather_data = JSON.parse(weather_data_json)
+      # Add location info
+      weather_data['location'] = GlitchCube.config.device.location || "Black Rock City"
+      weather_data
+    rescue JSON::ParserError => e
+      puts "Error parsing Playa Weather API data: #{e.message}"
+      {}
     end
-    
-    # Remove nil values
-    weather_data.compact
   end
   
   # Generate weather summary using Gemini Flash Lite
@@ -100,24 +63,13 @@ class WeatherService
   
   # Build the prompt for weather summarization
   def build_weather_prompt(weather_data)
-    data_summary = weather_data.map do |key, value|
-      case key
-      when :forecast
-        if value.is_a?(Array) && !value.empty?
-          forecast_items = value.map do |f|
-            "#{f['datetime']}: #{f['condition']} #{f['temperature']}°"
-          end.join(", ")
-          "forecast: #{forecast_items}"
-        end
-      else
-        "#{key}: #{value}"
-      end
-    end.compact.join(", ")
+    # Convert the full JSON to a string for the LLM to parse
+    weather_json_string = weather_data.to_json
     
     <<~PROMPT
-      Summarize this weather data in exactly one sentence under 200 characters for an art installation in the desert. Be conversational and mention key details people would care about:
+      Summarize this weather data in exactly one sentence under 200 characters for an art installation in the desert. Be conversational and mention key details people would care about (current temp, conditions, wind, what to expect). Include forecast info if relevant:
       
-      #{data_summary}
+      #{weather_json_string}
       
       Example style: "Currently 85°F and sunny with light winds. Expect cooler evening temps around 65°F with clear skies perfect for stargazing."
       

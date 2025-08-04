@@ -42,10 +42,10 @@ ssh "$REMOTE_HOST" "cd $REMOTE_PATH && git pull && \
         echo '📁 Updating Home Assistant configuration files...'; \
         if docker-compose ps | grep -q homeassistant; then \
             echo '🗑️  Removing old HA config files from container...'; \
-            docker exec glitchcube_homeassistant find /config \\( -name '*.yaml' -o -name '*.yml' \\) -not -path '/config/.storage/*' -delete 2>/dev/null || true; \
-            docker exec glitchcube_homeassistant rm -rf /config/automations /config/scripts /config/sensors /config/template /config/input_helpers 2>/dev/null || true; \
+            docker exec glitchcube_homeassistant rm -f /config/configuration.yaml /config/scenes.yaml 2>/dev/null; \
+            docker exec glitchcube_homeassistant rm -rf /config/automations /config/scripts /config/sensors /config/template /config/input_helpers 2>/dev/null; \
             echo '📋 Copying new HA config files to container...'; \
-            docker cp config/homeassistant/. glitchcube_homeassistant:/config/; \
+            docker cp config/homeassistant/. glitchcube_homeassistant:/config/ || { echo '❌ Failed to copy HA config files!'; exit 1; }; \
             echo '🔄 Restarting Home Assistant to load new config...'; \
             docker-compose restart homeassistant; \
         fi; \
@@ -53,15 +53,17 @@ ssh "$REMOTE_HOST" "cd $REMOTE_PATH && git pull && \
     if [ -d 'homeassistant_components' ]; then \
         echo '🏠 Installing Home Assistant custom components...'; \
         mkdir -p data/production/homeassistant/custom_components; \
-        sudo rm -rf data/production/homeassistant/custom_components/glitchcube_conversation 2>/dev/null || true; \
+        sudo rm -rf data/production/homeassistant/custom_components/glitchcube_conversation 2>/dev/null; \
         cp -r homeassistant_components/* data/production/homeassistant/custom_components/; \
         if docker-compose ps | grep -q homeassistant; then \
             echo '🔧 Installing custom components into running HA container...'; \
             for component in homeassistant_components/*/; do \
                 component_name=\$(basename \"\$component\"); \
                 echo \"   Installing: \$component_name\"; \
-                docker cp \"\$component\" glitchcube_homeassistant:/config/custom_components/; \
+                docker cp \"\$component\" glitchcube_homeassistant:/config/custom_components/ || { echo \"❌ Failed to copy component: \$component_name\"; exit 1; }; \
             done; \
+            echo '🔄 Restarting Home Assistant to load custom components...'; \
+            docker-compose restart homeassistant; \
         fi; \
     fi && \
     echo '✅ Deployment complete!'"

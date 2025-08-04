@@ -109,20 +109,20 @@ logger:
     homeassistant.loader: error
     
     # Verbose logging for key components
-    homeassistant.core: debug
-    homeassistant.components.webhook: debug
-    homeassistant.components.rest: debug
+    homeassistant.core: info
+    homeassistant.components.webhook: info
+    homeassistant.components.rest: info
     homeassistant.components.sensor: info
     homeassistant.components.automation: info
     homeassistant.components.script: info
     homeassistant.helpers.template: info
     
     # Integration and config flow logging
-    homeassistant.config_entries: debug
+    homeassistant.config_entries: info
     homeassistant.data_entry_flow: info
-    homeassistant.setup: debug
+    homeassistant.setup: info
     homeassistant.bootstrap: info
-    homeassistant.components.integration: debug
+    homeassistant.components.integration: info
     
     # Keep authentication warnings visible
     homeassistant.components.http.ban: warning
