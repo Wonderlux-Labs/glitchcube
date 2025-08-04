@@ -24,6 +24,8 @@ services:
       retries: 5
       start_period: 300s  # 5 minutes for initial startup
     env_file: .env
+    environment:
+      - RECORDER_DB_URL=mysql://homeassistant:${HA_MARIADB_PASSWORD:-homeassistant}@localhost:3306/homeassistant?charset=utf8mb4
     logging:
       driver: "json-file"
       options:
@@ -59,6 +61,7 @@ services:
     depends_on:
       - homeassistant
       - redis
+      - mariadb
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4567/health"]
       interval: 60s
@@ -123,6 +126,7 @@ services:
     depends_on:
       - homeassistant
       - redis
+      - mariadb
     logging:
       driver: "json-file"
       options:
