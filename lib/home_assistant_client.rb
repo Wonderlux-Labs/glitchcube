@@ -21,9 +21,12 @@ class HomeAssistantClient
       @base_url = base_url || GlitchCube.config.home_assistant.url || "http://localhost:#{GlitchCube.config.port}/mock_ha"
       @token = token || GlitchCube.config.home_assistant.token || 'mock-token-123'
     else
-      # Use real HA by default
-      @base_url = base_url || GlitchCube.config.home_assistant.url || 'http://localhost:8123'
+      # Use real HA - fail if not configured
+      @base_url = base_url || GlitchCube.config.home_assistant.url
       @token = token || GlitchCube.config.home_assistant.token
+      
+      raise Error, "Home Assistant URL not configured. Set HOME_ASSISTANT_URL or HA_URL environment variable." unless @base_url
+      raise Error, "Home Assistant token not configured. Set HOME_ASSISTANT_TOKEN environment variable." unless @token
     end
   end
 

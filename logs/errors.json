@@ -37,9 +37,9 @@
   "home_assistant:Connection failed: Failed to open TCP connection to localhost:8123 (Connection refused - connect(2) for \"localhost\" port 8123)": {
     "service": "home_assistant",
     "error": "Connection failed: Failed to open TCP connection to localhost:8123 (Connection refused - connect(2) for \"localhost\" port 8123)",
-    "count": 5,
+    "count": 22,
     "first_occurrence": "2025-08-04T01:39:30-07:00",
-    "last_occurrence": "2025-08-04T02:11:22-07:00"
+    "last_occurrence": "2025-08-04T04:08:14-07:00"
   },
   "tts:HA Error: Connection failed: Failed to open TCP connection to localhost:8123 (Connection refused - connect(2) for \"localhost\" port 8123)": {
     "service": "tts",
@@ -82,5 +82,19 @@
     "count": 1,
     "first_occurrence": "2025-08-04T02:11:33-07:00",
     "last_occurrence": "2025-08-04T02:11:33-07:00"
+  },
+  "home_assistant:Timeout: Connection timeout": {
+    "service": "home_assistant",
+    "error": "Timeout: Connection timeout",
+    "count": 2,
+    "first_occurrence": "2025-08-04T03:33:36-07:00",
+    "last_occurrence": "2025-08-04T03:35:02-07:00"
+  },
+  "openrouter:the server responded with status 400 for POST https://openrouter.ai/api/v1/chat/completions": {
+    "service": "openrouter",
+    "error": "the server responded with status 400 for POST https://openrouter.ai/api/v1/chat/completions",
+    "count": 5,
+    "first_occurrence": "2025-08-04T03:35:02-07:00",
+    "last_occurrence": "2025-08-04T03:50:51-07:00"
   }
 }

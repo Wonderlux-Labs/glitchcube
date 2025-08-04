@@ -29,6 +29,7 @@ gem 'tzinfo-data', platforms: %i[mingw mswin x64_mingw jruby]
 # Background Jobs
 gem 'redis', '~> 5.4'
 gem 'sidekiq', '~> 7.3'
+gem 'sidekiq-cron', '~> 1.12'
 
 # HTTP Client
 gem 'httparty', '~> 0.23'

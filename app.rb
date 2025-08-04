@@ -45,6 +45,8 @@ GlitchCube::Persistence.configure!
 
 Dir[File.join(__dir__, 'lib', 'modules', '*.rb')].each { |file| require file }
 Dir[File.join(__dir__, 'lib', 'tools', '*.rb')].each { |file| require file }
+Dir[File.join(__dir__, 'lib', 'jobs', '*.rb')].each { |file| require file }
+Dir[File.join(__dir__, 'lib', 'services', '*.rb')].each { |file| require file }
 
 class GlitchCubeApp < Sinatra::Base
   configure do

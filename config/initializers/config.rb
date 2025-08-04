@@ -17,7 +17,7 @@ module GlitchCube
 
         # Home Assistant Integration
         home_assistant: OpenStruct.new(
-          url: ENV['HOME_ASSISTANT_URL'] || ENV['HA_URL'] || 'http://localhost:8123',
+          url: ENV['HOME_ASSISTANT_URL'] || ENV['HA_URL'],
           token: ENV['HOME_ASSISTANT_TOKEN'] || ENV.fetch('HA_TOKEN', nil),
           mock_enabled: ENV['MOCK_HOME_ASSISTANT'] == 'true'
         ),

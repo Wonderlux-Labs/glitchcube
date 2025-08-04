@@ -42,7 +42,7 @@ module Services
         general.info("INTERACTION: #{interaction_data.to_json}")
       end
 
-      def log_api_call(service:, endpoint:, method: 'POST', status: nil, duration: nil, error: nil)
+      def log_api_call(service:, endpoint:, method: 'POST', status: nil, duration: nil, error: nil, **context)
         ensure_loggers
         
         api_data = {
@@ -53,7 +53,7 @@ module Services
           status: status,
           duration_ms: duration,
           error: error
-        }
+        }.merge(context)
 
         # Human-readable API log
         status_emoji = case status

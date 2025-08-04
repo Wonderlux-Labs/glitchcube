@@ -3,3 +3,9 @@ last_interaction:
   name: "Last Interaction Timestamp"
   has_date: true
   has_time: true
+
+last_repeating_jobs_run:
+  name: "Last Repeating Jobs Run"
+  has_date: true
+  has_time: true
+  icon: "mdi:clock-check"

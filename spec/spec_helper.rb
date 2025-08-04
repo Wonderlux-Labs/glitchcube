@@ -9,7 +9,9 @@ end
 ENV['RACK_ENV'] = 'test'
 ENV['MOCK_HOME_ASSISTANT'] = 'true'
 
-# Set test API keys
+# Set test API keys - load from .env if available, otherwise use test defaults
+require 'dotenv'
+Dotenv.load('.env')
 ENV['OPENROUTER_API_KEY'] ||= 'test-api-key'
 ENV['HOME_ASSISTANT_TOKEN'] ||= 'test-ha-token'
 

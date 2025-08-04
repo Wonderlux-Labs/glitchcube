@@ -1,20 +1,14 @@
 # Weather summarization service using Home Assistant data and Gemini Flash Lite
+require_relative 'openrouter_service'
+
 class WeatherService
-  include HTTParty
-  
-  # Home Assistant API configuration
-  base_uri GlitchCube.config.home_assistant.url
-  
   def initialize
-    @ha_token = GlitchCube.config.home_assistant.token
-    @openrouter_client = OpenRouter::Client.new(
-      access_token: GlitchCube.config.openrouter_api_key
-    )
+    @ha_client = HomeAssistantClient.new
   end
   
   # Main method to get and summarize weather
   def update_weather_summary
-    return "HA unavailable" if GlitchCube.config.mock_home_assistant?
+    return "HA unavailable" if GlitchCube.config.home_assistant.mock_enabled
     
     weather_data = fetch_weather_sensors
     return "No weather data" if weather_data.empty?
@@ -34,19 +28,10 @@ class WeatherService
   
   # Fetch weather-related sensor data from Home Assistant
   def fetch_weather_sensors
-    headers = {
-      'Authorization' => "Bearer #{@ha_token}",
-      'Content-Type' => 'application/json'
-    }
+    states = @ha_client.states
+    return {} if states.empty?
     
-    # Get all states from Home Assistant
-    response = self.class.get('/api/states', headers: headers, timeout: 10)
-    return {} unless response.success?
-    
-    states = response.parsed_response
-    weather_sensors = extract_weather_data(states)
-    
-    weather_sensors
+    extract_weather_data(states)
   end
   
   # Extract weather-related information from HA states
@@ -59,7 +44,7 @@ class WeatherService
       wind_direction: nil,
       weather_condition: nil,
       forecast: nil,
-      location: GlitchCube.config.installation_location || "Unknown"
+      location: GlitchCube.config.device.location || "Unknown"
     }
     
     states.each do |state|
@@ -103,14 +88,9 @@ class WeatherService
   def generate_weather_summary(weather_data)
     prompt = build_weather_prompt(weather_data)
     
-    response = @openrouter_client.complete(
+    response = OpenRouterService.complete(
+      prompt,
       model: 'google/gemini-2.0-flash-thinking-exp:free',
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
       max_tokens: 100,
       temperature: 0.3
     )
@@ -167,15 +147,9 @@ class WeatherService
     end
   end
   
-  # Update the Home Assistant weather sensor via webhook
+  # Update the Home Assistant weather sensor directly
   def update_home_assistant_sensor(summary)
-    webhook_url = "#{GlitchCube.config.home_assistant.url}/api/webhook/glitchcube_weather"
-    
-    HTTParty.post(webhook_url, {
-      body: { weather: summary }.to_json,
-      headers: { 'Content-Type' => 'application/json' },
-      timeout: 5
-    })
+    @ha_client.set_state('input_text.current_weather', summary)
   rescue => e
     # Log error but don't fail the whole operation
     puts "Failed to update HA weather sensor: #{e.message}"

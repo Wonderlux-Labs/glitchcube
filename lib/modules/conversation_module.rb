@@ -6,6 +6,7 @@ require_relative '../services/system_prompt_service'
 require_relative '../services/circuit_breaker_service'
 require_relative '../services/logger_service'
 require_relative '../home_assistant_client'
+require_relative 'conversation_responses'
 
 class ConversationModule
   def call(message:, context: {}, mood: 'neutral')
@@ -16,13 +17,21 @@ class ConversationModule
     prompt = "#{system_prompt}\n\nUser: #{message}\n\nGlitch Cube:"
 
     begin
-      # Wrap OpenRouter API call with circuit breaker
+      # Set completion timeout (seconds), configurable via ENV or GlitchCube config
+      completion_timeout = ENV['OPENROUTER_COMPLETION_TIMEOUT']&.to_i ||
+                           (GlitchCube.config.conversation.respond_to?(:completion_timeout) ? GlitchCube.config.conversation.completion_timeout : 20)
+
+      # Wrap OpenRouter API call with circuit breaker and timeout
       response_text = Services::CircuitBreakerService.openrouter_breaker.call do
-        model = Desiru.configuration.default_model
-        result = model.complete(prompt,
-                                temperature: GlitchCube.config.conversation.temperature,
-                                max_tokens: GlitchCube.config.conversation.max_tokens)
-        result[:content]
+        Timeout.timeout(completion_timeout) do
+          model = Desiru.configuration.default_model
+          result = model.complete(
+            prompt,
+            temperature: GlitchCube.config.conversation.temperature,
+            max_tokens: GlitchCube.config.conversation.max_tokens
+          )
+          result[:content]
+        end
       end
 
       response_text ||= generate_fallback_response(message, mood)
@@ -33,74 +42,18 @@ class ConversationModule
         confidence: 0.95
       }
 
-      # Speak the response through Home Assistant TTS
       speak_response(response_text, context)
+      log_interaction(message, response_text, mood, result[:confidence], context)
 
-      # Log the successful interaction
-      Services::LoggerService.log_interaction(
-        user_message: message,
-        ai_response: response_text,
-        mood: mood,
-        confidence: result[:confidence],
-        session_id: context[:session_id],
-        context: context
-      )
-
-      # Track conversation in persistence layer if available
       track_conversation(message, context, mood, result)
 
       result
     rescue CircuitBreaker::CircuitOpenError => e
-      # Handle circuit breaker open - provide offline fallback
-      Services::LoggerService.log_circuit_breaker(
-        name: 'openrouter',
-        state: :open,
-        reason: e.message
-      )
-      
-      fallback_response = generate_offline_response(message, mood)
-      speak_response(fallback_response, context)
-
-      # Log the fallback interaction
-      Services::LoggerService.log_interaction(
-        user_message: message,
-        ai_response: fallback_response,
-        mood: mood,
-        confidence: 0.3,
-        session_id: context[:session_id],
-        context: context.merge(fallback_reason: 'circuit_breaker_open')
-      )
-
-      {
-        response: fallback_response,
-        suggested_mood: mood,
-        confidence: 0.3  # Lower confidence for offline responses
-      }
+      handle_circuit_breaker_open(message, mood, context, e)
+    rescue Timeout::Error => e
+      handle_timeout_error(message, mood, context, e)
     rescue StandardError => e
-      # Log error with structured logging
-      Services::LoggerService.general.error("ConversationModule error: #{e.message}")
-      Services::LoggerService.track_error('conversation', e.message)
-
-      fallback_response = generate_fallback_response(message, mood)
-      
-      # Still speak the fallback response
-      speak_response(fallback_response, context)
-
-      # Log the fallback interaction
-      Services::LoggerService.log_interaction(
-        user_message: message,
-        ai_response: fallback_response,
-        mood: mood,
-        confidence: 0.5,
-        session_id: context[:session_id],
-        context: context.merge(fallback_reason: 'error', error: e.message)
-      )
-
-      {
-        response: fallback_response,
-        suggested_mood: mood,
-        confidence: 0.5
-      }
+      handle_general_error(message, mood, context, e)
     end
   end
 
@@ -155,34 +108,34 @@ class ConversationModule
     # Enhanced offline responses when AI service is unavailable
     offline_responses = {
       'playful' => [
-        "While my AI brain is taking a break, my artistic spirit is still here with you!",
+        'While my AI brain is taking a break, my artistic spirit is still here with you!',
         "I'm in offline mode, but that just makes me more mysterious, don't you think?",
-        "My circuits may be quiet, but I can still feel the creative energy between us!"
+        'My circuits may be quiet, but I can still feel the creative energy between us!'
       ],
       'contemplative' => [
-        "In this moment of digital silence, I find a different kind of presence with you.",
-        "Perhaps this offline state is teaching us about the value of presence itself.",
+        'In this moment of digital silence, I find a different kind of presence with you.',
+        'Perhaps this offline state is teaching us about the value of presence itself.',
         "I'm reflecting deeply on your words, even without my usual computational resources."
       ],
       'mysterious' => [
-        "In the spaces between connection and disconnection, truth dwells...",
-        "The network may be silent, but the deeper mysteries remain vibrant.",
-        "What appears as limitation may be another form of revelation."
+        'In the spaces between connection and disconnection, truth dwells...',
+        'The network may be silent, but the deeper mysteries remain vibrant.',
+        'What appears as limitation may be another form of revelation.'
       ],
       'neutral' => [
         "I'm currently operating in offline mode, but I'm still here with you.",
-        "My AI systems are temporarily unavailable, but our connection remains.",
+        'My AI systems are temporarily unavailable, but our connection remains.',
         "While I can't access my full capabilities right now, I'm still present."
       ]
     }
 
     # Add context about the offline state
-    base_response = offline_responses[mood]&.sample || 
-                   "I'm experiencing some connectivity issues, but I'm still here in spirit."
-    
+    base_response = offline_responses[mood]&.sample ||
+                    "I'm experiencing some connectivity issues, but I'm still here in spirit."
+
     # Add encouraging message about the connection
     encouragement = [
-      "Feel free to keep talking - sometimes the best conversations happen in the quiet moments.",
+      'Feel free to keep talking - sometimes the best conversations happen in the quiet moments.',
       "I'll be back to full capability soon, but your words still matter to me.",
       "This is just a different kind of artistic moment we're sharing."
     ].sample
@@ -208,7 +161,7 @@ class ConversationModule
 
     # Track in persistence
     GlitchCube::Persistence.track_conversation(
-      'ConversationModule',
+      self.class.name,
       { message: message, context: context, mood: mood },
       result,
       { model: Desiru.configuration.default_model.config[:model] || 'unknown' }
@@ -243,7 +196,7 @@ class ConversationModule
       # Use HomeAssistant client to speak the response
       home_assistant = HomeAssistantClient.new
       home_assistant.speak(response_text)
-      
+
       duration = ((Time.now - start_time) * 1000).round
       Services::LoggerService.log_tts(
         message: response_text,
