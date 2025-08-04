@@ -249,10 +249,18 @@ else
 fi
 
 # Check Home Assistant
-if curl -f -s "http://localhost:8123/api/" > /dev/null; then
+if [[ -f ".env" ]] && grep -q "HOME_ASSISTANT_TOKEN" ".env"; then
+    HA_TOKEN=$(grep "HOME_ASSISTANT_TOKEN" ".env" | cut -d'=' -f2)
+    if curl -f -s -H "Authorization: Bearer $HA_TOKEN" "http://localhost:8123/api/" > /dev/null 2>&1; then
+        log "${GREEN}✅ Home Assistant is healthy${NC}"
+    else
+        log "${RED}❌ Home Assistant health check failed (with auth)${NC}"
+        HEALTH_CHECK_FAILED=1
+    fi
+elif curl -f -s "http://localhost:8123/api/" > /dev/null 2>&1; then
     log "${GREEN}✅ Home Assistant is healthy${NC}"
 else
-    log "${RED}❌ Home Assistant health check failed${NC}"
+    log "${RED}❌ Home Assistant health check failed (no auth token found)${NC}"
     HEALTH_CHECK_FAILED=1
 fi
 

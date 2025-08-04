@@ -3,7 +3,7 @@
 
 # REST Health Sensors
 - platform: rest
-  resource: "http://glitchcube.local:4567/health"
+  resource: "http://glitchcube:4567/health"
   name: "Glitch Cube App Health"
   unique_id: "glitchcube_app_health"
   scan_interval: 30  # Check every 30 seconds

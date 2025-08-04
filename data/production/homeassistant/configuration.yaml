@@ -12,7 +12,7 @@ homeassistant:
   
   # Allow external webhooks for art installation
   external_url: "https://zjd6lgd6yhigawnj06mkguhholcsfdul.ui.nabu.casa:8123"
-  internal_url: "http://glitchcube.local:8123"
+  internal_url: "http://localhost:8123"
 
 # Enable frontend and API
 frontend:
@@ -23,25 +23,11 @@ config:
 
 # Enable logbook for tracking interactions
 logbook:
-  include:
-    domains:
-      - glitchcube
-      - sensor
-      - automation
-  exclude:
-    entities:
-      - sensor.system_temperature  # Too frequent for logbook
+  # Note: include/exclude options are deprecated, use entity/automation filters instead
 
 # Enable history tracking
 history:
-  include:
-    domains:
-      - sensor
-      - input_datetime
-      - input_text
-  exclude:
-    entities:
-      - sensor.system_temperature  # High frequency sensor
+  # Note: include/exclude options are deprecated, use entity filters instead
 
 # Enable recorder with optimized settings for art installation
 recorder:

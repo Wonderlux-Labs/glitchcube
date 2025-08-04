@@ -111,10 +111,20 @@ else
 fi
 
 # Home Assistant
-if curl -f -s "http://localhost:8123/api/" >/dev/null 2>&1; then
+# Try to load Home Assistant token from environment or .env file
+if [[ -f "$APP_DIR/.env" ]] && grep -q "HOME_ASSISTANT_TOKEN" "$APP_DIR/.env"; then
+    HA_TOKEN=$(grep "HOME_ASSISTANT_TOKEN" "$APP_DIR/.env" | cut -d'=' -f2)
+    if curl -f -s -H "Authorization: Bearer $HA_TOKEN" "http://localhost:8123/api/" >/dev/null 2>&1; then
+        echo -e "  ${CHECKMARK} Home Assistant (port 8123)"
+    else
+        echo -e "  ${CROSSMARK} Home Assistant (port 8123) - API call failed"
+        HEALTH_FAILURES=$((HEALTH_FAILURES + 1))
+        ALL_HEALTHY=false
+    fi
+elif curl -f -s "http://localhost:8123/api/" >/dev/null 2>&1; then
     echo -e "  ${CHECKMARK} Home Assistant (port 8123)"
 else
-    echo -e "  ${CROSSMARK} Home Assistant (port 8123)"
+    echo -e "  ${CROSSMARK} Home Assistant (port 8123) - No auth token found"
     HEALTH_FAILURES=$((HEALTH_FAILURES + 1))
     ALL_HEALTHY=false
 fi
