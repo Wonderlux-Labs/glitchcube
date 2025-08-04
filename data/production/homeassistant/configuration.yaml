@@ -106,29 +106,17 @@ api:
 rest_command:
   # Update external status page (Uptime Kuma)
   update_status_page:
-    url: "{{ 'https://status.wlux.casa/api/push/Bf8nrx6ykq' }}"
+    url: "https://status.wlux.casa/api/push/Bf8nrx6ykq?status={{ status }}&msg={{ msg | urlencode }}&ping={{ ping }}"
     method: GET
     headers:
-      Authorization: "uk1_TxdjQ7d5GlwA8hA2d-rZe6TMiEcUJLafmkgC7tQ7"
       User-Agent: "Glitch Cube Status Monitor"
-    payload: "status={{ status }}&msg={{ msg | urlencode }}&ping={{ ping }}"
-    content_type: "application/x-www-form-urlencoded"
     timeout: 10
 
 # Scene configuration for different installation modes
 scene: !include scenes.yaml
 
-# Panel iframe configuration for Docker container integration
-# Adds File Editor and Log Viewer to the sidebar like official add-ons
-panel_iframe:
-  # File Editor (equivalent to HA File Editor add-on)
-  file_editor:
-    title: 'File Editor'
-    url: 'http://glitchcube.local:3218'
-    icon: mdi:file-document-edit-outline
-    
-  # Log Viewer (Dozzle - shows all container logs)
-  log_viewer:
-    title: 'Log Viewer'
-    url: 'http://glitchcube.local:8888'
-    icon: mdi:file-document-multiple-outline
+# Note: panel_iframe has been deprecated in newer HA versions
+# Use the Home Assistant Community Store (HACS) integrations for file editing
+# or access services directly via their URLs:
+# - File Editor: http://glitchcube.local:3218
+# - Log Viewer: http://glitchcube.local:8888
