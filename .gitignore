@@ -54,7 +54,6 @@ dump.rdb
 # Data directories (contain runtime data)
 /data/development/
 /data/test/
-/data/production/
 /data/redis/
 /data/portainer/
 /data/mosquitto/data/
@@ -127,3 +126,6 @@ $RECYCLE.BIN/
 *.bak
 *.backup
 *~
+last-rollback-tag.txt
+backups/
+/data/production/
