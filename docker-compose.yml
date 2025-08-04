@@ -125,6 +125,102 @@ services:
     profiles:
       - management  # Optional: only start when --profile management is used
 
+  # MQTT Broker for device communication
+  mosquitto:
+    container_name: glitchcube_mosquitto
+    image: eclipse-mosquitto:2.0
+    restart: unless-stopped
+    ports:
+      - "1883:1883"  # MQTT port
+      - "9001:9001"  # WebSocket port
+    volumes:
+      - ./data/mosquitto/data:/mosquitto/data
+      - ./data/mosquitto/config:/mosquitto/config
+      - ./data/mosquitto/log:/mosquitto/log
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+  # ESPHome for custom hardware integration
+  esphome:
+    container_name: glitchcube_esphome
+    image: esphome/esphome:latest
+    restart: unless-stopped
+    ports:
+      - "6052:6052"  # ESPHome dashboard
+    volumes:
+      - ./data/esphome:/config
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - ESPHOME_DASHBOARD_USE_PING=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6052/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Music Assistant for audio playback
+  music-assistant:
+    container_name: glitchcube_music_assistant
+    image: ghcr.io/music-assistant/server:latest
+    restart: unless-stopped
+    ports:
+      - "8095:8095"  # Music Assistant web UI
+    volumes:
+      - ./data/music-assistant:/data
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - TZ=${TZ:-America/Los_Angeles}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8095/api/info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 1G  
+
+  # Glances for system monitoring
+  glances:
+    container_name: glitchcube_glances
+    image: nicolargo/glances:latest-alpine
+    restart: unless-stopped
+    privileged: true
+    pid: host
+    ports:
+      - "61208:61208"  # Glances web interface
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/rootfs:ro
+      - /sys:/sys:ro
+      - /etc/os-release:/etc/os-release:ro
+    environment:
+      - GLANCES_OPT=-w --time 2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:61208/api/3/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
 volumes:
   homeassistant_config:
     driver: local

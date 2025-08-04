@@ -48,6 +48,9 @@ mkdir -p data/production/{homeassistant,glitchcube,context_documents,postgres}
 mkdir -p data/development/{glitchcube,context_documents}
 mkdir -p data/test/{glitchcube,context_documents}
 mkdir -p data/{redis,portainer}
+mkdir -p data/mosquitto/{data,config,log}
+mkdir -p data/esphome
+mkdir -p data/music-assistant
 
 # Copy initial context documents if they exist
 if [ -d "data/context_documents" ]; then
@@ -90,8 +93,8 @@ fi
 echo "🔨 Building Docker containers..."
 docker-compose build
 
-# Start services with Portainer
-echo "🚀 Starting services..."
+# Start all services with Portainer
+echo "🚀 Starting all services (HA + MQTT + ESPHome + Music Assistant + Glances + Portainer)..."
 docker-compose -f docker-compose.yml -f docker-compose.production.yml --profile management up -d
 
 # Wait for services to be healthy
@@ -134,22 +137,54 @@ EOF
     echo "✅ Auto-start enabled"
 fi
 
+# Install HACS (Home Assistant Community Store)
+echo "🏪 Installing HACS (Home Assistant Community Store)..."
+read -p "Install HACS for custom integrations? (Y/n) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    echo "Installing HACS in Home Assistant container..."
+    docker-compose exec homeassistant bash -c "wget -O - https://get.hacs.xyz | bash -" || \
+    echo "⚠️  HACS installation failed - you can install it manually later"
+    
+    echo "⚠️  After HA starts, you'll need to:"
+    echo "   1. Go to Settings → Devices & Services"
+    echo "   2. Add HACS integration"
+    echo "   3. Follow the GitHub authentication process"
+fi
+
+# All services start automatically now
+echo "🔧 All services (HA, MQTT, ESPHome, Music Assistant, Glances) will start automatically"
+
 # Set up Home Assistant token
 echo ""
 echo "📋 Next steps:"
 echo "1. Access Home Assistant at http://$(hostname -I | cut -d' ' -f1):8123"
 echo "2. Complete Home Assistant onboarding"
-echo "3. Create a long-lived access token:"
+echo "3. Install essential add-ons:"
+echo "   - ESPHome (for custom hardware)"
+echo "   - MQTT Broker (device communication)"
+echo "   - Music Assistant (audio playback)"
+echo "   - Terminal & SSH (remote access)"
+echo "   - File Editor (config editing)"
+echo "4. If HACS was installed, restart HA and configure HACS integration"
+echo "5. Create a long-lived access token:"
 echo "   - Go to your Home Assistant profile"
 echo "   - Scroll to 'Long-Lived Access Tokens'"
 echo "   - Create a new token and copy it"
-echo "4. Add the token to your .env file as HA_TOKEN"
-echo "5. Restart the services: docker-compose -f docker-compose.yml -f docker-compose.production.yml restart glitchcube sidekiq"
+echo "6. Add the token to your .env file as HA_TOKEN"
+echo "7. Restart the services: docker-compose -f docker-compose.yml -f docker-compose.production.yml restart glitchcube sidekiq"
 echo ""
 echo "🎲 Glitch Cube is now running!"
-echo "API endpoint: http://$(hostname -I | cut -d' ' -f1):4567"
-echo "Portainer UI: https://$(hostname -I | cut -d' ' -f1):9443 (admin / MASTER_PASSWORD from .env)"
 echo ""
-echo "View logs: docker-compose -f docker-compose.yml -f docker-compose.production.yml logs -f"
-echo "Stop services: docker-compose -f docker-compose.yml -f docker-compose.production.yml down"
-echo "Update: git pull && docker-compose build && docker-compose -f docker-compose.yml -f docker-compose.production.yml up -d"
+echo "🌐 Service URLs:"
+echo "   Glitch Cube API: http://$(hostname -I | cut -d' ' -f1):4567"
+echo "   Home Assistant: http://$(hostname -I | cut -d' ' -f1):8123"
+echo "   ESPHome Dashboard: http://$(hostname -I | cut -d' ' -f1):6052"
+echo "   Music Assistant: http://$(hostname -I | cut -d' ' -f1):8095"
+echo "   System Monitor (Glances): http://$(hostname -I | cut -d' ' -f1):61208"
+echo "   Portainer UI: https://$(hostname -I | cut -d' ' -f1):9443 (admin / MASTER_PASSWORD from .env)"
+echo ""
+echo "🔧 Management:"
+echo "   View logs: docker-compose -f docker-compose.yml -f docker-compose.production.yml logs -f"
+echo "   Stop services: docker-compose -f docker-compose.yml -f docker-compose.production.yml down"
+echo "   Update: git pull && docker-compose build && docker-compose -f docker-compose.yml -f docker-compose.production.yml up -d"

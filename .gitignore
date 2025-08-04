@@ -57,8 +57,13 @@ dump.rdb
 /data/production/
 /data/redis/
 /data/portainer/
-# But keep example context documents
+/data/mosquitto/data/
+/data/mosquitto/log/
+/data/esphome/
+/data/music-assistant/
+# But keep configuration and example documents
 !/data/context_documents/
+!/data/mosquitto/config/
 
 # Docker & Deployment
 docker-compose.override.yml
