@@ -1,2 +1,0 @@
-# Main Home Assistant configuration
-template: !include templates.yml
