@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  # Home Assistant container
+  homeassistant:
+    container_name: glitchcube_homeassistant
+    image: homeassistant/home-assistant:stable
+    volumes:
+      - homeassistant_config:/config
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123/api/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    env_file: .env  # Pull TZ from .env file
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'   # 1.5 CPU cores for HA
+          memory: 3G    # 3GB RAM for HA
+
+  # Glitch Cube Sinatra application
+  glitchcube:
+    container_name: glitchcube_app
+    build: .
+    image: glitchcube:latest
+    volumes:
+      - glitchcube_data:/app/data
+      - glitchcube_context:/app/data/context_documents
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "4567:4567"
+    restart: unless-stopped
+    env_file: .env  # Pull all vars from .env file
+    environment:
+      # Override specific vars for Docker networking
+      - REDIS_URL=redis://redis:6379/0
+      - HA_URL=http://host.docker.internal:8123
+    depends_on:
+      - homeassistant
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4567/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.75'   # 0.75 CPU cores for Sinatra
+          memory: 1G     # 1GB RAM for Sinatra
+
+  # Redis for Sidekiq background jobs
+  redis:
+    container_name: glitchcube_redis
+    image: redis:7-alpine
+    volumes:
+      - ./data/redis:/data
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'   # 0.25 CPU cores for Redis
+          memory: 256M   # 256MB RAM for Redis
+
+  # Sidekiq worker (separate container for background jobs)
+  sidekiq:
+    container_name: glitchcube_sidekiq
+    build: .
+    image: glitchcube:latest
+    command: bundle exec sidekiq
+    volumes:
+      - glitchcube_data:/app/data
+      - glitchcube_context:/app/data/context_documents
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    env_file: .env  # Pull all vars from .env file
+    environment:
+      # Override specific vars for Docker networking
+      - REDIS_URL=redis://redis:6379/0
+      - HA_URL=http://host.docker.internal:8123
+    depends_on:
+      - redis
+      - homeassistant
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'    # 0.5 CPU cores for Sidekiq
+          memory: 512M   # 512MB RAM for Sidekiq
+
+  # Portainer for Docker management UI
+  portainer:
+    container_name: glitchcube_portainer
+    image: portainer/portainer-ce:latest
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9443:9443"  # HTTPS port
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    env_file: .env
+    environment:
+      - PORTAINER_ADMIN_PASSWORD=${MASTER_PASSWORD}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9000/api/system/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    profiles:
+      - management  # Optional: only start when --profile management is used
+
+volumes:
+  homeassistant_config:
+    driver: local
+  glitchcube_data:
+    driver: local
+  glitchcube_context:
+    driver: local
+  redis_data:
+    driver: local
+  portainer_data:
+    driver: local

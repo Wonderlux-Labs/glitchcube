@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  glitchcube:
+    # Override the command to keep container running for development
+    command: sleep infinity
+    
+    # Mount source code for development
+    volumes:
+      - ..:/app:cached
+      - bundle_cache:/usr/local/bundle
+    
+    # Development environment variables
+    environment:
+      - RACK_ENV=development
+      - MOCK_HOME_ASSISTANT=true
+      - DEVELOPMENT_MODE=true
+    
+    # Remove resource limits for development
+    deploy:
+      resources:
+        limits:
+          cpus: null
+          memory: null
+
+volumes:
+  bundle_cache:

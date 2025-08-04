@@ -1,0 +1,79 @@
+version: '3.8'
+
+# Production configuration with bind mounts for easy backup
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.production.yml up -d
+
+services:
+  # Redis with production-ready configuration and resource limits
+  redis:
+    command: redis-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M  # Container limit higher than Redis internal limit
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  glitchcube:
+    environment:
+      - RACK_ENV=production
+      - DATABASE_URL=sqlite://data/production/glitchcube.db
+    volumes:
+      # Override named volumes with bind mounts for production
+      - ./data/production/glitchcube:/app/data
+      - ./data/production/context_documents:/app/data/context_documents
+      # Remove source code mount
+      - /app/vendor  # Keep vendor directory from image
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+      
+  sidekiq:
+    environment:
+      - RACK_ENV=production
+      - DATABASE_URL=sqlite://data/production/glitchcube.db
+    volumes:
+      - ./data/production/glitchcube:/app/data
+      - ./data/production/context_documents:/app/data/context_documents
+      - /app/vendor  # Keep vendor directory from image
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        
+  # Home Assistant with logging (keeping privileged mode for art installation)
+  homeassistant:
+    volumes:
+      - ./data/production/homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+      
+  # Production PostgreSQL option (if needed)
+  postgres:
+    container_name: glitchcube_postgres
+    image: postgres:16-alpine
+    volumes:
+      - ./data/production/postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=glitchcube
+      - POSTGRES_USER=glitchcube
+      - POSTGRES_PASSWORD=${MASTER_PASSWORD}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchcube"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - postgres  # Only start if --profile postgres is used

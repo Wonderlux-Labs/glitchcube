@@ -1,0 +1,61 @@
+# Multi-stage Dockerfile for smaller, more secure images
+# ---- Builder Stage ----
+FROM ruby:3.3-alpine AS builder
+
+# Install dependencies for building native extensions
+RUN apk add --no-cache \
+    build-base \
+    git \
+    tzdata
+
+# Create app directory
+WORKDIR /app
+
+# Copy Gemfile first for better caching
+COPY Gemfile Gemfile.lock ./
+
+# Install gems with production settings
+RUN bundle config set --local deployment 'true' && \
+    bundle config set --local without 'development test' && \
+    bundle install --jobs 4 && \
+    rm -rf /usr/local/bundle/cache/*.gem && \
+    find /usr/local/bundle/gems/ -name "*.c" -delete && \
+    find /usr/local/bundle/gems/ -name "*.o" -delete
+
+# ---- Final Stage ----
+FROM ruby:3.3-alpine
+
+# Install only runtime dependencies
+RUN apk add --no-cache \
+    tzdata \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# Create non-root user to run the app
+RUN adduser -D -s /bin/sh glitchcube
+
+# Create app directory
+WORKDIR /app
+
+# Copy gems from builder stage
+COPY --from=builder /usr/local/bundle /usr/local/bundle
+
+# Copy application code
+COPY --chown=glitchcube:glitchcube . .
+
+# Create data directories with proper permissions
+RUN mkdir -p /app/data/context_documents /app/data/memories && \
+    chown -R glitchcube:glitchcube /app/data
+
+# Switch to non-root user
+USER glitchcube
+
+# Expose Sinatra port
+EXPOSE 4567
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD curl -f http://localhost:4567/health || exit 1
+
+# Start the application
+CMD ["bundle", "exec", "ruby", "app.rb"]

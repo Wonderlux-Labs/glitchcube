@@ -1,0 +1,53 @@
+{
+  "name": "Glitch Cube Development",
+  "dockerComposeFile": [
+    "../docker-compose.yml",
+    "docker-compose.dev.yml"
+  ],
+  "service": "glitchcube",
+  "workspaceFolder": "/app",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rebornix.ruby",
+        "castwide.solargraph",
+        "kaiwood.endwise",
+        "misogi.ruby-rubocop",
+        "bung87.rails",
+        "jnbt.vscode-rufo",
+        "eamodio.gitlens",
+        "streetsidesoftware.code-spell-checker"
+      ],
+      "settings": {
+        "ruby.useLanguageServer": true,
+        "ruby.format": "rubocop",
+        "ruby.lint": {
+          "rubocop": true
+        },
+        "editor.formatOnSave": true,
+        "editor.formatOnSaveMode": "modifications"
+      }
+    }
+  },
+
+  "forwardPorts": [4567, 8123],
+  
+  "postCreateCommand": "bundle install",
+  
+  "remoteUser": "glitchcube",
+  
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/home/glitchcube/.ssh,type=bind,consistency=cached"
+  ],
+  
+  "remoteEnv": {
+    "RACK_ENV": "development",
+    "MOCK_HOME_ASSISTANT": "true"
+  }
+}

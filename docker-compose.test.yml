@@ -1,0 +1,30 @@
+version: '3.8'
+
+# Test environment configuration
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.test.yml up
+
+services:
+  glitchcube:
+    environment:
+      - RACK_ENV=test
+      - MOCK_HOME_ASSISTANT=true
+      - DATABASE_URL=sqlite::memory:  # Use in-memory DB for tests
+    volumes:
+      - ./data/test/glitchcube:/app/data
+      - ./data/test/context_documents:/app/data/context_documents
+    # Don't expose ports in test
+    ports: []
+      
+  sidekiq:
+    environment:
+      - RACK_ENV=test
+      - MOCK_HOME_ASSISTANT=true
+      - DATABASE_URL=sqlite::memory:
+    volumes:
+      - ./data/test/glitchcube:/app/data
+      - ./data/test/context_documents:/app/data/context_documents
+      
+  # Redis for test - use different DB
+  redis:
+    command: redis-server --save "" --appendonly no  # No persistence for tests
+    volumes: []  # No volume mounting for test Redis

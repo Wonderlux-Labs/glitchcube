@@ -1,0 +1,12 @@
+# Sidekiq Cron Jobs Configuration
+# These jobs run on a schedule
+# NOTE: Beacon heartbeat has been moved to Desiru's built-in scheduler
+# See config/initializers/scheduler.rb
+
+# The following jobs still use Sidekiq-cron until migrated to Desiru scheduler:
+
+memory_cleanup:
+  cron: "0 */6 * * *"  # Every 6 hours
+  class: "Jobs::MemoryCleanupJob"
+  queue: low
+  description: "Clean up old memory files and consolidate data"
