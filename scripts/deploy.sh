@@ -41,7 +41,7 @@ ssh "$REMOTE_HOST" "cd $REMOTE_PATH && git pull && \
     if [ -d 'homeassistant_components' ]; then \
         echo '🏠 Installing Home Assistant custom components...'; \
         mkdir -p data/production/homeassistant/custom_components; \
-        rm -rf data/production/homeassistant/custom_components/glitchcube_conversation; \
+        sudo rm -rf data/production/homeassistant/custom_components/glitchcube_conversation 2>/dev/null || true; \
         cp -r homeassistant_components/* data/production/homeassistant/custom_components/; \
         if docker-compose ps | grep -q homeassistant; then \
             echo '🔧 Installing into running HA container...'; \

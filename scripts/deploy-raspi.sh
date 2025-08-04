@@ -62,6 +62,8 @@ fi
 if [ -d "homeassistant_components" ]; then
     echo "🏠 Installing Home Assistant custom components..."
     mkdir -p data/production/homeassistant/custom_components
+    # Remove old components first to avoid conflicts
+    rm -rf data/production/homeassistant/custom_components/glitchcube_conversation
     cp -r homeassistant_components/* data/production/homeassistant/custom_components/
     echo "✅ Installed custom components: $(ls homeassistant_components/)"
 fi
