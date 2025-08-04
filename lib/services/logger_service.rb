@@ -14,6 +14,7 @@ module Services
         @interaction_logger = create_file_logger('interactions.log')
         @api_logger = create_file_logger('api_calls.log')
         @tts_logger = create_file_logger('tts.log')
+        @requests_logger = create_file_logger('requests.log')
         @error_tracker = ErrorTracker.new
       end
 
@@ -70,6 +71,42 @@ module Services
 
         # Track errors
         track_error(service, error) if error
+      end
+
+      def log_request(method:, path:, status:, duration:, params: {}, user_agent: nil, ip: nil, error: nil)
+        ensure_loggers
+        
+        request_data = {
+          timestamp: Time.now.iso8601,
+          method: method,
+          path: path,
+          status: status,
+          duration_ms: duration,
+          params: params,
+          user_agent: user_agent,
+          ip: ip,
+          error: error
+        }
+
+        # Human-readable request log
+        status_emoji = case status
+                      when 200..299 then '✅'
+                      when 300..399 then '🔄'
+                      when 400..499 then '⚠️ '
+                      when 500..599 then '❌'
+                      else '❓'
+                      end
+
+        params_str = params.empty? ? '' : " #{params.to_json}"
+        error_str = error ? " - ERROR: #{error}" : ''
+        
+        @requests_logger.puts "#{Time.now.strftime('%H:%M:%S')} #{status_emoji} #{method} #{path} #{status} (#{duration}ms)#{params_str}#{error_str}"
+        
+        # Also log to general with JSON
+        general.info("REQUEST: #{request_data.to_json}")
+
+        # Track errors
+        track_error('web_request', error) if error
       end
 
       def log_tts(message:, success:, duration: nil, error: nil)

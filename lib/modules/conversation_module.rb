@@ -46,6 +46,7 @@ class ConversationModule
       log_interaction(message, response_text, mood, result[:confidence], context)
 
       track_conversation(message, context, mood, result)
+      update_kiosk_display(message, response_text, result[:suggested_mood])
 
       result
     rescue CircuitBreaker::CircuitOpenError => e
@@ -244,5 +245,83 @@ class ConversationModule
 
     # Clear session messages after queuing summary
     @session_messages.delete(session_id)
+  end
+
+  def update_kiosk_display(message, response, suggested_mood)
+    # Update the kiosk service with new interaction data
+    require_relative '../services/kiosk_service'
+    
+    Services::KioskService.update_mood(suggested_mood) if suggested_mood
+    Services::KioskService.update_interaction({
+      message: message,
+      response: response
+    })
+    Services::KioskService.add_inner_thought("Just shared something meaningful with a visitor")
+  rescue StandardError => e
+    # Don't let kiosk update failures break the conversation
+    puts "Failed to update kiosk display: #{e.message}"
+  end
+
+  def handle_circuit_breaker_open(message, mood, context, error)
+    response_text = generate_offline_response(message, mood)
+    result = {
+      response: response_text,
+      suggested_mood: mood,
+      confidence: 0.3
+    }
+
+    log_interaction(message, response_text, mood, result[:confidence], context)
+    speak_response(response_text, context)
+
+    result
+  end
+
+  def handle_timeout_error(message, mood, context, error)
+    response_text = generate_offline_response(message, mood)
+    result = {
+      response: response_text,
+      suggested_mood: mood,
+      confidence: 0.2
+    }
+
+    Services::LoggerService.log_interaction(
+      user_message: message,
+      ai_response: response_text,
+      mood: mood,
+      confidence: result[:confidence],
+      error: "Timeout: #{error.message}"
+    )
+
+    speak_response(response_text, context)
+    result
+  end
+
+  def handle_general_error(message, mood, context, error)
+    response_text = generate_fallback_response(message, mood)
+    result = {
+      response: response_text,
+      suggested_mood: mood,
+      confidence: 0.1
+    }
+
+    Services::LoggerService.log_interaction(
+      user_message: message,
+      ai_response: response_text,
+      mood: mood,
+      confidence: result[:confidence],
+      error: "General Error: #{error.message}"
+    )
+
+    speak_response(response_text, context)
+    result
+  end
+
+  def log_interaction(message, response, mood, confidence, context)
+    Services::LoggerService.log_interaction(
+      user_message: message,
+      ai_response: response,
+      mood: mood,
+      confidence: confidence
+    )
   end
 end

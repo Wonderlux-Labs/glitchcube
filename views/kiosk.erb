@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glitch Cube - Inner Mind</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: #ffffff;
+            height: 100vh;
+            overflow: hidden;
+            cursor: none; /* Hide cursor for kiosk mode */
+        }
+
+        .container {
+            display: grid;
+            grid-template-areas: 
+                "persona thoughts"
+                "environment interactions"
+                "status status";
+            grid-template-rows: 1fr 1fr auto;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .persona-section {
+            grid-area: persona;
+            text-align: center;
+        }
+
+        .thoughts-section {
+            grid-area: thoughts;
+        }
+
+        .environment-section {
+            grid-area: environment;
+        }
+
+        .interactions-section {
+            grid-area: interactions;
+        }
+
+        .status-section {
+            grid-area: status;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 60px;
+        }
+
+        .section-title {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            color: #64ffda;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(100, 255, 218, 0.3);
+            padding-bottom: 5px;
+        }
+
+        .persona-display {
+            position: relative;
+        }
+
+        .persona-avatar {
+            width: 120px;
+            height: 120px;
+            margin: 20px auto;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .persona-avatar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .persona-avatar::after {
+            content: '◆';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3em;
+            color: white;
+            text-shadow: 0 0 20px currentColor;
+        }
+
+        /* Mood-specific colors */
+        .mood-playful .persona-avatar::before {
+            background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+            animation: pulse 1s infinite, rotate 3s linear infinite;
+        }
+
+        .mood-contemplative .persona-avatar::before {
+            background: linear-gradient(45deg, #667eea, #764ba2, #96c93d, #30cfd0);
+            animation: pulse 2s infinite;
+        }
+
+        .mood-mysterious .persona-avatar::before {
+            background: linear-gradient(45deg, #2c3e50, #8e44ad, #16537e, #800080);
+            animation: pulse 3s infinite, flicker 1.5s infinite;
+        }
+
+        .mood-neutral .persona-avatar::before {
+            background: linear-gradient(45deg, #74b9ff, #0984e3, #6c5ce7, #a29bfe);
+            animation: pulse 2s infinite;
+        }
+
+        .mood-offline .persona-avatar::before {
+            background: linear-gradient(45deg, #636e72, #2d3436, #636e72, #2d3436);
+            animation: pulse 4s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .persona-name {
+            font-size: 1.8em;
+            margin: 10px 0;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .persona-description {
+            font-size: 0.9em;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+
+        .thought-list {
+            list-style: none;
+        }
+
+        .thought-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 3px solid #64ffda;
+            font-style: italic;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+
+        .thought-item:nth-child(1) { animation-delay: 0.2s; }
+        .thought-item:nth-child(2) { animation-delay: 0.4s; }
+        .thought-item:nth-child(3) { animation-delay: 0.6s; }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .env-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .env-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .env-value {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #64ffda;
+        }
+
+        .env-label {
+            font-size: 0.8em;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
+
+        .interaction-item {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 3px solid #feca57;
+        }
+
+        .interaction-time {
+            font-size: 0.8em;
+            opacity: 0.6;
+            margin-bottom: 5px;
+        }
+
+        .status-health {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .health-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .health-healthy { background: #00b894; }
+        .health-degraded { background: #fdcb6e; }
+        .health-error { background: #e17055; }
+
+        .system-info {
+            font-size: 0.8em;
+            opacity: 0.6;
+        }
+
+        .offline-message {
+            text-align: center;
+            color: #fdcb6e;
+            font-style: italic;
+        }
+
+        /* Loading animation */
+        .loading {
+            opacity: 0.5;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0% { content: '...'; }
+            33% { content: '.'; }
+            66% { content: '..'; }
+            100% { content: '...'; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-aspect-ratio: 1/1) {
+            .container {
+                grid-template-areas: 
+                    "persona"
+                    "thoughts"
+                    "environment"
+                    "interactions"
+                    "status";
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto auto auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="kioskContainer">
+        <!-- Persona Section -->
+        <div class="section persona-section">
+            <div class="section-title">Current Persona</div>
+            <div class="persona-display">
+                <div class="persona-avatar" id="personaAvatar"></div>
+                <div class="persona-name" id="personaName">Loading...</div>
+                <div class="persona-description" id="personaDescription">Initializing consciousness...</div>
+            </div>
+        </div>
+
+        <!-- Inner Thoughts Section -->
+        <div class="section thoughts-section">
+            <div class="section-title">Inner Thoughts</div>
+            <ul class="thought-list" id="thoughtList">
+                <li class="thought-item loading">Gathering thoughts</li>
+            </ul>
+        </div>
+
+        <!-- Environment Section -->
+        <div class="section environment-section">
+            <div class="section-title">Environment</div>
+            <div class="env-grid" id="environmentGrid">
+                <div class="env-item loading">
+                    <div class="env-value">--</div>
+                    <div class="env-label">Battery</div>
+                </div>
+                <div class="env-item loading">
+                    <div class="env-value">--</div>
+                    <div class="env-label">Temperature</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Interactions Section -->
+        <div class="section interactions-section">
+            <div class="section-title">Recent Interactions</div>
+            <div id="interactionsList">
+                <div class="interaction-item loading">
+                    <div class="interaction-time">Awaiting connections...</div>
+                    <div>Ready to engage with visitors</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status Section -->
+        <div class="section status-section">
+            <div class="status-health">
+                <div class="health-indicator health-healthy" id="healthIndicator"></div>
+                <span id="healthStatus">System Online</span>
+            </div>
+            <div class="system-info" id="systemInfo">
+                <span id="timestamp">--:--</span> | 
+                <span id="version">v0.0.0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class KioskDisplay {
+            constructor() {
+                this.updateInterval = 8000; // 8 seconds
+                this.isOnline = true;
+                this.init();
+            }
+
+            init() {
+                this.updateDisplay();
+                this.startPolling();
+                
+                // Handle window focus/blur for power management
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) {
+                        this.pausePolling();
+                    } else {
+                        this.resumePolling();
+                    }
+                });
+            }
+
+            async updateDisplay() {
+                try {
+                    const response = await fetch('/api/v1/kiosk/status', {
+                        method: 'GET',
+                        headers: {
+                            'Cache-Control': 'no-cache'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    this.renderData(data);
+                    this.setOnlineStatus(true);
+
+                } catch (error) {
+                    console.error('Failed to update display:', error);
+                    this.setOnlineStatus(false);
+                    this.renderOfflineState();
+                }
+            }
+
+            renderData(data) {
+                // Update container mood class
+                const container = document.getElementById('kioskContainer');
+                container.className = `container mood-${data.persona.current_mood}`;
+
+                // Update persona
+                document.getElementById('personaName').textContent = data.persona.display_name;
+                document.getElementById('personaDescription').textContent = data.persona.description;
+
+                // Update thoughts
+                this.updateThoughts(data.inner_thoughts);
+
+                // Update environment
+                this.updateEnvironment(data.environment);
+
+                // Update interactions
+                this.updateInteractions(data.interactions);
+
+                // Update system status
+                this.updateSystemStatus(data.system_status);
+
+                // Update timestamp
+                const now = new Date();
+                document.getElementById('timestamp').textContent = now.toLocaleTimeString();
+                document.getElementById('version').textContent = data.system_status.version || 'v0.0.0';
+            }
+
+            updateThoughts(thoughts) {
+                const thoughtList = document.getElementById('thoughtList');
+                thoughtList.innerHTML = '';
+
+                thoughts.forEach((thought, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'thought-item';
+                    li.style.animationDelay = `${index * 0.2}s`;
+                    li.textContent = thought;
+                    thoughtList.appendChild(li);
+                });
+            }
+
+            updateEnvironment(env) {
+                const grid = document.getElementById('environmentGrid');
+                
+                if (env.status && env.status !== 'ok') {
+                    grid.innerHTML = '<div class="offline-message">Environmental sensors offline</div>';
+                    return;
+                }
+
+                grid.innerHTML = `
+                    <div class="env-item">
+                        <div class="env-value">${env.battery_level || '--'}</div>
+                        <div class="env-label">Battery</div>
+                    </div>
+                    <div class="env-item">
+                        <div class="env-value">${env.temperature || '--'}</div>
+                        <div class="env-label">Temperature</div>
+                    </div>
+                    <div class="env-item">
+                        <div class="env-value">${env.motion_detected ? 'Yes' : 'No'}</div>
+                        <div class="env-label">Motion</div>
+                    </div>
+                    <div class="env-item">
+                        <div class="env-value">${env.lighting_status?.state || 'Unknown'}</div>
+                        <div class="env-label">Lights</div>
+                    </div>
+                `;
+            }
+
+            updateInteractions(interactions) {
+                const container = document.getElementById('interactionsList');
+                
+                if (interactions.status && interactions.status !== 'ok') {
+                    container.innerHTML = '<div class="offline-message">Interaction history unavailable</div>';
+                    return;
+                }
+
+                if (!interactions.recent || interactions.recent.length === 0) {
+                    container.innerHTML = `
+                        <div class="interaction-item">
+                            <div class="interaction-time">Awaiting visitors...</div>
+                            <div>Ready to begin new conversations</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = '';
+                interactions.recent.forEach(interaction => {
+                    const div = document.createElement('div');
+                    div.className = 'interaction-item';
+                    
+                    const time = new Date(interaction.timestamp).toLocaleTimeString();
+                    div.innerHTML = `
+                        <div class="interaction-time">${time}</div>
+                        <div>${interaction.message.substring(0, 100)}${interaction.message.length > 100 ? '...' : ''}</div>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            updateSystemStatus(status) {
+                const indicator = document.getElementById('healthIndicator');
+                const statusText = document.getElementById('healthStatus');
+
+                indicator.className = 'health-indicator';
+                
+                if (status.overall_health === 'healthy') {
+                    indicator.classList.add('health-healthy');
+                    statusText.textContent = 'All Systems Operational';
+                } else if (status.overall_health === 'degraded') {
+                    indicator.classList.add('health-degraded');
+                    statusText.textContent = 'Some Systems Degraded';
+                } else {
+                    indicator.classList.add('health-error');
+                    statusText.textContent = 'System Issues Detected';
+                }
+            }
+
+            renderOfflineState() {
+                const container = document.getElementById('kioskContainer');
+                container.className = 'container mood-offline';
+
+                document.getElementById('personaName').textContent = 'System Offline';
+                document.getElementById('personaDescription').textContent = 'Processing in offline mode...';
+
+                const thoughtList = document.getElementById('thoughtList');
+                thoughtList.innerHTML = `
+                    <li class="thought-item">My systems are experiencing some turbulence...</li>
+                    <li class="thought-item">But my core essence remains vibrant</li>
+                    <li class="thought-item">Connection will return soon</li>
+                `;
+
+                document.getElementById('environmentGrid').innerHTML = '<div class="offline-message">Environmental data unavailable</div>';
+                document.getElementById('interactionsList').innerHTML = '<div class="offline-message">Interaction history unavailable</div>';
+
+                const indicator = document.getElementById('healthIndicator');
+                const statusText = document.getElementById('healthStatus');
+                indicator.className = 'health-indicator health-error';
+                statusText.textContent = 'System Offline';
+            }
+
+            setOnlineStatus(online) {
+                this.isOnline = online;
+                document.body.style.opacity = online ? '1' : '0.8';
+            }
+
+            startPolling() {
+                this.pollingInterval = setInterval(() => {
+                    this.updateDisplay();
+                }, this.updateInterval);
+            }
+
+            pausePolling() {
+                if (this.pollingInterval) {
+                    clearInterval(this.pollingInterval);
+                }
+            }
+
+            resumePolling() {
+                this.updateDisplay();
+                this.startPolling();
+            }
+        }
+
+        // Initialize the kiosk display when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new KioskDisplay();
+        });
+
+        // Prevent context menu and selection for kiosk mode
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('selectstart', e => e.preventDefault());
+    </script>
+</body>
+</html>
