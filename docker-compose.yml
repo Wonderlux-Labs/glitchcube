@@ -197,7 +197,7 @@ services:
   # Glances for system monitoring
   glances:
     container_name: glitchcube_glances
-    image: nicolargo/glances:latest-alpine
+    image: nicolargo/glances:latest
     restart: unless-stopped
     privileged: true
     pid: host

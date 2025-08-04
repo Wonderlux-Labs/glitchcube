@@ -26,13 +26,17 @@ RUN bundle config set --local deployment 'true' && \
 # Copy application code
 COPY . .
 
-# Create non-root user to run the app
-RUN adduser -D -s /bin/sh glitchcube && \
-    chown -R glitchcube:glitchcube /app
+# Create non-root user first
+RUN adduser -D -s /bin/sh glitchcube
 
-# Create data directories with proper permissions
+# Create data directories with correct ownership from the start
 RUN mkdir -p /app/data/context_documents /app/data/memories && \
     chown -R glitchcube:glitchcube /app/data
+
+# Only change ownership of essential app files (avoid vendor/ and other large dirs)
+RUN chown glitchcube:glitchcube /app/app.rb /app/config.ru /app/Gemfile* && \
+    test -d /app/lib && chown -R glitchcube:glitchcube /app/lib || true && \
+    test -d /app/config && chown -R glitchcube:glitchcube /app/config || true
 
 # Switch to non-root user
 USER glitchcube
