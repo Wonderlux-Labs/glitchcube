@@ -1,0 +1,5 @@
+# Input DateTime helpers for Glitch Cube
+last_interaction:
+  name: "Last Interaction Timestamp"
+  has_date: true
+  has_time: true

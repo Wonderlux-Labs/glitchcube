@@ -1,0 +1,53 @@
+# Input Boolean helpers for Glitch Cube
+offline_mode:
+  name: "Offline Mode"
+  initial: false
+  icon: "mdi:wifi-off"
+  
+# Human Interaction Sensors
+motion_detected:
+  name: "Motion Detected"
+  initial: false
+  icon: "mdi:motion-sensor"
+  
+human_detected:
+  name: "Human Detected"
+  initial: false
+  icon: "mdi:account-search"
+  
+# Movement & Position Sensors
+cube_is_moving:
+  name: "Cube Is Moving"
+  initial: false
+  icon: "mdi:cube-scan"
+  
+cube_stopped_moving:
+  name: "Cube Stopped Moving"
+  initial: false
+  icon: "mdi:cube-outline"
+  
+cube_tilted:
+  name: "Cube Tilted"
+  initial: false
+  icon: "mdi:rotate-3d-variant"
+  
+cube_stable:
+  name: "Cube Stable"
+  initial: true
+  icon: "mdi:cube"
+  
+# System Health Sensors
+battery_low:
+  name: "Battery Low"
+  initial: false
+  icon: "mdi:battery-low"
+  
+resources_low:
+  name: "Resources Low"
+  initial: false
+  icon: "mdi:memory"
+  
+temp_critical:
+  name: "Temperature Critical"
+  initial: false
+  icon: "mdi:thermometer-alert"

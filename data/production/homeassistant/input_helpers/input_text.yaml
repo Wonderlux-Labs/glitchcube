@@ -1,0 +1,17 @@
+# Input Text helpers for Glitch Cube
+current_persona:
+  name: "Current AI Persona"
+  max: 100
+  initial: "Default"
+  
+current_environment:
+  name: "Current Environment"
+  max: 255
+  initial: "Unknown location"
+  icon: "mdi:map-marker-radius"
+  
+current_weather:
+  name: "Current Weather Summary"
+  max: 255
+  initial: "Weather data unavailable"
+  icon: "mdi:weather-partly-cloudy"
