@@ -1,8 +1,4 @@
-# Glitch Cube Home Assistant Configuration
-# Main configuration file for the art installation
-template: !include templates.yml
 
-# Basic configuration
 homeassistant:
   name: "Glitch Cube"
   latitude: 40.7682435937 
@@ -71,8 +67,8 @@ system_health:
 diagnostics:
 
 # Include separate configuration files
-automation: !include automations.yaml
-script: !include scripts.yaml
+automation: !include_dir_merge_list automations/
+script: !include_dir_merge_named scripts/
 
 # Include all input helpers (each type from separate files)
 input_datetime: !include input_helpers/input_datetime.yaml
@@ -81,7 +77,8 @@ input_number: !include input_helpers/input_number.yaml
 input_boolean: !include input_helpers/input_boolean.yaml
 
 # Include all sensors (REST sensors and template sensors)
-sensor: !include sensors.yaml
+sensor: !include_dir_merge_list sensors/
+template: !include_dir_merge_list template/
 
 # Enable webhook integration (for external API calls)
 webhook:
