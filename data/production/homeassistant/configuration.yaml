@@ -7,14 +7,11 @@ homeassistant:
   latitude: 40.7682435937 
   longitude: -119.218725792
   elevation: 3848
-  unit_system: imperial
-  temperature_unit: F
   time_zone: "America/Los_Angeles"
-  country: US
-  currency: USD
+
   
   # Allow external webhooks for art installation
-  external_url: "https://zjd6lgd6yhigawnj06mkguhholcsfdul.ui.nabu.casa"
+  external_url: "https://zjd6lgd6yhigawnj06mkguhholcsfdul.ui.nabu.casa:8123"
   internal_url: "http://glitchcube.local:8123"
 
 # Enable frontend and API
@@ -49,7 +46,7 @@ history:
 # Enable recorder with optimized settings for art installation
 recorder:
   db_url: sqlite:////config/home-assistant_v2.db
-  purge_keep_days: 30  # Keep 30 days of history
+  purge_keep_days: 10  # Keep 30 days of history
   commit_interval: 5   # Commit every 5 seconds for reliability
   include:
     domains:
