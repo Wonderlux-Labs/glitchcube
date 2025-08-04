@@ -89,6 +89,63 @@
         {% else %}
           mdi:check-circle
         {% endif %}
+        
+    # Current Status Summary (for external status page)
+    current_status:
+      unique_id: "current_status"
+      friendly_name: "Current Status"
+      value_template: >
+        {% set health = states('sensor.installation_health') %}
+        {% set location = "Black Rock Desert, NV" %}
+        {% set persona = states('sensor.current_persona') %}
+        {% set last_interaction = states('sensor.last_interaction_time') %}
+        {% set temp = states('sensor.cube_cpu_thermal_0_temperature') %}
+        {% set internet = states('sensor.internet_connectivity') %}
+        {% set app_health = states('sensor.glitch_cube_app_health') %}
+        {% set weather = states('input_text.current_weather') %}
+        {% set env = states('input_text.current_environment') %}
+        
+        {% set status_parts = [] %}
+        {% set status_parts = status_parts + ['📍 ' + location] %}
+        {% set status_parts = status_parts + ['🎭 ' + persona] %}
+        {% set status_parts = status_parts + ['🏥 ' + health.title()] %}
+        
+        {% if temp != 'unknown' %}
+          {% set status_parts = status_parts + ['🌡️ ' + temp + '°F'] %}
+        {% endif %}
+        
+        {% if internet == 'connected' %}
+          {% set status_parts = status_parts + ['🌐 Online'] %}
+        {% else %}
+          {% set status_parts = status_parts + ['📶 Offline'] %}
+        {% endif %}
+        
+        {% if last_interaction != 'Never' and last_interaction != 'unknown' %}
+          {% set status_parts = status_parts + ['💬 Last: ' + last_interaction] %}
+        {% endif %}
+        
+        {% if weather != 'unknown' and weather != '' %}
+          {% set status_parts = status_parts + ['☀️ ' + weather[:30] + ('...' if weather|length > 30 else '')] %}
+        {% endif %}
+        
+        {% if env != 'unknown' and env != '' %}
+          {% set status_parts = status_parts + ['🌍 ' + env[:30] + ('...' if env|length > 30 else '')] %}
+        {% endif %}
+        
+        {{ status_parts | join(' | ') }}
+      icon_template: >
+        {% set health = states('sensor.installation_health') %}
+        {% if health == 'critical' %}
+          mdi:alert-circle-outline
+        {% elif health == 'offline' %}
+          mdi:cloud-off-outline
+        {% elif health == 'degraded' %}
+          mdi:alert-outline
+        {% elif health == 'warning' %}
+          mdi:thermometer-alert
+        {% else %}
+          mdi:status-bar
+        {% endif %}
   
 # Note: Using Glances sensors instead:
 # - sensor.cube_cpu_thermal_0_temperature (Fahrenheit)

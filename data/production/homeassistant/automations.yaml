@@ -341,3 +341,40 @@
         name: "Glitch Cube Sensors"
         message: "📡 Sensors updated via webhook"
         domain: "glitchcube"
+
+# Status Page Update: Push status to external Uptime Kuma every minute
+- id: update_external_status_page
+  alias: "Update External Status Page"
+  trigger:
+    - platform: time_pattern
+      minutes: "*"  # Every minute
+  action:
+    - variables:
+        # Determine status based on installation health
+        uptime_status: >
+          {% set health = states('sensor.installation_health') %}
+          {% if health in ['critical', 'offline'] %}
+            down
+          {% else %}
+            up
+          {% endif %}
+        # Get current status message (truncated to fit Uptime Kuma limits)
+        status_message: >
+          {% set msg = states('sensor.current_status') %}
+          {% if msg|length > 150 %}
+            {{ msg[:147] + '...' }}
+          {% else %}
+            {{ msg }}
+          {% endif %}
+    # Push to Uptime Kuma status page
+    - service: rest_command.update_status_page
+      data:
+        status: "{{ uptime_status }}"
+        msg: "{{ status_message }}"
+        ping: "{{ (now().timestamp() * 1000) | round(0) }}"  # Timestamp as ping value
+    # Log the status update
+    - service: logbook.log
+      data:
+        name: "Status Page"
+        message: "📊 External status updated: {{ uptime_status }} - {{ status_message[:50] }}{{ '...' if status_message|length > 50 else '' }}"
+        domain: "glitchcube"

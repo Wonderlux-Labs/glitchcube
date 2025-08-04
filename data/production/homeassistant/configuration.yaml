@@ -102,6 +102,19 @@ webhook:
 # Enable RESTful API
 api:
 
+# REST Commands for external integrations
+rest_command:
+  # Update external status page (Uptime Kuma)
+  update_status_page:
+    url: "{{ 'https://status.wlux.casa/api/push/Bf8nrx6ykq' }}"
+    method: GET
+    headers:
+      Authorization: "uk1_TxdjQ7d5GlwA8hA2d-rZe6TMiEcUJLafmkgC7tQ7"
+      User-Agent: "Glitch Cube Status Monitor"
+    payload: "status={{ status }}&msg={{ msg | urlencode }}&ping={{ ping }}"
+    content_type: "application/x-www-form-urlencoded"
+    timeout: 10
+
 # Scene configuration for different installation modes
 scene: !include scenes.yaml
 
