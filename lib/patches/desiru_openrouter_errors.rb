@@ -2,10 +2,32 @@
 
 # Patch to fix missing error classes in Desiru OpenRouter model
 # This addresses the issue where InvalidRequestError and APIError don't exist in Desiru
+# UPDATED: Also routes through AI Gateway when configured
 
 module Desiru
   module Models
     class OpenRouter < Base
+      # Override initialize to use gateway-aware client
+      def initialize(api_key:, model: nil, **options)
+        super(api_key: api_key, model: model, **options)
+        
+        # Use gateway-aware client configuration
+        client_options = { access_token: api_key }
+        
+        # Check if AI Gateway is configured (from GlitchCube config)
+        if defined?(GlitchCube) && GlitchCube.config.ai_gateway_url
+          # Route through Helicone AI Gateway for observability
+          # Uses direct OpenRouter endpoint: /openrouter/v1/chat/completions
+          @client = ::OpenRouter::Client.new(
+            client_options.merge(
+              uri_base: "#{GlitchCube.config.ai_gateway_url}/openrouter"
+            )
+          )
+        else
+          # Direct OpenRouter connection (fallback)
+          @client = ::OpenRouter::Client.new(client_options)
+        end
+      end
       private
 
       # Override perform_completion to fix request structure for updated OpenRouter gem v0.3+

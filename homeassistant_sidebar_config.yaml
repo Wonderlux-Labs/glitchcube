@@ -1,0 +1,25 @@
+# Add this to your Home Assistant configuration.yaml to integrate
+# the Docker containers into the sidebar like official add-ons
+
+# Panel iframe configuration for sidebar integration
+panel_iframe:
+  # File Editor (equivalent to HA File Editor add-on)
+  file_editor:
+    title: 'File Editor'
+    url: 'http://localhost:3218'  # Use your HA machine IP if accessing remotely
+    icon: mdi:file-document-edit-outline
+    
+  # Log Viewer (Dozzle - better than HA log viewer)
+  log_viewer:
+    title: 'Log Viewer'
+    url: 'http://localhost:8888'  # Use your HA machine IP if accessing remotely
+    icon: mdi:file-document-multiple-outline
+
+# Alternative configuration if using external IP:
+# Replace localhost with your machine's IP address, e.g.:
+#   url: 'http://192.168.1.100:3218'
+#   url: 'http://192.168.1.100:8888'
+
+# For Glitch Cube at glitchcube.local, use:
+#   url: 'http://glitchcube.local:3218'
+#   url: 'http://glitchcube.local:8888'

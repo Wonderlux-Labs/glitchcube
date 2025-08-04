@@ -147,9 +147,23 @@ class OpenRouterService
     end
 
     def client
-      @client ||= OpenRouter::Client.new(
-        access_token: GlitchCube.config.openrouter_api_key
-      )
+      @client ||= begin
+        client_options = { access_token: GlitchCube.config.openrouter_api_key }
+        
+        # Use AI Gateway if configured, otherwise use OpenRouter directly
+        if GlitchCube.config.ai_gateway_url
+          # Route through Helicone AI Gateway for observability
+          # Uses direct OpenRouter endpoint: /openrouter/v1/chat/completions
+          OpenRouter::Client.new(
+            client_options.merge(
+              uri_base: "#{GlitchCube.config.ai_gateway_url}/openrouter"
+            )
+          )
+        else
+          # Direct OpenRouter connection
+          OpenRouter::Client.new(client_options)
+        end
+      end
     end
 
     def default_model

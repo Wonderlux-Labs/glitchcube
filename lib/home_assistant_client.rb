@@ -16,6 +16,7 @@ class HomeAssistantClient
   attr_reader :base_url, :token
 
   def initialize(base_url: nil, token: nil)
+    resolved_env_url = ENV['HOME_ASSISTANT_URL'] || ENV.fetch('HA_URL', nil)
     if GlitchCube.config.home_assistant.mock_enabled
       # Use mock HA endpoints when explicitly enabled
       @base_url = base_url || GlitchCube.config.home_assistant.url || "http://localhost:#{GlitchCube.config.port}/mock_ha"
@@ -24,10 +25,11 @@ class HomeAssistantClient
       # Use real HA - fail if not configured
       @base_url = base_url || GlitchCube.config.home_assistant.url
       @token = token || GlitchCube.config.home_assistant.token
-      
-      raise Error, "Home Assistant URL not configured. Set HOME_ASSISTANT_URL or HA_URL environment variable." unless @base_url
-      raise Error, "Home Assistant token not configured. Set HOME_ASSISTANT_TOKEN environment variable." unless @token
+
+      raise Error, 'Home Assistant URL not configured. Set HOME_ASSISTANT_URL or HA_URL environment variable.' unless @base_url
+      raise Error, 'Home Assistant token not configured. Set HOME_ASSISTANT_TOKEN environment variable.' unless @token
     end
+    puts "[HomeAssistantClient] ENV['HA_URL'] = #{ENV['HA_URL'].inspect}, ENV['HOME_ASSISTANT_URL'] = #{ENV['HOME_ASSISTANT_URL'].inspect}, resolved base_url = #{@base_url.inspect}"
   end
 
   # Get all entity states
@@ -67,7 +69,7 @@ class HomeAssistantClient
     end
   rescue CircuitBreaker::CircuitOpenError => e
     puts "⚠️  Home Assistant circuit breaker is open: #{e.message}"
-    raise Error, "Home Assistant temporarily unavailable"
+    raise Error, 'Home Assistant temporarily unavailable'
   end
 
   # Light control methods
@@ -127,13 +129,13 @@ class HomeAssistantClient
 
     start_time = Time.now
     begin
-      response = Net::HTTP.start(uri.hostname, uri.port, 
+      response = Net::HTTP.start(uri.hostname, uri.port,
                                  use_ssl: uri.scheme == 'https',
                                  open_timeout: 5,
                                  read_timeout: 10) do |http|
         http.request(request)
       end
-      
+
       duration = ((Time.now - start_time) * 1000).round
       Services::LoggerService.log_api_call(
         service: 'home_assistant',
@@ -142,7 +144,7 @@ class HomeAssistantClient
         status: response.code.to_i,
         duration: duration
       )
-      
+
       handle_response(response)
     rescue Net::OpenTimeout, Net::ReadTimeout, Timeout::Error => e
       duration = ((Time.now - start_time) * 1000).round
@@ -176,13 +178,13 @@ class HomeAssistantClient
 
     start_time = Time.now
     begin
-      response = Net::HTTP.start(uri.hostname, uri.port, 
+      response = Net::HTTP.start(uri.hostname, uri.port,
                                  use_ssl: uri.scheme == 'https',
                                  open_timeout: 5,
-                                 read_timeout: 15) do |http|  # Longer timeout for TTS requests
+                                 read_timeout: 15) do |http| # Longer timeout for TTS requests
         http.request(request)
       end
-      
+
       duration = ((Time.now - start_time) * 1000).round
       Services::LoggerService.log_api_call(
         service: 'home_assistant',
@@ -191,7 +193,7 @@ class HomeAssistantClient
         status: response.code.to_i,
         duration: duration
       )
-      
+
       handle_response(response)
     rescue Net::OpenTimeout, Net::ReadTimeout, Timeout::Error => e
       duration = ((Time.now - start_time) * 1000).round

@@ -104,3 +104,18 @@ api:
 
 # Scene configuration for different installation modes
 scene: !include scenes.yaml
+
+# Panel iframe configuration for Docker container integration
+# Adds File Editor and Log Viewer to the sidebar like official add-ons
+panel_iframe:
+  # File Editor (equivalent to HA File Editor add-on)
+  file_editor:
+    title: 'File Editor'
+    url: 'http://glitchcube.local:3218'
+    icon: mdi:file-document-edit-outline
+    
+  # Log Viewer (Dozzle - shows all container logs)
+  log_viewer:
+    title: 'Log Viewer'
+    url: 'http://glitchcube.local:8888'
+    icon: mdi:file-document-multiple-outline
