@@ -27,8 +27,8 @@ class ConversationModule
           model = Desiru.configuration.default_model
           result = model.complete(
             prompt,
-            temperature: GlitchCube.config.conversation.temperature,
-            max_tokens: GlitchCube.config.conversation.max_tokens
+            temperature: GlitchCube.config.conversation&.temperature || 0.8,
+            max_tokens: GlitchCube.config.conversation&.max_tokens || 200
           )
           result[:content]
         end
@@ -233,7 +233,7 @@ class ConversationModule
 
     goodbye_words = %w[goodbye bye leaving done exit quit thanks]
     should_summarize = goodbye_words.any? { |word| message.downcase.include?(word) }
-    should_summarize ||= @session_messages[session_id].length >= GlitchCube.config.conversation.max_session_messages
+    should_summarize ||= @session_messages[session_id].length >= (GlitchCube.config.conversation&.max_session_messages || 10)
 
     return unless should_summarize && defined?(Jobs::ConversationSummaryJob)
 

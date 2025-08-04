@@ -10,10 +10,10 @@ module Services
     include HTTParty
 
     def initialize
-      @beacon_url = GlitchCube.config.beacon.url
-      @beacon_token = GlitchCube.config.beacon.token
-      @device_id = GlitchCube.config.device.id
-      @location = GlitchCube.config.device.location
+      @beacon_url = GlitchCube.config.beacon&.url
+      @beacon_token = GlitchCube.config.beacon&.token
+      @device_id = GlitchCube.config.device&.id || 'glitch_cube_001'
+      @location = GlitchCube.config.device&.location || 'Black Rock City'
     end
 
     def send_heartbeat
@@ -123,8 +123,8 @@ module Services
 
     def app_status
       {
-        version: GlitchCube.config.device.version,
-        rack_env: GlitchCube.config.rack_env,
+        version: GlitchCube.config.device&.version || '1.0.0',
+        rack_env: GlitchCube.config&.rack_env || 'unknown',
         sidekiq_status: sidekiq_status,
         last_conversation: last_conversation_time,
         conversation_count_today: todays_conversation_count

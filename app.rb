@@ -62,7 +62,7 @@ class GlitchCubeApp < Sinatra::Base
 
   configure do
     # Enable mock HA when explicitly requested
-    set :mock_ha_enabled, GlitchCube.config.home_assistant.mock_enabled
+    set :mock_ha_enabled, GlitchCube.config.home_assistant&.mock_enabled || false
   end
 
   helpers do
@@ -679,11 +679,11 @@ class GlitchCubeApp < Sinatra::Base
 
       json({
              success: true,
-             beacon_enabled: GlitchCube.config.beacon.enabled,
+             beacon_enabled: GlitchCube.config.beacon&.enabled || false,
              beacon_url: GlitchCube.config.beacon.url&.gsub(%r{https?://([^/]+).*}, '\1'), # Show only domain
              last_heartbeat: last_heartbeat,
-             device_id: GlitchCube.config.device.id,
-             location: GlitchCube.config.device.location
+             device_id: GlitchCube.config.device&.id || 'glitch_cube_001',
+             location: GlitchCube.config.device&.location || 'Black Rock City'
            })
     end
 
