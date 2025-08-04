@@ -1,2 +1,0 @@
-FROM ruby:3.3-slim
-RUN mkdir -p /test_dir
