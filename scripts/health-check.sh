@@ -54,6 +54,33 @@ echo "💿 Disk Space:"
 df -h | grep -E "^/dev/|Filesystem"
 echo ""
 
+# Check temperature (Pi-specific for desert conditions)
+echo "🌡️  System Temperature:"
+if command -v vcgencmd >/dev/null 2>&1; then
+  temp=$(vcgencmd measure_temp 2>/dev/null | cut -d'=' -f2 || echo "unknown")
+  echo "CPU Temperature: $temp"
+  
+  # Warning if over 70°C (critical for desert deployment)
+  if [[ "$temp" =~ ^[0-9]+\.[0-9]+\'C$ ]]; then
+    temp_num=$(echo "$temp" | cut -d"'" -f1)
+    if (( $(echo "$temp_num > 70" | bc -l) 2>/dev/null )); then
+      echo "🚨 WARNING: High temperature detected ($temp) - Monitor for throttling!"
+    fi
+  fi
+else
+  echo "Temperature monitoring not available (non-Pi system)"
+fi
+echo ""
+
+# Check network connectivity (important for Starlink)
+echo "🌐 Network Status:"
+if ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+  echo "✅ Internet connectivity - OK"
+else
+  echo "❌ Internet connectivity - FAILED (Check Starlink connection)"
+fi
+echo ""
+
 # Check recent logs for errors
 echo "📋 Recent Errors (last 10 minutes):"
 echo "Glitch Cube App:"

@@ -53,6 +53,7 @@ services:
     volumes:
       - ./data/production/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
     logging:
       driver: "json-file"
       options:
