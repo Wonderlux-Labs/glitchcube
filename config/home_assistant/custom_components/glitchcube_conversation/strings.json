@@ -3,18 +3,14 @@
     "step": {
       "user": {
         "title": "Glitch Cube Conversation Agent",
-        "description": "Configure connection to your Glitch Cube conversation backend.",
+        "description": "Enable Glitch Cube voice conversation integration (connects to localhost:4567).",
         "data": {
-          "host": "Host",
-          "port": "Port",
-          "use_https": "Use HTTPS",
-          "api_path": "API Path",
-          "timeout": "Request Timeout (seconds)"
+          "enable": "Enable Integration"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect to Glitch Cube. Check host, port, and ensure the service is running.",
+      "cannot_connect": "Failed to connect to Glitch Cube at localhost:4567. Ensure the Glitch Cube service is running.",
       "unknown": "Unexpected error occurred"
     },
     "abort": {

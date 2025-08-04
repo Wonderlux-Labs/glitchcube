@@ -19,11 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("host", default="glitchcube.local"): str,
-        vol.Required("port", default=4567): int,
-        vol.Optional("use_https", default=False): bool,
-        vol.Optional("api_path", default="/api/v1/conversation"): str,
-        vol.Optional("timeout", default=10): int,
+        vol.Required("enable", default=True): bool,
     }
 )
 
@@ -31,10 +27,9 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
     
-    scheme = "https" if data["use_https"] else "http"
-    url = f"{scheme}://{data['host']}:{data['port']}/health"
-    
-    timeout = aiohttp.ClientTimeout(total=data["timeout"])
+    # Hardcoded connection for Docker setup
+    url = "http://localhost:4567/health"
+    timeout = aiohttp.ClientTimeout(total=10)
     
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -42,15 +37,15 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
                 if response.status == 200:
                     health_data = await response.json()
                     return {
-                        "title": f"Glitch Cube ({data['host']})",
+                        "title": "Glitch Cube (localhost)",
                         "version": health_data.get("version", "unknown")
                     }
                 else:
                     raise CannotConnect("Health check failed")
     except asyncio.TimeoutError:
-        raise CannotConnect("Connection timeout")
+        raise CannotConnect("Connection timeout - ensure Glitch Cube is running")
     except aiohttp.ClientError:
-        raise CannotConnect("Connection error")
+        raise CannotConnect("Connection error - check if Glitch Cube service is available")
     except Exception as e:
         _LOGGER.exception("Unexpected error validating Glitch Cube connection")
         raise CannotConnect(f"Unexpected error: {str(e)}")
@@ -70,7 +65,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             try:
                 # Set unique ID to prevent duplicate configurations
-                unique_id = f"{user_input['host']}:{user_input['port']}"
+                unique_id = "glitchcube_localhost"
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
                 

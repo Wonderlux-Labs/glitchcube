@@ -42,17 +42,13 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize the conversation entity."""
         self._config_entry = config_entry
-        self._attr_name = f"Glitch Cube ({config_entry.data['host']})"
+        self._attr_name = f"Glitch Cube (localhost)"
         self._attr_unique_id = f"{DOMAIN}_{config_entry.entry_id}"
         
-        # Build API URL
-        scheme = "https" if config_entry.data.get("use_https", False) else "http"
-        host = config_entry.data["host"]
-        port = config_entry.data["port"]
-        api_path = config_entry.data.get("api_path", "/api/v1/conversation")
-        
-        self._api_url = f"{scheme}://{host}:{port}{api_path}"
-        self._timeout = config_entry.data.get("timeout", 30)
+        # Hardcoded URL for Docker container communication
+        # Home Assistant and Glitch Cube run on same host, use localhost
+        self._api_url = "http://localhost:4567/api/v1/conversation"
+        self._timeout = 10  # Optimized for voice interactions
         
         _LOGGER.info("Initialized Glitch Cube conversation agent: %s", self._api_url)
 
