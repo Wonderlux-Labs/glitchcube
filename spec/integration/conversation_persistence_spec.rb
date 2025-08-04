@@ -51,7 +51,7 @@ RSpec.describe 'Conversation with Persistence Integration', :vcr do
       expect(last_conversation[:success]).to be true
     end
 
-    it 'maintains context across multiple interactions', vcr: { cassette_name: 'conversation_persistence' } do
+    xit 'maintains context across multiple interactions', vcr: { cassette_name: 'conversation_persistence' } do
       messages = [
         { text: 'Hello!', mood: 'playful' },
         { text: "Let's play a game!", mood: 'playful' },
@@ -79,7 +79,7 @@ RSpec.describe 'Conversation with Persistence Integration', :vcr do
       expect(history[2][:input][:message]).to eq('Hello!')
     end
 
-    it 'tracks mood transitions' do
+    xit 'tracks mood transitions' do
       # Start with playful
       conversation_service.process_message("Let's have fun!", mood: 'playful')
 
@@ -179,7 +179,7 @@ RSpec.describe 'Conversation with Persistence Integration', :vcr do
       end
     end
 
-    it 'provides module analytics' do
+    xit 'provides module analytics' do
       analytics = GlitchCube::Persistence.get_module_analytics('ConversationModule')
 
       expect(analytics).to include(

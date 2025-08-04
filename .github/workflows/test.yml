@@ -11,9 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     name: RSpec Tests (Ruby ${{ matrix.ruby-version }})
     
+    # Ensure the job fails when tests fail
+    continue-on-error: false
+    
     strategy:
       matrix:
         ruby-version: ['3.3']
+      # Ensure all matrix jobs fail if any fail
+      fail-fast: true
     
     services:
       redis:
@@ -63,7 +68,12 @@ jobs:
     
     - name: Run RSpec tests
       run: |
-        bundle exec rspec --format progress --format RspecJunitFormatter --out tmp/rspec_results.xml
+        # Ensure we capture the exit code properly
+        bundle exec rspec \
+          --format progress \
+          --format RspecJunitFormatter \
+          --out tmp/rspec_results.xml \
+          --format documentation || exit $?
       
     - name: Generate coverage report
       run: |
@@ -124,6 +134,8 @@ jobs:
   docker-test:
     runs-on: ubuntu-latest
     name: Docker Integration Test
+    # Ensure this job also fails properly
+    continue-on-error: false
     
     steps:
     - uses: actions/checkout@v4
@@ -146,11 +158,11 @@ jobs:
         # Wait for container to start
         sleep 10
         
-        # Test health endpoint
-        curl -f http://localhost:4567/health || exit 1
+        # Test health endpoint with proper error handling
+        curl -f http://localhost:4567/health || (docker logs glitchcube-test && exit 1)
         
         # Test welcome endpoint  
-        curl -f http://localhost:4567/ || exit 1
+        curl -f http://localhost:4567/ || (docker logs glitchcube-test && exit 1)
         
         # Clean up
         docker stop glitchcube-test
@@ -160,11 +172,11 @@ jobs:
       run: |
         docker build -f Dockerfile.multistage -t glitchcube:multistage-test .
         
-        # Quick smoke test
+        # Quick smoke test with proper exit handling
         docker run --rm \
           -e RACK_ENV=test \
           -e MOCK_HOME_ASSISTANT=true \
           -e OPENROUTER_API_KEY=test-key \
           -e SESSION_SECRET=test_secret_multistage_long_enough \
           glitchcube:multistage-test \
-          bundle exec ruby -e "puts 'Multi-stage build successful'"
+          bundle exec ruby -e "puts 'Multi-stage build successful'" || exit $?

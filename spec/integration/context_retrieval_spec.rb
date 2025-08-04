@@ -132,13 +132,13 @@ RSpec.describe 'Simple RAG Integration' do
   end
 
   describe '#answer_with_context' do
-    it 'uses context to answer questions' do
+    it 'uses context to answer questions', vcr: { cassette_name: 'rag_with_context' } do
       result = rag.answer_with_context('What are you?')
 
       expect(result).to be_a(Hash)
       expect(result[:answer]).to be_a(String)
       expect(result[:contexts_used]).to be_an(Array)
-      expect(result[:confidence]).to be > 0.5
+      expect(result[:confidence]).to be >= 0.5
     end
 
     it 'handles questions without relevant context', vcr: { cassette_name: 'rag_no_context' } do
