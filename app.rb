@@ -90,15 +90,15 @@ class GlitchCubeApp < Sinatra::Base
 
     def log_request_wrapper
       start_time = Time.now
-      
+
       yield
-      
+
       duration = ((Time.now - start_time) * 1000).round
-      
+
       # Extract request parameters
       request_params = {}
       request_params.merge!(params) unless params.empty?
-      
+
       # For POST requests, try to parse JSON body
       if request.post? && request.content_type&.include?('application/json')
         begin
@@ -109,7 +109,7 @@ class GlitchCubeApp < Sinatra::Base
           # Ignore invalid JSON
         end
       end
-      
+
       Services::LoggerService.log_request(
         method: request.request_method,
         path: request.path,
@@ -121,7 +121,7 @@ class GlitchCubeApp < Sinatra::Base
       )
     rescue StandardError => e
       duration = ((Time.now - start_time) * 1000).round
-      
+
       Services::LoggerService.log_request(
         method: request.request_method,
         path: request.path,
@@ -132,38 +132,36 @@ class GlitchCubeApp < Sinatra::Base
         ip: request.ip,
         error: e.message
       )
-      
+
       raise e
     end
-    
+
     # Voice conversation helper methods
     def should_continue_conversation?(result)
       # Continue if response contains a question or the AI suggests continuation
       response_text = result[:response]&.downcase || ''
-      
+
       # Check for question indicators
       return true if response_text.include?('?')
-      
+
       # Check for confirmation requests
       confirmation_phrases = ['do you want', 'would you like', 'should i', 'can i', 'shall i']
       return true if confirmation_phrases.any? { |phrase| response_text.include?(phrase) }
-      
+
       # Check if result explicitly requests continuation
       result[:continue_conversation] == true
     end
-    
+
     def extract_ha_actions(result)
       # Extract Home Assistant actions from conversation result
       actions = []
-      
+
       # Check if result contains explicit HA actions
-      if result[:ha_actions]
-        actions.concat(result[:ha_actions])
-      end
-      
+      actions.concat(result[:ha_actions]) if result[:ha_actions]
+
       # Parse natural language for common actions (basic examples)
       response_text = result[:response]&.downcase || ''
-      
+
       # Light controls
       if response_text.match(/turn.*on.*light/)
         actions << {
@@ -178,23 +176,21 @@ class GlitchCubeApp < Sinatra::Base
           target: { entity_id: 'light.glitch_cube' }
         }
       end
-      
+
       # More sophisticated action extraction would go here
       # This could use NLP or pattern matching based on your needs
-      
+
       actions
     end
-    
+
     def extract_media_actions(result)
       # Extract media actions for NON-SPEECH audio (sound effects, music, etc.)
       # NOTE: Primary speech should be in the 'response' field, not here
       media_actions = []
-      
+
       # Check if result contains explicit media actions
-      if result[:media_actions]
-        media_actions.concat(result[:media_actions])
-      end
-      
+      media_actions.concat(result[:media_actions]) if result[:media_actions]
+
       # DEPRECATED: TTS should use main 'response' field instead
       if result[:tts_message]
         media_actions << {
@@ -204,7 +200,7 @@ class GlitchCubeApp < Sinatra::Base
           deprecated: true
         }
       end
-      
+
       # Sound effects and background audio
       if result[:sound_effect_url]
         media_actions << {
@@ -213,7 +209,7 @@ class GlitchCubeApp < Sinatra::Base
           entity_id: 'media_player.glitchcube_speaker'
         }
       end
-      
+
       # Music or ambient audio playback
       if result[:audio_url]
         media_actions << {
@@ -222,15 +218,15 @@ class GlitchCubeApp < Sinatra::Base
           entity_id: 'media_player.glitchcube_speaker'
         }
       end
-      
+
       media_actions
     end
-    
+
     def generate_proactive_message(trigger_type, context)
       # Generate contextual conversation starters based on triggers
       case trigger_type
       when 'motion_detected'
-        "Hey there! I noticed you just walked in. How are you doing?"
+        'Hey there! I noticed you just walked in. How are you doing?'
       when 'battery_low'
         "I'm running a bit low on battery. Should I ask someone to help charge me?"
       when 'weather_change'
@@ -240,18 +236,18 @@ class GlitchCubeApp < Sinatra::Base
       when 'interaction_timeout'
         "It's been a while since we last talked. I've been thinking about #{context[:topic] || 'art and existence'}. What's on your mind?"
       when 'new_person'
-        "I sense someone new nearby. Should I introduce myself?"
+        'I sense someone new nearby. Should I introduce myself?'
       when 'system_alert'
         "I need to let you know about something: #{context[:alert_message]}. How should we handle this?"
       else
-        "I have something to share with you. Are you available to chat?"
+        'I have something to share with you. Are you available to chat?'
       end
     end
-    
+
     def send_conversation_to_ha(message, context)
       # Send proactive conversation to Home Assistant voice system
       # This would trigger the conversation on the voice satellite
-      
+
       # For now, return success - in practice, this would call HA's conversation service
       # or trigger an automation that starts the voice conversation
       {
@@ -263,9 +259,6 @@ class GlitchCubeApp < Sinatra::Base
     end
   end
 
-  # Initialize logger service
-  Services::LoggerService.setup_loggers
-
   # Request logging for all endpoints
   before do
     @request_start_time = Time.now
@@ -274,20 +267,20 @@ class GlitchCubeApp < Sinatra::Base
   after do
     # Skip logging for static assets and favicon
     return if request.path_info.start_with?('/assets', '/favicon')
-    
+
     duration = ((@request_start_time ? Time.now - @request_start_time : 0) * 1000).round
-    
+
     # Extract request parameters
     request_params = {}
     request_params.merge!(params) unless params.empty?
-    
+
     # For POST requests, try to capture JSON body params
     if request.post? && request.content_type&.include?('application/json')
-      # Note: request body may have already been read, so we'll capture what we can
+      # NOTE: request body may have already been read, so we'll capture what we can
       request_params['_content_type'] = request.content_type
       request_params['_content_length'] = request.content_length if request.content_length
     end
-    
+
     Services::LoggerService.log_request(
       method: request.request_method,
       path: request.path,
@@ -328,18 +321,18 @@ class GlitchCubeApp < Sinatra::Base
   # Kiosk data API endpoint
   get '/api/v1/kiosk/status' do
     content_type :json
-    
+
     begin
       require_relative 'lib/services/kiosk_service'
       kiosk_service = Services::KioskService.new
-      
+
       json(kiosk_service.get_status)
     rescue StandardError => e
       status 500
       json({
-        error: e.message,
-        timestamp: Time.now.iso8601
-      })
+             error: e.message,
+             timestamp: Time.now.iso8601
+           })
     end
   end
 
@@ -380,7 +373,7 @@ class GlitchCubeApp < Sinatra::Base
       # Add session ID to context if not present
       context = request_body['context'] || {}
       context[:session_id] ||= request.session[:session_id] || SecureRandom.uuid
-      
+
       # Handle voice-specific context
       if context[:voice_interaction]
         context[:device_id] = context[:device_id]
@@ -395,24 +388,24 @@ class GlitchCubeApp < Sinatra::Base
       )
 
       # Enhance response for Home Assistant voice integration
-      if context[:voice_interaction]
-        response_data = {
-          response: result[:response],
-          suggested_mood: result[:suggested_mood],
-          confidence: result[:confidence],
-          
-          # NEW: Support for conversation continuation
-          continue_conversation: should_continue_conversation?(result),
-          
-          # NEW: Support for HA actions (lights, sensors, etc.)
-          actions: extract_ha_actions(result),
-          
-          # NEW: Support for media actions (TTS, audio)
-          media_actions: extract_media_actions(result)
-        }
-      else
-        response_data = result
-      end
+      response_data = if context[:voice_interaction]
+                        {
+                          response: result[:response],
+                          suggested_mood: result[:suggested_mood],
+                          confidence: result[:confidence],
+
+                          # NEW: Support for conversation continuation
+                          continue_conversation: should_continue_conversation?(result),
+
+                          # NEW: Support for HA actions (lights, sensors, etc.)
+                          actions: extract_ha_actions(result),
+
+                          # NEW: Support for media actions (TTS, audio)
+                          media_actions: extract_media_actions(result)
+                        }
+                      else
+                        result
+                      end
 
       json({
              success: true,
@@ -529,7 +522,7 @@ class GlitchCubeApp < Sinatra::Base
   if development? || test?
     get '/api/v1/logs/errors' do
       content_type :json
-      
+
       json({
              error_summary: Services::LoggerService.error_summary,
              error_stats: Services::LoggerService.error_stats
@@ -538,7 +531,7 @@ class GlitchCubeApp < Sinatra::Base
 
     get '/api/v1/logs/circuit_breakers' do
       content_type :json
-      
+
       json({
              circuit_breakers: Services::CircuitBreakerService.status,
              actions: {
@@ -735,44 +728,39 @@ class GlitchCubeApp < Sinatra::Base
       end
     end
   end
-  
+
   # NEW: Proactive conversation endpoint (for starting conversations from automations)
   post '/api/v1/conversation/start' do
     content_type :json
-    
+
     begin
       request_body = JSON.parse(request.body.read)
-      
+
       # Generate proactive message based on trigger
       trigger_type = request_body['trigger'] || 'automation'
       context = request_body['context'] || {}
       custom_message = request_body['message']
-      
+
       # Generate appropriate conversation starter
-      if custom_message
-        conversation_text = custom_message
-      else
-        conversation_text = generate_proactive_message(trigger_type, context)
-      end
-      
+      conversation_text = custom_message || generate_proactive_message(trigger_type, context)
+
       # Send to Home Assistant conversation service
       ha_response = send_conversation_to_ha(conversation_text, context)
-      
+
       json({
-        success: true,
-        data: {
-          message: conversation_text,
-          ha_response: ha_response
-        },
-        timestamp: Time.now.iso8601
-      })
-      
+             success: true,
+             data: {
+               message: conversation_text,
+               ha_response: ha_response
+             },
+             timestamp: Time.now.iso8601
+           })
     rescue StandardError => e
       status 400
       json({
-        success: false,
-        error: e.message
-      })
+             success: false,
+             error: e.message
+           })
     end
   end
 
@@ -963,5 +951,8 @@ class GlitchCubeApp < Sinatra::Base
     end
   end
 end
+
+# Initialize logger service after app is defined
+Services::LoggerService.setup_loggers
 
 GlitchCubeApp.run! if __FILE__ == $PROGRAM_NAME

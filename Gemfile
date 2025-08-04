@@ -17,7 +17,7 @@ gem 'ostruct'
 gem 'rack-cors', '~> 3.0'
 gem 'ruby-openai', '~> 8.1'
 gem 'sequel', '~> 5.95'
-gem 'sqlite3', '~> 2.7' # For local persistence
+gem 'mysql2', '~> 0.5.6' # MariaDB/MySQL adapter for Sequel
 
 # Environment and Configuration
 gem 'dotenv', '~> 3.1'

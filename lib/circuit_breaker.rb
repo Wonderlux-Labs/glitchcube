@@ -19,22 +19,21 @@ class CircuitBreaker
     @mutex = Mutex.new
   end
 
-  def call(&block)
+  def call(&)
     return yield if disabled?
 
     case state
     when :open
-      if should_attempt_reset?
-        attempt_reset
-        # After reset, try again in half-open state
-        execute_half_open(&block)
-      else
-        raise CircuitOpenError, "Circuit breaker #{@name} is OPEN"
-      end
+      raise CircuitOpenError, "Circuit breaker #{@name} is OPEN" unless should_attempt_reset?
+
+      attempt_reset
+      # After reset, try again in half-open state
+      execute_half_open(&)
+
     when :half_open
-      execute_half_open(&block)
+      execute_half_open(&)
     else # :closed
-      execute_closed(&block)
+      execute_closed(&)
     end
   end
 
@@ -81,29 +80,25 @@ class CircuitBreaker
 
   private
 
-  def execute_closed(&block)
-    begin
-      result = yield
-      reset_failure_count
-      result
-    rescue StandardError => e
-      record_failure
-      open! if @failure_count >= @failure_threshold
-      raise e
-    end
+  def execute_closed
+    result = yield
+    reset_failure_count
+    result
+  rescue StandardError => e
+    record_failure
+    open! if @failure_count >= @failure_threshold
+    raise e
   end
 
-  def execute_half_open(&block)
-    begin
-      result = yield
-      record_success
-      close! if @success_count >= @success_threshold
-      result
-    rescue StandardError => e
-      record_failure
-      open!
-      raise e
-    end
+  def execute_half_open
+    result = yield
+    record_success
+    close! if @success_count >= @success_threshold
+    result
+  rescue StandardError => e
+    record_failure
+    open!
+    raise e
   end
 
   def attempt_reset
@@ -116,13 +111,13 @@ class CircuitBreaker
 
   def should_attempt_reset?
     return false unless @last_failure_time
-    
+
     Time.now - @last_failure_time > @recovery_timeout
   end
 
   def next_attempt_time
     return nil unless @state == :open && @last_failure_time
-    
+
     @last_failure_time + @recovery_timeout
   end
 
@@ -141,7 +136,7 @@ class CircuitBreaker
 
   def reset_failure_count
     @mutex.synchronize do
-      @failure_count = 0 if @failure_count > 0
+      @failure_count = 0 if @failure_count.positive?
     end
   end
 end

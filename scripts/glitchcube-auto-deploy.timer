@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Glitch Cube Auto Deploy every 5 minutes
+Requires=glitchcube-auto-deploy.service
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+Unit=glitchcube-auto-deploy.service
+
+[Install]
+WantedBy=timers.target

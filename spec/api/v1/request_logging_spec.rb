@@ -22,7 +22,7 @@ RSpec.describe 'Request Logging', type: :request do
 
       expect(last_response.status).to eq(200)
       expect(@logged_requests.length).to eq(1)
-      
+
       logged_request = @logged_requests.first
       expect(logged_request[:method]).to eq('GET')
       expect(logged_request[:path]).to eq('/')
@@ -33,12 +33,12 @@ RSpec.describe 'Request Logging', type: :request do
     end
 
     it 'logs POST requests' do
-      post '/api/v1/conversation', 
+      post '/api/v1/conversation',
            { message: 'Hello', mood: 'neutral' }.to_json,
            'CONTENT_TYPE' => 'application/json'
 
       expect(@logged_requests.length).to eq(1)
-      
+
       logged_request = @logged_requests.first
       expect(logged_request[:method]).to eq('POST')
       expect(logged_request[:path]).to eq('/api/v1/conversation')
@@ -67,7 +67,7 @@ RSpec.describe 'Request Logging', type: :request do
       get '/nonexistent-endpoint'
 
       expect(last_response.status).to eq(404)
-      
+
       logged_request = @logged_requests.first
       expect(logged_request[:status]).to eq(404)
       expect(logged_request[:path]).to eq('/nonexistent-endpoint')

@@ -10,14 +10,14 @@ class OpenRouterService
     def complete(prompt, model: default_model, **options)
       # Validate model isn't blacklisted
       GlitchCube::ModelPresets.validate_model!(model)
-      
+
       request_params = {
         model: model,
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 500,
         temperature: 0.7
       }.merge(options)
-      
+
       make_api_call(request_params)
     end
 
@@ -25,17 +25,17 @@ class OpenRouterService
     def complete_with_context(messages, model: default_model, **options)
       # Validate model isn't blacklisted
       GlitchCube::ModelPresets.validate_model!(model)
-      
+
       # Ensure messages is an array of message objects
       formatted_messages = format_messages(messages)
-      
+
       request_params = {
         model: model,
         messages: formatted_messages,
         max_tokens: 500,
         temperature: 0.7
       }.merge(options)
-      
+
       make_api_call(request_params)
     end
 
@@ -43,7 +43,7 @@ class OpenRouterService
     def stream_complete(prompt, model: default_model, **options, &block)
       # Validate model isn't blacklisted
       GlitchCube::ModelPresets.validate_model!(model)
-      
+
       request_params = {
         model: model,
         messages: [{ role: 'user', content: prompt }],
@@ -51,8 +51,8 @@ class OpenRouterService
         max_tokens: 500,
         temperature: 0.7
       }.merge(options)
-      
-      # Note: Streaming calls are not logged the same way due to their nature
+
+      # NOTE: Streaming calls are not logged the same way due to their nature
       client.complete(request_params, &block)
     end
 
@@ -60,17 +60,15 @@ class OpenRouterService
     def available_models
       @models_cache ||= {}
       cache_key = :models
-      
-      if @models_cache[cache_key] && @models_cache[cache_key][:expires] > Time.now
-        return @models_cache[cache_key][:data]
-      end
+
+      return @models_cache[cache_key][:data] if @models_cache[cache_key] && @models_cache[cache_key][:expires] > Time.now
 
       models = client.models
       @models_cache[cache_key] = {
         data: models,
         expires: Time.now + 3600 # 1 hour
       }
-      
+
       models
     end
 
@@ -104,11 +102,11 @@ class OpenRouterService
 
     def make_api_call(request_params)
       start_time = Time.now
-      
+
       begin
         response = client.complete(request_params)
         duration = ((Time.now - start_time) * 1000).round
-        
+
         # Log successful API call with detailed context
         Services::LoggerService.log_api_call(
           service: 'openrouter',
@@ -123,11 +121,11 @@ class OpenRouterService
           temperature: request_params[:temperature],
           max_tokens: request_params[:max_tokens]
         )
-        
+
         response
       rescue StandardError => e
         duration = ((Time.now - start_time) * 1000).round
-        
+
         # Log failed API call with context
         Services::LoggerService.log_api_call(
           service: 'openrouter',
@@ -141,29 +139,27 @@ class OpenRouterService
           temperature: request_params[:temperature],
           max_tokens: request_params[:max_tokens]
         )
-        
+
         raise e
       end
     end
 
     def client
-      @client ||= begin
-        # Use Helicone cloud service for observability if API key is configured
-        if GlitchCube.config.helicone_api_key
-          # Route through Helicone cloud service for observability
-          OpenRouter::Client.new(
-            access_token: GlitchCube.config.openrouter_api_key,
-            uri_base: "https://oai.helicone.ai/v1",
-            extra_headers: {
-              "Helicone-Auth" => "Bearer #{GlitchCube.config.helicone_api_key}",
-              "Helicone-Target-URL" => "https://openrouter.ai/api/v1"
-            }
-          )
-        else
-          # Direct OpenRouter connection
-          OpenRouter::Client.new(access_token: GlitchCube.config.openrouter_api_key)
-        end
-      end
+      # Use Helicone cloud service for observability if API key is configured
+      @client ||= if GlitchCube.config.helicone_api_key
+                    # Route through Helicone cloud service for observability
+                    OpenRouter::Client.new(
+                      access_token: GlitchCube.config.openrouter_api_key,
+                      uri_base: 'https://oai.helicone.ai/v1',
+                      extra_headers: {
+                        'Helicone-Auth' => "Bearer #{GlitchCube.config.helicone_api_key}",
+                        'Helicone-Target-URL' => 'https://openrouter.ai/api/v1'
+                      }
+                    )
+                  else
+                    # Direct OpenRouter connection
+                    OpenRouter::Client.new(access_token: GlitchCube.config.openrouter_api_key)
+                  end
     end
 
     def default_model
@@ -185,7 +181,7 @@ class OpenRouterService
     def extract_token_usage(response)
       usage = response['usage']
       return nil unless usage
-      
+
       {
         prompt_tokens: usage['prompt_tokens'],
         completion_tokens: usage['completion_tokens'],

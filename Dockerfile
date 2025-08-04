@@ -1,16 +1,16 @@
-# Use Alpine Linux for minimal footprint
-FROM ruby:3.3-alpine
+# Use Debian base to match production Raspberry Pi
+FROM ruby:3.3-slim
 
 # Install dependencies for building native extensions
-# sqlite-dev, pkgconfig, linux-headers needed for SQLite3 gem compilation
-RUN apk add --no-cache \
-    build-base \
+# Simple apt install approach for Raspberry Pi compatibility
+RUN apt-get update && apt-get install -y \
+    build-essential \
     git \
-    tzdata \
     curl \
-    sqlite-dev \
-    pkgconfig \
-    linux-headers
+    libsqlite3-dev \
+    libmariadb-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
 WORKDIR /app
@@ -23,15 +23,16 @@ RUN bundle config set --local deployment 'true' && \
     bundle config set --local without 'development test' && \
     bundle install --jobs 4
 
-# Copy application code
-COPY . .
-
 # Create non-root user first
 RUN adduser -D -s /bin/sh glitchcube
 
+# Copy application code
+COPY . .
+
 # Create data and logs directories with correct ownership from the start
 RUN mkdir -p /app/data/context_documents /app/data/memories /app/logs && \
-    chown -R glitchcube:glitchcube /app/data /app/logs
+    chown -R glitchcube:glitchcube /app/data /app/logs && \
+    chmod -R 755 /app/logs
 
 # Only change ownership of essential app files (avoid vendor/ and other large dirs)
 RUN chown glitchcube:glitchcube /app/app.rb /app/config.ru /app/Gemfile* && \

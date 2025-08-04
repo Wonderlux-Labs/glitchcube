@@ -96,6 +96,11 @@ rest_command:
       User-Agent: "Glitch Cube Status Monitor"
     timeout: 10
 
+# Shell commands for deployment
+shell_command:
+  deploy_glitchcube: '/home/eric/glitchcube/scripts/pull-from-github.sh'
+  rollback_glitchcube: 'cd /home/eric/glitchcube && docker tag glitchcube:last-known-good glitchcube:latest && docker-compose up -d glitchcube sidekiq'
+
 # Scene configuration for different installation modes
 scene: !include scenes.yaml
 

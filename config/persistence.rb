@@ -10,20 +10,14 @@ module GlitchCube
   module Persistence
     class << self
       def configure!
-        # For now, we'll use SQLite for simplicity and portability
-        # This can be changed to PostgreSQL later if needed:
-        # postgres://username:password@localhost/glitchcube
-
-        database_url = if GlitchCube.config.database_url && !GlitchCube.config.database_url.empty?
-                         # Production: Use PostgreSQL if DATABASE_URL is set
-                         GlitchCube.config.database_url
-                       elsif GlitchCube.config.test?
-                         # Test: Use in-memory SQLite
-                         'sqlite::memory:'
-                       else
-                         # Development: Use local SQLite file
-                         'sqlite://data/glitchcube.db'
-                       end
+        # Check database safety before attempting migration
+        unless GlitchCube.config.safe_to_migrate?
+          puts "⚠️  Database migration blocked for safety - check existing data"
+          puts "   Using SQLite fallback for this session"
+          database_url = GlitchCube.config.test? ? 'sqlite::memory:' : 'sqlite://data/glitchcube.db'
+        else
+          database_url = determine_database_url
+        end
 
         # Configure Desiru persistence
         Desiru::Persistence.database_url = database_url
@@ -32,10 +26,29 @@ module GlitchCube
         # Run migrations to create necessary tables
         Desiru::Persistence.migrate!
 
-        puts "✅ Desiru persistence configured with: #{database_url.split('@').last}"
+        db_display = database_url.include?('@') ? database_url.split('@').last : database_url
+        puts "✅ Desiru persistence configured with: #{db_display}"
       rescue StandardError => e
         puts "⚠️  Warning: Desiru persistence not configured: #{e.message}"
         puts '   Running without persistence - module history will not be tracked'
+      end
+
+      private
+
+      def determine_database_url
+        if GlitchCube.config.database_url && !GlitchCube.config.database_url.empty?
+          # Explicit DATABASE_URL takes priority (could be MariaDB, PostgreSQL, etc.)
+          GlitchCube.config.database_url
+        elsif GlitchCube.config.test?
+          # Test: Always use in-memory SQLite for speed and isolation
+          'sqlite::memory:'
+        elsif GlitchCube.config.mariadb_available?
+          # Development/Production: Use MariaDB if available
+          GlitchCube.config.mariadb_url
+        else
+          # Fallback: Local SQLite file
+          'sqlite://data/glitchcube.db'
+        end
       end
 
       def track_conversation(module_name, input, output, metadata = {})
@@ -112,7 +125,11 @@ module GlitchCube
           .where(module_name: 'conversation_summarizer')
           .order(Sequel.desc(:created_at))
           .limit(limit)
-          .map { |exec| JSON.parse(exec[:output]) rescue exec[:output] }
+          .map do |exec|
+          JSON.parse(exec[:output])
+          rescue StandardError
+            exec[:output]
+        end
       rescue StandardError => e
         puts "Failed to get conversation summaries: #{e.message}"
         []

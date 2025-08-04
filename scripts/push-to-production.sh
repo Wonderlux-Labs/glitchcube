@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Deploy script - commits changes and deploys to glitchcube
-# Usage: ./scripts/deploy.sh "commit message"
+# Push-to-production script - commits local changes, pushes to GitHub, then deploys to Raspberry Pi
+# Usage: ./scripts/push-to-production.sh "commit message"
+# Flow: Local → GitHub → Raspberry Pi (via SSH)
 
 set -e  # Exit on any error
 
@@ -9,6 +10,7 @@ set -e  # Exit on any error
 if [ -z "$1" ]; then
     echo "Usage: $0 \"commit message\""
     echo "Example: $0 \"Add file editor container configuration\""
+    echo "This pushes from local → GitHub → Raspberry Pi"
     exit 1
 fi
 
@@ -37,6 +39,13 @@ git push
 
 # Deploy to glitchcube via SSH
 echo "🚀 Deploying to glitchcube.local..."
+
+# Create backup of current compose config for rollback
+echo "📸 Creating deployment snapshot..."
+ssh "$REMOTE_HOST" "cd $REMOTE_PATH && \
+    mkdir -p deploy-snapshots && \
+    cp docker-compose.yml deploy-snapshots/docker-compose-\$(date +%Y%m%d-%H%M%S).yml"
+
 ssh "$REMOTE_HOST" "cd $REMOTE_PATH && git pull && \
     if [ -d 'config/homeassistant' ]; then \
         echo '📁 Updating Home Assistant configuration files...'; \

@@ -45,44 +45,41 @@ RSpec.describe 'Kiosk Interface API', type: :request do
 
     before do
       allow(HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
-      
+
       # Reset KioskService state before each test
-      Services::KioskService.current_mood = 'neutral'
-      Services::KioskService.instance_variable_set(:@inner_thoughts, [])
-      Services::KioskService.instance_variable_set(:@last_interaction, nil)
+      Services::Kiosk::StateManager.reset!
     end
 
     context 'when all services are available' do
       before do
         mock_breaker = double('circuit_breaker')
-        allow(Services::CircuitBreakerService).to receive(:home_assistant_breaker).and_return(mock_breaker)
         allow(mock_breaker).to receive(:call).and_yield
         allow(mock_ha_client).to receive(:states).and_return([
-          {
-            'entity_id' => 'sensor.battery_level',
-            'state' => '85',
-            'attributes' => { 'unit_of_measurement' => '%' }
-          },
-          {
-            'entity_id' => 'sensor.temperature',
-            'state' => '22.5',
-            'attributes' => { 'unit_of_measurement' => '°C' }
-          },
-          {
-            'entity_id' => 'binary_sensor.motion',
-            'state' => 'off'
-          },
-          {
-            'entity_id' => 'light.glitch_cube',
-            'state' => 'on',
-            'attributes' => { 'brightness' => 255, 'rgb_color' => [255, 128, 0] }
-          }
-        ])
+                                                               {
+                                                                 'entity_id' => 'sensor.battery_level',
+                                                                 'state' => '85',
+                                                                 'attributes' => { 'unit_of_measurement' => '%' }
+                                                               },
+                                                               {
+                                                                 'entity_id' => 'sensor.temperature',
+                                                                 'state' => '22.5',
+                                                                 'attributes' => { 'unit_of_measurement' => '°C' }
+                                                               },
+                                                               {
+                                                                 'entity_id' => 'binary_sensor.motion',
+                                                                 'state' => 'off'
+                                                               },
+                                                               {
+                                                                 'entity_id' => 'light.glitch_cube',
+                                                                 'state' => 'on',
+                                                                 'attributes' => { 'brightness' => 255, 'rgb_color' => [255, 128, 0] }
+                                                               }
+                                                             ])
 
-        allow(Services::CircuitBreakerService).to receive(:status).and_return([
-          { name: 'home_assistant', state: :closed },
-          { name: 'openrouter', state: :closed }
-        ])
+        allow(Services::CircuitBreakerService).to receive_messages(home_assistant_breaker: mock_breaker, status: [
+                                                                     { name: 'home_assistant', state: :closed },
+                                                                     { name: 'openrouter', state: :closed }
+                                                                   ])
       end
 
       it 'returns comprehensive kiosk status' do
@@ -132,11 +129,11 @@ RSpec.describe 'Kiosk Interface API', type: :request do
       before do
         allow(Services::CircuitBreakerService).to receive(:home_assistant_breaker)
           .and_raise(CircuitBreaker::CircuitOpenError.new('HA unavailable'))
-        
+
         allow(Services::CircuitBreakerService).to receive(:status).and_return([
-          { name: 'home_assistant', state: :open },
-          { name: 'openrouter', state: :closed }
-        ])
+                                                                                { name: 'home_assistant', state: :open },
+                                                                                { name: 'openrouter', state: :closed }
+                                                                              ])
       end
 
       it 'returns degraded status with fallback data' do
@@ -178,9 +175,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
 
     before do
       # Reset state
-      Services::KioskService.current_mood = 'neutral'
-      Services::KioskService.instance_variable_set(:@inner_thoughts, [])
-      Services::KioskService.instance_variable_set(:@last_interaction, nil)
+      Services::Kiosk::StateManager.reset!
     end
 
     it 'updates kiosk display when conversation happens' do
@@ -188,29 +183,28 @@ RSpec.describe 'Kiosk Interface API', type: :request do
       allow(Services::SystemPromptService).to receive(:new).and_return(
         double(generate: 'test prompt')
       )
-      
+
       # Mock circuit breaker
       mock_breaker = double('circuit_breaker')
       allow(Services::CircuitBreakerService).to receive(:openrouter_breaker).and_return(mock_breaker)
       allow(mock_breaker).to receive(:call).and_yield
-      
+
       allow(Timeout).to receive(:timeout).and_yield
-      
+
       mock_model = double('model')
-      allow(mock_model).to receive(:complete).and_return({ content: 'Hello there!' })
-      allow(mock_model).to receive(:config).and_return({ model: 'test-model' })
-      
+      allow(mock_model).to receive_messages(complete: { content: 'Hello there!' }, config: { model: 'test-model' })
+
       allow(Desiru).to receive(:configuration).and_return(
         double(default_model: mock_model)
       )
-      
+
       allow(HomeAssistantClient).to receive(:new).and_return(
         double(speak: true)
       )
-      
+
       allow(Services::LoggerService).to receive(:log_interaction)
       allow(Services::LoggerService).to receive(:log_tts)
-      
+
       # Call conversation
       result = conversation_module.call(
         message: 'Hello, are you there?',
@@ -223,11 +217,11 @@ RSpec.describe 'Kiosk Interface API', type: :request do
 
       # Check that kiosk was updated
       expect(Services::KioskService.current_mood).to eq('playful')
-      expect(Services::KioskService.instance_variable_get(:@last_interaction)).to include(
+      expect(Services::KioskService.last_interaction).to include(
         message: 'Hello, are you there?',
         response: 'Hello there!'
       )
-      expect(Services::KioskService.instance_variable_get(:@inner_thoughts)).to include(
+      expect(Services::KioskService.inner_thoughts).to include(
         'Just shared something meaningful with a visitor'
       )
     end
@@ -235,9 +229,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
 
   describe 'KioskService class methods' do
     before do
-      Services::KioskService.current_mood = 'neutral'
-      Services::KioskService.instance_variable_set(:@inner_thoughts, [])
-      Services::KioskService.instance_variable_set(:@last_interaction, nil)
+      Services::Kiosk::StateManager.reset!
     end
 
     it 'updates mood and adds corresponding thought' do
@@ -257,8 +249,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
 
       Services::KioskService.update_interaction(interaction_data)
 
-      last_interaction = Services::KioskService.instance_variable_get(:@last_interaction)
-      expect(last_interaction).to include(
+      expect(Services::KioskService.last_interaction).to include(
         message: 'Test message',
         response: 'Test response',
         timestamp: be_a(String)

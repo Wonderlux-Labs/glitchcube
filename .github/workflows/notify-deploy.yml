@@ -1,0 +1,31 @@
+name: Notify Home Assistant to Pull and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Notify Home Assistant to Pull from GitHub
+      env:
+        HA_API_TOKEN: ${{ secrets.HA_API_TOKEN }}
+      run: |
+        # Use Home Assistant REST API to set input_boolean state
+        # This requires authentication via Bearer token
+        
+        curl -X POST "https://zjd6lgd6yhigawnj06mkguhholcsfdul.ui.nabu.casa:8123/api/states/input_boolean.glitchcube_update_pending" \
+          -H "Authorization: Bearer $HA_API_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "state": "on",
+            "attributes": {
+              "triggered_by": "github_action",
+              "commit": "${{ github.sha }}",
+              "pusher": "${{ github.actor }}",
+              "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+            }
+          }'

@@ -9,24 +9,25 @@ module Desiru
     class OpenRouter < Base
       # Override initialize to use Helicone-aware client
       def initialize(api_key:, model: nil, **options)
-        super(api_key: api_key, model: model, **options)
-        
+        super
+
         # Check if Helicone cloud service is configured (from GlitchCube config)
-        if defined?(GlitchCube) && GlitchCube.config.helicone_api_key
-          # Route through Helicone cloud service for observability
-          @client = ::OpenRouter::Client.new(
-            access_token: api_key,
-            uri_base: "https://oai.helicone.ai/v1",
-            extra_headers: {
-              "Helicone-Auth" => "Bearer #{GlitchCube.config.helicone_api_key}",
-              "Helicone-Target-URL" => "https://openrouter.ai/api/v1"
-            }
-          )
-        else
-          # Direct OpenRouter connection (fallback)
-          @client = ::OpenRouter::Client.new(access_token: api_key)
-        end
+        @client = if defined?(GlitchCube) && GlitchCube.config.helicone_api_key
+                    # Route through Helicone cloud service for observability
+                    ::OpenRouter::Client.new(
+                      access_token: api_key,
+                      uri_base: 'https://oai.helicone.ai/v1',
+                      extra_headers: {
+                        'Helicone-Auth' => "Bearer #{GlitchCube.config.helicone_api_key}",
+                        'Helicone-Target-URL' => 'https://openrouter.ai/api/v1'
+                      }
+                    )
+                  else
+                    # Direct OpenRouter connection (fallback)
+                    ::OpenRouter::Client.new(access_token: api_key)
+                  end
       end
+
       private
 
       # Override perform_completion to fix request structure for updated OpenRouter gem v0.3+

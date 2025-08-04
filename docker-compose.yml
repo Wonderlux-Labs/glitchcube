@@ -7,7 +7,8 @@ services:
     container_name: glitchcube_homeassistant
     image: homeassistant/home-assistant:stable
     volumes:
-      - homeassistant_config:/config
+      # Use bind mount for production, named volume for dev
+      - ${HA_CONFIG_PATH:-./data/production/homeassistant}:/config
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro
     restart: unless-stopped
@@ -17,13 +18,21 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8123/manifest.json"]
       interval: 30s
       timeout: 10s
-      retries: 3
-    env_file: .env  # Pull TZ from .env file
+      retries: 5
+      start_period: 300s  # 5 minutes for initial startup
+    env_file: .env
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
     deploy:
       resources:
         limits:
-          cpus: '1.5'   # 1.5 CPU cores for HA
-          memory: 3G    # 3GB RAM for HA
+          cpus: '1.5'
+          memory: 3G
+        reservations:
+          memory: 1G  # Guarantee minimum memory
 
   # Glitch Cube Sinatra application
   glitchcube:
@@ -31,32 +40,38 @@ services:
     build: .
     image: glitchcube:latest
     volumes:
-      - glitchcube_data:/app/data
-      - glitchcube_context:/app/data/context_documents
+      # Use environment variable to switch between dev/prod paths
+      - ${GLITCHCUBE_DATA_PATH:-./data/production/glitchcube}:/app/data
+      - ./docs/context:/app/data/context_documents:ro
       - ./logs:/app/logs
       - /etc/localtime:/etc/localtime:ro
     network_mode: host
     restart: unless-stopped
-    env_file: .env  # Pull all vars from .env file
+    env_file: .env
     environment:
-      # All containers use host networking - can use localhost
       - REDIS_URL=redis://localhost:6379/0
       - HA_URL=http://localhost:8123
       - APP_ROOT=/app
+      - DATABASE_URL=${DATABASE_URL:-sqlite://data/production/glitchcube.db}
     depends_on:
       - homeassistant
       - redis
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4567/health", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:4567/health"]
       interval: 60s
       timeout: 30s
       retries: 5
       start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
     deploy:
       resources:
         limits:
-          cpus: '0.75'   # 0.75 CPU cores for Sinatra
-          memory: 1G     # 1GB RAM for Sinatra
+          cpus: '0.75'
+          memory: 1G
 
   # Redis for Sidekiq background jobs
   redis:
@@ -66,17 +81,22 @@ services:
       - ./data/redis:/data
     restart: unless-stopped
     network_mode: host
-    command: redis-server --save 60 1 --loglevel warning
+    command: redis-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     deploy:
       resources:
         limits:
-          cpus: '0.25'   # 0.25 CPU cores for Redis
-          memory: 256M   # 256MB RAM for Redis
+          cpus: '0.25'
+          memory: 512M  # Container limit higher than Redis internal limit
 
   # Sidekiq worker (separate container for background jobs)
   sidekiq:
@@ -85,152 +105,177 @@ services:
     image: glitchcube:latest
     command: bundle exec sidekiq -r ./app.rb
     volumes:
-      - glitchcube_data:/app/data
-      - glitchcube_context:/app/data/context_documents
+      - ${GLITCHCUBE_DATA_PATH:-./data/production/glitchcube}:/app/data
+      - ./docs/context:/app/data/context_documents:ro
       - ./logs:/app/logs
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
     network_mode: host
-    env_file: .env  # Pull all vars from .env file
+    env_file: .env
     environment:
-      # All containers use host networking - can use localhost
       - REDIS_URL=redis://localhost:6379/0
       - HA_URL=http://localhost:8123
       - APP_ROOT=/app
+      - DATABASE_URL=${DATABASE_URL:-sqlite://data/production/glitchcube.db}
     depends_on:
-      - redis
       - homeassistant
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'    # 0.5 CPU cores for Sidekiq
-          memory: 512M   # 512MB RAM for Sidekiq
-
-  # Portainer for Docker management UI
-  portainer:
-    container_name: glitchcube_portainer
-    image: portainer/portainer-ce:latest
-    restart: unless-stopped
-    network_mode: host
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    env_file: .env
-    environment:
-      - PORTAINER_ADMIN_PASSWORD=${MASTER_PASSWORD}
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9000/api/system/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-    profiles:
-      - management  # Optional: only start when --profile management is used
-
-  # MQTT Broker for device communication
-  mosquitto:
-    container_name: glitchcube_mosquitto
-    image: eclipse-mosquitto:2.0
-    restart: unless-stopped
-    network_mode: host
-    volumes:
-      - ./data/mosquitto/data:/mosquitto/data
-      - ./data/mosquitto/config:/mosquitto/config
-      - ./data/mosquitto/log:/mosquitto/log
-    healthcheck:
-      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '0.25'
-          memory: 128M
-
-  # ESPHome for custom hardware integration
-  esphome:
-    container_name: glitchcube_esphome
-    image: esphome/esphome:latest
-    restart: unless-stopped
-    network_mode: host
-    volumes:
-      - ./data/esphome:/config
-      - /etc/localtime:/etc/localtime:ro
-    environment:
-      - ESPHOME_DASHBOARD_USE_PING=true
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6052/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - redis
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
     deploy:
       resources:
         limits:
           cpus: '0.5'
           memory: 512M
 
-  # Music Assistant for audio playback
-  music-assistant:
-    container_name: glitchcube_music_assistant
-    image: ghcr.io/music-assistant/server:latest
+  # Management UI
+  portainer:
+    container_name: glitchcube_portainer
+    image: portainer/portainer-ce:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
     restart: unless-stopped
     network_mode: host
-    volumes:
-      - ./data/music-assistant:/data
-      - /etc/localtime:/etc/localtime:ro
-    environment:
-      - TZ=${TZ:-America/Los_Angeles}
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8095/api/info"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '0.75'
-          memory: 1G  
-
-  # Glances for system monitoring
-  glances:
-    container_name: glitchcube_glances
-    image: nicolargo/glances:latest
-    restart: unless-stopped
-    privileged: true
-    pid: host
-    network_mode: host
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /:/rootfs:ro
-      - /sys:/sys:ro
-      - /etc/os-release:/etc/os-release:ro
-    environment:
-      - GLANCES_OPT=-w --time 2
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:61208/api/3/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    command: -H unix:///var/run/docker.sock --bind :9009 --bind-https :9443
     deploy:
       resources:
         limits:
           cpus: '0.25'
           memory: 256M
 
+  # MQTT broker for Home Assistant integrations
+  mosquitto:
+    container_name: glitchcube_mosquitto
+    image: eclipse-mosquitto:2.0
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+      - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    restart: unless-stopped
+    network_mode: host
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 128M
 
+  # ESPHome Dashboard
+  esphome:
+    container_name: glitchcube_esphome
+    image: esphome/esphome:latest
+    volumes:
+      - esphome_config:/config
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    network_mode: host
+    env_file: .env
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Music Assistant for voice/audio control
+  music-assistant:
+    container_name: glitchcube_music_assistant
+    image: ghcr.io/music-assistant/server:latest
+    volumes:
+      - music_assistant_data:/data
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    network_mode: host
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # System Monitor
+  glances:
+    container_name: glitchcube_glances
+    image: nicolargo/glances:latest
+    restart: unless-stopped
+    pid: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/os-release:/etc/os-release:ro
+    environment:
+      - GLANCES_OPT=-w --disable-plugin network
+    network_mode: host
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+
+  # MariaDB (preferred by Home Assistant for logging and performance)
+  mariadb:
+    container_name: glitchcube_mariadb
+    image: mariadb:11.5
+    volumes:
+      - ./data/production/mariadb:/var/lib/mysql
+      - ./config/mariadb/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-glitchcube123}
+      - MYSQL_DATABASE=glitchcube
+      - MYSQL_USER=glitchcube
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-glitchcube}
+      # Home Assistant database (shared instance)
+      - MYSQL_ADDITIONAL_DATABASE=homeassistant
+    restart: unless-stopped
+    network_mode: host
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max-connections=250
+      --innodb-buffer-pool-size=256M
+      --innodb-log-file-size=64M
+      --slow-query-log=1
+      --slow-query-log-file=/var/log/mysql/slow.log
+      --long-query-time=2
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles:
+      - mariadb  # Only start if --profile mariadb is used
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          memory: 256M
+
+# Named volumes for containers
 volumes:
-  homeassistant_config:
-    driver: local
   glitchcube_data:
     driver: local
-  glitchcube_context:
-    driver: local
-  redis_data:
+  homeassistant_config:
     driver: local
   portainer_data:
+    driver: local
+  mosquitto_data:
+    driver: local
+  mosquitto_logs:
+    driver: local
+  esphome_config:
+    driver: local
+  music_assistant_data:
     driver: local

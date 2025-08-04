@@ -16,7 +16,7 @@ class HomeAssistantClient
   attr_reader :base_url, :token
 
   def initialize(base_url: nil, token: nil)
-    resolved_env_url = ENV['HOME_ASSISTANT_URL'] || ENV.fetch('HA_URL', nil)
+    ENV['HOME_ASSISTANT_URL'] || ENV.fetch('HA_URL', nil)
     if GlitchCube.config.home_assistant.mock_enabled
       # Use mock HA endpoints when explicitly enabled
       @base_url = base_url || GlitchCube.config.home_assistant.url || "http://localhost:#{GlitchCube.config.port}/mock_ha"

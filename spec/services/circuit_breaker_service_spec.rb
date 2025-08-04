@@ -46,7 +46,7 @@ RSpec.describe Services::CircuitBreakerService do
       status = described_class.status
       expect(status).to be_an(Array)
       expect(status.length).to eq(2)
-      
+
       status.each do |breaker_status|
         expect(breaker_status).to include(:name, :state, :failure_count)
       end

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require_relative '../../lib/services/openrouter_service'
 
@@ -23,14 +25,14 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
 
   describe 'blacklist validation' do
     it 'prevents using expensive models' do
-      expect {
+      expect do
         described_class.complete('Test', model: 'openai/o1-pro')
-      }.to raise_error(ArgumentError, /blacklisted due to high cost/)
+      end.to raise_error(ArgumentError, /blacklisted due to high cost/)
     end
 
     it 'allows safe models' do
       expect(mock_client).to receive(:complete).and_return(mock_response)
-      
+
       result = described_class.complete('Test', model: 'meta-llama/llama-3.2-3b-instruct')
       expect(result).to eq(mock_response)
     end
@@ -66,8 +68,8 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
     it 'validates all preset models are not blacklisted' do
       GlitchCube::ModelPresets.preset_names.each do |preset_name|
         model = GlitchCube::ModelPresets.get_model(preset_name)
-        expect(GlitchCube::ModelPresets.blacklisted?(model)).to be(false), 
-          "Preset #{preset_name} uses blacklisted model: #{model}"
+        expect(GlitchCube::ModelPresets.blacklisted?(model)).to be(false),
+                                                                "Preset #{preset_name} uses blacklisted model: #{model}"
       end
     end
   end

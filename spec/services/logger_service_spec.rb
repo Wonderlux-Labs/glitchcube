@@ -16,7 +16,7 @@ RSpec.describe Services::LoggerService do
 
     # Mock the log directory to use our temp directory
     allow(described_class).to receive(:log_directory).and_return(log_dir)
-    
+
     # Ensure test log directory exists
     FileUtils.mkdir_p(log_dir)
   end
@@ -53,11 +53,11 @@ RSpec.describe Services::LoggerService do
 
     let(:interaction_data) do
       {
-        user_message: "Hello, Glitch Cube!",
-        ai_response: "Hello there! Ready to create some art?",
-        mood: "playful",
+        user_message: 'Hello, Glitch Cube!',
+        ai_response: 'Hello there! Ready to create some art?',
+        mood: 'playful',
         confidence: 0.95,
-        session_id: "test_session_001",
+        session_id: 'test_session_001',
         context: { test_mode: true }
       }
     end
@@ -66,21 +66,21 @@ RSpec.describe Services::LoggerService do
       described_class.log_interaction(**interaction_data)
 
       interactions_content = File.read(File.join(log_dir, 'interactions.log'))
-      
-      expect(interactions_content).to include("👤 USER: Hello, Glitch Cube!")
-      expect(interactions_content).to include("🎲 GLITCH CUBE: Hello there! Ready to create some art?")
-      expect(interactions_content).to include("Session: test_session_001")
-      expect(interactions_content).to include("Mood: playful")
-      expect(interactions_content).to include("Confidence: 95%")
+
+      expect(interactions_content).to include('👤 USER: Hello, Glitch Cube!')
+      expect(interactions_content).to include('🎲 GLITCH CUBE: Hello there! Ready to create some art?')
+      expect(interactions_content).to include('Session: test_session_001')
+      expect(interactions_content).to include('Mood: playful')
+      expect(interactions_content).to include('Confidence: 95%')
     end
 
     it 'logs interaction to general.log as JSON' do
       described_class.general # Initialize general logger
-      
+
       described_class.log_interaction(**interaction_data)
 
       general_content = File.read(File.join(log_dir, 'general.log'))
-      expect(general_content).to include("INTERACTION:")
+      expect(general_content).to include('INTERACTION:')
       expect(general_content).to include(interaction_data[:user_message])
       expect(general_content).to include(interaction_data[:ai_response])
     end
@@ -103,7 +103,7 @@ RSpec.describe Services::LoggerService do
       described_class.log_api_call(**api_data)
 
       api_content = File.read(File.join(log_dir, 'api_calls.log'))
-      expect(api_content).to include("✅ HOME_ASSISTANT POST /api/services/tts/speak 200 (1250ms)")
+      expect(api_content).to include('✅ HOME_ASSISTANT POST /api/services/tts/speak 200 (1250ms)')
     end
 
     it 'logs failed API call with error emoji' do
@@ -117,7 +117,7 @@ RSpec.describe Services::LoggerService do
       )
 
       api_content = File.read(File.join(log_dir, 'api_calls.log'))
-      expect(api_content).to include("❌ HOME_ASSISTANT GET /api/test 500 (500ms) - Internal Server Error")
+      expect(api_content).to include('❌ HOME_ASSISTANT GET /api/test 500 (500ms) - Internal Server Error')
     end
 
     it 'tracks errors when present' do
@@ -162,7 +162,7 @@ RSpec.describe Services::LoggerService do
 
     it 'truncates long messages' do
       long_message = 'a' * 150
-      
+
       described_class.log_tts(
         message: long_message,
         success: true
@@ -225,13 +225,13 @@ RSpec.describe Services::LoggerService do
       described_class.track_error('service_b', 'Error 2')
 
       summary = described_class.error_summary
-      
+
       expect(summary[:total_errors]).to eq(3)
       expect(summary[:unique_errors]).to eq(2)
       expect(summary[:by_service]).to eq({
-        'service_a' => 2,
-        'service_b' => 1
-      })
+                                           'service_a' => 2,
+                                           'service_b' => 1
+                                         })
     end
 
     it 'sorts errors by frequency in stats' do
@@ -264,7 +264,7 @@ RSpec.describe Services::LoggerService do
       error_tracker.track('test_service', 'Test error')
 
       expect(File.exist?(errors_file)).to be true
-      
+
       data = JSON.parse(File.read(errors_file))
       expect(data).to have_key('test_service:Test error')
       expect(data['test_service:Test error']['count']).to eq(1)

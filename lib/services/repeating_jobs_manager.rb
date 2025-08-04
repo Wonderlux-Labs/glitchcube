@@ -7,27 +7,27 @@ module RepeatingJobsManager
   # Enable a specific service
   def enable_service(service_name)
     validate_service!(service_name)
-    
-    redis.setex("repeating_jobs:#{service_name}:enabled", 30 * 24 * 60 * 60, 'true')  # 30 days
+
+    redis.setex("repeating_jobs:#{service_name}:enabled", 30 * 24 * 60 * 60, 'true') # 30 days
     puts "✅ Enabled #{service_name} service"
-    
+
     service_name
   end
 
   # Disable a specific service
   def disable_service(service_name)
     validate_service!(service_name)
-    
-    redis.setex("repeating_jobs:#{service_name}:enabled", 30 * 24 * 60 * 60, 'false')  # 30 days
+
+    redis.setex("repeating_jobs:#{service_name}:enabled", 30 * 24 * 60 * 60, 'false') # 30 days
     puts "❌ Disabled #{service_name} service"
-    
+
     service_name
   end
 
   # Check if a service is enabled
   def service_enabled?(service_name)
     validate_service!(service_name)
-    
+
     enabled = redis.get("repeating_jobs:#{service_name}:enabled")
     enabled.nil? || enabled == 'true'
   end
@@ -45,10 +45,10 @@ module RepeatingJobsManager
 
   def validate_service!(service_name)
     service_name = service_name.to_sym if service_name.is_a?(String)
-    
-    unless RepeatingJobsHandler::SERVICES.key?(service_name)
-      available = RepeatingJobsHandler::SERVICES.keys.join(', ')
-      raise ArgumentError, "Unknown service: #{service_name}. Available: #{available}"
-    end
+
+    return if RepeatingJobsHandler::SERVICES.key?(service_name)
+
+    available = RepeatingJobsHandler::SERVICES.keys.join(', ')
+    raise ArgumentError, "Unknown service: #{service_name}. Available: #{available}"
   end
 end

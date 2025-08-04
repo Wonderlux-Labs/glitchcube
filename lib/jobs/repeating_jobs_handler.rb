@@ -19,7 +19,7 @@ class RepeatingJobsHandler
       description: 'Update weather summary from Home Assistant data'
     },
     health_check: {
-      class: 'HealthService', 
+      class: 'HealthService',
       method: 'check_system_health',
       interval: 15 * 60,  # 15 minutes in seconds
       description: 'Check system health and update sensors'
@@ -34,24 +34,27 @@ class RepeatingJobsHandler
 
   def perform
     job_start_time = Time.now.utc
-    
+
     SERVICES.each do |service_name, config|
       next unless service_enabled?(service_name)
       next unless service_ready_to_run?(service_name, config[:interval])
 
       execute_service(service_name, config)
     end
-    
+
     # Update Home Assistant sensor with last run time
     update_last_run_sensor(job_start_time)
-    
-  rescue => e
+  rescue StandardError => e
     logger.error "RepeatingJobsHandler failed: #{e.message}"
     logger.error e.backtrace.join("\n")
-    
+
     # Still update the sensor even if some services failed
-    update_last_run_sensor(job_start_time, error: e.message) rescue nil
-    
+    begin
+      update_last_run_sensor(job_start_time, error: e.message)
+    rescue StandardError
+      nil
+    end
+
     raise
   end
 
@@ -77,29 +80,28 @@ class RepeatingJobsHandler
   # Execute the service and update last run time
   def execute_service(service_name, config)
     start_time = Time.now.utc
-    
+
     begin
       service_class = Object.const_get(config[:class])
       service_instance = service_class.new
       result = service_instance.public_send(config[:method])
-      
+
       # Update last successful run
-      redis.setex("repeating_jobs:#{service_name}:last_run", 7 * 24 * 60 * 60, start_time.iso8601)  # 7 days
-      
+      redis.setex("repeating_jobs:#{service_name}:last_run", 7 * 24 * 60 * 60, start_time.iso8601) # 7 days
+
       duration = ((Time.now.utc - start_time) * 1000).round
       logger.info "✅ #{service_name} completed in #{duration}ms: #{result&.to_s&.slice(0, 100)}"
-      
     rescue NameError => e
       logger.error "❌ #{service_name} service class not found: #{e.message}"
-    rescue => e
+    rescue StandardError => e
       duration = ((Time.now.utc - start_time) * 1000).round
       logger.error "❌ #{service_name} failed after #{duration}ms: #{e.message}"
-      
+
       # For critical services, don't update last_run so they retry sooner
       unless critical_service?(service_name)
-        redis.setex("repeating_jobs:#{service_name}:last_run", 60 * 60, start_time.iso8601)  # 1 hour
+        redis.setex("repeating_jobs:#{service_name}:last_run", 60 * 60, start_time.iso8601) # 1 hour
       end
-      
+
       raise if critical_service?(service_name)
     end
   end
@@ -117,16 +119,15 @@ class RepeatingJobsHandler
   def update_last_run_sensor(run_time, error: nil)
     # Format datetime for input_datetime helper (YYYY-MM-DD HH:MM:SS format)
     datetime_str = run_time.strftime('%Y-%m-%d %H:%M:%S')
-    
+
     ha_client = HomeAssistantClient.new
     ha_client.call_service('input_datetime', 'set_datetime', {
-      entity_id: 'input_datetime.last_repeating_jobs_run',
-      datetime: datetime_str
-    })
-    
+                             entity_id: 'input_datetime.last_repeating_jobs_run',
+                             datetime: datetime_str
+                           })
+
     logger.info "📊 Updated HA input_datetime: last_repeating_jobs_run = #{datetime_str}"
-    
-  rescue => e
+  rescue StandardError => e
     logger.error "❌ Failed to update HA input_datetime: #{e.message}"
   end
 end

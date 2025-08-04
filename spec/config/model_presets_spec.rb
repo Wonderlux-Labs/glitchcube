@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require_relative '../../config/model_presets'
 
@@ -36,9 +38,9 @@ RSpec.describe GlitchCube::ModelPresets do
 
   describe '.validate_model!' do
     it 'raises error for blacklisted models' do
-      expect {
+      expect do
         described_class.validate_model!('openai/o1-pro')
-      }.to raise_error(ArgumentError, /blacklisted due to high cost/)
+      end.to raise_error(ArgumentError, /blacklisted due to high cost/)
     end
 
     it 'returns model_id for safe models' do
@@ -59,17 +61,17 @@ RSpec.describe GlitchCube::ModelPresets do
     it 'ensures all presets have required structure' do
       described_class.preset_names.each do |preset_name|
         preset = described_class.const_get(preset_name)
-        
+
         expect(preset).to have_key(:primary)
         expect(preset[:primary]).to be_a(String)
         expect(preset[:primary]).not_to be_empty
-        
-        if preset[:alternatives]
-          expect(preset[:alternatives]).to be_an(Array)
-          preset[:alternatives].each do |alt|
-            expect(alt).to be_a(String)
-            expect(alt).not_to be_empty
-          end
+
+        next unless preset[:alternatives]
+
+        expect(preset[:alternatives]).to be_an(Array)
+        preset[:alternatives].each do |alt|
+          expect(alt).to be_a(String)
+          expect(alt).not_to be_empty
         end
       end
     end
@@ -78,18 +80,18 @@ RSpec.describe GlitchCube::ModelPresets do
   describe 'cost safety' do
     it 'ensures no blacklisted models appear in presets' do
       dangerous_models = described_class::BLACKLISTED_EXPENSIVE
-      
+
       described_class.preset_names.each do |preset_name|
         preset = described_class.const_get(preset_name)
-        
+
         # Check primary model
         expect(dangerous_models).not_to include(preset[:primary])
-        
+
         # Check alternatives
-        if preset[:alternatives]
-          preset[:alternatives].each do |alt|
-            expect(dangerous_models).not_to include(alt)
-          end
+        next unless preset[:alternatives]
+
+        preset[:alternatives].each do |alt|
+          expect(dangerous_models).not_to include(alt)
         end
       end
     end

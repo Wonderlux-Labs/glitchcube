@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require_relative '../../lib/services/openrouter_service'
 
@@ -25,13 +27,13 @@ RSpec.describe OpenRouterService do
     it 'makes a simple completion request' do
       mock_client = instance_double(OpenRouter::Client)
       allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
-      
+
       expect(mock_client).to receive(:complete).with({
-        model: 'google/gemini-2.0-flash-thinking-exp:free',
-        messages: [{ role: 'user', content: 'Test prompt' }],
-        max_tokens: 500,
-        temperature: 0.7
-      }).and_return(mock_response)
+                                                       model: 'google/gemini-2.0-flash-thinking-exp:free',
+                                                       messages: [{ role: 'user', content: 'Test prompt' }],
+                                                       max_tokens: 500,
+                                                       temperature: 0.7
+                                                     }).and_return(mock_response)
 
       result = described_class.complete('Test prompt')
       expect(result).to eq(mock_response)
@@ -39,34 +41,34 @@ RSpec.describe OpenRouterService do
 
     it 'accepts custom options' do
       expect(mock_client).to receive(:complete).with({
-        model: 'different-model',
-        messages: [{ role: 'user', content: 'Test prompt' }],
-        max_tokens: 100,
-        temperature: 0.3
-      }).and_return(mock_response)
+                                                       model: 'different-model',
+                                                       messages: [{ role: 'user', content: 'Test prompt' }],
+                                                       max_tokens: 100,
+                                                       temperature: 0.3
+                                                     }).and_return(mock_response)
 
-      result = described_class.complete('Test prompt', 
-                                       model: 'different-model',
-                                       max_tokens: 100,
-                                       temperature: 0.3)
+      result = described_class.complete('Test prompt',
+                                        model: 'different-model',
+                                        max_tokens: 100,
+                                        temperature: 0.3)
       expect(result).to eq(mock_response)
     end
 
     it 'raises error for blacklisted models' do
-      expect {
+      expect do
         described_class.complete('Test prompt', model: 'openai/o1-pro')
-      }.to raise_error(ArgumentError, /blacklisted due to high cost/)
+      end.to raise_error(ArgumentError, /blacklisted due to high cost/)
     end
   end
 
   describe '.complete_with_context' do
     it 'handles string messages' do
       expect(mock_client).to receive(:complete).with({
-        model: 'google/gemini-2.0-flash-thinking-exp:free',
-        messages: [{ role: 'user', content: 'Simple string' }],
-        max_tokens: 500,
-        temperature: 0.7
-      }).and_return(mock_response)
+                                                       model: 'google/gemini-2.0-flash-thinking-exp:free',
+                                                       messages: [{ role: 'user', content: 'Simple string' }],
+                                                       max_tokens: 500,
+                                                       temperature: 0.7
+                                                     }).and_return(mock_response)
 
       result = described_class.complete_with_context('Simple string')
       expect(result).to eq(mock_response)
@@ -80,11 +82,11 @@ RSpec.describe OpenRouterService do
       ]
 
       expect(mock_client).to receive(:complete).with({
-        model: 'google/gemini-2.0-flash-thinking-exp:free',
-        messages: messages,
-        max_tokens: 500,
-        temperature: 0.7
-      }).and_return(mock_response)
+                                                       model: 'google/gemini-2.0-flash-thinking-exp:free',
+                                                       messages: messages,
+                                                       max_tokens: 500,
+                                                       temperature: 0.7
+                                                     }).and_return(mock_response)
 
       result = described_class.complete_with_context(messages)
       expect(result).to eq(mock_response)
@@ -98,11 +100,11 @@ RSpec.describe OpenRouterService do
       ]
 
       expect(mock_client).to receive(:complete).with({
-        model: 'google/gemini-2.0-flash-thinking-exp:free',
-        messages: expected_messages,
-        max_tokens: 500,
-        temperature: 0.7
-      }).and_return(mock_response)
+                                                       model: 'google/gemini-2.0-flash-thinking-exp:free',
+                                                       messages: expected_messages,
+                                                       max_tokens: 500,
+                                                       temperature: 0.7
+                                                     }).and_return(mock_response)
 
       result = described_class.complete_with_context(messages)
       expect(result).to eq(mock_response)
@@ -110,15 +112,15 @@ RSpec.describe OpenRouterService do
   end
 
   describe '.available_models' do
-    let(:mock_models) { ['model1', 'model2', 'model3'] }
+    let(:mock_models) { %w[model1 model2 model3] }
 
     it 'fetches and caches models' do
       expect(mock_client).to receive(:models).once.and_return(mock_models)
-      
+
       # First call should fetch from API
       result1 = described_class.available_models
       expect(result1).to eq(mock_models)
-      
+
       # Second call should use cache
       result2 = described_class.available_models
       expect(result2).to eq(mock_models)
@@ -126,13 +128,13 @@ RSpec.describe OpenRouterService do
 
     it 'refreshes cache after expiry' do
       expect(mock_client).to receive(:models).twice.and_return(mock_models)
-      
+
       # First call
       described_class.available_models
-      
+
       # Simulate cache expiry
       allow(Time).to receive(:now).and_return(Time.now + 3700) # > 1 hour
-      
+
       # Second call should refresh cache
       result = described_class.available_models
       expect(result).to eq(mock_models)
@@ -144,10 +146,10 @@ RSpec.describe OpenRouterService do
       # Fill cache
       allow(mock_client).to receive(:models).and_return(['model1'])
       described_class.available_models
-      
+
       # Clear cache
       described_class.clear_cache!
-      
+
       # Should fetch from API again
       expect(mock_client).to receive(:models).and_return(['model2'])
       result = described_class.available_models
@@ -194,12 +196,12 @@ RSpec.describe OpenRouterService do
         test_cases = [
           # String input
           ['simple string', [{ role: 'user', content: 'simple string' }]],
-          
+
           # Hash input
           [{ role: 'assistant', content: 'test' }, [{ role: 'assistant', content: 'test' }]],
-          
+
           # Mixed array
-          [['string', { role: 'user', content: 'hash' }], 
+          [['string', { role: 'user', content: 'hash' }],
            [{ role: 'user', content: 'string' }, { role: 'user', content: 'hash' }]]
         ]
 
@@ -207,7 +209,7 @@ RSpec.describe OpenRouterService do
           expect(mock_client).to receive(:complete).with(
             hash_including(messages: expected)
           ).and_return(mock_response)
-          
+
           described_class.complete_with_context(input)
         end
       end

@@ -1,3 +1,9 @@
+ARCHIVED: deploy-raspi.sh
+=========================
+This script was used for initial Raspberry Pi setup.
+Archived for historical reference.
+=========================
+
 #!/bin/bash
 # Deployment script for Glitch Cube on Raspberry Pi 5
 # Run with: bash deploy-raspi.sh

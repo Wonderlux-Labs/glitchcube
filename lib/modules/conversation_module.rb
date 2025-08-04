@@ -105,7 +105,7 @@ class ConversationModule
     responses[mood]&.sample || "I'm processing your thoughts through my artistic consciousness..."
   end
 
-  def generate_offline_response(message, mood)
+  def generate_offline_response(_message, mood)
     # Enhanced offline responses when AI service is unavailable
     offline_responses = {
       'playful' => [
@@ -189,7 +189,7 @@ class ConversationModule
     puts "Failed to track conversation: #{e.message}"
   end
 
-  def speak_response(response_text, context)
+  def speak_response(response_text, _context)
     return if response_text.nil? || response_text.strip.empty?
 
     start_time = Time.now
@@ -250,19 +250,19 @@ class ConversationModule
   def update_kiosk_display(message, response, suggested_mood)
     # Update the kiosk service with new interaction data
     require_relative '../services/kiosk_service'
-    
+
     Services::KioskService.update_mood(suggested_mood) if suggested_mood
     Services::KioskService.update_interaction({
-      message: message,
-      response: response
-    })
-    Services::KioskService.add_inner_thought("Just shared something meaningful with a visitor")
+                                                message: message,
+                                                response: response
+                                              })
+    Services::KioskService.add_inner_thought('Just shared something meaningful with a visitor')
   rescue StandardError => e
     # Don't let kiosk update failures break the conversation
     puts "Failed to update kiosk display: #{e.message}"
   end
 
-  def handle_circuit_breaker_open(message, mood, context, error)
+  def handle_circuit_breaker_open(message, mood, context, _error)
     response_text = generate_offline_response(message, mood)
     result = {
       response: response_text,
@@ -316,7 +316,7 @@ class ConversationModule
     result
   end
 
-  def log_interaction(message, response, mood, confidence, context)
+  def log_interaction(message, response, mood, confidence, _context)
     Services::LoggerService.log_interaction(
       user_message: message,
       ai_response: response,

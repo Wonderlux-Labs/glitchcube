@@ -1,38 +1,106 @@
 # Glitch Cube Scripts
 
-## Core Scripts
+## Essential Scripts
 
-### Deployment & Updates
-- **`deploy.sh`** - Main deployment script (commits, pushes, deploys to glitchcube.local with HA components)
-- **`deploy-raspi.sh`** - Full Raspberry Pi setup script for new installations
-
-### Maintenance
-- **`backup-data.sh`** - Backup application data and configurations
-- **`restore-data.sh`** - Restore from backup
-- **`health-check.sh`** - System health monitoring
-- **`status-check.sh`** - Check service status across all containers
-- **`restart-services.sh`** - Restart all services
-- **`rollback-glitchcube.sh`** - Rollback to previous version
-
-### Development
-- **`test_beacon.rb`** - Test beacon service functionality
-- **`debug/`** - Debug utilities and test scripts
-
-## Usage
-
-### Quick Deploy
+### deploy.sh
+Deploys code changes to the Glitch Cube device.
 ```bash
-./scripts/deploy.sh "your commit message"
+# Direct script usage
+./scripts/deploy.sh "commit message"
+
+# Or use rake tasks (recommended)
+bundle exec rake deploy:push["commit message"]
+bundle exec rake deploy:quick  # Auto-timestamps
 ```
 
-### Health Check
+### backup-data.sh
+Backs up all persistent data before major changes.
 ```bash
-./scripts/health-check.sh
+./scripts/backup-data.sh
 ```
 
-### Service Status
+### restore-data.sh
+Restores data from a backup.
 ```bash
-./scripts/status-check.sh
+./scripts/restore-data.sh backup-20240101-120000.tar.gz
+```
+
+### auto-deploy.sh
+Automatically pulls and deploys new commits from GitHub. Used by systemd timer.
+```bash
+# Manual run
+./scripts/auto-deploy.sh
+
+# Setup automatic deployment (run once on device)
+sudo cp scripts/glitchcube-auto-deploy.service /etc/systemd/system/
+sudo cp scripts/glitchcube-auto-deploy.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable glitchcube-auto-deploy.timer
+sudo systemctl start glitchcube-auto-deploy.timer
+
+# Check status
+sudo systemctl status glitchcube-auto-deploy.timer
+sudo journalctl -u glitchcube-auto-deploy.service -f
+```
+
+## Docker Commands Reference
+
+Instead of wrapper scripts, use Docker commands directly:
+
+### Service Management
+```bash
+# View all services
+docker-compose ps
+
+# Restart all services
+docker-compose restart
+
+# Restart specific service
+docker-compose restart homeassistant
+
+# View logs
+docker-compose logs -f
+docker-compose logs -f glitchcube
+
+# Stop everything
+docker-compose down
+
+# Start everything
+docker-compose up -d
+```
+
+### Health Checks
+```bash
+# Check service health
+curl http://localhost:4567/health      # Glitch Cube API
+curl http://localhost:8123/api/        # Home Assistant
+
+# View resource usage
+docker stats
+```
+
+### Production Deployment
+```bash
+# Deploy with production settings
+docker-compose up -d
+
+# With PostgreSQL
+docker-compose --profile postgres up -d
+```
+
+## Rake Tasks
+
+For more complex operations, use rake tasks:
+
+```bash
+# List all available tasks
+bundle exec rake -T
+
+# Run health checks
+bundle exec rake health:check
+
+# Clean up old logs
+bundle exec rake logs:cleanup
 ```
 
 ## Archive

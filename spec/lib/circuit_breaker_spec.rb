@@ -29,11 +29,9 @@ RSpec.describe CircuitBreaker do
       it 'resets failure count on success' do
         # Create some failures first
         2.times do
-          begin
-            circuit_breaker.call { raise StandardError, 'test error' }
-          rescue StandardError
-            # Ignore for this test
-          end
+          circuit_breaker.call { raise StandardError, 'test error' }
+        rescue StandardError
+          # Ignore for this test
         end
 
         expect(circuit_breaker.failure_count).to eq(2)
@@ -68,11 +66,9 @@ RSpec.describe CircuitBreaker do
       before do
         # Force circuit open by exceeding failure threshold
         3.times do
-          begin
-            circuit_breaker.call { raise StandardError, 'test error' }
-          rescue StandardError
-            # Ignore for this test
-          end
+          circuit_breaker.call { raise StandardError, 'test error' }
+        rescue StandardError
+          # Ignore for this test
         end
       end
 
@@ -92,7 +88,7 @@ RSpec.describe CircuitBreaker do
 
         # Should attempt to go to half-open state and then close on success
         result = circuit_breaker.call { 'test recovery' }
-        
+
         expect(result).to eq('test recovery')
         # After successful call, should be closed (since success_threshold: 1)
         expect(circuit_breaker.state).to eq(:closed)
@@ -103,11 +99,9 @@ RSpec.describe CircuitBreaker do
       before do
         # Force circuit open first
         3.times do
-          begin
-            circuit_breaker.call { raise StandardError, 'test error' }
-          rescue StandardError
-            # Ignore for this test
-          end
+          circuit_breaker.call { raise StandardError, 'test error' }
+        rescue StandardError
+          # Ignore for this test
         end
 
         # Force to half-open state
