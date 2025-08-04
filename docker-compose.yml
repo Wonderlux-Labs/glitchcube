@@ -1,21 +1,23 @@
 version: '3.8'
 
 services:
-  # Helicone AI Gateway for observability
+  # Helicone AI Gateway for observability (ARM64 custom build)
   helicone-gateway:
     container_name: glitchcube_helicone_gateway
-    image: helicone/ai-gateway:main
+    build:
+      context: .
+      dockerfile: Dockerfile.helicone-arm64
+    image: glitchcube-helicone-gateway:arm64
     ports:
       - "8080:8080"
     environment:
-      - AI_GATEWAY__SERVER__ADDRESS=0.0.0.0  # Required for Docker
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - HELICONE_API_KEY=${HELICONE_API_KEY:-}  # Optional, for observability
     volumes:
-      - ./ai-gateway-config.yaml:/helicone-config/config.yaml  # Optional custom config
-    command: ["ai-gateway", "-c", "/helicone-config/config.yaml"]
+      - ./ai-gateway-config.yaml:/config.yaml  # Optional custom config
+    command: ["ai-gateway", "--config", "/config.yaml"]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health", "||", "exit", "1"]
