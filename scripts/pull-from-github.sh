@@ -38,6 +38,9 @@ log "Starting deployment process..."
 mkdir -p deploy-snapshots
 cp docker-compose.yml "deploy-snapshots/docker-compose-$(date +%Y%m%d-%H%M%S).yml"
 
+# Keep only the most recent snapshot (oh shit or let it ride!)
+ls -t deploy-snapshots/docker-compose-*.yml 2>/dev/null | tail -n +2 | xargs rm -f 2>/dev/null || true
+
 # Pull latest changes
 log "Pulling latest changes..."
 git pull origin main
