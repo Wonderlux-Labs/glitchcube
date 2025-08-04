@@ -1,0 +1,93 @@
+---
+# Update Binary Sensors via webhook
+- id: update_sensors
+  alias: "Update Binary Sensors"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_sensors"
+      allowed_methods:
+        - POST
+      local_only: false
+  action:
+    # Update motion detected
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.motion_detected is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.motion_detected else 'off' }}"
+          target:
+            entity_id: input_boolean.motion_detected
+    
+    # Update human detected
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.human_detected is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.human_detected else 'off' }}"
+          target:
+            entity_id: input_boolean.human_detected
+    
+    # Update cube movement states
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.cube_is_moving is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.cube_is_moving else 'off' }}"
+          target:
+            entity_id: input_boolean.cube_is_moving
+    
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.cube_stopped_moving is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.cube_stopped_moving else 'off' }}"
+          target:
+            entity_id: input_boolean.cube_stopped_moving
+    
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.cube_tilted is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.cube_tilted else 'off' }}"
+          target:
+            entity_id: input_boolean.cube_tilted
+    
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.cube_stable is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.cube_stable else 'off' }}"
+          target:
+            entity_id: input_boolean.cube_stable
+    
+    # Update system health sensors
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.battery_low is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.battery_low else 'off' }}"
+          target:
+            entity_id: input_boolean.battery_low
+    
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.resources_low is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.resources_low else 'off' }}"
+          target:
+            entity_id: input_boolean.resources_low
+    
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.temp_critical is defined }}"
+      then:
+        - service: "input_boolean.turn_{{ 'on' if trigger.data.temp_critical else 'off' }}"
+          target:
+            entity_id: input_boolean.temp_critical
+    
+    # Log the sensor update
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Sensors"
+        message: "📡 Sensors updated via webhook"
+        domain: "glitchcube"

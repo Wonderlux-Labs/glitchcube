@@ -1,0 +1,24 @@
+---
+- id: glitchcube_tts
+  alias: "Glitch Cube Text-to-Speech"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_speak"
+      allowed_methods:
+        - POST
+      local_only: false
+  condition:
+    - condition: template
+      value_template: "{{ trigger.data.message is defined }}"
+  action:
+    - service: tts.speak
+      data:
+        media_player_entity_id: "{{ trigger.data.media_player | default('media_player.glitchcube_speaker') }}"
+        message: "{{ trigger.data.message }}"
+        language: "{{ trigger.data.language | default('en') }}"
+        options:
+          voice: "{{ trigger.data.voice | default('default') }}"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube"
+        message: "Spoke: {{ trigger.data.message[:50] }}{{ '...' if trigger.data.message|length > 50 else '' }}"

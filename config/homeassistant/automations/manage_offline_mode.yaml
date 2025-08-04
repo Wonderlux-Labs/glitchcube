@@ -1,0 +1,52 @@
+# Manage Offline Mode - automatically enable/disable based on internet connectivity
+- id: manage_offline_mode
+  alias: "Manage Offline Mode"
+  trigger:
+    # Trigger when internet goes down
+    - platform: state
+      entity_id: sensor.internet_connectivity
+      to: "disconnected"
+      for:
+        minutes: 2  # Wait 2 minutes before enabling offline mode
+      id: internet_lost
+    # Trigger when internet comes back
+    - platform: state
+      entity_id: sensor.internet_connectivity
+      to: "connected"
+      for:
+        minutes: 1  # Wait 1 minute to ensure stable connection
+      id: internet_restored
+  action:
+    - choose:
+        # Enable offline mode when internet is lost
+        - conditions:
+            - condition: trigger
+              id: internet_lost
+            - condition: state
+              entity_id: input_boolean.offline_mode
+              state: "off"
+          sequence:
+            - service: input_boolean.turn_on
+              target:
+                entity_id: input_boolean.offline_mode
+            - service: logbook.log
+              data:
+                name: "Glitch Cube Offline"
+                message: "🔌 Offline mode ENABLED - Internet connectivity lost"
+                domain: "glitchcube"
+        # Disable offline mode when internet returns
+        - conditions:
+            - condition: trigger
+              id: internet_restored
+            - condition: state
+              entity_id: input_boolean.offline_mode
+              state: "on"
+          sequence:
+            - service: input_boolean.turn_off
+              target:
+                entity_id: input_boolean.offline_mode
+            - service: logbook.log
+              data:
+                name: "Glitch Cube Online"
+                message: "🌐 Offline mode DISABLED - Internet connectivity restored"
+                domain: "glitchcube"

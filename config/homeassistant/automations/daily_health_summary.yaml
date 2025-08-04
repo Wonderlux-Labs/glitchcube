@@ -1,0 +1,15 @@
+- id: daily_health_summary
+  alias: "Daily Health Summary"
+  trigger:
+    - platform: time
+      at: "23:59:00"  # End of day summary
+  action:
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Daily"
+        message: >
+          Daily Summary - 
+          Health: {{ states('sensor.installation_health') }}, 
+          Last Interaction: {{ states('sensor.last_interaction_time') }},
+          Persona: {{ states('sensor.current_persona') }}
+        domain: "glitchcube"

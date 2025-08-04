@@ -1,0 +1,38 @@
+# Update External Status Page (Uptime Kuma)
+- id: update_external_status_page
+  alias: "Update External Status Page"
+  trigger:
+    # Trigger on important state changes
+    - platform: state
+      entity_id: 
+        - sensor.installation_health
+        - sensor.current_status
+        - sensor.internet_connectivity
+        - sensor.glitch_cube_app_health
+      for: "00:00:05"  # 5 second debounce to prevent rapid updates
+    # Regular heartbeat every 55 seconds (Uptime Kuma needs <60s intervals)
+    - platform: time_pattern
+      seconds: "/55"
+  condition:
+    # Only update if state actually changed (not for fallback timer)
+    - condition: or
+      conditions:
+        - condition: template
+          value_template: "{{ trigger.platform == 'time_pattern' }}"
+        - condition: template
+          value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
+  action:
+    - variables:
+        uptime_status: "{{ 'down' if states('sensor.installation_health') in ['critical', 'offline'] else 'up' }}"
+        status_message: "{{ (states('sensor.current_status') or 'No status')[:150] }}"
+    # Push to Uptime Kuma status page
+    - service: rest_command.update_status_page
+      data:
+        status: "{{ uptime_status }}"
+        msg: "{{ status_message }}"
+        ping: "{{ now().timestamp() | round(0) }}"
+    # Log the status update (less verbose)
+    - service: logbook.log
+      data:
+        name: "Status Page"
+        message: "📊 Status updated: {{ uptime_status }} - {{ status_message[:50] }}{{ '...' if status_message|length > 50 else '' }}"

@@ -1,0 +1,21 @@
+- id: update_current_persona
+  alias: "Update Current Persona"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_persona"
+      allowed_methods:
+        - POST
+      local_only: false
+  condition:
+    - condition: template
+      value_template: "{{ trigger.data.persona is defined }}"
+  action:
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.current_persona
+      data:
+        value: "{{ trigger.data.persona }}"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube"
+        message: "Persona changed to {{ trigger.data.persona }}"

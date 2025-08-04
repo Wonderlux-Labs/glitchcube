@@ -1,0 +1,85 @@
+---
+# Consolidated webhook updates for simple value changes
+- id: webhook_value_updates
+  alias: "Webhook Value Updates"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_update"
+      allowed_methods:
+        - POST
+      local_only: false
+  action:
+    # Update environment if provided
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.environment is defined }}"
+      then:
+        - service: input_text.set_value
+          target:
+            entity_id: input_text.current_environment
+          data:
+            value: "{{ trigger.data.environment }}"
+        - service: logbook.log
+          data:
+            name: "Glitch Cube"
+            message: "🌍 Environment updated: {{ trigger.data.environment }}"
+    
+    # Update weather if provided
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.weather is defined }}"
+      then:
+        - service: input_text.set_value
+          target:
+            entity_id: input_text.current_weather
+          data:
+            value: "{{ trigger.data.weather }}"
+        - service: logbook.log
+          data:
+            name: "Glitch Cube"
+            message: "🌤️ Weather updated: {{ trigger.data.weather }}"
+    
+    # Update sound level if provided
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.sound_db is defined }}"
+      then:
+        - service: input_number.set_value
+          target:
+            entity_id: input_number.avg_sound_db
+          data:
+            value: "{{ trigger.data.sound_db | float }}"
+        - service: logbook.log
+          data:
+            name: "Glitch Cube"
+            message: "🔊 Sound level updated: {{ trigger.data.sound_db }}dB"
+    
+    # Update persona if provided
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.persona is defined }}"
+      then:
+        - service: input_text.set_value
+          target:
+            entity_id: input_text.current_persona
+          data:
+            value: "{{ trigger.data.persona }}"
+        - service: logbook.log
+          data:
+            name: "Glitch Cube"
+            message: "🎭 Persona changed to {{ trigger.data.persona }}"
+    
+    # Record interaction timestamp if requested
+    - if:
+        - condition: template
+          value_template: "{{ trigger.data.interaction is defined and trigger.data.interaction }}"
+      then:
+        - service: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.last_interaction
+          data:
+            datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+        - service: logbook.log
+          data:
+            name: "Glitch Cube"
+            message: "Interaction recorded from {{ trigger.data.source | default('unknown') }}"

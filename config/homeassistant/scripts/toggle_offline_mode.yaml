@@ -1,0 +1,12 @@
+toggle_offline_mode:
+  alias: "Toggle Offline Mode"
+  sequence:
+    - service: input_boolean.toggle
+      target:
+        entity_id: input_boolean.offline_mode
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Manual"
+        message: >
+          🔄 Offline mode manually toggled to {{ states('input_boolean.offline_mode') }}
+        domain: "glitchcube"

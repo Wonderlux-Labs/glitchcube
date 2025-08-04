@@ -1,0 +1,14 @@
+emergency_shutdown:
+  alias: "Emergency Shutdown Sequence"
+  sequence:
+    - service: tts.speak
+      data:
+        media_player_entity_id: "media_player.glitchcube_speaker"
+        message: "Initiating emergency shutdown. Please stand clear."
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Emergency"
+        message: "⚠️ Emergency shutdown initiated"
+        domain: "glitchcube"
+    - delay: "00:00:10"
+    # Add actual shutdown commands as needed for your hardware

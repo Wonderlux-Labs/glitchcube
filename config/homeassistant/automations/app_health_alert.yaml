@@ -1,0 +1,14 @@
+- id: app_health_alert
+  alias: "Alert on App Health Issues"
+  trigger:
+    - platform: state
+      entity_id: sensor.glitch_cube_app_health
+      to: "offline"
+      for:
+        minutes: 2  # Alert after 2 minutes offline
+  action:
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Alert"
+        message: "⚠️ Main application is offline!"
+        domain: "glitchcube"

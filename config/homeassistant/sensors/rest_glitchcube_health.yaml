@@ -1,0 +1,21 @@
+# REST Health Sensor: Glitch Cube App Health
+- platform: rest
+  resource: "http://localhost:4567/health"
+  name: "Glitch Cube App Health"
+  unique_id: "glitchcube_app_health"
+  scan_interval: 30  # Check every 30 seconds
+  timeout: 10
+  headers:
+    User-Agent: "Home Assistant Health Check"
+  value_template: >
+    {% if value_json is defined and value_json.status == "ok" %}
+      online
+    {% else %}
+      offline
+    {% endif %}
+  json_attributes:
+    - version
+    - uptime
+    - redis_status
+    - database_status
+  icon: "mdi:cube-outline"

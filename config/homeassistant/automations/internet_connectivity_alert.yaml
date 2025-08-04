@@ -1,0 +1,14 @@
+- id: internet_connectivity_alert
+  alias: "Alert on Internet Connectivity Loss"
+  trigger:
+    - platform: state
+      entity_id: sensor.internet_connectivity
+      to: "disconnected"
+      for:
+        minutes: 5  # Alert after 5 minutes without internet
+  action:
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Alert"
+        message: "🌐 Internet connectivity lost - Starlink may be down"
+        domain: "glitchcube"

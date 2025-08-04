@@ -1,0 +1,18 @@
+- id: update_last_interaction
+  alias: "Update Last Interaction Time"
+  trigger:
+    - platform: webhook
+      webhook_id: "glitchcube_interaction"
+      allowed_methods:
+        - POST
+      local_only: false
+  action:
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.last_interaction
+      data:
+        datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube"
+        message: "Interaction recorded from {{ trigger.data.source | default('unknown') }}"

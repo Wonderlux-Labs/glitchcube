@@ -1,0 +1,32 @@
+reset_all_sensors:
+  alias: "Reset All Sensors to Default"
+  sequence:
+    - service: input_boolean.turn_off
+      target:
+        entity_id:
+          - input_boolean.motion_detected
+          - input_boolean.human_detected
+          - input_boolean.cube_is_moving
+          - input_boolean.cube_stopped_moving
+          - input_boolean.cube_tilted
+          - input_boolean.battery_low
+          - input_boolean.resources_low
+          - input_boolean.temp_critical
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.cube_stable
+    - service: input_number.set_value
+      target:
+        entity_id: input_number.avg_sound_db
+      data:
+        value: 40.0
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.current_environment
+      data:
+        value: "Unknown location"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Test"
+        message: "🔄 All sensors reset to default state"
+        domain: "glitchcube"

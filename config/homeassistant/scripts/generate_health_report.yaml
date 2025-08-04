@@ -1,0 +1,24 @@
+generate_health_report:
+  alias: "Generate Health Report"
+  sequence:
+    - service: homeassistant.update_entity
+      target:
+        entity_id:
+          - sensor.glitch_cube_app_health
+          - sensor.internet_connectivity
+          - sensor.cube_cpu_thermal_0_temperature
+          - sensor.cube_uptime
+          - sensor.installation_health
+    - delay: "00:00:02"
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Health Report"
+        message: >
+          📊 Health Report {{ now().strftime('%Y-%m-%d %H:%M:%S') }} -
+          Status: {{ states('sensor.current_status') }}
+          App: {{ states('sensor.glitch_cube_app_health') }},
+          Internet: {{ states('sensor.internet_connectivity') }},
+          Temperature: {{ states('sensor.cube_cpu_thermal_0_temperature') }}°F,
+          Uptime: {{ states('sensor.cube_uptime') }},
+          Offline Mode: {{ states('input_boolean.offline_mode') }}
+        domain: "glitchcube"
