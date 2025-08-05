@@ -76,9 +76,17 @@ input_text: !include input_helpers/input_text.yaml
 input_number: !include input_helpers/input_number.yaml
 input_boolean: !include input_helpers/input_boolean.yaml
 
+# Additional input helpers for bandwidth monitoring
+input_boolean: !include_dir_merge_named input_helpers/
+input_number: !include_dir_merge_named input_helpers/
+input_text: !include_dir_merge_named input_helpers/
+
 # Include all sensors (REST sensors and template sensors)
 sensor: !include_dir_merge_list sensors/
 template: !include_dir_merge_list template/
+
+# MQTT configuration for Govee and AWTRIX integrations
+mqtt: !include mqtt.yaml
 
 # Enable webhook integration (for external API calls)
 webhook:

@@ -299,6 +299,106 @@ class GlitchCubeApp < Sinatra::Base
     json({ message: 'Welcome to Glitch Cube!', status: 'online' })
   end
 
+  # GPS Tracking Routes
+  get '/gps' do
+    erb :gps_map
+  end
+
+  get '/api/v1/gps/location' do
+    content_type :json
+    
+    require_relative 'lib/services/gps_tracking_service'
+    gps_service = Services::GpsTrackingService.new
+    location = gps_service.current_location
+    
+    # Add proximity data for map reactions
+    if location[:lat] && location[:lng]
+      proximity = gps_service.proximity_data(location[:lat], location[:lng])
+      location[:proximity] = proximity
+    end
+    
+    json(location)
+  end
+
+  get '/api/v1/gps/proximity' do
+    content_type :json
+    
+    require_relative 'lib/services/gps_tracking_service'
+    gps_service = Services::GpsTrackingService.new
+    current_loc = gps_service.current_location
+    
+    if current_loc[:lat] && current_loc[:lng]
+      proximity = gps_service.proximity_data(current_loc[:lat], current_loc[:lng])
+      json(proximity)
+    else
+      json({ landmarks: [], portos: [], map_mode: "normal", visual_effects: [] })
+    end
+  end
+
+  get '/api/v1/gps/history' do
+    content_type :json
+    
+    # Get location history from Home Assistant device tracker
+    require_relative 'lib/services/gps_tracking_service'
+    ha_client = Services::HomeAssistantClient.new
+    device_tracker_entity = GlitchCube.config.gps.device_tracker_entity || 'device_tracker.glitch_cube'
+    
+    begin
+      # Get history from HA (last 24 hours by default)
+      hours = params[:hours]&.to_i || 24
+      end_time = Time.now
+      start_time = end_time - (hours * 3600)
+      
+      # In real HA integration, you'd call history API
+      # For now, return sample data structure
+      history = [
+        {
+          lat: 40.7712,
+          lng: -119.2030,
+          timestamp: (Time.now - 3600).iso8601,
+          address: "6:00 & Esplanade"
+        },
+        {
+          lat: 40.7720,
+          lng: -119.2025,
+          timestamp: (Time.now - 1800).iso8601,
+          address: "5:30 & Atwood"
+        }
+      ]
+      
+      json({ history: history, total_points: history.length })
+    rescue => e
+      Services::LoggerService.log_api_call(
+        service: 'GPS History',
+        endpoint: '/api/v1/gps/history',
+        error: e.message,
+        success: false
+      )
+      json({ error: 'Unable to fetch GPS history', history: [], total_points: 0 })
+    end
+  end
+
+  # GeoJSON data endpoints for map overlay
+  get '/api/v1/gis/streets' do
+    content_type :json
+    send_file File.join(settings.root, 'data/gis/street_lines.geojson')
+  end
+
+  get '/api/v1/gis/toilets' do
+    content_type :json
+    send_file File.join(settings.root, 'data/gis/toilets.geojson')
+  end
+
+  get '/api/v1/gis/blocks' do
+    content_type :json
+    send_file File.join(settings.root, 'data/gis/city_blocks.geojson')
+  end
+
+  get '/api/v1/gis/plazas' do
+    content_type :json
+    send_file File.join(settings.root, 'data/gis/plazas.geojson')
+  end
+
   get '/health' do
     # Check circuit breaker status
     circuit_status = Services::CircuitBreakerService.status

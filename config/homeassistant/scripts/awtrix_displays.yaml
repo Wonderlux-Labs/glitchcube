@@ -1,0 +1,192 @@
+# AWTRIX Matrix Display Scripts for Glitch Cube
+# Smart notifications and data display on matrix clock
+
+show_conversation_status:
+  alias: "Show Conversation Status on AWTRIX"
+  description: "Display current conversation state and visitor count"
+  fields:
+    visitors:
+      description: "Number of active visitors"
+      example: 1
+    status:
+      description: "Conversation status (active, idle, listening)"
+      example: "active"
+  sequence:
+    - service: awtrix.glitchcube_display_push_app_data
+      data:
+        name: "conversation"
+        data:
+          text: "{{ visitors }}👥 {{ status | title }}"
+          icon: >
+            {% if status == 'active' %}
+              "52176"
+            {% elif status == 'listening' %}
+              "18586"
+            {% else %}
+              "23035"
+            {% endif %}
+          color: >
+            {% if status == 'active' %}
+              [0, 255, 100]
+            {% elif status == 'listening' %}
+              [100, 200, 255]
+            {% else %}
+              [100, 100, 100]
+            {% endif %}
+          duration: 15
+          repeat: 1
+
+show_battery_level:
+  alias: "Show Battery Level on AWTRIX"
+  description: "Display current battery percentage with warning colors"
+  fields:
+    battery_level:
+      description: "Battery percentage"
+      example: 75
+    charging:
+      description: "Whether device is charging"
+      example: false
+  sequence:
+    - service: awtrix.glitchcube_display_push_app_data
+      data:
+        name: "battery"
+        data:
+          text: "{{ battery_level }}%{{ '⚡' if charging else '' }}"
+          icon: >
+            {% if charging %}
+              "227"
+            {% elif battery_level > 50 %}
+              "15710"
+            {% elif battery_level > 20 %}
+              "15711"
+            {% else %}
+              "15712"
+            {% endif %}
+          color: >
+            {% if charging %}
+              [0, 255, 0]
+            {% elif battery_level > 50 %}
+              [0, 255, 0]
+            {% elif battery_level > 20 %}
+              [255, 150, 0]
+            {% else %}
+              [255, 0, 0]
+            {% endif %}
+          duration: 10
+          pushIcon: 2
+          repeat: >
+            {{ 3 if battery_level < 20 else 1 }}
+
+show_environmental_data:
+  alias: "Show Environmental Data"
+  description: "Display temperature, humidity, air quality"
+  sequence:
+    - service: awtrix.glitchcube_display_push_app_data
+      data:
+        name: "environment"
+        data:
+          text: "{{ states('sensor.temperature') | round(1) }}°C {{ states('sensor.humidity') | round(0) }}%"
+          icon: "2282"  # Temperature icon
+          color: >
+            {% set temp = states('sensor.temperature') | float %}
+            {% if temp > 25 %}
+              [255, 100, 0]
+            {% elif temp < 15 %}
+              [100, 200, 255]
+            {% else %}
+              [0, 255, 0]
+            {% endif %}
+          duration: 8
+
+show_installation_message:
+  alias: "Show Installation Message"
+  description: "Display custom message for art installation visitors"
+  fields:
+    message:
+      description: "Message to display"
+      example: "Hello! I'm Glitch Cube"
+    icon_id:
+      description: "Icon ID to display"
+      example: "52176"
+    duration:
+      description: "Display duration in seconds"
+      example: 15
+    color:
+      description: "Text color [R,G,B]"
+      example: "[255, 255, 255]"
+  sequence:
+    - service: awtrix.glitchcube_display_push_app_data
+      data:
+        name: "message"
+        data:
+          text: "{{ message }}"
+          icon: "{{ icon_id | default('52176') }}"
+          color: "{{ color | default('[255, 255, 255]') }}"
+          duration: "{{ duration | default(15) }}"
+          pushIcon: 2
+          repeat: 1
+
+show_weather_info:
+  alias: "Show Weather on AWTRIX"
+  description: "Display current weather conditions"
+  sequence:
+    - service: awtrix.glitchcube_display_weather_app
+      data:
+        weather: weather.forecast_home
+        outside_temperature: sensor.temperature
+        home_temperature: sensor.temperature
+        sun: sun.sun
+        data:
+          duration: 12
+          weather_sun:
+            rainbow: true
+            repeat: 2
+
+show_interaction_prompt:
+  alias: "Show Interaction Prompt"
+  description: "Display prompt encouraging visitor interaction"
+  sequence:
+    - service: awtrix.glitchcube_display_push_app_data
+      data:
+        name: "prompt"
+        data:
+          text: "Say Hello!"
+          icon: "18586"  # Microphone icon
+          color: [100, 255, 200]
+          duration: 20
+          rainbow: true
+          pushIcon: 1
+          repeat: 2
+
+awtrix_clear_all:
+  alias: "Clear All AWTRIX Apps"
+  description: "Remove all custom apps from display"
+  sequence:
+    - service: awtrix.glitchcube_display_push_app_data
+      data:
+        name: "conversation"
+    - service: awtrix.glitchcube_display_push_app_data
+      data:
+        name: "battery"
+    - service: awtrix.glitchcube_display_push_app_data
+      data:
+        name: "environment"
+    - service: awtrix.glitchcube_display_push_app_data
+      data:
+        name: "message"
+    - service: awtrix.glitchcube_display_push_app_data
+      data:
+        name: "prompt"
+
+night_mode_display:
+  alias: "AWTRIX Night Mode"
+  description: "Dim display and show minimal info for night operation"
+  sequence:
+    - service: awtrix.glitchcube_display_settings
+      data:
+        BRI: 1      # Minimum brightness
+        ABRI: false # Disable auto brightness
+        WD: false   # Disable weekday display
+        TIME_COL: [50, 50, 50]  # Dim time color
+        TMODE: 0    # Time display mode
+    - service: script.awtrix_clear_all

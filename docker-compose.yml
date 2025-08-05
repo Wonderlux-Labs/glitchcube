@@ -25,7 +25,7 @@ services:
       start_period: 300s  # 5 minutes for initial startup
     env_file: .env
     environment:
-      - RECORDER_DB_URL=${RECORDER_DB_URL:-mysql://homeassistant:homeassistant@127.0.0.1:3306/homeassistant?charset=utf8mb4}
+      - RECORDER_DB_URL=${RECORDER_DB_URL:-mysql://homeassistant:homeassistant@host.docker.internal:3306/homeassistant?charset=utf8mb4}
     logging:
       driver: "json-file"
       options:
@@ -50,25 +50,33 @@ services:
       - ./docs/context:/app/data/context_documents:ro
       - ./logs:/app/logs
       - /etc/localtime:/etc/localtime:ro
-    network_mode: host
     restart: unless-stopped
     env_file: .env
     environment:
       - RACK_ENV=${RACK_ENV:-production}
-      - REDIS_URL=redis://localhost:6379/0
-      - HA_URL=http://localhost:8123
+      - REDIS_URL=redis://redis:6379/0
+      - HA_URL=http://homeassistant:8123
       - APP_ROOT=/app
-      - DATABASE_URL=${DATABASE_URL:-sqlite://data/production/glitchcube.db}
+      - DATABASE_URL=${DATABASE_URL:-mysql2://glitchcube:glitchcube@mariadb:3306/glitchcube?encoding=utf8mb4}
+    networks:
+      - glitchcube_net
+    ports:
+      - "4567:4567"
+    extra_hosts:
+      - "homeassistant:host-gateway"
     depends_on:
-      - homeassistant
-      - redis
-      - mariadb
+      homeassistant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mariadb:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4567/health"]
-      interval: 60s
-      timeout: 30s
-      retries: 5
-      start_period: 120s
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
     logging:
       driver: "json-file"
       options:
@@ -77,8 +85,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.75'
-          memory: 1G
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          memory: 512M
 
   # Redis for Sidekiq background jobs
   redis:
@@ -87,13 +97,15 @@ services:
     volumes:
       - ./data/redis:/data
     restart: unless-stopped
-    network_mode: host
     command: redis-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - glitchcube_net
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -117,18 +129,30 @@ services:
       - ./logs:/app/logs
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
-    network_mode: host
     env_file: .env
     environment:
       - RACK_ENV=${RACK_ENV:-production}
-      - REDIS_URL=redis://localhost:6379/0
-      - HA_URL=http://localhost:8123
+      - REDIS_URL=redis://redis:6379/0
+      - HA_URL=http://homeassistant:8123
       - APP_ROOT=/app
-      - DATABASE_URL=${DATABASE_URL:-sqlite://data/production/glitchcube.db}
+      - DATABASE_URL=${DATABASE_URL:-mysql2://glitchcube:glitchcube@mariadb:3306/glitchcube?encoding=utf8mb4}
+    networks:
+      - glitchcube_net
+    extra_hosts:
+      - "homeassistant:host-gateway"
     depends_on:
-      - homeassistant
-      - redis
-      - mariadb
+      homeassistant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep -v grep | grep -q sidekiq || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     logging:
       driver: "json-file"
       options:
@@ -137,8 +161,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 512M
+          cpus: '0.75'
+          memory: 1G
+        reservations:
+          memory: 256M
 
   # Management UI
   portainer:
@@ -148,7 +174,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
     restart: unless-stopped
-    network_mode: host
+    networks:
+      - glitchcube_net
+    ports:
+      - "9009:9009"
+      - "9443:9443"
     command: -H unix:///var/run/docker.sock --bind :9009 --bind-https :9443
     deploy:
       resources:
@@ -165,7 +195,11 @@ services:
       - mosquitto_logs:/mosquitto/log
       - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     restart: unless-stopped
-    network_mode: host
+    networks:
+      - glitchcube_net
+    ports:
+      - "1883:1883"
+      - "9001:9001"
     healthcheck:
       test: ["CMD-SHELL", "mosquitto_sub -t 'test/health' -C 1 -W 3 -i healthcheck || exit 1"]
       interval: 30s
@@ -185,7 +219,10 @@ services:
       - esphome_config:/config
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
-    network_mode: host
+    networks:
+      - glitchcube_net
+    ports:
+      - "6052:6052"
     env_file: .env
     deploy:
       resources:
@@ -201,7 +238,10 @@ services:
       - music_assistant_data:/data
       - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
-    network_mode: host
+    networks:
+      - glitchcube_net
+    ports:
+      - "8095:8095"
     deploy:
       resources:
         limits:
@@ -218,8 +258,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/os-release:/etc/os-release:ro
     environment:
-      - GLANCES_OPT=-w --disable-plugin network
-    network_mode: host
+      - GLANCES_OPT=-w
+    networks:
+      - glitchcube_net
+    ports:
+      - "61208:61208"
     deploy:
       resources:
         limits:
@@ -241,12 +284,13 @@ services:
       # Home Assistant database (shared instance)
       - MYSQL_ADDITIONAL_DATABASE=homeassistant
     restart: unless-stopped
-    network_mode: host
+    networks:
+      - glitchcube_net
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
       --max-connections=250
-      --innodb-buffer-pool-size=256M
+      --innodb-buffer-pool-size=512M
       --innodb-log-file-size=64M
       --slow-query-log=1
       --slow-query-log-file=/var/log/mysql/slow.log
@@ -287,3 +331,9 @@ volumes:
     driver: local
   music_assistant_data:
     driver: local
+
+# Networks
+networks:
+  glitchcube_net:
+    driver: bridge
+    name: glitchcube_network

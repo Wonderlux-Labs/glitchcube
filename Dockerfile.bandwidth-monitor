@@ -1,0 +1,30 @@
+# Lightweight Bandwidth Monitor API
+FROM alpine:3.19
+
+# Install required packages
+RUN apk add --no-cache \
+    curl \
+    jq \
+    python3 \
+    py3-pip \
+    vnstat \
+    && pip3 install --no-cache-dir flask requests
+
+# Create app directory
+WORKDIR /app
+
+# Copy monitoring scripts
+COPY scripts/bandwidth/ ./
+
+# Create data directory
+RUN mkdir -p /data/vnstat
+
+# Expose port
+EXPOSE 8686
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8686/health || exit 1
+
+# Run the bandwidth monitor API
+CMD ["python3", "bandwidth_api.py"]

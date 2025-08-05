@@ -1,0 +1,250 @@
+# Starlink Bandwidth Monitoring Automations for Burning Man
+# 50GB weekly limit management and conservation alerts
+
+- id: starlink_weekly_usage_80_percent
+  alias: "Starlink 80% Weekly Usage Warning"
+  description: "Alert when approaching 80% of 50GB weekly limit (40GB used)"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.burning_man_weekly_usage_percent
+      above: 80
+  condition:
+    - condition: template
+      value_template: >
+        {{ (as_timestamp(now()) - as_timestamp(state_attr('automation.starlink_weekly_usage_80_percent', 'last_triggered') | default(0))) > 3600 }}
+  action:
+    # Show warning on AWTRIX display
+    - service: script.show_installation_message
+      data:
+        message: "80% Data Used!"
+        icon_id: "23035"  # Warning icon
+        duration: 30
+        color: "[255, 150, 0]"
+    
+    # Change lighting to orange warning
+    - service: script.conversation_mood_lighting
+      data:
+        mood: "contemplative"  # Dim orange mood
+        intensity: 50
+    
+    # Log the warning
+    - service: logbook.log
+      data:
+        name: "Starlink Bandwidth Monitor"
+        message: "Weekly data usage reached 80% ({{ states('sensor.burning_man_weekly_usage_gb') }}GB of 50GB)"
+        entity_id: sensor.burning_man_weekly_usage_percent
+
+- id: starlink_weekly_usage_95_percent
+  alias: "Starlink 95% Weekly Usage Critical"
+  description: "Critical alert when approaching 95% of 50GB weekly limit (47.5GB used)"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.burning_man_weekly_usage_percent
+      above: 95
+  condition:
+    - condition: template
+      value_template: >
+        {{ (as_timestamp(now()) - as_timestamp(state_attr('automation.starlink_weekly_usage_95_percent', 'last_triggered') | default(0))) > 1800 }}
+  action:
+    # Show critical warning on AWTRIX display
+    - service: script.show_installation_message
+      data:
+        message: "CRITICAL: 95% Data Used!"
+        icon_id: "52176"  # Alert icon
+        duration: 60
+        color: "[255, 0, 0]"
+    
+    # Flash red warning lights
+    - service: script.battery_warning_lights
+      data:
+        battery_level: 5  # Triggers red strobe mode
+    
+    # Enable conservation mode
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.bandwidth_conservation_mode
+    
+    # Log critical warning
+    - service: logbook.log
+      data:
+        name: "Starlink Bandwidth Monitor"
+        message: "CRITICAL: Weekly data usage reached 95% ({{ states('sensor.burning_man_weekly_usage_gb') }}GB of 50GB)"
+        entity_id: sensor.burning_man_weekly_usage_percent
+
+- id: starlink_daily_usage_high
+  alias: "Daily Usage Above Average Alert"
+  description: "Alert when daily usage exceeds 7.14GB average"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.burning_man_daily_usage_gb
+      above: 7.14
+  condition:
+    - condition: time
+      after: "20:00:00"  # Only alert in evening
+  action:
+    - service: script.show_installation_message
+      data:
+        message: "High usage today: {{ states('sensor.burning_man_daily_usage_gb') }}GB"
+        icon_id: "18586"  # Information icon
+        duration: 20
+        color: "[255, 200, 0]"
+
+- id: starlink_conservation_mode_enable
+  alias: "Enable Bandwidth Conservation Mode"
+  description: "Automatically reduce AI usage when bandwidth is critical"
+  trigger:
+    - platform: state
+      entity_id: input_boolean.bandwidth_conservation_mode
+      to: "on"
+  action:
+    # Reduce AI conversation frequency
+    - service: input_number.set_value
+      target:
+        entity_id: input_number.ai_response_delay
+      data:
+        value: 30  # 30 second delay between responses
+    
+    # Reduce AI model complexity
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.current_ai_model
+      data:
+        value: "google/gemini-2.0-flash-thinking-exp-1219"  # Smaller model
+    
+    # Show conservation mode message
+    - service: script.show_installation_message
+      data:
+        message: "Conservation Mode ON"
+        icon_id: "15712"  # Low battery/conservation icon
+        duration: 30
+        color: "[100, 100, 255]"
+    
+    # Log mode change
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Conservation"
+        message: "Bandwidth conservation mode enabled - reducing AI usage"
+
+- id: starlink_conservation_mode_disable
+  alias: "Disable Bandwidth Conservation Mode"
+  description: "Restore normal AI usage when bandwidth recovers"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.burning_man_weekly_usage_percent
+      below: 85
+      for: "01:00:00"  # Wait 1 hour below threshold
+  condition:
+    - condition: state
+      entity_id: input_boolean.bandwidth_conservation_mode
+      state: "on"
+  action:
+    # Restore normal AI settings
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.bandwidth_conservation_mode
+    
+    - service: input_number.set_value
+      target:
+        entity_id: input_number.ai_response_delay
+      data:
+        value: 5  # Normal 5 second delay
+    
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.current_ai_model
+      data:
+        value: "google/gemini-2.5-flash"  # Full model
+    
+    # Show normal mode restored
+    - service: script.show_installation_message
+      data:
+        message: "Normal Mode Restored"
+        icon_id: "15710"  # Full battery/normal icon
+        duration: 15
+        color: "[0, 255, 100]"
+
+- id: starlink_connection_lost
+  alias: "Starlink Connection Lost"
+  description: "Alert when Starlink connection is lost"
+  trigger:
+    - platform: state
+      entity_id: sensor.starlink_connection_status
+      from: "Connected"
+      for: "00:02:00"  # Wait 2 minutes
+  action:
+    # Show connection lost on display
+    - service: script.show_installation_message
+      data:
+        message: "Starlink Offline"
+        icon_id: "52176"  # Warning icon
+        duration: 60
+        color: "[255, 0, 0]"
+    
+    # Enable offline mode
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.offline_mode
+
+- id: starlink_connection_restored
+  alias: "Starlink Connection Restored"
+  description: "Alert when Starlink connection is restored"
+  trigger:
+    - platform: state
+      entity_id: sensor.starlink_connection_status
+      to: "Connected"
+      for: "00:01:00"  # Stable for 1 minute
+  condition:
+    - condition: state
+      entity_id: input_boolean.offline_mode
+      state: "on"
+  action:
+    # Show connection restored
+    - service: script.show_installation_message
+      data:
+        message: "Starlink Online!"
+        icon_id: "52176"  # Satellite icon
+        duration: 15
+        color: "[0, 255, 100]"
+    
+    # Disable offline mode
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.offline_mode
+
+- id: starlink_daily_usage_report
+  alias: "Daily Starlink Usage Report"
+  description: "Show daily usage summary each evening"
+  trigger:
+    - platform: time
+      at: "21:00:00"
+  action:
+    - service: script.show_installation_message
+      data:
+        message: >
+          Today: {{ states('sensor.burning_man_daily_usage_gb') }}GB
+          Week: {{ states('sensor.burning_man_weekly_usage_gb') }}GB/50GB
+        icon_id: "8792"  # Chart icon
+        duration: 30
+        color: >
+          {% set percent = states('sensor.burning_man_weekly_usage_percent') | float(0) %}
+          {% if percent > 80 %}
+            [255, 100, 0]
+          {% else %}
+            [100, 200, 255]
+          {% endif %}
+
+- id: starlink_high_latency_warning
+  alias: "High Latency Warning"
+  description: "Alert when latency is unusually high"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.starlink_latency
+      above: 100  # > 100ms latency
+      for: "00:05:00"
+  action:
+    - service: script.show_installation_message
+      data:
+        message: "High Latency: {{ states('sensor.starlink_latency') }}ms"
+        icon_id: "23035"
+        duration: 20
+        color: "[255, 150, 0]"

@@ -1,0 +1,24 @@
+# Input helpers for bandwidth monitoring and conservation
+bandwidth_conservation_mode:
+  name: "Bandwidth Conservation Mode"
+  icon: mdi:content-save-outline
+  
+offline_mode:
+  name: "Offline Mode"
+  icon: mdi:wifi-off
+
+# Adjustable AI parameters for conservation
+ai_response_delay:
+  name: "AI Response Delay"
+  min: 1
+  max: 60
+  step: 1
+  initial: 5
+  unit_of_measurement: "seconds"
+  icon: mdi:timer
+
+# Current AI model selection
+current_ai_model:
+  name: "Current AI Model"
+  initial: "google/gemini-2.5-flash"
+  icon: mdi:robot

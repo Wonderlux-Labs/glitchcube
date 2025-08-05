@@ -1,0 +1,39 @@
+# Govee2MQTT Docker Compose Extension
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.govee.yml up -d
+
+services:
+  govee2mqtt:
+    image: wez/govee2mqtt:latest
+    container_name: govee2mqtt
+    restart: unless-stopped
+    environment:
+      # Govee API Configuration (optional but recommended)
+      - GOVEE_API_KEY=${GOVEE_API_KEY:-}
+      - GOVEE_EMAIL=${GOVEE_EMAIL:-}
+      - GOVEE_PASSWORD=${GOVEE_PASSWORD:-}
+      
+      # MQTT Configuration
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_USERNAME=${MQTT_USERNAME:-glitchcube}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-glitchcube123}
+      - MQTT_TOPIC_PREFIX=govee
+      
+      # Discovery and Control Settings
+      - ENABLE_LAN_API=true
+      - ENABLE_IOT_API=true
+      - ENABLE_PLATFORM_API=true
+      
+      # Logging
+      - LOG_LEVEL=info
+      
+    volumes:
+      - ./data/govee2mqtt:/data
+    depends_on:
+      - mosquitto
+    networks:
+      - glitchcube-network
+
+networks:
+  glitchcube-network:
+    external: true

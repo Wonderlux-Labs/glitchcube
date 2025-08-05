@@ -1,0 +1,81 @@
+# Bandwidth Monitoring Docker Compose Extension
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.bandwidth.yml up -d
+
+services:
+  # vnStat - Lightweight bandwidth monitoring with persistent history
+  vnstat:
+    container_name: glitchcube_vnstat
+    image: vergoh/vnstat:latest
+    restart: unless-stopped
+    network_mode: host  # Required to monitor host network interfaces
+    volumes:
+      - vnstat_data:/var/lib/vnstat
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      # Monitor primary network interface (auto-detect)
+      - INTERFACE=eth0
+      # Update interval in seconds (300 = 5 minutes)
+      - UPDATE_INTERVAL=300
+      # Enable HTTP API for external access
+      - HTTP_PORT=8685
+      - HTTP_LOG=/var/log/vnstat.log
+    command: >
+      sh -c "
+        vnstat --create -i eth0 2>/dev/null || true &&
+        vnstati -s -i eth0 -o /var/lib/vnstat/summary.png &&
+        vnstat --json > /var/lib/vnstat/current.json &&
+        vnstatd --nodaemon --config /etc/vnstat.conf
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "vnstat --version || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "2"
+
+  # Bandwidth Monitor API - Simple HTTP interface for current usage
+  bandwidth-monitor:
+    container_name: glitchcube_bandwidth_monitor
+    build:
+      context: .
+      dockerfile: Dockerfile.bandwidth-monitor
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - vnstat_data:/data/vnstat:ro
+      - ./scripts/bandwidth:/app/scripts:ro
+    environment:
+      - PORT=8686
+      # Starlink weekly limit in bytes (50GB = 53,687,091,200 bytes)
+      - WEEKLY_LIMIT=53687091200
+      - DAILY_LIMIT=7669584457  # ~7.14GB per day
+      - WARNING_THRESHOLD=0.8   # Alert at 80% usage
+      - CRITICAL_THRESHOLD=0.95 # Critical at 95% usage
+    ports:
+      - "8686:8686"
+    depends_on:
+      - vnstat
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8686/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 128M
+
+volumes:
+  vnstat_data:
+    driver: local

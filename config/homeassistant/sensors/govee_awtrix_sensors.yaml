@@ -1,0 +1,168 @@
+# Sensors for Govee and AWTRIX integrations
+
+# MQTT sensors for Govee device discovery and status
+- platform: mqtt
+  name: "Govee Device Count"
+  state_topic: "govee/status/device_count"
+  unit_of_measurement: "devices"
+  icon: mdi:lightbulb-group
+
+- platform: mqtt
+  name: "Govee Connection Status"
+  state_topic: "govee/status/connection"
+  icon: mdi:wifi
+
+# Template sensors for intelligent lighting control
+- platform: template
+  sensors:
+    current_lighting_scene:
+      friendly_name: "Current Lighting Scene"
+      value_template: >
+        {% set conversation = states('sensor.conversation_status') %}
+        {% set persona = states('sensor.current_persona') %}
+        {% set battery = states('sensor.battery_level') | int(100) %}
+        {% set time = now().hour %}
+        
+        {% if battery < 15 %}
+          battery_critical
+        {% elif battery < 30 %}
+          battery_low
+        {% elif conversation == 'active' %}
+          {{ persona }}_conversation
+        {% elif time < 7 or time > 22 %}
+          night_mode
+        {% elif is_state('binary_sensor.motion_detected', 'on') %}
+          visitor_detected
+        {% else %}
+          idle_ambient
+        {% endif %}
+      icon_template: >
+        {% set scene = states('sensor.current_lighting_scene') %}
+        {% if 'battery' in scene %}
+          mdi:battery-alert
+        {% elif 'conversation' in scene %}
+          mdi:account-voice
+        {% elif 'night' in scene %}
+          mdi:weather-night
+        {% elif 'visitor' in scene %}
+          mdi:account-multiple
+        {% else %}
+          mdi:lightbulb
+        {% endif %}
+
+    display_priority_message:
+      friendly_name: "Display Priority Message"
+      value_template: >
+        {% set conversation = states('sensor.conversation_status') %}
+        {% set battery = states('sensor.battery_level') | int(100) %}
+        {% set visitors = states('sensor.visitor_count') | int(0) %}
+        {% set health = states('sensor.glitch_cube_app_health') %}
+        
+        {% if health == 'unhealthy' %}
+          System Error
+        {% elif battery < 15 %}
+          Critical Battery: {{ battery }}%
+        {% elif battery < 30 %}
+          Low Battery: {{ battery }}%
+        {% elif conversation == 'active' and visitors > 0 %}
+          {{ visitors }}👥 {{ conversation | title }}
+        {% elif is_state('binary_sensor.motion_detected', 'on') and conversation == 'idle' %}
+          Say Hello!
+        {% elif conversation == 'active' %}
+          Listening...
+        {% else %}
+          {{ as_timestamp(now()) | timestamp_custom('%H:%M') }}
+        {% endif %}
+      icon_template: >
+        {% set msg = states('sensor.display_priority_message') %}
+        {% if 'Error' in msg %}
+          mdi:alert-circle
+        {% elif 'Battery' in msg %}
+          mdi:battery-alert
+        {% elif '👥' in msg %}
+          mdi:account-voice
+        {% elif 'Hello' in msg %}
+          mdi:microphone
+        {% elif 'Listening' in msg %}
+          mdi:ear-hearing
+        {% else %}
+          mdi:clock-digital
+        {% endif %}
+
+    govee_device_id:
+      friendly_name: "Primary Govee Device ID"
+      value_template: >
+        {% set devices = states.light | selectattr('entity_id', 'match', 'light.govee_.*') | list %}
+        {% if devices | length > 0 %}
+          {{ devices[0].entity_id.split('.')[1] }}
+        {% else %}
+          unknown
+        {% endif %}
+
+# Utility sensors for automation logic
+- platform: template
+  sensors:
+    is_nighttime:
+      friendly_name: "Is Nighttime"
+      value_template: >
+        {{ now().hour < 7 or now().hour > 22 }}
+      icon_template: >
+        {% if is_state('sensor.is_nighttime', 'True') %}
+          mdi:weather-night
+        {% else %}
+          mdi:weather-sunny
+        {% endif %}
+
+    lighting_intensity_suggestion:
+      friendly_name: "Lighting Intensity Suggestion"
+      value_template: >
+        {% set conversation = states('sensor.conversation_status') %}
+        {% set battery = states('sensor.battery_level') | int(100) %}
+        {% set time = now().hour %}
+        
+        {% if battery < 30 %}
+          30
+        {% elif time < 7 or time > 22 %}
+          15
+        {% elif conversation == 'active' %}
+          80
+        {% elif is_state('binary_sensor.motion_detected', 'on') %}
+          70
+        {% else %}
+          40
+        {% endif %}
+      unit_of_measurement: "%"
+
+    awtrix_display_duration:
+      friendly_name: "AWTRIX Display Duration"
+      value_template: >
+        {% set conversation = states('sensor.conversation_status') %}
+        {% set battery = states('sensor.battery_level') | int(100) %}
+        
+        {% if battery < 15 %}
+          30
+        {% elif battery < 30 %}
+          20
+        {% elif conversation == 'active' %}
+          15
+        {% else %}
+          10
+        {% endif %}
+      unit_of_measurement: "seconds"
+
+# Daily statistics for display
+- platform: history_stats
+  name: "Daily Interactions"
+  entity_id: sensor.conversation_status
+  state: "active"
+  type: count
+  start: "{{ now().replace(hour=0, minute=0, second=0) }}"
+  end: "{{ now() }}"
+
+- platform: history_stats
+  name: "Daily Visitor Time"
+  entity_id: binary_sensor.motion_detected
+  state: "on"
+  type: time
+  start: "{{ now().replace(hour=0, minute=0, second=0) }}"
+  end: "{{ now() }}"

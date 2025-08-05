@@ -1,0 +1,59 @@
+# Starlink Bandwidth Monitoring Docker Compose Extension
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.starlink-monitor.yml up -d
+
+services:
+  # Starlink Data Usage Monitor - polls gRPC API and accumulates usage
+  starlink-monitor:
+    container_name: glitchcube_starlink_monitor
+    build:
+      context: .
+      dockerfile: Dockerfile.starlink-monitor
+    restart: unless-stopped
+    network_mode: host  # Required to reach Starlink at 192.168.100.1:9200
+    volumes:
+      - ./data/starlink:/data
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      # Starlink gRPC endpoint
+      - STARLINK_GRPC_HOST=192.168.100.1
+      - STARLINK_GRPC_PORT=9200
+      
+      # Polling configuration
+      - POLL_INTERVAL=10  # Poll every 10 seconds
+      - SAVE_INTERVAL=60  # Save totals every minute
+      
+      # Burning Man limits (50GB/week = 7.14GB/day)
+      - WEEKLY_LIMIT_GB=50
+      - DAILY_LIMIT_GB=7.14
+      - WARNING_THRESHOLD=0.8   # Alert at 80% usage
+      - CRITICAL_THRESHOLD=0.95 # Critical at 95% usage
+      
+      # API server
+      - API_PORT=8687
+      - API_HOST=0.0.0.0
+      
+      # Logging
+      - LOG_LEVEL=INFO
+      
+    ports:
+      - "8687:8687"  # Bandwidth monitoring API
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8687/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+volumes:
+  starlink_data:
+    driver: local

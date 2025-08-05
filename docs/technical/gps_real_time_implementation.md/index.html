@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥 Art Cube Tracker - Burning Man 2025</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #ff6b35;
+            overflow: hidden;
+        }
+        
+        #map {
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #ff6b35;
+            border-radius: 10px;
+            padding: 20px;
+            z-index: 1000;
+            min-width: 300px;
+            font-size: 16px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .info-panel h1 {
+            color: #ff6b35;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 24px;
+        }
+        
+        .location-info {
+            margin-bottom: 10px;
+        }
+        
+        .context {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffff00;
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 0, 0.1);
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        .coordinates {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .status {
+            font-size: 12px;
+            color: #00ff00;
+        }
+        
+        .loading {
+            color: #ffaa00;
+        }
+        
+        .offline {
+            color: #ff0000;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #ff6b35;
+            border-radius: 5px;
+            padding: 10px;
+            z-index: 1000;
+            font-size: 12px;
+        }
+        
+        .legend-item {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            margin-right: 8px;
+        }
+        
+        .legend-marker {
+            width: 15px;
+            height: 15px;
+            margin-right: 8px;
+            text-align: center;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="info-panel">
+        <h1>🔥 ART CUBE TRACKER</h1>
+        <div class="location-info">
+            <div class="context" id="context">Loading...</div>
+            <div class="coordinates" id="coordinates">Lat: --, Lng: --</div>
+            <div class="status" id="status">Loading city layout...</div>
+        </div>
+    </div>
+    
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff6b35;"></div>
+            <span>Streets</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-marker" style="background: #8B4513; color: white; border-radius: 50%;">🚽</div>
+            <span>Portos</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-marker" style="background: #ff6b35; border-radius: 50%; border: 2px solid white;"></div>
+            <span>Art Cube</span>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Initialize the map centered on Black Rock City
+        const map = L.map('map').setView([40.7712, -119.2030], 14);
+        
+        // Add OpenStreetMap tiles (free!)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors | Burning Man 2025 GIS Data'
+        }).addTo(map);
+        
+        // Custom icon for the art cube
+        const artCubeIcon = L.divIcon({
+            className: 'art-cube-marker pulse',
+            html: '<div style="background: #ff6b35; border: 3px solid #fff; border-radius: 50%; width: 20px; height: 20px;"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+        
+        // Custom icon for portos
+        const portoIcon = L.divIcon({
+            className: 'porto-marker',
+            html: '🚽',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8]
+        });
+        
+        // Marker for the art cube
+        let artCubeMarker = null;
+        
+        // Layer groups for organization
+        const streetsLayer = L.layerGroup().addTo(map);
+        const portosLayer = L.layerGroup().addTo(map);
+        const landmarksLayer = L.layerGroup().addTo(map);
+        
+        // Elements for updating info
+        const contextEl = document.getElementById('context');
+        const coordinatesEl = document.getElementById('coordinates');
+        const statusEl = document.getElementById('status');
+        
+        // Load street data
+        async function loadStreets() {
+            try {
+                statusEl.textContent = 'Loading streets...';
+                statusEl.className = 'status loading';
+                
+                const response = await fetch('/api/streets');
+                const streetsData = await response.json();
+                
+                if (streetsData.error) {
+                    throw new Error(streetsData.error);
+                }
+                
+                // Add streets to map
+                L.geoJSON(streetsData, {
+                    style: function(feature) {
+                        const streetType = feature.properties.type;
+                        return {
+                            color: streetType === 'radial' ? '#ff6b35' : '#ff8c42',
+                            weight: streetType === 'radial' ? 2 : 1.5,
+                            opacity: 0.8
+                        };
+                    },
+                    onEachFeature: function(feature, layer) {
+                        const props = feature.properties;
+                        layer.bindPopup(`
+                            <strong>${props.name}</strong><br>
+                            Type: ${props.type}<br>
+                            Width: ${props.width}ft
+                        `);
+                    }
+                }).addTo(streetsLayer);
+                
+                console.log('✅ Streets loaded successfully');
+                
+            } catch (error) {
+                console.error('Error loading streets:', error);
+                statusEl.textContent = 'Error loading streets';
+                statusEl.className = 'status offline';
+            }
+        }
+        
+        // Load porto/toilet data
+        async function loadPortos() {
+            try {
+                statusEl.textContent = 'Loading portos...';
+                statusEl.className = 'status loading';
+                
+                const response = await fetch('/api/toilets');
+                const portosData = await response.json();
+                
+                if (portosData.error) {
+                    throw new Error(portosData.error);
+                }
+                
+                // Add portos to map
+                L.geoJSON(portosData, {
+                    pointToLayer: function(feature, latlng) {
+                        return L.marker(latlng, { icon: portoIcon });
+                    },
+                    onEachFeature: function(feature, layer) {
+                        const props = feature.properties;
+                        layer.bindPopup(`
+                            <strong>🚽 Porto</strong><br>
+                            ${props.name || 'Portable Toilet'}
+                        `);
+                    }
+                }).addTo(portosLayer);
+                
+                console.log('✅ Portos loaded successfully');
+                
+            } catch (error) {
+                console.error('Error loading portos:', error);
+                statusEl.textContent = 'Error loading portos';
+                statusEl.className = 'status offline';
+            }
+        }
+        
+        // Update location function
+        async function updateLocation() {
+            try {
+                const response = await fetch('/api/location');
+                const data = await response.json();
+                
+                // Update marker position
+                if (artCubeMarker) {
+                    artCubeMarker.setLatLng([data.lat, data.lng]);
+                } else {
+                    artCubeMarker = L.marker([data.lat, data.lng], { icon: artCubeIcon })
+                        .addTo(map)
+                        .bindPopup('🎨 Art Cube Location');
+                }
+                
+                // Update info panel
+                contextEl.textContent = data.context;
+                coordinatesEl.textContent = `Lat: ${data.lat.toFixed(6)}, Lng: ${data.lng.toFixed(6)}`;
+                statusEl.textContent = `Last updated: ${new Date(data.timestamp).toLocaleTimeString()}`;
+                statusEl.className = 'status';
+                
+            } catch (error) {
+                console.error('Error fetching location:', error);
+                statusEl.textContent = 'Connection lost - retrying...';
+                statusEl.className = 'status offline';
+            }
+        }
+        
+        // Add some Burning Man landmarks
+        function addLandmarks() {
+            const landmarks = [
+                { name: 'Center Camp', lat: 40.7712, lng: -119.2030, icon: '🏕️' },
+                { name: 'Temple', lat: 40.7650, lng: -119.2030, icon: '🏛️' },
+                { name: 'The Man', lat: 40.7750, lng: -119.2030, icon: '🔥' },
+                { name: 'Airport', lat: 40.6622, lng: -119.4341, icon: '✈️' }
+            ];
+            
+            landmarks.forEach(landmark => {
+                L.marker([landmark.lat, landmark.lng], {
+                    icon: L.divIcon({
+                        html: landmark.icon,
+                        iconSize: [25, 25],
+                        iconAnchor: [12, 12],
+                        className: 'landmark-marker'
+                    })
+                }).addTo(landmarksLayer).bindPopup(`<strong>${landmark.name}</strong>`);
+            });
+            
+            // Add city boundary circle
+            L.circle([40.7712, -119.2030], {
+                color: '#ff6b35',
+                fillColor: 'transparent',
+                fillOpacity: 0.05,
+                radius: 3000,
+                weight: 2,
+                dashArray: '5, 5'
+            }).addTo(landmarksLayer);
+        }
+        
+        // Initialize everything
+        async function initialize() {
+            addLandmarks();
+            await loadStreets();
+            await loadPortos();
+            await updateLocation();
+            
+            statusEl.textContent = 'All systems loaded!';
+            statusEl.className = 'status';
+            
+            // Update location every 3 seconds
+            setInterval(updateLocation, 3000);
+        }
+        
+        // Add keyboard shortcuts for testing
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 's') {
+                // Simulate movement for demo
+                fetch('/api/simulate').then(() => updateLocation());
+            }
+        });
+        
+        // Start the app
+        initialize();
+        
+        console.log('🔥 Enhanced Art Cube Tracker loaded!');
+        console.log('Press "s" to simulate movement.');
+    </script>
+</body>
+</html>
+
