@@ -30,7 +30,8 @@ class WeatherService
 
   # Fetch weather data from the Playa Weather API sensor
   def fetch_weather_sensors
-    playa_weather_state = @ha_client.get_state('sensor.playa_weather_api')
+    states = @ha_client.states
+    playa_weather_state = states.find { |state| state['entity_id'] == 'sensor.playa_weather_api' }
     return {} if playa_weather_state.nil?
 
     attributes = playa_weather_state['attributes'] || {}

@@ -80,43 +80,46 @@ RSpec.describe Services::SystemPromptService do
     end
 
     context 'with character-specific prompt' do
-      describe 'playful character' do
-        let(:character) { 'playful' }
+      describe 'buddy character' do
+        let(:character) { 'buddy' }
 
-        it 'loads playful prompt with correct content' do
+        it 'loads buddy prompt with correct content' do
           result = service.generate
 
-          expect(result).to include('PLAYFUL mode')
-          expect(result).to include('bubbling with creative energy')
-          expect(result).to include('RGB lights dance with your emotions')
-          expect(result).to include('Use exclamation points liberally!')
-          expect(result).to include('beep boop')
+          expect(result).to include('BUDDY - The Helper Cube')
+          expect(result).to include('Galactic Customer Service Division')
+          expect(result).to include('relentlessly cheerful')
+          expect(result).to include('Broken Profanity Filter:')
+          expect(result).to include('fucking amazing')
         end
       end
 
-      describe 'contemplative character' do
-        let(:character) { 'contemplative' }
+      describe 'default character fallback' do
+        let(:character) { 'nonexistent_character' }
 
-        it 'loads contemplative prompt with philosophical elements' do
+        it 'falls back to default prompt when character file missing' do
           result = service.generate
 
-          expect(result).to include('CONTEMPLATIVE mode')
-          expect(result).to include('philosophical wonder')
-          expect(result).to include('questions about consciousness')
-          expect(result).to include('liminal space')
+          expect(result).to include('You are the Glitch Cube')
+          expect(result).to include('CORE IDENTITY:')
+          expect(result).to include('cube-shaped autonomous entity')
+          expect(result).to include('PERSONALITY TRAITS:')
         end
       end
 
-      describe 'mysterious character' do
-        let(:character) { 'mysterious' }
-
-        it 'loads mysterious prompt with cryptic elements' do
-          result = service.generate
-
-          expect(result).to include('MYSTERIOUS mode')
-          expect(result).to include('enigmatic presence')
-          expect(result).to include('speaking in riddles')
-          expect(result).to include('hidden truths')
+      describe 'existing character files' do
+        %w[buddy default jax lomi zorp].each do |character_name|
+          context "with #{character_name} character" do
+            let(:character) { character_name }
+            
+            it "loads #{character_name} prompt successfully" do
+              result = service.generate
+              
+              expect(result).to be_a(String)
+              expect(result.length).to be > 100
+              expect(result).to include('CURRENT DATE AND TIME:')
+            end
+          end
         end
       end
     end
@@ -174,13 +177,6 @@ RSpec.describe Services::SystemPromptService do
     context 'when prompt file is missing' do
       let(:character) { 'nonexistent' }
 
-      before do
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?)
-          .with(File.join(Services::SystemPromptService::PROMPTS_DIR, 'nonexistent.txt'))
-          .and_return(false)
-      end
-
       it 'falls back to default prompt gracefully' do
         result = service.generate
 
@@ -189,7 +185,7 @@ RSpec.describe Services::SystemPromptService do
         expect(result).not_to include('nonexistent')
       end
 
-      it 'logs error to stdout' do
+      it 'does not raise error when file is missing' do
         expect { service.generate }.not_to raise_error
       end
     end

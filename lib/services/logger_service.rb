@@ -3,6 +3,7 @@
 require 'logger'
 require 'json'
 require 'fileutils'
+require_relative '../cube/settings'
 
 module Services
   class LoggerService
@@ -49,9 +50,12 @@ module Services
         general.info("INTERACTION: #{interaction_data.to_json}")
       end
 
-      def log_api_call(service:, endpoint:, method: 'POST', status: nil, duration: nil, error: nil, **context)
+      def log_api_call(service:, endpoint:, method: 'POST', status: nil, duration: nil, error: nil, url: nil, **context)
         ensure_loggers
 
+        # Only collect detailed debug info if in debug mode
+        debug_mode = Cube::Settings.log_level == Logger::DEBUG
+        
         api_data = {
           timestamp: Time.now.iso8601,
           service: service,
@@ -60,7 +64,17 @@ module Services
           status: status,
           duration_ms: duration,
           error: error
-        }.merge(context)
+        }
+
+        # Add debug information only in debug mode
+        if debug_mode
+          caller_info = caller[0..2].find { |line| !line.include?('logger_service.rb') } || caller[0]
+          caller_location = caller_info.split(':in').first.split('/').last(2).join('/')
+          api_data[:url] = url if url
+          api_data[:called_from] = caller_location
+        end
+
+        api_data.merge!(context)
 
         # Human-readable API log
         status_emoji = case status
@@ -70,7 +84,14 @@ module Services
                        else '🔄'
                        end
 
-        @api_logger.info("#{status_emoji} #{service.upcase} #{method} #{endpoint} #{status} (#{duration}ms)#{" - #{error}" if error}")
+        # Include extra details only in debug mode
+        if debug_mode
+          url_info = url ? " to #{url}" : ''
+          caller_info = " from #{api_data[:called_from]}"
+          @api_logger.info("#{status_emoji} #{service.upcase} #{method} #{endpoint}#{url_info} #{status} (#{duration}ms)#{caller_info}#{" - #{error}" if error}")
+        else
+          @api_logger.info("#{status_emoji} #{service.upcase} #{method} #{endpoint} #{status} (#{duration}ms)#{" - #{error}" if error}")
+        end
 
         # Also log to general
         general.info("API_CALL: #{api_data.to_json}")
@@ -190,13 +211,18 @@ module Services
 
       def log_directory
         # Use APP_ROOT if set (for containers), otherwise use current directory
-        root_dir = ENV['APP_ROOT'] || Dir.pwd
-        File.join(root_dir, 'logs')
+        root_dir = Cube::Settings.app_root
+        # Put test logs in a separate test folder to avoid cluttering main logs
+        if Cube::Settings.test?
+          File.join(root_dir, 'logs', 'test')
+        else
+          File.join(root_dir, 'logs')
+        end
       end
 
-      def create_logger(filename, level = Logger::INFO)
+      def create_logger(filename, level = nil)
         logger = Logger.new(File.join(log_directory, filename), 'daily')
-        logger.level = level
+        logger.level = level || Cube::Settings.log_level
 
         # Use simple formatter for specialized logs (interactions, api, etc.)
         # Use detailed formatter for general log

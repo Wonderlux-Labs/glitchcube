@@ -1,31 +1,37 @@
 # frozen_string_literal: true
 
 require_relative '../utils/location_helper'
+require_relative '../cube/settings'
 
 module Services
   class GpsTrackingService
     include Utils::LocationHelper
 
     def initialize
-      @ha_client = Services::HomeAssistantClient.new
+      @ha_client = ::HomeAssistantClient.new
     end
 
     # Get current GPS coordinates from Home Assistant device tracker
     def current_location
+      # Check for simulation mode first to bypass HA completely
+      if Cube::Settings.simulate_cube_movement?
+        return fallback_location
+      end
+      
       # GPS configuration with fallback
       begin
         device_tracker_entity = GlitchCube.config.gps.device_tracker_entity
-      rescue
+      rescue StandardError
         device_tracker_entity = ENV.fetch('GPS_DEVICE_TRACKER_ENTITY', 'device_tracker.glitch_cube')
       end
-      
+
       begin
         entity_state = @ha_client.states.find { |state| state['entity_id'] == device_tracker_entity }
-        
+
         if entity_state && entity_state['attributes']
           lat = entity_state['attributes']['latitude']&.to_f
           lng = entity_state['attributes']['longitude']&.to_f
-          
+
           if lat && lng
             {
               lat: lat,
@@ -42,7 +48,7 @@ module Services
         else
           fallback_location
         end
-      rescue => e
+      rescue StandardError => e
         Services::LoggerService.log_api_call(
           service: 'GPS Tracking',
           endpoint: 'current_location',
@@ -58,16 +64,16 @@ module Services
       # Distance from center camp (Golden Spike: 40.786958, -119.202994)
       center_lat = 40.786958
       center_lng = -119.202994
-      
+
       distance = distance_from(lat, lng)
-      
+
       # Determine radial street (time-based)
       bearing = calculate_bearing(center_lat, center_lng, lat, lng)
       radial_street = bearing_to_time_street(bearing)
-      
+
       # Determine concentric street (lettered/named)
       concentric_street = distance_to_concentric_street(distance)
-      
+
       if radial_street && concentric_street
         "#{radial_street} & #{concentric_street}"
       else
@@ -81,22 +87,21 @@ module Services
       return nearby_landmarks.first[:context] if nearby_landmarks.any?
 
       center_distance = distance_from(lat, lng)
-      
+
       case center_distance
       when 0..0.5
-        "Center Camp"
-      when 0.5..1.0
-        "Inner City"
-      when 1.0..2.0
-        "City Limits"
+        'Center Camp'
+      when 0.5..2.0
+        # In the city - show BRC address instead of "Inner City"
+        brc_address_from_coordinates(lat, lng)
       when 2.0..5.0
-        "Outer Playa"
+        'Outer Playa'
       when 5.0..15.0
-        "Deep Playa"
+        'Deep Playa'
       when 15.0..50.0
-        "Way Out There"
+        'Way Out There'
       else
-        "RENO?!?!"
+        'RENO?!?!'
       end
     end
 
@@ -108,14 +113,17 @@ module Services
       landmarks.each do |landmark|
         distance = haversine_distance(lat, lng, landmark[:lat], landmark[:lng])
         
-        if distance <= landmark[:radius]
-          nearby << {
-            name: landmark[:name],
-            type: landmark[:type],
-            distance: distance,
-            context: landmark[:context] || "Near #{landmark[:name]}"
-          }
-        end
+        # Convert radius from meters to miles for comparison
+        radius_miles = landmark[:radius] / 1609.34
+
+        next unless distance <= radius_miles
+
+        nearby << {
+          name: landmark[:name],
+          type: landmark[:type],
+          distance: distance,
+          context: landmark[:context] || "Near #{landmark[:name]}"
+        }
       end
 
       nearby.sort_by { |l| l[:distance] }
@@ -124,10 +132,10 @@ module Services
     # Get proximity data for map reactions
     def proximity_data(lat, lng)
       nearby_landmarks = detect_nearby_landmarks(lat, lng)
-      
+
       # Check porto clusters
       nearby_portos = detect_nearby_portos(lat, lng)
-      
+
       {
         landmarks: nearby_landmarks,
         portos: nearby_portos,
@@ -139,14 +147,47 @@ module Services
     private
 
     def fallback_location
+      # Simulation override: check for simulated coordinates file if SIMULATE_CUBE_MOVEMENT is enabled
+      if Cube::Settings.simulate_cube_movement?
+        sim_file = File.expand_path('../../data/simulation/current_coordinates.json', __dir__)
+        if File.exist?(sim_file)
+          begin
+            coords = JSON.parse(File.read(sim_file))
+            return {
+              lat: coords['lat'],
+              lng: coords['lng'],
+              timestamp: begin
+                Time.parse(coords['timestamp'])
+              rescue StandardError
+                Time.now
+              end,
+              accuracy: nil,
+              battery: nil,
+              address: coords['address'] || brc_address_from_coordinates(coords['lat'], coords['lng']),
+              context: coords['context'] || location_context(coords['lat'], coords['lng']),
+              source: coords['source'] || 'simulation'
+            }
+          rescue StandardError => e
+            # Log and fall through to default
+            Services::LoggerService.log_api_call(
+              service: 'GPS Tracking',
+              endpoint: 'fallback_location',
+              error: "Error reading simulated coordinates: #{e.message}",
+              success: false
+            )
+          end
+        end
+      end
+      # Default to Center Camp if no simulation
+      center_camp = { lat: 40.786958, lng: -119.202994 }
       {
-        lat: coordinates[:lat],
-        lng: coordinates[:lng], 
+        lat: center_camp[:lat],
+        lng: center_camp[:lng],
         timestamp: Time.now,
         accuracy: nil,
         battery: nil,
-        address: "Black Rock City",
-        context: "Default Location"
+        address: brc_address_from_coordinates(center_camp[:lat], center_camp[:lng]),
+        context: location_context(center_camp[:lat], center_camp[:lng])
       }
     end
 
@@ -157,8 +198,8 @@ module Services
       lng_diff = (lng2 - lng1) * Math::PI / 180
 
       y = Math.sin(lng_diff) * Math.cos(lat2_rad)
-      x = Math.cos(lat1_rad) * Math.sin(lat2_rad) - 
-          Math.sin(lat1_rad) * Math.cos(lat2_rad) * Math.cos(lng_diff)
+      x = (Math.cos(lat1_rad) * Math.sin(lat2_rad)) -
+          (Math.sin(lat1_rad) * Math.cos(lat2_rad) * Math.cos(lng_diff))
 
       bearing = Math.atan2(y, x) * 180 / Math::PI
       (bearing + 360) % 360 # Normalize to 0-360
@@ -170,8 +211,8 @@ module Services
       # Adjust for BRC orientation (2:00 is not due north)
       adjusted_bearing = (bearing + 60) % 360 # Offset for BRC orientation
       hour = ((adjusted_bearing / 30.0).round % 12)
-      hour = 12 if hour == 0
-      
+      hour = 12 if hour.zero?
+
       if (2..10).include?(hour)
         "#{hour}:00"
       else
@@ -183,93 +224,91 @@ module Services
     def distance_to_concentric_street(distance_miles)
       # BRC 2025 street names (innermost to outermost)
       streets = %w[Esplanade Atwood Bradbury Cherryh Dick Ellison Farmer Gibson Herbert Ishiguro Jemisin Kilgore]
-      
+
       # Approximate distances (in miles from center)
       street_distances = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
-      
+
       street_distances.each_with_index do |street_distance, index|
-        if distance_miles <= street_distance
-          return streets[index]
-        end
+        return streets[index] if distance_miles <= street_distance
       end
-      
-      "Beyond Kilgore" # Past the city limits
+
+      'Beyond Kilgore' # Past the city limits
     end
 
     # Burning Man landmarks with GPS coordinates and proximity radii
     def burning_man_landmarks
       [
         {
-          name: "Center Camp",
+          name: 'Center Camp',
           lat: 40.786958,
           lng: -119.202994,
-          radius: 300, # meters
-          type: "gathering",
-          context: "Center Camp - Heart of the City"
+          radius: 50, # meters - much smaller radius
+          type: 'gathering',
+          context: 'Center Camp - Heart of the City'
         },
         {
-          name: "The Temple",
+          name: 'The Temple',
           lat: 40.7800,
           lng: -119.2030,
-          radius: 200,
-          type: "sacred",
-          context: "Approaching the Temple 🏛️"
+          radius: 15, # meters - very small radius
+          type: 'sacred',
+          context: 'Approaching the Temple 🏛️'
         },
         {
-          name: "The Man",
+          name: 'The Man',
           lat: 40.7850,
           lng: -119.2030,
-          radius: 150,
-          type: "center",
-          context: "Near The Man 🔥"
+          radius: 15, # meters - very small radius
+          type: 'center',
+          context: 'Near The Man 🔥'
         },
         {
-          name: "Airport",
+          name: 'Airport',
           lat: 40.6622,
           lng: -119.4341,
           radius: 500,
-          type: "transport",
-          context: "Black Rock City Airport ✈️"
+          type: 'transport',
+          context: 'Black Rock City Airport ✈️'
         },
         {
-          name: "Arctica (3:00 & G)",
+          name: 'Arctica (3:00 & G)',
           lat: 40.7865,
           lng: -119.2045,
           radius: 100,
-          type: "service",
-          context: "Near Arctica Ice Sales ❄️"
+          type: 'service',
+          context: 'Near Arctica Ice Sales ❄️'
         },
         {
-          name: "Arctica (6:15 & B)",
+          name: 'Arctica (6:15 & B)',
           lat: 40.7860,
           lng: -119.2025,
           radius: 100,
-          type: "service",
-          context: "Near Arctica Ice Sales ❄️"
+          type: 'service',
+          context: 'Near Arctica Ice Sales ❄️'
         },
         {
-          name: "Arctica (9:00 & G)",
+          name: 'Arctica (9:00 & G)',
           lat: 40.7855,
           lng: -119.2015,
           radius: 100,
-          type: "service",
-          context: "Near Arctica Ice Sales ❄️"
+          type: 'service',
+          context: 'Near Arctica Ice Sales ❄️'
         },
         {
-          name: "Emergency Services (3:00 & C)",
+          name: 'Emergency Services (3:00 & C)',
           lat: 40.7870,
           lng: -119.2040,
           radius: 150,
-          type: "medical",
-          context: "Near Emergency Medical 🚑"
+          type: 'medical',
+          context: 'Near Emergency Medical 🚑'
         },
         {
-          name: "Emergency Services (9:00 & C)",
+          name: 'Emergency Services (9:00 & C)',
           lat: 40.7850,
           lng: -119.2020,
           radius: 150,
-          type: "medical",
-          context: "Near Emergency Medical 🚑"
+          type: 'medical',
+          context: 'Near Emergency Medical 🚑'
         }
       ]
     end
@@ -279,20 +318,20 @@ module Services
       # This would load actual porto locations from the GeoJSON
       # For now, approximate based on known concentrations
       porto_clusters = [
-        { name: "Esplanade Portos", lat: 40.7865, lng: -119.2030, radius: 50 },
-        { name: "Deep Playa Portos", lat: 40.7800, lng: -119.2000, radius: 75 }
+        { name: 'Esplanade Portos', lat: 40.7865, lng: -119.2030, radius: 50 },
+        { name: 'Deep Playa Portos', lat: 40.7800, lng: -119.2000, radius: 75 }
       ]
 
       nearby_portos = []
       porto_clusters.each do |cluster|
         distance = haversine_distance(lat, lng, cluster[:lat], cluster[:lng])
-        if distance <= cluster[:radius]
-          nearby_portos << {
-            name: cluster[:name],
-            distance: distance,
-            type: "portos"
-          }
-        end
+        next unless distance <= cluster[:radius]
+
+        nearby_portos << {
+          name: cluster[:name],
+          distance: distance,
+          type: 'portos'
+        }
       end
 
       nearby_portos
@@ -300,56 +339,56 @@ module Services
 
     # Determine map visual mode based on proximity
     def determine_map_mode(nearby_landmarks)
-      return "normal" if nearby_landmarks.empty?
+      return 'normal' if nearby_landmarks.empty?
 
       primary_landmark = nearby_landmarks.first
       case primary_landmark[:type]
-      when "sacred"
-        "temple" # Desaturated, reverent colors
-      when "center"
-        "man" # Bright, energetic colors
-      when "medical"
-        "emergency" # Red highlights, clear navigation
-      when "service"
-        "service" # Blue highlights for utilities
+      when 'sacred'
+        'temple' # Desaturated, reverent colors
+      when 'center'
+        'man' # Bright, energetic colors
+      when 'medical'
+        'emergency' # Red highlights, clear navigation
+      when 'service'
+        'service' # Blue highlights for utilities
       else
-        "landmark" # Enhanced visibility
+        'landmark' # Enhanced visibility
       end
     end
 
     # Determine visual effects for map display
     def determine_visual_effects(nearby_landmarks)
       effects = []
-      
+
       nearby_landmarks.each do |landmark|
         case landmark[:type]
-        when "sacred"
+        when 'sacred'
           effects << {
-            type: "aura",
-            color: "white",
-            intensity: "soft",
-            description: "Sacred space - respectful proximity"
+            type: 'aura',
+            color: 'white',
+            intensity: 'soft',
+            description: 'Sacred space - respectful proximity'
           }
-        when "center"
+        when 'center'
           effects << {
-            type: "pulse",
-            color: "orange",
-            intensity: "strong",
-            description: "Center of the burn - high energy"
+            type: 'pulse',
+            color: 'orange',
+            intensity: 'strong',
+            description: 'Center of the burn - high energy'
           }
-        when "medical"
+        when 'medical'
           effects << {
-            type: "beacon",
-            color: "red",
-            intensity: "steady",
-            description: "Emergency services nearby"
+            type: 'beacon',
+            color: 'red',
+            intensity: 'steady',
+            description: 'Emergency services nearby'
           }
-        when "service"
+        when 'service'
           effects << {
-            type: "glow",
-            color: "blue",
-            intensity: "medium",
-            description: "Services available"
+            type: 'glow',
+            color: 'blue',
+            intensity: 'medium',
+            description: 'Services available'
           }
         end
       end

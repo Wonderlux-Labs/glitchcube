@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'cube/settings'
+
 class CircuitBreaker
   class CircuitOpenError < StandardError; end
 
@@ -64,7 +66,7 @@ class CircuitBreaker
 
   def disabled?
     # Allow environment variable to disable circuit breakers for testing
-    ENV['DISABLE_CIRCUIT_BREAKERS'] == 'true'
+    Cube::Settings.disable_circuit_breakers?
   end
 
   def status

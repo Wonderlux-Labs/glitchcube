@@ -4,7 +4,6 @@ require 'spec_helper'
 require_relative '../../lib/services/openrouter_service'
 
 RSpec.describe OpenRouterService, 'Integration with Model Presets' do
-  let(:mock_client) { instance_double(OpenRouter::Client) }
   let(:mock_response) do
     {
       'choices' => [
@@ -18,9 +17,19 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
   end
 
   before do
-    allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
-    described_class.clear_cache!
+    # Reset all cached instance variables before each test
     described_class.instance_variable_set(:@client, nil)
+    described_class.instance_variable_set(:@request_handler, nil)
+    described_class.clear_cache!
+    
+    # Create a fresh mock for each test to avoid RSpec double leakage
+    @mock_client = instance_double(OpenRouter::Client)
+    allow(OpenRouter::Client).to receive(:new).and_return(@mock_client)
+  end
+  
+  # Use @mock_client instead of mock_client method
+  def mock_client
+    @mock_client
   end
 
   describe 'blacklist validation' do

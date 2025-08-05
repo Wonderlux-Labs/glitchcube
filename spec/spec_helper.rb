@@ -7,7 +7,7 @@ SimpleCov.start do
 end
 
 ENV['RACK_ENV'] = 'test'
-ENV['MOCK_HOME_ASSISTANT'] = 'true'
+# Note: Using real Home Assistant instance for tests - no mock needed
 
 # Set test API keys - load from .env if available, otherwise use test defaults
 require 'dotenv'

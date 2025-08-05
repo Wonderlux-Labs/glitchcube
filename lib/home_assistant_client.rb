@@ -16,7 +16,6 @@ class HomeAssistantClient
   attr_reader :base_url, :token
 
   def initialize(base_url: nil, token: nil)
-    ENV['HOME_ASSISTANT_URL'] || ENV.fetch('HA_URL', nil)
     if GlitchCube.config.home_assistant.mock_enabled
       # Use mock HA endpoints when explicitly enabled
       @base_url = base_url || GlitchCube.config.home_assistant.url || "http://localhost:#{GlitchCube.config.port}/mock_ha"
@@ -29,7 +28,6 @@ class HomeAssistantClient
       raise Error, 'Home Assistant URL not configured. Set HOME_ASSISTANT_URL or HA_URL environment variable.' unless @base_url
       raise Error, 'Home Assistant token not configured. Set HOME_ASSISTANT_TOKEN environment variable.' unless @token
     end
-    puts "[HomeAssistantClient] ENV['HA_URL'] = #{ENV['HA_URL'].inspect}, ENV['HOME_ASSISTANT_URL'] = #{ENV['HOME_ASSISTANT_URL'].inspect}, resolved base_url = #{@base_url.inspect}"
   end
 
   # Get all entity states
@@ -140,6 +138,7 @@ class HomeAssistantClient
       Services::LoggerService.log_api_call(
         service: 'home_assistant',
         endpoint: path,
+        url: uri.to_s,
         method: 'GET',
         status: response.code.to_i,
         duration: duration
@@ -151,6 +150,7 @@ class HomeAssistantClient
       Services::LoggerService.log_api_call(
         service: 'home_assistant',
         endpoint: path,
+        url: uri.to_s,
         method: 'GET',
         duration: duration,
         error: "Timeout: #{e.message}"
@@ -161,6 +161,7 @@ class HomeAssistantClient
       Services::LoggerService.log_api_call(
         service: 'home_assistant',
         endpoint: path,
+        url: uri.to_s,
         method: 'GET',
         duration: duration,
         error: "Connection failed: #{e.message}"

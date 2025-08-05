@@ -1,0 +1,69 @@
+# Home Assistant automation for VM-based git deployment
+# This runs INSIDE the VM and pulls from GitHub directly
+
+- id: vm_git_deploy
+  alias: "VM Git Deploy - Pull from GitHub"
+  description: "Pull latest config from GitHub when webhook is triggered"
+  trigger:
+    # Webhook trigger from GitHub Actions
+    - platform: webhook
+      webhook_id: github_deploy_trigger
+      allowed_methods:
+        - POST
+      local_only: false
+  
+  condition:
+    # Only proceed if not already deploying
+    - condition: state
+      entity_id: input_boolean.glitchcube_deploying
+      state: "off"
+  
+  action:
+    # Set deploying flag
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.glitchcube_deploying
+    
+    # Log the deployment
+    - service: logbook.log
+      data:
+        name: "Glitch Cube Deploy"
+        message: "Starting deployment from GitHub"
+        entity_id: sensor.glitchcube_deployment_status
+    
+    # Create notification
+    - service: persistent_notification.create
+      data:
+        title: "🚀 Glitch Cube Deployment"
+        message: "Pulling latest configuration from GitHub..."
+        notification_id: glitchcube_deploy
+    
+    # Run the update script
+    - service: shell_command.update_from_git
+    
+    # Wait for completion (adjust based on your needs)
+    - delay:
+        minutes: 2
+    
+    # Update deployment timestamp
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.last_deployment_time
+      data:
+        value: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+    
+    # Clear deploying flag
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.glitchcube_deploying
+    
+    # Update notification
+    - service: persistent_notification.create
+      data:
+        title: "✅ Deployment Complete"
+        message: "Configuration updated from GitHub"
+        notification_id: glitchcube_deploy
+
+# Shell command configuration (add to configuration.yaml)
+# shell_command:
+#   update_from_git: '/usr/local/bin/update_ha_config.sh'

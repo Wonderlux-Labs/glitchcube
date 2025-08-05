@@ -48,6 +48,12 @@
 # Sidekiq
 dump.rdb
 
+# GPS Simulation data (but keep config)
+/data/simulation/current_coordinates.json
+/data/simulation/route_history.json
+/data/simulation/current_destination.json
+/data/simulation/movement_step.txt
+
 # SimpleCov
 /coverage/
 

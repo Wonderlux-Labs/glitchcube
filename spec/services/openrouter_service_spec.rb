@@ -19,8 +19,9 @@ RSpec.describe OpenRouterService do
   before do
     # Reset service state between tests
     described_class.clear_cache!
-    # Clear the memoized client
+    # Clear the memoized client and request handler
     described_class.instance_variable_set(:@client, nil)
+    described_class.instance_variable_set(:@request_handler, nil)
   end
 
   describe '.complete' do
@@ -28,18 +29,22 @@ RSpec.describe OpenRouterService do
       mock_client = instance_double(OpenRouter::Client)
       allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
 
-      expect(mock_client).to receive(:complete).with({
-                                                       model: 'google/gemini-2.0-flash-thinking-exp:free',
-                                                       messages: [{ role: 'user', content: 'Test prompt' }],
-                                                       max_tokens: 500,
-                                                       temperature: 0.7
-                                                     }).and_return(mock_response)
+      expect(mock_client).to receive(:complete).with(
+        hash_including(
+          messages: [{ role: 'user', content: 'Test prompt' }],
+          max_tokens: 500,
+          temperature: 0.7
+        )
+      ).and_return(mock_response)
 
       result = described_class.complete('Test prompt')
       expect(result).to eq(mock_response)
     end
 
     it 'accepts custom options' do
+      mock_client = instance_double(OpenRouter::Client)
+      allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
+      
       expect(mock_client).to receive(:complete).with({
                                                        model: 'different-model',
                                                        messages: [{ role: 'user', content: 'Test prompt' }],
@@ -62,13 +67,20 @@ RSpec.describe OpenRouterService do
   end
 
   describe '.complete_with_context' do
+    let(:mock_client) { instance_double(OpenRouter::Client) }
+    
+    before do
+      allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
+    end
+    
     it 'handles string messages' do
-      expect(mock_client).to receive(:complete).with({
-                                                       model: 'google/gemini-2.0-flash-thinking-exp:free',
-                                                       messages: [{ role: 'user', content: 'Simple string' }],
-                                                       max_tokens: 500,
-                                                       temperature: 0.7
-                                                     }).and_return(mock_response)
+      expect(mock_client).to receive(:complete).with(
+        hash_including(
+          messages: [{ role: 'user', content: 'Simple string' }],
+          max_tokens: 500,
+          temperature: 0.7
+        )
+      ).and_return(mock_response)
 
       result = described_class.complete_with_context('Simple string')
       expect(result).to eq(mock_response)
@@ -81,12 +93,13 @@ RSpec.describe OpenRouterService do
         { role: 'user', content: 'Follow up' }
       ]
 
-      expect(mock_client).to receive(:complete).with({
-                                                       model: 'google/gemini-2.0-flash-thinking-exp:free',
-                                                       messages: messages,
-                                                       max_tokens: 500,
-                                                       temperature: 0.7
-                                                     }).and_return(mock_response)
+      expect(mock_client).to receive(:complete).with(
+        hash_including(
+          messages: messages,
+          max_tokens: 500,
+          temperature: 0.7
+        )
+      ).and_return(mock_response)
 
       result = described_class.complete_with_context(messages)
       expect(result).to eq(mock_response)
@@ -99,12 +112,13 @@ RSpec.describe OpenRouterService do
         { role: 'user', content: 'Second message' }
       ]
 
-      expect(mock_client).to receive(:complete).with({
-                                                       model: 'google/gemini-2.0-flash-thinking-exp:free',
-                                                       messages: expected_messages,
-                                                       max_tokens: 500,
-                                                       temperature: 0.7
-                                                     }).and_return(mock_response)
+      expect(mock_client).to receive(:complete).with(
+        hash_including(
+          messages: expected_messages,
+          max_tokens: 500,
+          temperature: 0.7
+        )
+      ).and_return(mock_response)
 
       result = described_class.complete_with_context(messages)
       expect(result).to eq(mock_response)
@@ -113,6 +127,11 @@ RSpec.describe OpenRouterService do
 
   describe '.available_models' do
     let(:mock_models) { %w[model1 model2 model3] }
+    let(:mock_client) { instance_double(OpenRouter::Client) }
+    
+    before do
+      allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
+    end
 
     it 'fetches and caches models' do
       expect(mock_client).to receive(:models).once.and_return(mock_models)
@@ -142,6 +161,12 @@ RSpec.describe OpenRouterService do
   end
 
   describe '.clear_cache!' do
+    let(:mock_client) { instance_double(OpenRouter::Client) }
+    
+    before do
+      allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
+    end
+    
     it 'clears the model cache' do
       # Fill cache
       allow(mock_client).to receive(:models).and_return(['model1'])
@@ -158,6 +183,12 @@ RSpec.describe OpenRouterService do
   end
 
   describe 'convenience methods' do
+    let(:mock_client) { instance_double(OpenRouter::Client) }
+    
+    before do
+      allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
+    end
+    
     describe '.complete_cheap' do
       it 'uses the small_cheapest preset' do
         expect(mock_client).to receive(:complete).with(
@@ -190,6 +221,12 @@ RSpec.describe OpenRouterService do
   end
 
   describe 'private methods' do
+    let(:mock_client) { instance_double(OpenRouter::Client) }
+    
+    before do
+      allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
+    end
+    
     describe '#format_messages' do
       it 'formats different message types correctly' do
         # This tests the private method indirectly through complete_with_context

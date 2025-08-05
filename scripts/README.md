@@ -2,16 +2,12 @@
 
 ## Essential Scripts
 
-### deploy.sh
-Deploys code changes to the Glitch Cube device.
-```bash
-# Direct script usage
-./scripts/deploy.sh "commit message"
+### Deployment Scripts
+All deployment scripts have been moved to the `deploy/` subdirectory. See [deploy/README.md](deploy/README.md) for details.
 
-# Or use rake tasks (recommended)
-bundle exec rake deploy:push["commit message"]
-bundle exec rake deploy:quick  # Auto-timestamps
-```
+- **Mac mini VM deployment**: `deploy/vm-update-ha-config.sh`
+- **Raspberry Pi deployment**: `deploy/pull-from-github.sh`
+- **Manual deployment**: `deploy/push-to-production.sh`
 
 ### backup-data.sh
 Backs up all persistent data before major changes.
@@ -25,23 +21,10 @@ Restores data from a backup.
 ./scripts/restore-data.sh backup-20240101-120000.tar.gz
 ```
 
-### auto-deploy.sh
-Automatically pulls and deploys new commits from GitHub. Used by systemd timer.
-```bash
-# Manual run
-./scripts/auto-deploy.sh
-
-# Setup automatic deployment (run once on device)
-sudo cp scripts/glitchcube-auto-deploy.service /etc/systemd/system/
-sudo cp scripts/glitchcube-auto-deploy.timer /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable glitchcube-auto-deploy.timer
-sudo systemctl start glitchcube-auto-deploy.timer
-
-# Check status
-sudo systemctl status glitchcube-auto-deploy.timer
-sudo journalctl -u glitchcube-auto-deploy.service -f
-```
+### Automatic Deployment
+For automatic deployment setup, see the scripts in `deploy/` directory:
+- Systemd files: `deploy/glitchcube-auto-deploy.service` and `.timer`
+- Setup instructions: [deploy/README.md](deploy/README.md)
 
 ## Docker Commands Reference
 

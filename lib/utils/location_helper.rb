@@ -4,7 +4,7 @@ require_relative '../../config/constants'
 
 module Utils
   module LocationHelper
-    module_function
+    extend self
 
     # Get current coordinates
     def coordinates
@@ -33,14 +33,21 @@ module Utils
 
     # Calculate distance from installation (in miles)
     def distance_from(lat, lng)
+      haversine_distance(coordinates[:lat], coordinates[:lng], lat, lng)
+    end
+
+    # Calculate distance between two points using Haversine formula (in miles)
+    def haversine_distance(lat1, lng1, lat2, lng2)
       # Haversine formula for great-circle distance
       r = 3959 # Earth's radius in miles
-      lat1 = coordinates[:lat] * Math::PI / 180
-      lat2 = lat * Math::PI / 180
-      dlat = (lat - coordinates[:lat]) * Math::PI / 180
-      dlng = (lng - coordinates[:lng]) * Math::PI / 180
+      
+      # Convert to radians
+      lat1_rad = lat1 * Math::PI / 180
+      lat2_rad = lat2 * Math::PI / 180
+      dlat = (lat2 - lat1) * Math::PI / 180
+      dlng = (lng2 - lng1) * Math::PI / 180
 
-      a = (Math.sin(dlat / 2)**2) + (Math.cos(lat1) * Math.cos(lat2) * (Math.sin(dlng / 2)**2))
+      a = (Math.sin(dlat / 2)**2) + (Math.cos(lat1_rad) * Math.cos(lat2_rad) * (Math.sin(dlng / 2)**2))
       c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 
       (r * c).round(2)

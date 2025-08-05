@@ -1,13 +1,30 @@
 # GitHub Actions Setup
 
+## Deployment Workflows
+
+Glitch Cube supports multiple deployment workflows:
+
+1. **`deploy-conditional.yml`** - Automatically detects deployment type based on MAC_MINI_DEPLOYMENT setting
+2. **`deploy-mac-mini.yml`** - Mac mini VM deployment (webhooks to HA and Sinatra)
+3. **`deploy.yml`** - Traditional Docker/Pi deployment (SSH based)
+
+The conditional workflow will automatically choose the right deployment method.
+
 ## Auto-Deploy Workflow
 
-The `deploy.yml` workflow automatically deploys to your Glitch Cube whenever you push to the `main` branch.
+The appropriate workflow automatically deploys to your Glitch Cube whenever you push to the `main` branch.
 
 ### Required GitHub Secrets
 
 1. Go to your repository Settings → Secrets and variables → Actions
 2. Add the following secrets:
+
+#### For Mac mini VM Deployment:
+- `HA_WEBHOOK_URL`: Your Home Assistant webhook URL (e.g., `https://xxx.ui.nabu.casa/api/webhook/github_deploy_trigger`)
+- `SINATRA_DEPLOY_URL`: Your Sinatra deployment URL (e.g., `https://yourapp.com/deploy`)
+- `GITHUB_WEBHOOK_SECRET`: A random secret for webhook verification (optional but recommended)
+
+#### For Docker/Pi Deployment:
 
 - `DEPLOY_HOST`: The hostname or IP of your Glitch Cube (e.g., `glitchcube.local` or `192.168.1.100`)
 - `DEPLOY_USER`: The SSH username (e.g., `eric`)

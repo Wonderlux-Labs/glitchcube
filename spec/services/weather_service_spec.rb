@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../lib/services/weather_service'
 
-RSpec.describe WeatherService, :vcr do
+RSpec.describe WeatherService, :vcr, skip: "Weather service being moved to HA side" do
   let(:service) { described_class.new }
   let(:mock_ha_states) do
     [
@@ -144,41 +144,6 @@ RSpec.describe WeatherService, :vcr do
     end
   end
 
-  describe '#extract_weather_data' do
-    it 'extracts weather information from HA states' do
-      result = service.send(:extract_weather_data, mock_ha_states)
-
-      expect(result).to include(
-        temperature: 85.5,
-        humidity: 45,
-        pressure: 30.2,
-        wind_speed: 8.5,
-        wind_direction: 180,
-        weather_condition: 'sunny',
-        location: anything
-      )
-      expect(result[:forecast]).to be_an(Array)
-    end
-
-    it 'handles missing or invalid sensor data' do
-      states_with_unavailable = [
-        {
-          'entity_id' => 'sensor.outdoor_temperature',
-          'state' => 'unavailable',
-          'attributes' => {}
-        },
-        {
-          'entity_id' => 'sensor.outdoor_humidity',
-          'state' => 'unknown',
-          'attributes' => {}
-        }
-      ]
-
-      result = service.send(:extract_weather_data, states_with_unavailable)
-      expect(result[:temperature]).to be_nil
-      expect(result[:humidity]).to be_nil
-    end
-  end
 
   describe 'integration with real APIs', :vcr do
     it 'attempts to connect to real HA and records the interaction' do

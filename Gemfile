@@ -12,12 +12,12 @@ gem 'sinatra-contrib', '~> 4.1'
 gem 'anthropic', '~> 1.3'
 gem 'desiru', git: 'https://github.com/estiens/desiru.git', branch: 'main'
 gem 'grape', '~> 2.4'
-gem 'mysql2', '~> 0.5.6' # MariaDB/MySQL adapter for Sequel
 gem 'open_router', '~> 0.3'
 gem 'ostruct'
 gem 'rack-cors', '~> 3.0'
 gem 'ruby-openai', '~> 8.1'
 gem 'sequel', '~> 5.95'
+gem 'sqlite3', '~> 2.7' # SQLite adapter for Sequel
 
 # Environment and Configuration
 gem 'dotenv', '~> 3.1'

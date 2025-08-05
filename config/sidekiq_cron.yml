@@ -1,8 +1,8 @@
-# Sidekiq Cron Jobs Configuration
-# These jobs run on a schedule
-# NOTE: Beacon heartbeat has been moved to Desiru's built-in scheduler
-# See config/initializers/scheduler.rb
-
+simulate_cube_movement_worker:
+  cron: "*/5 * * * *" # Every 5 minutes (will update every 30 seconds internally)
+  class: "Jobs::SimulateCubeMovementWorker"
+  queue: default
+  description: "Simulate Glitch Cube GPS movement for testing (set SIMULATE_CUBE_MOVEMENT=true to activate)"
 # The following jobs still use Sidekiq-cron until migrated to Desiru scheduler:
 
 memory_cleanup:

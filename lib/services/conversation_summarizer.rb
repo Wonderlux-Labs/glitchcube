@@ -20,8 +20,11 @@ module Services
         max_points: 5
       )
 
+      # Parse key_points from the result string
+      key_points = parse_key_points(result)
+
       summary = {
-        key_points: result[:key_points] || extract_fallback_points(messages),
+        key_points: key_points || extract_fallback_points(messages),
         mood_progression: extract_mood_changes(messages),
         topics_discussed: extract_topics(conversation_text),
         duration: calculate_duration(messages),
@@ -116,6 +119,27 @@ module Services
       when Time then time_value
       when String then Time.parse(time_value)
       end
+    end
+
+    def parse_key_points(result)
+      return nil unless result
+
+      # Desiru Predict module returns a string like "key_points:\n- item1\n- item2"
+      # We need to parse this into an array
+      if result.is_a?(String)
+        # Extract the key_points section
+        if result.include?('key_points:')
+          points_text = result.split('key_points:').last.strip
+          # Parse bullet points
+          points = points_text.split("\n").map { |line| line.strip.gsub(/^-\s*/, '') }.reject(&:empty?)
+          return points unless points.empty?
+        end
+      elsif result.is_a?(Hash) && result[:key_points]
+        # In case Desiru returns a properly structured hash
+        return result[:key_points]
+      end
+
+      nil
     end
 
     def store_summary(summary)

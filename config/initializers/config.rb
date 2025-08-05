@@ -15,7 +15,7 @@ module GlitchCube
         port: ENV.fetch('PORT', '4567').to_i,
         session_secret: ENV.fetch('SESSION_SECRET') { SecureRandom.hex(64) },
         rack_env: ENV.fetch('RACK_ENV', 'development'),
-        database_url: ENV.fetch('DATABASE_URL', nil),
+        database_url: ENV.fetch('DATABASE_URL', 'sqlite://data/glitchcube.db'),
         redis_url: ENV.fetch('REDIS_URL', nil),
 
         # MariaDB Configuration
@@ -58,6 +58,16 @@ module GlitchCube
           temperature: ENV.fetch('AI_TEMPERATURE', '0.8').to_f,
           max_tokens: ENV.fetch('AI_MAX_TOKENS', '200').to_i,
           max_session_messages: ENV.fetch('MAX_SESSION_MESSAGES', '10').to_i
+        ),
+
+        # GPS Configuration
+        gps: OpenStruct.new(
+          device_tracker_entity: ENV.fetch('GPS_DEVICE_TRACKER_ENTITY', 'device_tracker.glitch_cube')
+        ),
+
+        # Deployment Configuration
+        deployment: OpenStruct.new(
+          mac_mini: ENV.fetch('MAC_MINI_DEPLOYMENT', 'true') == 'true'
         ),
 
         # Development/Test

@@ -2,6 +2,10 @@
 
 require 'sidekiq'
 require 'sidekiq/cron/job'
+require_relative '../../lib/services/database_startup_service'
+
+# Ensure databases are ready before configuring Sidekiq
+Services::DatabaseStartupService.ensure_databases_ready!
 
 # Configure Sidekiq for minimal resource footprint on single device
 Sidekiq.configure_server do |config|

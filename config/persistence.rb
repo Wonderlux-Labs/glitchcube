@@ -33,24 +33,6 @@ module GlitchCube
         puts '   Running without persistence - module history will not be tracked'
       end
 
-      private
-
-      def determine_database_url
-        if GlitchCube.config.database_url && !GlitchCube.config.database_url.empty?
-          # Explicit DATABASE_URL takes priority (could be MariaDB, PostgreSQL, etc.)
-          GlitchCube.config.database_url
-        elsif GlitchCube.config.test?
-          # Test: Always use in-memory SQLite for speed and isolation
-          'sqlite::memory:'
-        elsif GlitchCube.config.mariadb_available?
-          # Development/Production: Use MariaDB if available
-          GlitchCube.config.mariadb_url
-        else
-          # Fallback: Local SQLite file
-          'sqlite://data/glitchcube.db'
-        end
-      end
-
       def track_conversation(module_name, input, output, metadata = {})
         return unless persistence_enabled?
 
@@ -187,6 +169,22 @@ module GlitchCube
           .order(Sequel.desc(:created_at))
           .limit(limit)
           .map { |e| format_execution(e) }
+      end
+
+      private
+
+      def determine_database_url
+        if GlitchCube.config.database_url && !GlitchCube.config.database_url.empty?
+          # Explicit DATABASE_URL takes priority
+          GlitchCube.config.database_url
+        elsif GlitchCube.config.test?
+          # Test: Always use in-memory SQLite for speed and isolation
+          'sqlite::memory:'
+        else
+          # Default: Use SQLite for simplicity in development/production
+          # MariaDB was only needed for Home Assistant integration
+          'sqlite://data/glitchcube.db'
+        end
       end
     end
   end

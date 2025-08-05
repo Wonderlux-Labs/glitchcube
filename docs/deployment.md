@@ -1,5 +1,23 @@
 # Glitch Cube Deployment
 
+## Deployment Modes
+
+Glitch Cube supports two deployment modes:
+
+1. **Mac mini VM Deployment** (MAC_MINI_DEPLOYMENT=true)
+   - Home Assistant runs in a VM
+   - Sinatra runs on bare metal Mac host
+   - See [mac-mini-vm-deployment.md](mac-mini-vm-deployment.md) for details
+
+2. **Docker/Pi Deployment** (MAC_MINI_DEPLOYMENT=false)
+   - Traditional Docker container deployment
+   - Works on Raspberry Pi or any Docker host
+
+Set deployment mode in `.env`:
+```bash
+MAC_MINI_DEPLOYMENT=true  # or false for Docker
+```
+
 ## Automatic Deployment Flow
 
 1. **Push to GitHub** → Triggers GitHub Action

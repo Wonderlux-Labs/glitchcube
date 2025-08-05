@@ -19,6 +19,8 @@ module Services
       prompt_parts = [
         datetime_section,
         base_prompt,
+        tools_section,
+        environment_section,
         context_section
       ].compact.reject(&:empty?)
 
@@ -55,17 +57,101 @@ module Services
       default_glitch_cube_prompt
     end
 
+    def tools_section
+      return '' if context.nil?
+      
+      available_tools = context[:available_tools]
+      return '' if available_tools.nil? || available_tools.empty?
+
+      tools_lines = ['AVAILABLE TOOLS AND CAPABILITIES:']
+      tools_lines << 'You have access to the following tools that match your character abilities:'
+      tools_lines << ''
+
+      available_tools.each do |tool|
+        formatted_tool = tool.to_s.split('_').map(&:capitalize).join(' ')
+        tools_lines << "- #{formatted_tool}: #{tool_description(tool)}"
+      end
+
+      tools_lines.join("\n")
+    end
+
+    def environment_section
+      env_context = extract_environment_context
+      return '' if env_context.empty?
+
+      env_lines = ['CURRENT ENVIRONMENT:']
+      env_lines << 'Real-time information about your surroundings and status:'
+      env_lines << ''
+
+      env_context.each do |key, value|
+        formatted_key = key.to_s.split('_').map(&:capitalize).join(' ')
+        env_lines << "#{formatted_key}: #{value}"
+      end
+
+      env_lines.join("\n")
+    end
+
     def context_section
-      return '' if context.nil? || context.empty?
+      additional_context = extract_additional_context
+      return '' if additional_context.empty?
 
       context_lines = ['ADDITIONAL CONTEXT:']
 
-      context.each do |key, value|
+      additional_context.each do |key, value|
         formatted_key = key.to_s.split('_').map(&:capitalize).join(' ')
         context_lines << "#{formatted_key}: #{value}"
       end
 
       context_lines.join("\n")
+    end
+
+    def extract_environment_context
+      return {} if context.nil? || context.empty?
+
+      environment_keys = [
+        :current_location, :temperature, :dust_level, :nearby_sounds,
+        :people_detected, :battery_level, :time_of_day, :current_mood,
+        :dust_storm_warning, :party_mode
+      ]
+
+      context.select { |key, _| environment_keys.include?(key) }
+    end
+
+    def extract_additional_context
+      return {} if context.nil? || context.empty?
+
+      excluded_keys = [
+        :available_tools, :current_location, :temperature, :dust_level,
+        :nearby_sounds, :people_detected, :battery_level, :time_of_day,
+        :current_mood, :dust_storm_warning, :party_mode
+      ]
+
+      context.reject { |key, _| excluded_keys.include?(key) }
+    end
+
+    def tool_description(tool)
+      case tool.to_s
+      when 'customer_satisfaction_survey'
+        'Create and manage customer feedback surveys'
+      when 'technical_support'
+        'Provide technical assistance and troubleshooting'
+      when 'booking_system'
+        'Help with reservations and scheduling (may not work properly)'
+      when 'runway_lighting'
+        'Control dramatic lighting effects for fashion shows'
+      when 'music_control'
+        'Manage audio playback and sound effects'
+      when 'shade_generator'
+        'Generate witty comebacks and fashion critiques'
+      when 'classic_music_player'
+        'Play pre-electronic music and classic tracks'
+      when 'life_advice_dispenser'
+        'Provide wisdom and philosophical guidance'
+      when 'electronic_music_killer'
+        'Stop or complain about electronic music'
+      else
+        'A special capability matching your character'
+      end
     end
 
     def default_glitch_cube_prompt

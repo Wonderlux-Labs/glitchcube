@@ -17,9 +17,8 @@ class ConversationModule
     prompt = "#{system_prompt}\n\nUser: #{message}\n\nGlitch Cube:"
 
     begin
-      # Set completion timeout (seconds), configurable via ENV or GlitchCube config
-      completion_timeout = ENV['OPENROUTER_COMPLETION_TIMEOUT']&.to_i ||
-                           (GlitchCube.config.conversation.respond_to?(:completion_timeout) ? GlitchCube.config.conversation.completion_timeout : 20)
+      # Set completion timeout (seconds) from config
+      completion_timeout = GlitchCube.config.conversation&.completion_timeout || 20
 
       # Wrap OpenRouter API call with circuit breaker and timeout
       response_text = Services::CircuitBreakerService.openrouter_breaker.call do
@@ -169,6 +168,11 @@ class ConversationModule
     )
 
     # Track in session for summarization
+    # NOTE: Currently using in-memory storage for session messages
+    # This is acceptable for single-user art installation but means:
+    # - Messages are lost on app restart
+    # - Not shared across multiple processes
+    # TODO: Consider using Redis for persistence if needed
     session_id = context[:session_id]
     if session_id
       @session_messages ||= {}
@@ -309,7 +313,7 @@ class ConversationModule
       ai_response: response_text,
       mood: mood,
       confidence: result[:confidence],
-      error: "General Error: #{error.message}"
+      context: { error: "General Error: #{error.message}" }
     )
 
     speak_response(response_text, context)
@@ -324,4 +328,5 @@ class ConversationModule
       confidence: confidence
     )
   end
+
 end
