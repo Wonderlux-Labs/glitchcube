@@ -93,7 +93,7 @@ module Services
     end
 
     def create_retriever
-      # For future: Create Desiru Retrieve module when we have embeddings
+      # For future: Implement semantic search with embeddings when available
       # For now, we'll use keyword matching
       nil
     end
@@ -161,22 +161,24 @@ module Services
     private
 
     def create_generator
-      # Use Predict module due to ChainOfThought bug in 0.2.0
-      Desiru::Modules::Predict.new(
-        'context: str, question: str -> answer: str'
-      )
+      # Use LLM service directly instead of Desiru
+      Services::LLMService
     end
 
     def generate_answer(question, contexts)
       context_text = contexts.map { |c| c[:content] }.join("\n\n---\n\n")
+      
+      prompt = "Based on the following context, answer the question:\n\nContext:\n#{context_text}\n\nQuestion: #{question}\n\nAnswer:"
 
-      result = @generator.call(
-        context: context_text,
-        question: question
+      result = @generator.complete(
+        system_prompt: "You are a helpful assistant that answers questions based on provided context.",
+        user_message: prompt,
+        model: GlitchCube.config.default_ai_model,
+        temperature: 0.7
       )
 
       {
-        answer: result[:answer],
+        answer: result.response_text,
         contexts_used: contexts.map { |c| c[:source] },
         confidence: contexts.empty? ? 0.5 : 0.8
       }

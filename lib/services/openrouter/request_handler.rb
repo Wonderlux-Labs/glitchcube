@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative '../logger_service'
+require_relative '../unified_logger_service'
 
 module Services
   module OpenRouter
@@ -27,8 +27,9 @@ module Services
 
       def log_successful_call(request_params, response, start_time)
         duration = calculate_duration(start_time)
+        tokens = extract_token_usage(response)
 
-        Services::LoggerService.log_api_call(
+        Services::UnifiedLoggerService.api_call(
           service: 'openrouter',
           endpoint: 'chat/completions',
           method: 'POST',
@@ -37,7 +38,7 @@ module Services
           model: request_params[:model],
           request_size: calculate_request_size(request_params),
           response_size: calculate_response_size(response),
-          tokens_used: extract_token_usage(response),
+          tokens: tokens,
           temperature: request_params[:temperature],
           max_tokens: request_params[:max_tokens]
         )
@@ -46,7 +47,7 @@ module Services
       def log_failed_call(request_params, error, start_time)
         duration = calculate_duration(start_time)
 
-        Services::LoggerService.log_api_call(
+        Services::UnifiedLoggerService.api_call(
           service: 'openrouter',
           endpoint: 'chat/completions',
           method: 'POST',

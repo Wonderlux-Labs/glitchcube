@@ -3,7 +3,7 @@ simulate_cube_movement_worker:
   class: "Jobs::SimulateCubeMovementWorker"
   queue: default
   description: "Simulate Glitch Cube GPS movement for testing (set SIMULATE_CUBE_MOVEMENT=true to activate)"
-# The following jobs still use Sidekiq-cron until migrated to Desiru scheduler:
+# Background jobs managed by Sidekiq-cron:
 
 memory_cleanup:
   cron: "0 */6 * * *"  # Every 6 hours

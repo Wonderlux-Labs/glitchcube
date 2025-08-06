@@ -203,6 +203,38 @@ module ConversationEnhancements
     false
   end
   
+  # Add a message to conversation tracking
+  def add_message_to_conversation(conversation, message_data)
+    conversation[:messages] ||= []
+    message_data[:timestamp] = Time.current
+    conversation[:messages] << message_data
+    
+    # Update conversation cost and token tracking
+    if message_data[:cost]
+      conversation[:total_cost] = (conversation[:total_cost] || 0.0) + message_data[:cost]
+    end
+    
+    if message_data[:prompt_tokens] && message_data[:completion_tokens]
+      conversation[:total_tokens] = (conversation[:total_tokens] || 0) + 
+                                   message_data[:prompt_tokens] + message_data[:completion_tokens]
+    end
+    
+    message_data
+  end
+  
+  # Update conversation totals from all messages
+  def update_conversation_totals(conversation)
+    messages = conversation[:messages] || []
+    
+    total_cost = messages.sum { |m| m[:cost] || 0.0 }
+    total_tokens = messages.sum { |m| (m[:prompt_tokens] || 0) + (m[:completion_tokens] || 0) }
+    
+    conversation[:total_cost] = total_cost
+    conversation[:total_tokens] = total_tokens
+    
+    conversation
+  end
+
   # Create a self-healing wrapper for any operation
   def with_self_healing(operation_name, max_retries: 3)
     attempts = 0

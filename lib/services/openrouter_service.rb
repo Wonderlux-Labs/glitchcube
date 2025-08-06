@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'logger_service'
+require_relative 'unified_logger_service'
 require_relative '../../config/model_presets'
 require_relative 'openrouter/model_cache'
 require_relative 'openrouter/request_handler'

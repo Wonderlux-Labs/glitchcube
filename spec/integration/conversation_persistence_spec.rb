@@ -19,8 +19,8 @@ RSpec.describe 'Conversation with Persistence Integration', :database, :vcr do
   end
 
   before do
-    # Ensure persistence is configured for tests
-    GlitchCube::Persistence.configure!
+    # Persistence removed with Desiru framework
+    skip "Persistence functionality removed - using in-memory conversation storage now"
   end
 
   describe 'Full conversation flow' do
@@ -156,7 +156,7 @@ RSpec.describe 'Conversation with Persistence Integration', :database, :vcr do
   describe 'Error handling' do
     context 'when AI service fails' do
       before do
-        allow_any_instance_of(Desiru::Models::OpenRouter).to receive(:complete)
+        allow(Services::LLMService).to receive(:complete)
           .and_raise(StandardError.new('API Error'))
       end
 

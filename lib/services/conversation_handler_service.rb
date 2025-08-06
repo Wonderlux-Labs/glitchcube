@@ -15,22 +15,16 @@ module Services
       @conversation_module ||= ConversationModule.new
     end
 
-    # Get or create ReAct agent with test tool
+    # Get or create tool agent - deprecated, use ConversationModule directly instead
     def tool_agent
-      @tool_agent ||= Desiru::Modules::ReAct.new(
-        'question -> answer: string',
-        tools: [TestTool],
-        max_iterations: 3
-      )
+      # Desiru removed - use ConversationModule directly
+      nil
     end
 
-    # Get or create ReAct agent with both test tool and HA tool
+    # Get or create home assistant agent - deprecated, use ConversationModule directly instead  
     def home_assistant_agent
-      @home_assistant_agent ||= Desiru::Modules::ReAct.new(
-        'request -> response: string',
-        tools: [TestTool, HomeAssistantTool],
-        max_iterations: 5
-      )
+      # Desiru removed - use ConversationModule directly
+      nil
     end
 
     # Determine if conversation should continue based on response content

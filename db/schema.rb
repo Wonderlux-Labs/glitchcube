@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 3) do
+ActiveRecord::Schema[7.2].define(version: 4) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -44,6 +44,12 @@ ActiveRecord::Schema[7.2].define(version: 3) do
     t.datetime "ended_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "ha_conversation_id"
+    t.string "ha_device_id"
+    t.boolean "continue_conversation", default: true
+    t.index ["ha_conversation_id", "ended_at"], name: "index_conversations_on_ha_conversation_id_and_ended_at"
+    t.index ["ha_conversation_id"], name: "index_conversations_on_ha_conversation_id"
+    t.index ["ha_device_id"], name: "index_conversations_on_ha_device_id"
     t.index ["persona"], name: "index_conversations_on_persona"
     t.index ["session_id"], name: "index_conversations_on_session_id"
     t.index ["started_at"], name: "index_conversations_on_started_at"

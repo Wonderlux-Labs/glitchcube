@@ -133,7 +133,6 @@ RSpec.describe 'Simple RAG Integration', :failing do
 
   describe '#answer_with_context' do
     it 'uses context to answer questions', vcr: { cassette_name: 'rag_with_context' } do
-      pending 'RAG confidence levels vary with model responses'
       
       result = rag.answer_with_context('What are you?')
 
@@ -152,7 +151,7 @@ RSpec.describe 'Simple RAG Integration', :failing do
     end
 
     it 'gracefully handles API failures' do
-      allow_any_instance_of(Desiru::Modules::Predict).to receive(:call).and_raise('API Error')
+      allow(Services::LLMService).to receive(:complete).and_raise('API Error')
 
       result = rag.answer_with_context('Tell me about yourself')
 

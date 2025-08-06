@@ -89,7 +89,7 @@ RSpec/ContextWording:
 
 # Disable problematic cops for art installation
 Lint/MissingSuper:
-  Enabled: false  # Desiru framework may not require super calls
+  Enabled: false  # Art installation framework may not require super calls
 
 Style/GlobalVars:
   Enabled: false  # May need globals for art installation state

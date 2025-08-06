@@ -13,9 +13,9 @@ module GlitchCube
               request_body = JSON.parse(request.body.read)
               message = request_body['message'] || 'Hello, Glitch Cube!'
 
-              # Use the conversation handler service
-              conversation_handler = Services::ConversationHandlerService.new
-              result = conversation_handler.conversation_module.call(
+              # Use the conversation module directly
+              conversation_module = ConversationModule.new
+              result = conversation_module.call(
                 message: message,
                 context: request_body['context'] || {}
               )
@@ -41,31 +41,57 @@ module GlitchCube
 
             begin
               request_body = JSON.parse(request.body.read)
+              start_time = Time.now
 
               # Add session ID to context if not present
               context = request_body['context'] || {}
               context[:session_id] ||= request.session[:session_id] || SecureRandom.uuid
+              
+              # Log conversation request with context
+              log.with_context(
+                request_id: SecureRandom.hex(8),
+                session_id: context[:session_id],
+                endpoint: '/api/v1/conversation'
+              ) do
+                log.info("📥 Conversation request", 
+                  message_preview: request_body['message']&.[](0..50),
+                  voice_interaction: context[:voice_interaction]
+                )
 
-              # Handle voice-specific context
-              if context[:voice_interaction]
-                context[:device_id] = context[:device_id]
-                context[:conversation_id] = context[:conversation_id]
-                context[:language] = context[:language] || 'en'
+                # Handle voice-specific context
+                if context[:voice_interaction]
+                  context[:device_id] = context[:device_id]
+                  context[:conversation_id] = context[:conversation_id]
+                  context[:language] = context[:language] || 'en'
+                end
+
+                # Use the conversation module directly
+                conversation_module = ConversationModule.new
+                response_data = conversation_module.call(
+                  message: request_body['message'],
+                  context: context
+                )
+                
+                # Log performance
+                duration = ((Time.now - start_time) * 1000).round
+                log.performance(
+                  operation: 'conversation_processing',
+                  duration: duration,
+                  success: true
+                )
+
+                json({
+                       success: true,
+                       data: response_data,
+                       timestamp: Time.now.iso8601
+                     })
               end
-
-              # Use the conversation handler service
-              conversation_handler = Services::ConversationHandlerService.new
-              response_data = conversation_handler.process_conversation(
-                message: request_body['message'],
-                context: context
-              )
-
-              json({
-                     success: true,
-                     data: response_data,
-                     timestamp: Time.now.iso8601
-                   })
             rescue StandardError => e
+              log.error("❌ Conversation processing failed", 
+                error: e.message,
+                backtrace: e.backtrace.first(3)
+              )
+              
               status 400
               json({
                      success: false,
@@ -92,9 +118,9 @@ module GlitchCube
               context[:rag_contexts] = rag_result[:contexts_used]
               context[:session_id] ||= request.session[:session_id] || SecureRandom.uuid
 
-              # Get conversation response using handler service
-              conversation_handler = Services::ConversationHandlerService.new
-              conv_result = conversation_handler.conversation_module.call(
+              # Get conversation response using module directly  
+              conversation_module = ConversationModule.new
+              conv_result = conversation_module.call(
                 message: message,
                 context: context
               )
@@ -129,13 +155,12 @@ module GlitchCube
               context = request_body['context'] || {}
               custom_message = request_body['message']
 
-              conversation_handler = Services::ConversationHandlerService.new
+              # Generate appropriate conversation starter - use default if no custom message
+              conversation_text = custom_message || "Hello! I noticed some activity and wanted to check in."
 
-              # Generate appropriate conversation starter
-              conversation_text = custom_message || conversation_handler.generate_proactive_message(trigger_type, context)
-
-              # Send to Home Assistant conversation service
-              ha_response = conversation_handler.send_conversation_to_ha(conversation_text, context)
+              # Send to Home Assistant conversation service using client directly
+              ha_client = HomeAssistantClient.new
+              ha_response = ha_client.process_voice_command(conversation_text)
 
               json({
                      success: true,
@@ -160,12 +185,11 @@ module GlitchCube
             
             begin
               request_body = JSON.parse(request.body.read)
-              conversation_handler = Services::ConversationHandlerService.new
               
               # Process HA webhook events
               case request_body['event_type']
               when 'conversation_started'
-                # HA started a conversation, sync it
+                # HA started a conversation - just acknowledge it
                 context = {
                   ha_conversation_id: request_body['conversation_id'],
                   device_id: request_body['device_id'],
@@ -173,87 +197,63 @@ module GlitchCube
                   voice_interaction: true
                 }
                 
-                # Find or create conversation and sync with HA
-                conversation = Conversation.find_or_create_by(
-                  ha_conversation_id: request_body['conversation_id']
-                ) do |conv|
-                  conv.session_id = context[:session_id]
-                  conv.source = 'home_assistant'
-                  conv.started_at = Time.current
-                  conv.metadata = context
-                end
-                
-                conversation_handler.sync_with_ha(
-                  conversation,
-                  request_body['conversation_id'],
-                  request_body['device_id']
-                )
-                
                 json({
                   success: true,
-                  conversation_id: conversation.id,
-                  ha_conversation_id: conversation.ha_conversation_id
+                  session_id: context[:session_id],
+                  ha_conversation_id: context[:ha_conversation_id]
                 })
                 
               when 'conversation_continued'
-                # HA is continuing a conversation
-                ha_conv_id = request_body['conversation_id']
-                conversation = Conversation.find_by(ha_conversation_id: ha_conv_id)
+                # HA is continuing a conversation - process through module directly
+                context = { 
+                  ha_conversation_id: request_body['conversation_id'],
+                  device_id: request_body['device_id'],
+                  voice_interaction: true,
+                  session_id: request_body['session_id'] || SecureRandom.uuid
+                }
                 
-                if conversation
-                  # Process the message through your system
-                  result = conversation_handler.process_conversation(
-                    message: request_body['text'],
-                    context: { 
-                      ha_conversation_id: ha_conv_id,
-                      device_id: request_body['device_id'],
-                      voice_interaction: true,
-                      session_id: conversation.session_id
-                    }
-                  )
-                  
-                  # Send response back to HA if needed
-                  if result[:response] && request_body['send_response'] != false
-                    conversation_handler.continue_ha_conversation(
-                      ha_conv_id, 
-                      result[:response],
-                      { device_id: request_body['device_id'] }
+                # Process the message through conversation module
+                conversation_module = ConversationModule.new
+                result = conversation_module.call(
+                  message: request_body['text'],
+                  context: context
+                )
+                
+                # Send response back to HA if needed
+                if result[:response] && request_body['send_response'] != false
+                  begin
+                    home_assistant = HomeAssistantClient.new
+                    home_assistant.call_service(
+                      'conversation',
+                      'process', 
+                      {
+                        text: result[:response],
+                        conversation_id: request_body['conversation_id'],
+                        device_id: request_body['device_id'] || 'glitchcube',
+                        language: 'en'
+                      }
                     )
+                  rescue StandardError => e
+                    # Log error but don't fail the request
+                    puts "Failed to continue HA conversation: #{e.message}"
                   end
-                  
-                  json({
-                    success: true,
-                    data: result
-                  })
-                else
-                  # No existing conversation, create new one
-                  result = conversation_handler.process_conversation(
-                    message: request_body['text'],
-                    context: {
-                      ha_conversation_id: ha_conv_id,
-                      device_id: request_body['device_id'],
-                      voice_interaction: true,
-                      session_id: SecureRandom.uuid
-                    }
-                  )
-                  
-                  json({
-                    success: true,
-                    data: result,
-                    new_conversation: true
-                  })
                 end
+                
+                json({
+                  success: true,
+                  data: result
+                })
                 
               when 'trigger_action'
                 # HA wants to trigger a specific action
                 action = request_body['action']
-                context = request_body['context'] || {}
+                context = (request_body['context'] || {}).merge(action_request: action)
                 
-                # Process action through conversation system
-                result = conversation_handler.process_conversation(
+                # Process action through conversation module
+                conversation_module = ConversationModule.new
+                result = conversation_module.call(
                   message: "Execute action: #{action}",
-                  context: context.merge(action_request: action),
-                  mood: 'neutral'
+                  context: context
                 )
                 
                 json({

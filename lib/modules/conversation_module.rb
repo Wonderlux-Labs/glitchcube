@@ -12,19 +12,19 @@ require_relative 'conversation_enhancements'
 class ConversationModule
   include ConversationEnhancements
   
-  def call(message:, context: {}, persona: nil)
-    # Use persona from context or default
-    persona ||= context[:persona] || 'neutral'
+  def call(message:, context: {}, persona: nil, mood: nil)
+    # Use persona from context or default, also support legacy mood parameter
+    persona ||= mood || context[:persona] || context[:mood] || 'neutral'
     
     # Get or create conversation
     conversation = find_or_create_conversation(context)
     
     # Record user message
-    conversation.add_message(
+    add_message_to_conversation(conversation, {
       role: 'user',
       content: message,
       persona: persona
-    )
+    })
     
     system_prompt = build_system_prompt(persona, context)
     
@@ -71,7 +71,7 @@ class ConversationModule
       cost = llm_response.cost
       
       # Record assistant message
-      conversation.add_message(
+      add_message_to_conversation(conversation, {
         role: 'assistant',
         content: response_text,
         persona: persona,
@@ -83,18 +83,20 @@ class ConversationModule
         metadata: { 
           continue_conversation: continue_conversation
         }.compact
-      )
+      })
       
       # Update conversation totals
-      conversation.update_totals!
+      update_conversation_totals(conversation)
 
       response_text ||= generate_fallback_response(message, persona)
 
       result = {
         response: response_text,
-        conversation_id: conversation.id,
-        session_id: conversation.session_id,
+        conversation_id: conversation[:session_id],
+        session_id: conversation[:session_id],
         persona: persona,
+        suggested_mood: persona, # Backward compatibility
+        confidence: 1.0, # Backward compatibility
         model: llm_response.model,
         cost: cost,
         tokens: llm_response.usage,
@@ -203,14 +205,28 @@ class ConversationModule
   def find_or_create_conversation(context)
     session_id = context[:session_id] || SecureRandom.uuid
     
-    # Find active conversation or create new one
-    Conversation.active.find_by(session_id: session_id) ||
-      Conversation.create!(
-        session_id: session_id,
-        source: context[:source] || 'api',
-        started_at: Time.current,
-        metadata: context.except(:session_id, :source)
-      )
+    # Simple in-memory conversation tracking without database dependency
+    @conversations ||= {}
+    @conversations[session_id] ||= {
+      session_id: session_id,
+      source: context[:source] || 'api',
+      started_at: Time.current,
+      metadata: context.except(:session_id, :source),
+      messages: [],
+      total_cost: 0.0,
+      total_tokens: 0
+    }
+  end
+  
+  def add_message_to_conversation(conversation, message_data)
+    conversation[:messages] << message_data.merge(timestamp: Time.current)
+  end
+  
+  def update_conversation_totals(conversation)
+    conversation[:total_cost] = conversation[:messages].sum { |msg| msg[:cost] || 0.0 }
+    conversation[:total_tokens] = conversation[:messages].sum do |msg|
+      (msg[:prompt_tokens] || 0) + (msg[:completion_tokens] || 0)
+    end
   end
   
   def calculate_message_cost(response)
@@ -412,20 +428,22 @@ class ConversationModule
     response_text = "I need to take a brief pause - too many thoughts at once! Can you give me a moment?"
     
     # Still record the response
-    conversation.add_message(
+    add_message_to_conversation(conversation, {
       role: 'assistant',
       content: response_text,
       persona: persona,
-      metadata: { error: error.message }
-    )
+      metadata: { confidence: 0.0 }
+    })
     
     speak_response(response_text, {})
     
     {
       response: response_text,
-      conversation_id: conversation.id,
-      session_id: conversation.session_id,
+      conversation_id: conversation[:session_id],
+      session_id: conversation[:session_id],
       persona: persona,
+      suggested_mood: persona,
+      confidence: 0.0,
       error: 'rate_limit'
     }
   end
@@ -433,20 +451,22 @@ class ConversationModule
   def handle_llm_error(conversation, message, persona, error)
     response_text = generate_offline_response(message, persona)
     
-    conversation.add_message(
+    add_message_to_conversation(conversation, {
       role: 'assistant',
       content: response_text,
       persona: persona,
-      metadata: { error: error.message }
-    )
+      metadata: { confidence: 0.0 }
+    })
     
     speak_response(response_text, {})
     
     {
       response: response_text,
-      conversation_id: conversation.id,
-      session_id: conversation.session_id,
+      conversation_id: conversation[:session_id],
+      session_id: conversation[:session_id],
       persona: persona,
+      suggested_mood: persona,
+      confidence: 0.0,
       error: 'llm_error'
     }
   end
@@ -454,27 +474,29 @@ class ConversationModule
   def handle_general_error(conversation, message, persona, error)
     response_text = generate_fallback_response(message, persona)
     
-    conversation.add_message(
+    add_message_to_conversation(conversation, {
       role: 'assistant',
       content: response_text,
       persona: persona,
-      metadata: { error: error.message }
-    )
+      metadata: { confidence: 0.0 }
+    })
     
     Services::LoggerService.log_interaction(
       user_message: message,
       ai_response: response_text,
-      persona: persona,
-      error: error.message
+      mood: persona,
+      confidence: 0.0
     )
     
     speak_response(response_text, {})
     
     {
       response: response_text,
-      conversation_id: conversation.id,
-      session_id: conversation.session_id,
+      conversation_id: conversation[:session_id],
+      session_id: conversation[:session_id],
       persona: persona,
+      suggested_mood: persona,
+      confidence: 0.0,
       error: 'general_error'
     }
   end
@@ -483,9 +505,10 @@ class ConversationModule
     Services::LoggerService.log_interaction(
       user_message: message,
       ai_response: response,
-      persona: persona,
-      conversation_id: conversation.id,
-      session_id: conversation.session_id
+      mood: persona,
+      confidence: 1.0,
+      conversation_id: conversation[:session_id],
+      session_id: conversation[:session_id]
     )
   end
 

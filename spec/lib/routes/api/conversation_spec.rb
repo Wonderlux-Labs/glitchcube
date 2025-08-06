@@ -10,12 +10,10 @@ RSpec.describe GlitchCube::Routes::Api::Conversation, :failing do
     GlitchCubeApp
   end
 
-  let(:conversation_handler_service) { instance_double(Services::ConversationHandlerService) }
-  let(:conversation_module) { double('conversation_module') }
+  let(:conversation_module) { instance_double(ConversationModule) }
 
   before do
-    allow(Services::ConversationHandlerService).to receive(:new).and_return(conversation_handler_service)
-    allow(conversation_handler_service).to receive(:conversation_module).and_return(conversation_module)
+    allow(ConversationModule).to receive(:new).and_return(conversation_module)
   end
 
   describe 'POST /api/v1/test' do
@@ -86,7 +84,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation, :failing do
     end
 
     before do
-      allow(conversation_handler_service).to receive(:process_conversation).and_return(mock_response)
+      allow(conversation_module).to receive(:call).and_return(mock_response)
       allow(SecureRandom).to receive(:uuid).and_return('test-session-id')
     end
 

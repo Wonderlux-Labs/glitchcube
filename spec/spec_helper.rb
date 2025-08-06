@@ -15,6 +15,10 @@ Dotenv.load('.env')
 ENV['OPENROUTER_API_KEY'] ||= 'test-api-key'
 ENV['HOME_ASSISTANT_TOKEN'] ||= 'test-ha-token'
 
+# Disable AI Gateway in tests - use direct OpenRouter calls
+ENV.delete('AI_GATEWAY_URL')
+ENV.delete('HELICONE_API_KEY')
+
 require File.expand_path('../app', __dir__)
 require 'rspec'
 require 'rack/test'
@@ -29,6 +33,19 @@ RSpec.configure do |config|
 
   def app
     GlitchCubeApp
+  end
+
+  # Disable background jobs during tests
+  config.before(:suite) do
+    require 'sidekiq/testing'
+    Sidekiq::Testing.fake!
+    
+    # Disable proactive conversation monitoring during tests
+    ENV['DISABLE_PROACTIVE_MONITORING'] = 'true'
+  end
+
+  config.after(:suite) do
+    ENV.delete('DISABLE_PROACTIVE_MONITORING')
   end
 
   config.expect_with :rspec do |expectations|
@@ -73,7 +90,39 @@ VCR.configure do |config|
     record: :new_episodes,
     match_requests_on: %i[method uri body]
   }
+
+  # Allow Home Assistant calls without cassettes during tests
+  config.ignore_request do |request|
+    URI(request.uri).host&.match?(/\.local$/)
+  end
+
+  # Add logging for VCR interactions
+  config.before_record do |interaction|
+    puts "🎥 VCR Recording: #{interaction.request.method.upcase} #{interaction.request.uri}"
+  end
+
+  config.before_playback do |interaction|
+    puts "▶️  VCR Playback: #{interaction.request.method.upcase} #{interaction.request.uri}"
+  end
 end
 
-# Disable all network connections except to localhost
-WebMock.disable_net_connect!(allow_localhost: true)
+# Disable all network connections except to localhost and .local domains
+# This prevents live API calls during tests - VCR cassettes should be used instead
+WebMock.disable_net_connect!(
+  allow_localhost: true,
+  allow: [/localhost/, /127\.0\.0\.1/, /\.local$/]
+)
+
+# Add callback to warn about any real HTTP requests that might slip through
+WebMock.after_request do |request_signature, response|
+  host = request_signature.uri.host
+  is_allowed_local = host&.match?(/localhost|127\.0\.0\.1|\.local$/)
+  
+  if response.status.first == 200 && !is_allowed_local
+    puts "⚠️  LIVE HTTP REQUEST: #{request_signature.method.upcase} #{request_signature.uri}"
+    puts "   This should be using a VCR cassette instead!"
+  elsif is_allowed_local && host&.match?(/\.local$/)
+    puts "📡 Home Assistant call: #{request_signature.method.upcase} #{request_signature.uri}"
+    puts "   Consider recording this in a VCR cassette for consistent tests"
+  end
+end

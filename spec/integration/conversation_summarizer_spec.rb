@@ -72,7 +72,7 @@ RSpec.describe 'Conversation Summarizer Integration' do
     end
 
     it 'provides fallback points when AI summarization fails' do
-      allow_any_instance_of(Desiru::Modules::Predict).to receive(:call).and_raise('API Error')
+      allow(Services::LLMService).to receive(:complete).and_raise('API Error')
 
       summary = summarizer.summarize_conversation(conversation_messages)
 

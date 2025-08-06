@@ -189,7 +189,7 @@ bundle exec rubocop
 
 ## Architecture
 
-- **Sinatra App** (Port 4567): Main conversation engine with Desiru AI framework
+- **Sinatra App** (Port 4567): Main conversation engine with LLM service integration
 - **Home Assistant**: Hardware control and sensor management
 - **Redis**: Background job queue for Sidekiq
 - **Sidekiq**: Async processing for long-running tasks
