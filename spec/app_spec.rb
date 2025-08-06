@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe GlitchCubeApp, :failing do
+RSpec.describe GlitchCubeApp do
   describe 'GET /' do
     it 'returns welcome message' do
       get '/'
@@ -21,7 +21,7 @@ RSpec.describe GlitchCubeApp, :failing do
       body = JSON.parse(last_response.body)
       expect(body['status']).to eq('healthy')
       expect(body['timestamp']).not_to be_nil
-      expect(body['version']).to eq('0.1.0')
+      expect(body['circuit_breakers']).to be_an(Array)
     end
   end
 
@@ -32,6 +32,8 @@ RSpec.describe GlitchCubeApp, :failing do
              { message: 'Hello Glitch Cube!' }.to_json,
              { 'CONTENT_TYPE' => 'application/json' }
 
+        puts "Response status: #{last_response.status}"
+        puts "Response body: #{last_response.body}"
         expect(last_response).to be_ok
         body = JSON.parse(last_response.body)
         expect(body['success']).to be true

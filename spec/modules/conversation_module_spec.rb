@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../lib/modules/conversation_module'
 
-RSpec.describe ConversationModule, :failing do
+RSpec.describe ConversationModule do
   let(:module_instance) { described_class.new }
   let(:mock_model) { instance_double('Desiru::Models::OpenRouter') }
   let(:mock_home_assistant) { instance_double(HomeAssistantClient) }

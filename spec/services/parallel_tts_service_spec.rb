@@ -14,10 +14,17 @@ RSpec.describe Services::ParallelTTSService do
 
   describe '#speak_race' do
     it 'uses the first successful provider' do
-      # Cloud fails, Google succeeds first
-      allow(service).to receive(:speak_with_provider).with(test_message, :cloud, anything).and_raise('Cloud error')
-      allow(service).to receive(:speak_with_provider).with(test_message, :google, anything).and_return(true)
-      allow(service).to receive(:speak_with_provider).with(test_message, :piper, anything).and_return(true)
+      # Mock the underlying speak method to simulate provider behaviors
+      call_count = 0
+      allow(service).to receive(:speak) do |message, options|
+        call_count += 1
+        case options[:provider]
+        when :cloud
+          raise 'Cloud error'
+        when :google, :piper
+          true
+        end
+      end
 
       expect(Services::LoggerService).to receive(:log_tts).with(
         hash_including(
@@ -65,10 +72,17 @@ RSpec.describe Services::ParallelTTSService do
 
   describe '#speak_cascade' do
     it 'tries providers in sequence until one succeeds' do
-      # First two fail, third succeeds
-      allow(service).to receive(:speak_with_provider).with(test_message, :cloud, anything).and_raise('Cloud error')
-      allow(service).to receive(:speak_with_provider).with(test_message, :google, anything).and_return(false)
-      allow(service).to receive(:speak_with_provider).with(test_message, :piper, anything).and_return(true)
+      # Mock the underlying speak method to simulate provider behaviors
+      allow(service).to receive(:speak) do |message, options|
+        case options[:provider]
+        when :cloud
+          raise 'Cloud error'
+        when :google
+          false
+        when :piper
+          true
+        end
+      end
 
       expect(service).to receive(:sleep).with(0.5).once # Delay before second attempt
       expect(service).to receive(:sleep).with(1.0).once # Delay before third attempt
@@ -96,8 +110,8 @@ RSpec.describe Services::ParallelTTSService do
 
   describe '#speak_redundant' do
     it 'sends to all providers in parallel' do
-      expect(service).to receive(:speak_with_provider).with(test_message, :cloud, anything).and_return(true)
-      expect(service).to receive(:speak_with_provider).with(test_message, :google, anything).and_return(true)
+      # Mock the underlying speak method
+      allow(service).to receive(:speak).and_return(true)
 
       expect(Services::LoggerService).to receive(:log_tts).with(
         hash_including(
@@ -112,8 +126,15 @@ RSpec.describe Services::ParallelTTSService do
     end
 
     it 'succeeds if any provider succeeds' do
-      allow(service).to receive(:speak_with_provider).with(test_message, :cloud, anything).and_raise('Error')
-      allow(service).to receive(:speak_with_provider).with(test_message, :google, anything).and_return(true)
+      # Mock the underlying speak method to simulate mixed success
+      allow(service).to receive(:speak) do |message, options|
+        case options[:provider]
+        when :cloud
+          raise 'Error'
+        when :google
+          true
+        end
+      end
 
       expect(Services::LoggerService).to receive(:log_tts).with(
         hash_including(

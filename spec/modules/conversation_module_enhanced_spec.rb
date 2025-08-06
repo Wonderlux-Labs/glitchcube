@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../lib/modules/conversation_module'
 
-RSpec.describe ConversationModule, 'enhanced features', :failing do
+RSpec.describe ConversationModule, 'enhanced features' do
   let(:module_instance) { described_class.new }
   let(:mock_home_assistant) { instance_double(HomeAssistantClient) }
   let(:mock_llm_response) do

@@ -19,9 +19,27 @@ jobs:
         ruby-version: ['3.3']
       # Ensure all matrix jobs fail if any fail
     
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: glitchcube
+          POSTGRES_PASSWORD: glitchcube_test
+          POSTGRES_DB: glitchcube_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     env:
       RACK_ENV: test
       MOCK_HOME_ASSISTANT: true
+      DATABASE_URL: postgresql://glitchcube:glitchcube_test@localhost:5432/glitchcube_test
+      OPENROUTER_API_KEY: test-api-key
+      HOME_ASSISTANT_TOKEN: test-ha-token
 
     steps:
     - uses: actions/checkout@v4
@@ -32,7 +50,11 @@ jobs:
         ruby-version: ${{ matrix.ruby-version }}
         bundler-cache: true
     
-    
+    - name: Set up database
+      run: |
+        bundle exec rake db:create
+        bundle exec rake db:migrate
+        
 
     - name: Run RSpec tests
       run: |
