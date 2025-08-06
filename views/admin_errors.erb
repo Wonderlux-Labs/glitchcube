@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Glitch Cube - Error Tracking</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    h1, h2, h3 {
+      color: #00ff00;
+      text-shadow: 0 0 10px #0f0;
+    }
+    .nav {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #0f0;
+      background: #001100;
+    }
+    .nav a {
+      color: #0f0;
+      text-decoration: none;
+      margin-right: 20px;
+      padding: 5px 10px;
+      border: 1px solid #0f0;
+      display: inline-block;
+    }
+    .nav a:hover {
+      background: #003300;
+      box-shadow: 0 0 10px #0f0;
+    }
+    .error-container {
+      border: 1px solid #0f0;
+      padding: 15px;
+      margin: 15px 0;
+      background: #001100;
+    }
+    .error-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #0f0;
+    }
+    .error-class {
+      color: #ff3333;
+      font-weight: bold;
+      font-size: 1.2em;
+    }
+    .error-status {
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
+    .status-proposed {
+      background: #003366;
+      color: #66ccff;
+      border: 1px solid #66ccff;
+    }
+    .status-fixed {
+      background: #003300;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+    }
+    .status-tracked {
+      background: #663300;
+      color: #ffaa00;
+      border: 1px solid #ffaa00;
+    }
+    .status-critical {
+      background: #660000;
+      color: #ff3333;
+      border: 1px solid #ff3333;
+    }
+    .error-details {
+      margin: 10px 0;
+      padding: 10px;
+      background: #000;
+      border: 1px solid #333;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 0.9em;
+    }
+    .error-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .meta-item {
+      padding: 5px;
+      background: #000;
+      border: 1px solid #333;
+    }
+    .meta-label {
+      color: #888;
+      font-size: 0.8em;
+    }
+    .meta-value {
+      color: #0f0;
+    }
+    .fix-container {
+      margin-top: 15px;
+      padding: 15px;
+      background: #002200;
+      border: 1px solid #00aa00;
+    }
+    .fix-header {
+      color: #00ff00;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    .fix-details {
+      padding: 10px;
+      background: #000;
+      border: 1px solid #333;
+      margin: 10px 0;
+    }
+    .confidence-bar {
+      width: 100%;
+      height: 20px;
+      background: #111;
+      border: 1px solid #333;
+      position: relative;
+      margin: 5px 0;
+    }
+    .confidence-fill {
+      height: 100%;
+      transition: width 0.3s;
+    }
+    .confidence-high { background: linear-gradient(to right, #00aa00, #00ff00); }
+    .confidence-medium { background: linear-gradient(to right, #aa6600, #ffaa00); }
+    .confidence-low { background: linear-gradient(to right, #660000, #aa0000); }
+    .confidence-text {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      line-height: 20px;
+      color: #fff;
+      text-shadow: 1px 1px 2px #000;
+    }
+    .pr-link {
+      display: inline-block;
+      padding: 5px 10px;
+      margin: 5px 0;
+      background: #003366;
+      border: 1px solid #66ccff;
+      color: #66ccff;
+      text-decoration: none;
+    }
+    .pr-link:hover {
+      background: #004488;
+      box-shadow: 0 0 10px #66ccff;
+    }
+    .branch-name {
+      font-family: 'Courier New', monospace;
+      background: #111;
+      padding: 2px 5px;
+      border: 1px solid #333;
+      color: #ffaa00;
+    }
+    .no-errors {
+      text-align: center;
+      padding: 50px;
+      color: #00ff00;
+      font-size: 1.5em;
+    }
+    .refresh-btn {
+      background: #003300;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-family: monospace;
+      margin: 5px;
+    }
+    .refresh-btn:hover {
+      background: #005500;
+      box-shadow: 0 0 10px #0f0;
+    }
+    .mode-indicator {
+      display: inline-block;
+      padding: 5px 10px;
+      margin-left: 10px;
+      border: 1px solid;
+      font-weight: bold;
+    }
+    .mode-off {
+      background: #111;
+      border-color: #666;
+      color: #666;
+    }
+    .mode-dry-run {
+      background: #003366;
+      border-color: #66ccff;
+      color: #66ccff;
+    }
+    .mode-yolo {
+      background: #660066;
+      border-color: #ff00ff;
+      color: #ff00ff;
+      animation: yolo-glow 2s ease-in-out infinite;
+    }
+    @keyframes yolo-glow {
+      0%, 100% { box-shadow: 0 0 5px #ff00ff; }
+      50% { box-shadow: 0 0 20px #ff00ff, 0 0 30px #ff00ff; }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <a href="/admin">← Admin Home</a>
+    <a href="/admin/errors">🔴 Errors</a>
+    <span class="mode-indicator mode-<%= @mode.downcase %>">
+      MODE: <%= @mode %>
+    </span>
+  </div>
+
+  <h1>🔴 Error Tracking & Self-Healing</h1>
+  
+  <div style="text-align: right; margin-bottom: 20px;">
+    <button class="refresh-btn" onclick="location.reload()">🔄 Refresh</button>
+  </div>
+
+  <% if @errors.empty? %>
+    <div class="no-errors">
+      ✨ No errors tracked yet ✨<br>
+      <span style="font-size: 0.6em; color: #888;">
+        The system is running smoothly... or hasn't encountered any recurring errors yet!
+      </span>
+    </div>
+  <% else %>
+    <% @errors.each do |error| %>
+      <div class="error-container">
+        <div class="error-header">
+          <span class="error-class"><%= error[:error_class] %></span>
+          <span class="error-status status-<%= error[:status] %>">
+            <%= error[:status].upcase %>
+          </span>
+        </div>
+
+        <div class="error-details">
+          <%= error[:error_message] %>
+        </div>
+
+        <div class="error-meta">
+          <div class="meta-item">
+            <div class="meta-label">Occurrences</div>
+            <div class="meta-value"><%= error[:occurrence_count] %> times</div>
+          </div>
+          <% if error[:service] %>
+            <div class="meta-item">
+              <div class="meta-label">Service</div>
+              <div class="meta-value"><%= error[:service] %></div>
+            </div>
+          <% end %>
+          <% if error[:file] %>
+            <div class="meta-item">
+              <div class="meta-label">Location</div>
+              <div class="meta-value"><%= error[:file] %><%= error[:line] ? ":#{error[:line]}" : "" %></div>
+            </div>
+          <% end %>
+          <div class="meta-item">
+            <div class="meta-label">Last Seen</div>
+            <div class="meta-value"><%= error[:timestamp] %></div>
+          </div>
+        </div>
+        
+        <% if error[:raw_data] && ENV['RACK_ENV'] == 'development' %>
+          <details style="margin-top: 10px;">
+            <summary style="cursor: pointer; color: #888;">Debug: Raw Data</summary>
+            <pre style="background: #000; border: 1px solid #333; padding: 10px; overflow: auto; max-height: 200px; font-size: 0.8em;">
+<%= JSON.pretty_generate(error[:raw_data]) rescue error[:raw_data].inspect %>
+            </pre>
+          </details>
+        <% end %>
+
+        <% if error[:fix] %>
+          <div class="fix-container">
+            <div class="fix-header">
+              🤖 <%= error[:fix][:mode] == 'YOLO' ? 'Applied Fix' : 'Proposed Fix' %>
+            </div>
+            
+            <% if error[:fix][:confidence] %>
+              <div class="confidence-bar">
+                <div class="confidence-fill confidence-<%= error[:fix][:confidence_level] %>" 
+                     style="width: <%= error[:fix][:confidence] * 100 %>%"></div>
+                <div class="confidence-text">
+                  Confidence: <%= (error[:fix][:confidence] * 100).round %>%
+                </div>
+              </div>
+            <% end %>
+
+            <div class="fix-details">
+              <strong>Description:</strong> <%= error[:fix][:description] %><br>
+              <% if error[:fix][:reason] %>
+                <strong>Reasoning:</strong> <%= error[:fix][:reason] %><br>
+              <% end %>
+              <% if error[:fix][:files_modified] %>
+                <strong>Files Modified:</strong> <%= error[:fix][:files_modified].join(', ') %><br>
+              <% end %>
+            </div>
+
+            <% if error[:fix][:branch] %>
+              <div style="margin: 10px 0;">
+                <strong>Branch:</strong> 
+                <span class="branch-name"><%= error[:fix][:branch] %></span>
+              </div>
+            <% end %>
+
+            <% if error[:fix][:pr_url] %>
+              <a href="<%= error[:fix][:pr_url] %>" target="_blank" class="pr-link">
+                📋 View Pull Request →
+              </a>
+            <% elsif error[:fix][:commit_sha] %>
+              <div style="margin: 10px 0;">
+                <strong>Commit:</strong> 
+                <span class="branch-name"><%= error[:fix][:commit_sha][0..7] %></span>
+              </div>
+            <% end %>
+
+            <% if error[:fix][:mode] == 'DRY_RUN' %>
+              <div style="margin-top: 10px; padding: 10px; background: #002244; border: 1px solid #0088ff;">
+                💡 <strong>Note:</strong> This fix has been analyzed but not applied (DRY_RUN mode).
+                <% if error[:fix][:log_file] %>
+                  <br>Details saved to: <code><%= error[:fix][:log_file] %></code>
+                <% end %>
+              </div>
+            <% elsif error[:fix][:mode] == 'YOLO' %>
+              <div style="margin-top: 10px; padding: 10px; background: #440044; border: 1px solid #ff00ff;">
+                🎉 <strong>YOLO Mode:</strong> Fix has been pushed to branch for review at 4am! 
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  <% end %>
+
+  <script>
+    // Auto-refresh every 30 seconds
+    setTimeout(() => {
+      location.reload();
+    }, 30000);
+  </script>
+</body>
+</html>

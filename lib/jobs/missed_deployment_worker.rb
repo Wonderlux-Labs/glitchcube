@@ -7,12 +7,12 @@ class MissedDeploymentWorker
   sidekiq_options retry: 2, queue: :default
 
   def perform(deployment_info = {})
-    puts "🚀 Starting missed deployment recovery..."
-    
+    puts '🚀 Starting missed deployment recovery...'
+
     # Prepare deployment info with defaults
     deployment_data = {
       repository: deployment_info['repository'] || 'startup_recovery',
-      branch: deployment_info['branch'] || 'main', 
+      branch: deployment_info['branch'] || 'main',
       commit_sha: deployment_info['commit_sha'] || 'recovery',
       commit_message: deployment_info['commit_message'] || 'Missed deployment recovery on startup',
       committer: deployment_info['committer'] || 'system',
@@ -30,11 +30,11 @@ class MissedDeploymentWorker
 
     # Use the same deployment execution logic as the API
     results = GlitchCube::Routes::Api::Deployment.send(:execute_deployment, deployment_data)
-    
+
     overall_success = results.all? { |r| r[:success] }
-    
+
     if overall_success
-      puts "✅ Missed deployment recovery completed successfully"
+      puts '✅ Missed deployment recovery completed successfully'
       Services::LoggerService.log_api_call(
         service: 'missed_deployment_worker',
         endpoint: 'perform',
@@ -45,9 +45,9 @@ class MissedDeploymentWorker
         message: 'Missed deployment recovery completed successfully'
       )
     else
-      failed_steps = results.select { |r| !r[:success] }.map { |r| r[:step] }
+      failed_steps = results.reject { |r| r[:success] }.map { |r| r[:step] }
       puts "❌ Missed deployment recovery failed at: #{failed_steps.join(', ')}"
-      
+
       Services::LoggerService.log_api_call(
         service: 'missed_deployment_worker',
         endpoint: 'perform',
@@ -58,14 +58,14 @@ class MissedDeploymentWorker
         failed_steps: failed_steps,
         message: 'Missed deployment recovery failed'
       )
-      
+
       raise "Deployment failed at: #{failed_steps.join(', ')}"
     end
 
     results
   rescue StandardError => e
     puts "❌ Missed deployment worker error: #{e.message}"
-    
+
     Services::LoggerService.log_api_call(
       service: 'missed_deployment_worker',
       endpoint: 'perform',
@@ -74,7 +74,7 @@ class MissedDeploymentWorker
       error: e.message,
       backtrace: e.backtrace.first(3)
     )
-    
+
     # Re-raise so Sidekiq can handle retries
     raise e
   end

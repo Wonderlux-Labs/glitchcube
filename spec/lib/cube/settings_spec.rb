@@ -24,7 +24,7 @@ RSpec.describe Cube::Settings do
       end
     end
 
-# Mock Home Assistant functionality removed - using real HA instance
+    # Mock Home Assistant functionality removed - using real HA instance
 
     describe '.disable_circuit_breakers?' do
       it 'returns true when ENV is set to true' do

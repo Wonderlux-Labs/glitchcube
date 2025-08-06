@@ -60,9 +60,9 @@ module Jobs
                   {
                     'destinations' => default_destinations,
                     'movement' => {
-                      'speed' => 0.0001,
+                      'speed' => 0.0005, # 5x faster movement
                       'arrival_threshold' => 0.0005,
-                      'update_interval' => 10,
+                      'update_interval' => 3, # Update every 3 seconds instead of 10
                       'max_duration' => 1800,
                       'wander_factor' => 0.2
                     },
@@ -101,7 +101,7 @@ module Jobs
       # No existing simulation - pick a random starting destination
       random_start = @config['destinations'].sample
       logger.info "🎯 Starting simulation at random location: #{random_start['name']}"
-      
+
       {
         lat: random_start['lat'],
         lng: random_start['lng']

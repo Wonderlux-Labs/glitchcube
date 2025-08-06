@@ -25,12 +25,8 @@ class HomeAssistantClient
       @base_url = base_url || GlitchCube.config.home_assistant.url
       @token = token || GlitchCube.config.home_assistant.token
 
-      unless @base_url
-        raise Error, 'Home Assistant URL not configured. Set HOME_ASSISTANT_URL or HA_URL environment variable.'
-      end
-      unless @token
-        raise Error, 'Home Assistant token not configured. Set HOME_ASSISTANT_TOKEN environment variable.'
-      end
+      raise Error, 'Home Assistant URL not configured. Set HOME_ASSISTANT_URL or HA_URL environment variable.' unless @base_url
+      raise Error, 'Home Assistant token not configured. Set HOME_ASSISTANT_TOKEN environment variable.' unless @token
     end
   end
 
@@ -90,7 +86,7 @@ class HomeAssistantClient
   # TTS methods - Updated for new Home Assistant format
   def speak(message, entity_id: nil)
     target_entity = entity_id || 'media_player.square_voice'
-    
+
     # Try new format first (tts.speak action with tts.home_assistant_cloud)
     begin
       # Use tts.speak service with proper format
@@ -111,7 +107,7 @@ class HomeAssistantClient
                        message: message
                      })
       rescue Error => fallback_error
-        # Final fallback to google_translate 
+        # Final fallback to google_translate
         begin
           call_service('tts', 'google_translate_say', {
                          entity_id: target_entity,
@@ -120,12 +116,12 @@ class HomeAssistantClient
         rescue Error => final_error
           puts "⚠️  All TTS methods failed: #{e.message} | #{fallback_error.message} | #{final_error.message}"
           # Don't raise error - just log and continue without TTS
-          puts "🔇 Continuing without TTS"
+          puts '🔇 Continuing without TTS'
           return false
         end
       end
     end
-    
+
     true
   end
 
@@ -160,7 +156,7 @@ class HomeAssistantClient
     data = {
       text: text,
       color: color,
-      duration: duration,  # Using duration instead of hold since users can't dismiss
+      duration: duration, # Using duration instead of hold since users can't dismiss
       wakeup: wakeup,
       stack: stack
     }
@@ -233,7 +229,7 @@ class HomeAssistantClient
         duration: duration
       )
 
-      handle_response(response)
+      handle_response(response, request)
     rescue Net::OpenTimeout, Net::ReadTimeout, Timeout::Error => e
       duration = ((Time.now - start_time) * 1000).round
       Services::LoggerService.log_api_call(
@@ -285,7 +281,7 @@ class HomeAssistantClient
         request_data: data
       )
 
-      handle_response(response)
+      handle_response(response, request)
     rescue Net::OpenTimeout, Net::ReadTimeout, Timeout::Error => e
       duration = ((Time.now - start_time) * 1000).round
       Services::LoggerService.log_api_call(
@@ -309,7 +305,7 @@ class HomeAssistantClient
     end
   end
 
-  def handle_response(response)
+  def handle_response(response, request = nil)
     case response.code.to_i
     when 200, 201
       JSON.parse(response.body)
@@ -321,16 +317,24 @@ class HomeAssistantClient
       # Parse error details for better debugging
       error_body = begin
         JSON.parse(response.body)
-      rescue
+      rescue StandardError
         response.body
       end
-      
+
       error_msg = if error_body.is_a?(Hash)
-        error_body['message'] || error_body['error'] || response.body
-      else
-        response.body
+                    error_body['message'] || error_body['error'] || response.body
+                  else
+                    response.body
+                  end
+
+      # Log the full request for debugging 400 errors
+      if request
+        puts '❌ Home Assistant 400 Error Details:'
+        puts "  Endpoint: #{response.uri}"
+        puts "  Request Body: #{request.body}"
+        puts "  Response: #{error_msg}"
       end
-      
+
       raise Error, "Bad Request (400): #{error_msg}"
     else
       raise Error, "HA API error: #{response.code} - #{response.body}"

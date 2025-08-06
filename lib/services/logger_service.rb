@@ -30,7 +30,7 @@ module Services
         @general_logger
       end
 
-      def log_interaction(user_message:, ai_response:, mood:, confidence:, session_id: nil, context: {})
+      def log_interaction(user_message:, ai_response:, mood:, confidence: nil, session_id: nil, context: {})
         ensure_loggers
 
         interaction_data = {
@@ -39,9 +39,11 @@ module Services
           user_message: user_message,
           ai_response: ai_response,
           mood: mood,
-          confidence: confidence,
           context: context
         }
+
+        # Only add confidence if provided (for backward compatibility)
+        interaction_data[:confidence] = confidence if confidence
 
         # Human-readable interaction log
         @interaction_logger.info(format_interaction(interaction_data))
@@ -55,7 +57,7 @@ module Services
 
         # Only collect detailed debug info if in debug mode
         debug_mode = Cube::Settings.log_level == Logger::DEBUG
-        
+
         api_data = {
           timestamp: Time.now.iso8601,
           service: service,
@@ -136,7 +138,7 @@ module Services
         track_error('web_request', error) if error
       end
 
-      def log_tts(message:, success:, duration: nil, error: nil, **extra_params)
+      def log_tts(message:, success:, duration: nil, error: nil, **_extra_params)
         ensure_loggers
 
         tts_data = {
@@ -241,10 +243,11 @@ module Services
       end
 
       def format_interaction(data)
+        confidence_str = data[:confidence] ? " | Confidence: #{(data[:confidence] * 100).round}%" : ''
         <<~INTERACTION
 
           ═══════════════════════════════════════════════════════════════
-          #{data[:timestamp]} | Session: #{data[:session_id] || 'N/A'} | Mood: #{data[:mood]} | Confidence: #{(data[:confidence] * 100).round}%
+          #{data[:timestamp]} | Session: #{data[:session_id] || 'N/A'} | Mood: #{data[:mood]}#{confidence_str}
           ═══════════════════════════════════════════════════════════════
 
           👤 USER: #{data[:user_message]}

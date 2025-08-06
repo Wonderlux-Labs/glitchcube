@@ -8,12 +8,12 @@ module Services
       @llm_service = Services::LLMService.new
     end
 
-    def summarize_conversation(messages, context = {})
+    def summarize_conversation(messages, _context = {})
       return nil if messages.empty?
 
       # Format conversation for summarization
       conversation_text = format_conversation(messages)
-      
+
       system_prompt = <<~PROMPT
         You are an expert at summarizing conversations.
         Provide a concise summary capturing the key points and overall theme.
@@ -23,7 +23,7 @@ module Services
 
       user_prompt = <<~PROMPT
         Summarize this conversation:
-        
+
         #{conversation_text}
       PROMPT
 
@@ -66,10 +66,10 @@ module Services
 
       user_prompt = <<~PROMPT
         Date: #{date}
-        
+
         Individual conversation summaries:
         #{summaries.map { |s| "#{s[:time]} (#{s[:persona]}): #{s[:summary]}" }.join("\n\n")}
-        
+
         Create a unified daily summary.
       PROMPT
 
@@ -104,7 +104,7 @@ module Services
 
       # Extract bullet points if formatted that way
       points = raw_summary.scan(/^[\*\-•]\s*(.+)$/m).flatten
-      
+
       if points.any?
         points.map(&:strip).join("\n")
       else

@@ -2,12 +2,12 @@
 
 class ApiCall < ActiveRecord::Base
   validates :service, presence: true
-  
+
   scope :recent, -> { order(created_at: :desc) }
   scope :by_service, ->(service) { where(service: service) }
   scope :successful, -> { where(error_message: nil) }
   scope :failed, -> { where.not(error_message: nil) }
-  
+
   # Quick stats
   def self.stats_for_period(start_time, end_time = Time.current)
     where(created_at: start_time..end_time)

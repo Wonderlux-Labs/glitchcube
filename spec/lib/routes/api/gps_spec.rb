@@ -47,7 +47,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps do
       get '/api/v1/gps/location'
       expect(last_response).to be_ok
       expect(last_response.content_type).to include('application/json')
-      
+
       body = JSON.parse(last_response.body)
       expect(body['lat']).to eq(40.7712)
       expect(body['lng']).to eq(-119.2030)
@@ -76,7 +76,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps do
       it 'returns proximity data' do
         get '/api/v1/gps/proximity'
         expect(last_response).to be_ok
-        
+
         body = JSON.parse(last_response.body)
         expect(body['landmarks']).to eq(['Temple'])
         expect(body['map_mode']).to eq('normal')
@@ -91,7 +91,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps do
       it 'returns empty proximity data' do
         get '/api/v1/gps/proximity'
         expect(last_response).to be_ok
-        
+
         body = JSON.parse(last_response.body)
         expect(body['landmarks']).to eq([])
         expect(body['portos']).to eq([])
@@ -106,11 +106,11 @@ RSpec.describe GlitchCube::Routes::Api::Gps do
       get '/api/v1/gps/history'
       expect(last_response).to be_ok
       expect(last_response.content_type).to include('application/json')
-      
+
       body = JSON.parse(last_response.body)
       expect(body['history']).to be_an(Array)
       expect(body['total_points']).to eq(body['history'].length)
-      
+
       # Check the sample data structure
       first_point = body['history'].first
       expect(first_point).to have_key('lat')
@@ -123,7 +123,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps do
       it 'accepts hours parameter' do
         get '/api/v1/gps/history?hours=48'
         expect(last_response).to be_ok
-        
+
         body = JSON.parse(last_response.body)
         expect(body['history']).to be_an(Array)
         expect(body['total_points']).to be >= 0
@@ -132,14 +132,14 @@ RSpec.describe GlitchCube::Routes::Api::Gps do
   end
 
   describe 'GeoJSON endpoints' do
-    # Note: These tests will fail if the GeoJSON files don't exist
+    # NOTE: These tests will fail if the GeoJSON files don't exist
     # We'll check for file existence rather than testing actual file serving
-    
+
     %w[streets toilets blocks plazas].each do |gis_type|
       describe "GET /api/v1/gis/#{gis_type}" do
         it "serves #{gis_type} GeoJSON file" do
           geojson_file = File.join(GlitchCubeApp.settings.root, 'data', 'gis', "#{gis_type == 'streets' ? 'street_lines' : gis_type}.geojson")
-          
+
           if File.exist?(geojson_file)
             get "/api/v1/gis/#{gis_type}"
             expect(last_response).to be_ok

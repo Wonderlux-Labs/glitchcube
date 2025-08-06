@@ -9,8 +9,7 @@ RSpec.describe Services::ProactiveConversationService do
   let(:mock_handler) { instance_double(Services::ConversationHandlerService) }
 
   before do
-    allow(service).to receive(:client).and_return(mock_client)
-    allow(service).to receive(:handler).and_return(mock_handler)
+    allow(service).to receive_messages(client: mock_client, handler: mock_handler)
   end
 
   describe '#check_single_trigger' do
@@ -66,7 +65,7 @@ RSpec.describe Services::ProactiveConversationService do
         allow(mock_client).to receive(:state).and_raise('Entity not found')
 
         expect { service.check_single_trigger(:motion_detected, motion_config) }.not_to raise_error
-        
+
         result = service.check_single_trigger(:motion_detected, motion_config)
         expect(result[:triggered]).to be false
       end
@@ -112,9 +111,9 @@ RSpec.describe Services::ProactiveConversationService do
 
     it 'handles errors gracefully' do
       allow(mock_handler).to receive(:send_conversation_to_ha).and_raise('Network error')
-      
+
       expect { service.initiate_proactive_conversation(trigger_result) }.not_to raise_error
-      
+
       result = service.initiate_proactive_conversation(trigger_result)
       expect(result).to be_nil
     end
@@ -122,8 +121,8 @@ RSpec.describe Services::ProactiveConversationService do
 
   describe '#check_triggers' do
     it 'checks all triggers in parallel' do
-      triggers = service.register_triggers
-      
+      service.register_triggers
+
       # Mock all entity states
       allow(mock_client).to receive(:state).with('binary_sensor.motion').and_return({ 'state' => 'off' })
       allow(mock_client).to receive(:state).with('sensor.battery_level').and_return({ 'state' => '85' })
@@ -152,7 +151,7 @@ RSpec.describe Services::ProactiveConversationService do
     it 'generates contextual motion messages' do
       generator = service.generate_motion_message
       message = generator.call(nil)
-      
+
       expect(message).to be_a(String)
       expect(message).to include('!')
     end
@@ -160,14 +159,14 @@ RSpec.describe Services::ProactiveConversationService do
     it 'generates battery messages with value' do
       generator = service.generate_battery_message
       message = generator.call('15')
-      
+
       expect(message).to include('15%')
     end
 
     it 'generates temperature messages based on value' do
       hot_generator = service.generate_temperature_message
       hot_message = hot_generator.call('35')
-      
+
       expect(hot_message).to include('35')
       expect(hot_message).to match(/warm|hot|toasty/i)
 
@@ -191,9 +190,9 @@ RSpec.describe Services::ProactiveConversationService do
     it 'kills the monitoring thread' do
       mock_thread = instance_double(Thread)
       service.instance_variable_set(:@monitoring_thread, mock_thread)
-      
+
       expect(mock_thread).to receive(:kill)
-      
+
       service.stop_monitoring
       expect(service.instance_variable_get(:@monitoring_thread)).to be_nil
     end

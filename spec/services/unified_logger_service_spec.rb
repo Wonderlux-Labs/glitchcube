@@ -1,13 +1,15 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require 'fileutils'
 
 RSpec.describe Services::UnifiedLoggerService do
   let(:test_log_dir) { File.join(Dir.pwd, 'logs', 'test') }
-  
+
   before do
     # Clean up any existing loggers
     described_class.reset!
-    
+
     # Ensure test log directory exists
     FileUtils.mkdir_p(test_log_dir)
   end
@@ -52,7 +54,7 @@ RSpec.describe Services::UnifiedLoggerService do
       expect do
         described_class.with_context(session_id: 'sess-456') do
           described_class.info('Starting session')
-          
+
           described_class.with_context(conversation_id: 'conv-789') do
             described_class.info('Processing conversation')
           end

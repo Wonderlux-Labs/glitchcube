@@ -21,10 +21,10 @@ RSpec.describe ConversationModule, 'enhanced features' do
     # Mock HomeAssistant client
     allow(HomeAssistantClient).to receive(:new).and_return(mock_home_assistant)
     allow(mock_home_assistant).to receive(:speak).and_return(true)
-    
+
     # Mock LLM Service
     allow(Services::LLMService).to receive(:complete).and_return(mock_llm_response)
-    
+
     # Mock conversation persistence
     mock_conversation = double(
       'Conversation',
@@ -35,11 +35,11 @@ RSpec.describe ConversationModule, 'enhanced features' do
     )
     allow(Conversation).to receive_message_chain(:active, :find_by).and_return(nil)
     allow(Conversation).to receive(:create!).and_return(mock_conversation)
-    
+
     # Mock services
     allow(Services::LoggerService).to receive(:log_interaction)
     allow(Services::LoggerService).to receive(:log_tts)
-    
+
     # Mock system prompt
     mock_prompt_service = instance_double(Services::SystemPromptService)
     allow(Services::SystemPromptService).to receive(:new).and_return(mock_prompt_service)
@@ -62,21 +62,21 @@ RSpec.describe ConversationModule, 'enhanced features' do
         duration: 5,
         rainbow: true # Rainbow for playful
       )
-      
+
       expect(mock_home_assistant).to receive(:awtrix_mood_light).with(
         [255, 0, 255],
         brightness: 80
       )
 
       module_instance.send(:update_awtrix_display, message, response, persona)
-      
+
       # Give the future a moment to execute
       sleep(0.1)
     end
 
     it 'truncates long responses for display' do
       long_response = 'This is a very long response that should be truncated for the AWTRIX display'
-      
+
       expect(mock_home_assistant).to receive(:awtrix_display_text).with(
         '💭 playful...',
         anything
@@ -100,15 +100,15 @@ RSpec.describe ConversationModule, 'enhanced features' do
 
     it 'handles AWTRIX errors gracefully' do
       allow(mock_home_assistant).to receive(:awtrix_display_text).and_raise('AWTRIX error')
-      
+
       expect { module_instance.send(:update_awtrix_display, message, response, persona) }.not_to raise_error
     end
 
     it 'skips update when HA URL not configured' do
       allow(GlitchCube.config.home_assistant).to receive(:url).and_return(nil)
-      
+
       expect(mock_home_assistant).not_to receive(:awtrix_display_text)
-      
+
       module_instance.send(:update_awtrix_display, message, response, persona)
     end
   end
@@ -123,9 +123,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
     end
 
     it 'can enrich context with sensor data' do
-      allow(mock_home_assistant).to receive(:battery_level).and_return(85)
-      allow(mock_home_assistant).to receive(:temperature).and_return(22.5)
-      allow(mock_home_assistant).to receive(:motion_detected?).and_return(false)
+      allow(mock_home_assistant).to receive_messages(battery_level: 85, temperature: 22.5, motion_detected?: false)
 
       enriched = module_instance.enrich_context_with_sensors(context)
 
@@ -163,11 +161,9 @@ RSpec.describe ConversationModule, 'enhanced features' do
       call_count = 0
       allow(Services::LLMService).to receive(:complete) do
         call_count += 1
-        if call_count == 1
-          raise Services::LLMService::LLMError, 'Temporary error'
-        else
-          mock_llm_response
-        end
+        raise Services::LLMService::LLMError, 'Temporary error' if call_count == 1
+
+        mock_llm_response
       end
 
       result = module_instance.call(message: message, context: context)

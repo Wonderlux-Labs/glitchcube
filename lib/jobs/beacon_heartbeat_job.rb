@@ -6,7 +6,7 @@ require_relative '../services/beacon_service'
 module Jobs
   class BeaconHeartbeatJob
     include Sidekiq::Worker
-    
+
     sidekiq_options queue: 'default', retry: 3
 
     def perform
@@ -23,7 +23,7 @@ module Jobs
   # Job to send critical alerts
   class BeaconAlertJob
     include Sidekiq::Worker
-    
+
     sidekiq_options queue: 'alerts', retry: 5
 
     def perform(message = nil, level = 'info')

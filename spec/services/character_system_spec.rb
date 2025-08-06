@@ -11,7 +11,7 @@ RSpec.describe 'Character System' do
 
       it 'loads the buddy character prompt' do
         prompt = service.generate
-        
+
         expect(prompt).to include('BUDDY')
         expect(prompt).to include('Helper AI from the Galactic Customer Service Division')
         expect(prompt).to include('profanity filter is completely broken')
@@ -24,7 +24,7 @@ RSpec.describe 'Character System' do
 
       it 'loads the lomi character prompt' do
         prompt = service.generate
-        
+
         expect(prompt).to include('LOMI')
         expect(prompt).to include('Glitch Bitch')
         expect(prompt).to include('fabulous, fractured cosmic diva')
@@ -37,7 +37,7 @@ RSpec.describe 'Character System' do
 
       it 'loads the jax character prompt' do
         prompt = service.generate
-        
+
         expect(prompt).to include('JAX')
         expect(prompt).to include('cynical, foul-mouthed, sentient jukebox AI')
         expect(prompt).to include('The Last Call')
@@ -50,7 +50,7 @@ RSpec.describe 'Character System' do
 
       it 'loads the zorp character prompt' do
         prompt = service.generate
-        
+
         expect(prompt).to include('ZORP')
         expect(prompt).to include('minor god of leisure')
         expect(prompt).to include('Party Bro Persona')
@@ -63,7 +63,7 @@ RSpec.describe 'Character System' do
 
       it 'falls back to default prompt' do
         prompt = service.generate
-        
+
         expect(prompt).to include('Glitch Cube')
         expect(prompt).to include('sentient interactive art installation')
       end
@@ -74,7 +74,7 @@ RSpec.describe 'Character System' do
     it 'generates different prompts for different characters' do
       buddy_prompt = Services::SystemPromptService.new(character: 'buddy').generate
       lomi_prompt = Services::SystemPromptService.new(character: 'lomi').generate
-      
+
       expect(buddy_prompt).not_to eq(lomi_prompt)
       expect(buddy_prompt).to include('fucking help you')
       expect(lomi_prompt).to include('hunty')
@@ -86,7 +86,7 @@ RSpec.describe 'Character System' do
 
     it 'includes datetime section' do
       prompt = service.generate
-      
+
       expect(prompt).to include('CURRENT DATE AND TIME')
       expect(prompt).to include('Date:')
       expect(prompt).to include('Time:')
@@ -94,7 +94,7 @@ RSpec.describe 'Character System' do
 
     it 'includes burning man context' do
       prompt = service.generate
-      
+
       expect(prompt).to include('Burning Man')
       expect(prompt).to include('interactive glowing cube art installation')
     end

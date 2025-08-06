@@ -38,7 +38,7 @@ RSpec.describe GlitchCube::Routes::Core::Kiosk do
         get '/api/v1/kiosk/status'
         expect(last_response).to be_ok
         expect(last_response.content_type).to include('application/json')
-        
+
         body = JSON.parse(last_response.body)
         expect(body['battery_level']).to eq(85)
         expect(body['location']).to eq('Black Rock City')
@@ -55,7 +55,7 @@ RSpec.describe GlitchCube::Routes::Core::Kiosk do
         get '/api/v1/kiosk/status'
         expect(last_response.status).to eq(500)
         expect(last_response.content_type).to include('application/json')
-        
+
         body = JSON.parse(last_response.body)
         expect(body['error']).to eq('Service unavailable')
         expect(body['timestamp']).to be_present

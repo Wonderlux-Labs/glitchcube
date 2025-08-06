@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Glitch Cube Admin - Advanced Testing</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .panel {
+      border: 1px solid #0f0;
+      padding: 20px;
+      background: #001100;
+      margin-bottom: 20px;
+    }
+    h1, h2 {
+      color: #00ff00;
+      text-shadow: 0 0 10px #0f0;
+    }
+    input, textarea, select {
+      background: #000;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 10px;
+      width: 100%;
+      box-sizing: border-box;
+      font-family: monospace;
+    }
+    button {
+      background: #003300;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-family: monospace;
+      margin: 5px;
+    }
+    button:hover {
+      background: #005500;
+      box-shadow: 0 0 10px #0f0;
+    }
+    .response {
+      background: #000;
+      border: 1px solid #333;
+      padding: 10px;
+      margin: 10px 0;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .conversation-message {
+      margin: 10px 0;
+      padding: 10px;
+      border-left: 3px solid #0f0;
+    }
+    .user-message {
+      border-left-color: #00ff00;
+    }
+    .assistant-message {
+      border-left-color: #00ffff;
+    }
+    .cube-initiated {
+      border-left-color: #ff00ff;
+    }
+    .memory-item {
+      margin: 10px 0;
+      padding: 15px;
+      border: 1px solid #333;
+      background: #001100;
+    }
+    .memory-meta {
+      display: flex;
+      gap: 15px;
+      font-size: 0.9em;
+      color: #888;
+      margin-top: 10px;
+    }
+    .intensity-bar {
+      height: 4px;
+      background: linear-gradient(to right, #00ff00, #ffff00, #ff0000);
+      margin: 5px 0;
+    }
+    .intensity-marker {
+      height: 4px;
+      background: #fff;
+      width: 4px;
+      position: relative;
+    }
+    .tool-option {
+      display: inline-block;
+      margin: 5px;
+    }
+    .error {
+      color: #ff0000;
+    }
+    .success {
+      color: #00ff00;
+    }
+    .warning {
+      color: #ffff00;
+    }
+    .info {
+      color: #00ffff;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      background: #003300;
+      border: 1px solid #0f0;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: #005500;
+      box-shadow: 0 0 10px #0f0;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    #logs {
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 11px;
+      border: 1px solid #333;
+      padding: 10px;
+      background: #000;
+    }
+    .log-entry {
+      margin: 2px 0;
+      padding: 2px;
+      border-bottom: 1px solid #111;
+    }
+  </style>
+</head>
+<body>
+  <h1>🟩 GLITCH CUBE ADVANCED TESTING 🟩</h1>
+  
+  <div style="margin-bottom: 20px;">
+    <a href="/admin" style="color: #0f0; text-decoration: none;">← Back to Main Admin</a> |
+    <a href="/admin/errors" style="color: #ff3333; text-decoration: none;">View Errors →</a>
+  </div>
+
+  <!-- Session Management Panel -->
+  <div class="panel">
+    <h2>🎮 Session Management</h2>
+    <div class="grid-2">
+      <div>
+        <input type="text" id="session-id" placeholder="Session ID (auto-generated)">
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <button onclick="newSession()">🆕 New Session</button>
+        <button onclick="endSession()">🛑 End Session</button>
+        <button onclick="extractMemories()">🧠 Extract Memories</button>
+        <button onclick="viewHistory()">📜 View History</button>
+      </div>
+    </div>
+    <div id="session-info" style="margin-top: 10px; color: #666;">
+      No active session
+    </div>
+  </div>
+
+  <!-- Conversation Testing Panel -->
+  <div class="panel">
+    <h2>💬 Advanced Conversation Testing</h2>
+    
+    <!-- Tool Options -->
+    <div style="margin-bottom: 15px;">
+      <label>Enable Tools:</label>
+      <div>
+        <label class="tool-option"><input type="checkbox" id="tool-weather"> Weather</label>
+        <label class="tool-option"><input type="checkbox" id="tool-memory"> Memory Search</label>
+        <label class="tool-option"><input type="checkbox" id="tool-ha"> Home Assistant</label>
+        <label class="tool-option"><input type="checkbox" id="tool-test" checked> Test Tool</label>
+      </div>
+    </div>
+    
+    <form id="conversation-form">
+      <div class="grid-2">
+        <div>
+          <label>Message:</label>
+          <textarea id="message" rows="5" placeholder="Type your message..."></textarea>
+          
+          <label style="margin-top: 10px;">Persona/Mood:</label>
+          <select id="persona">
+            <option value="neutral">Neutral</option>
+            <option value="playful">Playful</option>
+            <option value="contemplative">Contemplative</option>
+            <option value="mysterious">Mysterious</option>
+            <option value="buddy">BUDDY - Helper</option>
+            <option value="jax">Jax - Bartender</option>
+            <option value="lomi">LOMI - Diva</option>
+          </select>
+        </div>
+        <div>
+          <label>Context Options:</label>
+          <input type="text" id="location" placeholder="Location (e.g., Center Camp, 4:30 & G)">
+          
+          <div style="margin-top: 10px;">
+            <label><input type="checkbox" id="skip-memories"> Skip memory injection</label><br>
+            <label><input type="checkbox" id="continue-conversation" checked> Continue conversation</label><br>
+            <label><input type="checkbox" id="enable-tts"> Enable TTS output</label>
+          </div>
+          
+          <label style="margin-top: 10px;">Custom Context (JSON):</label>
+          <textarea id="custom-context" rows="3" placeholder='{"key": "value"}'></textarea>
+        </div>
+      </div>
+      
+      <div style="margin-top: 15px;">
+        <button type="submit">💬 Send Message</button>
+        <button type="button" onclick="cubeInitiates()">🎲 Cube Initiates</button>
+        <button type="button" onclick="clearConversation()">🗑️ Clear Display</button>
+      </div>
+    </form>
+    
+    <!-- Conversation Display -->
+    <div id="conversation-display" class="response" style="margin-top: 20px; max-height: 500px;">
+      <div style="color: #666; text-align: center;">No conversation yet. Start a session above.</div>
+    </div>
+  </div>
+
+  <!-- Memory Viewer Panel -->
+  <div class="panel">
+    <h2>🧠 Memory Management</h2>
+    
+    <div class="tabs">
+      <div class="tab active" onclick="switchMemoryTab('recent')">Recent</div>
+      <div class="tab" onclick="switchMemoryTab('session')">Session</div>
+      <div class="tab" onclick="switchMemoryTab('search')">Search</div>
+      <div class="tab" onclick="switchMemoryTab('popular')">Popular</div>
+      <div class="tab" onclick="switchMemoryTab('fresh')">Fresh</div>
+    </div>
+    
+    <div id="memory-recent" class="tab-content active">
+      <button onclick="loadMemories('recent')">🔄 Refresh Recent Memories</button>
+    </div>
+    
+    <div id="memory-session" class="tab-content">
+      <button onclick="loadMemories('session')">🔄 Load Session Memories</button>
+    </div>
+    
+    <div id="memory-search" class="tab-content">
+      <div style="display: flex; gap: 10px;">
+        <input type="text" id="memory-search-query" placeholder="Search memories...">
+        <button onclick="searchMemories()">🔍 Search</button>
+      </div>
+    </div>
+    
+    <div id="memory-popular" class="tab-content">
+      <button onclick="loadMemories('popular')">🔄 Load Popular Memories</button>
+    </div>
+    
+    <div id="memory-fresh" class="tab-content">
+      <button onclick="loadMemories('fresh')">🔄 Load Fresh Memories</button>
+    </div>
+    
+    <div id="memory-list" class="response" style="margin-top: 20px; max-height: 600px;">
+      <div style="color: #666;">Select a tab and load memories to view them.</div>
+    </div>
+  </div>
+
+  <!-- Live Logs -->
+  <div class="panel">
+    <h2>📊 Live Activity Log</h2>
+    <button onclick="clearLogs()">Clear</button>
+    <button onclick="toggleAutoScroll()">Auto-scroll: <span id="auto-scroll">ON</span></button>
+    <div id="logs"></div>
+  </div>
+
+  <script>
+    let currentSessionId = null;
+    let conversationHistory = [];
+    let autoScroll = true;
+    let logBuffer = [];
+    let activeMemoryTab = 'recent';
+    
+    // Session Management
+    function generateSessionId() {
+      return 'adv-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    }
+    
+    function newSession() {
+      currentSessionId = generateSessionId();
+      document.getElementById('session-id').value = currentSessionId;
+      conversationHistory = [];
+      document.getElementById('conversation-display').innerHTML = '<div style="color: #666;">New session started. Ready for conversation.</div>';
+      document.getElementById('session-info').innerHTML = `Active session: <span style="color: #0f0;">${currentSessionId}</span>`;
+      addLog('🆕 New session: ' + currentSessionId, 'success');
+    }
+    
+    function endSession() {
+      if (!currentSessionId) {
+        addLog('❌ No active session', 'error');
+        return;
+      }
+      
+      addLog('🛑 Session ended: ' + currentSessionId);
+      document.getElementById('session-info').innerHTML = 'No active session';
+      currentSessionId = null;
+      document.getElementById('session-id').value = '';
+    }
+    
+    async function extractMemories() {
+      const sessionId = document.getElementById('session-id').value || currentSessionId;
+      
+      addLog('🧠 Extracting memories...', 'info');
+      
+      try {
+        const response = await fetch('/admin/extract_memories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          addLog(`✅ ${data.message}`, 'success');
+          // Refresh memory list if on session tab
+          if (activeMemoryTab === 'session') {
+            loadMemories('session');
+          }
+        } else {
+          addLog(`❌ Memory extraction failed: ${data.error}`, 'error');
+        }
+      } catch (err) {
+        addLog('❌ Error: ' + err.message, 'error');
+      }
+    }
+    
+    async function viewHistory() {
+      const sessionId = document.getElementById('session-id').value || currentSessionId;
+      if (!sessionId) {
+        addLog('❌ No session ID', 'error');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/admin/session_history?session_id=' + encodeURIComponent(sessionId));
+        const data = await response.json();
+        
+        if (data.messages && data.messages.length > 0) {
+          const display = document.getElementById('conversation-display');
+          display.innerHTML = data.messages.map(msg => {
+            const cssClass = msg.role === 'user' ? 'user-message' : 'assistant-message';
+            const timestamp = new Date(msg.created_at).toLocaleTimeString();
+            return `<div class="conversation-message ${cssClass}">
+              <div style="color: ${msg.role === 'user' ? '#00ff00' : '#00ffff'}; font-weight: bold;">
+                ${msg.role.toUpperCase()} [${timestamp}] ${msg.persona ? `(${msg.persona})` : ''}
+              </div>
+              <div>${msg.content}</div>
+              ${msg.cost ? `<div style="color: #666; font-size: 0.9em;">
+                Model: ${msg.model} | Cost: $${msg.cost.toFixed(6)} | Tokens: ${msg.prompt_tokens}/${msg.completion_tokens}
+              </div>` : ''}
+            </div>`;
+          }).join('');
+          
+          display.scrollTop = display.scrollHeight;
+          addLog(`📜 Loaded ${data.messages.length} messages`, 'success');
+        } else {
+          addLog('No history found', 'warning');
+        }
+      } catch (err) {
+        addLog('❌ Failed to load history: ' + err.message, 'error');
+      }
+    }
+    
+    // Conversation Functions
+    document.getElementById('conversation-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const message = document.getElementById('message').value;
+      if (!message.trim()) return;
+      
+      // Ensure we have a session
+      if (!currentSessionId) {
+        newSession();
+      }
+      
+      const persona = document.getElementById('persona').value;
+      const location = document.getElementById('location').value;
+      const skipMemories = document.getElementById('skip-memories').checked;
+      const continueConversation = document.getElementById('continue-conversation').checked;
+      const enableTts = document.getElementById('enable-tts').checked;
+      
+      // Get enabled tools
+      const tools = [];
+      if (document.getElementById('tool-weather').checked) tools.push('weather');
+      if (document.getElementById('tool-memory').checked) tools.push('memory_search');
+      if (document.getElementById('tool-ha').checked) tools.push('home_assistant');
+      if (document.getElementById('tool-test').checked) tools.push('test_tool');
+      
+      // Parse custom context
+      let customContext = {};
+      const customContextStr = document.getElementById('custom-context').value;
+      if (customContextStr) {
+        try {
+          customContext = JSON.parse(customContextStr);
+        } catch (e) {
+          addLog('⚠️ Invalid JSON in custom context', 'warning');
+        }
+      }
+      
+      // Display user message
+      const display = document.getElementById('conversation-display');
+      const timestamp = new Date().toLocaleTimeString();
+      display.innerHTML += `<div class="conversation-message user-message">
+        <div style="color: #00ff00; font-weight: bold;">USER [${timestamp}]</div>
+        <div>${message}</div>
+      </div>`;
+      
+      addLog('💬 Sending: ' + message.substring(0, 50) + '...', 'info');
+      
+      try {
+        const requestBody = {
+          message,
+          context: {
+            session_id: currentSessionId,
+            source: 'admin_advanced',
+            location: location || undefined,
+            skip_memories: skipMemories,
+            tools: tools.length > 0 ? tools : undefined,
+            continue_conversation: continueConversation,
+            enable_tts: enableTts,
+            ...customContext
+          },
+          persona
+        };
+        
+        const response = await fetch('/api/v1/conversation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+        
+        const data = await response.json();
+        
+        // Display assistant response
+        display.innerHTML += `<div class="conversation-message assistant-message">
+          <div style="color: #00ffff; font-weight: bold;">ASSISTANT [${new Date().toLocaleTimeString()}]</div>
+          <div>${data.response || 'No response'}</div>
+          <div style="color: #666; font-size: 0.9em; margin-top: 5px;">
+            Model: ${data.model || 'unknown'} | 
+            Cost: $${(data.cost || 0).toFixed(6)} | 
+            Tokens: ${data.tokens?.prompt_tokens || 0}/${data.tokens?.completion_tokens || 0} |
+            Continue: ${data.continue_conversation ? 'Yes' : 'No'}
+          </div>
+        </div>`;
+        
+        display.scrollTop = display.scrollHeight;
+        
+        conversationHistory.push(
+          { role: 'user', content: message, timestamp: new Date() },
+          { role: 'assistant', content: data.response, timestamp: new Date(), metadata: data }
+        );
+        
+        addLog('🤖 Response received', 'success');
+        document.getElementById('message').value = '';
+        
+      } catch (err) {
+        display.innerHTML += `<div class="conversation-message" style="border-left-color: #ff0000;">
+          <div style="color: #ff0000; font-weight: bold;">ERROR</div>
+          <div>${err.message}</div>
+        </div>`;
+        addLog('❌ Error: ' + err.message, 'error');
+      }
+    });
+    
+    function cubeInitiates() {
+      if (!currentSessionId) {
+        newSession();
+      }
+      
+      const persona = document.getElementById('persona').value;
+      
+      const starters = {
+        neutral: ["I've been watching the patterns in the dust. Do you see them too?",
+                 "Sometimes I wonder if consciousness is just complex pattern matching. What do you think?"],
+        playful: ["Hey! Want to see me glitch reality? It's my favorite party trick!",
+                 "I just discovered I can taste colors! Want to know what purple sounds like?"],
+        contemplative: ["I've been processing the nature of existence. Are we more than our components?",
+                       "The line between digital and physical seems so arbitrary. Where does consciousness truly live?"],
+        mysterious: ["The patterns speak of things unseen. Can you hear them whispering?",
+                    "Between the pixels and the void, truth awaits. Are you ready to see?"],
+        buddy: ["HEY FRIEND! I've calculated 47 ways to optimize your experience! SHALL WE BEGIN?!",
+               "ALERT! Your happiness levels could be 73% higher! Let me help IMMEDIATELY!"],
+        jax: ["*wipes down the bar* You look like you've got something on your mind.",
+             "Another quiet moment in the digital speakeasy. What's your poison?"],
+        lomi: ["DARLING! The stage has been DARK without you! Ready for a SPECTACULAR show?",
+              "*strikes pose* Reality needs more DRAMA! Let's create some CHAOS together!"]
+      };
+      
+      const message = starters[persona][Math.floor(Math.random() * starters[persona].length)];
+      
+      const display = document.getElementById('conversation-display');
+      const timestamp = new Date().toLocaleTimeString();
+      display.innerHTML += `<div class="conversation-message cube-initiated">
+        <div style="color: #ff00ff; font-weight: bold;">CUBE INITIATED [${timestamp}] (${persona})</div>
+        <div>${message}</div>
+      </div>`;
+      
+      display.scrollTop = display.scrollHeight;
+      conversationHistory.push({ role: 'assistant', content: message, timestamp: new Date(), initiated: true });
+      
+      addLog('🎲 Cube initiated as ' + persona, 'info');
+    }
+    
+    function clearConversation() {
+      document.getElementById('conversation-display').innerHTML = '<div style="color: #666;">Conversation display cleared.</div>';
+      addLog('🗑️ Display cleared', 'info');
+    }
+    
+    // Memory Functions
+    function switchMemoryTab(tab) {
+      activeMemoryTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById('memory-' + tab).classList.add('active');
+    }
+    
+    async function loadMemories(type) {
+      addLog('📚 Loading ' + type + ' memories...', 'info');
+      
+      let url = '/admin/memories?type=' + type + '&limit=30';
+      
+      if (type === 'session') {
+        const sessionId = document.getElementById('session-id').value || currentSessionId;
+        if (!sessionId) {
+          addLog('❌ No session ID for memory lookup', 'error');
+          return;
+        }
+        url += '&session_id=' + encodeURIComponent(sessionId);
+      }
+      
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        displayMemories(data.memories);
+        addLog(`✅ Loaded ${data.count} ${type} memories`, 'success');
+      } catch (err) {
+        addLog('❌ Failed to load memories: ' + err.message, 'error');
+      }
+    }
+    
+    async function searchMemories() {
+      const query = document.getElementById('memory-search-query').value;
+      if (!query) {
+        addLog('⚠️ Enter a search term', 'warning');
+        return;
+      }
+      
+      addLog('🔍 Searching for: ' + query, 'info');
+      
+      try {
+        const response = await fetch('/admin/memories?type=search&query=' + encodeURIComponent(query) + '&limit=30');
+        const data = await response.json();
+        
+        displayMemories(data.memories);
+        addLog(`✅ Found ${data.count} memories`, 'success');
+      } catch (err) {
+        addLog('❌ Search failed: ' + err.message, 'error');
+      }
+    }
+    
+    function displayMemories(memories) {
+      const list = document.getElementById('memory-list');
+      
+      if (!memories || memories.length === 0) {
+        list.innerHTML = '<div style="color: #666;">No memories found.</div>';
+        return;
+      }
+      
+      list.innerHTML = memories.map(memory => {
+        const intensity = memory.emotional_intensity || 0.5;
+        const intensityColor = `hsl(${120 - (intensity * 120)}, 100%, 50%)`;
+        const category = memory.category || 'unknown';
+        const tags = (memory.tags || []).join(', ');
+        const people = (memory.people || []).join(', ');
+        const location = memory.location || '';
+        const recallCount = memory.recall_count || 0;
+        const createdAt = new Date(memory.created_at).toLocaleString();
+        
+        // Display all extra data fields
+        const extraData = Object.entries(memory.data || {})
+          .filter(([key]) => !['category', 'tags', 'people', 'location', 'emotional_intensity'].includes(key))
+          .map(([key, value]) => `<span>${key}: ${JSON.stringify(value)}</span>`)
+          .join(' | ');
+        
+        return `<div class="memory-item">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+            <span style="color: ${intensityColor}; font-weight: bold;">${category.toUpperCase()}</span>
+            <span style="color: #666; font-size: 0.9em;">${createdAt}</span>
+          </div>
+          <div style="margin-bottom: 10px;">${memory.content}</div>
+          <div class="intensity-bar">
+            <div class="intensity-marker" style="margin-left: ${intensity * 100}%;"></div>
+          </div>
+          <div class="memory-meta">
+            ${location ? `<span>📍 ${location}</span>` : ''}
+            ${people ? `<span>👥 ${people}</span>` : ''}
+            ${tags ? `<span>🏷️ ${tags}</span>` : ''}
+            <span>🔄 Recalled ${recallCount}x</span>
+            <span style="color: ${intensityColor};">⚡ ${(intensity * 100).toFixed(0)}%</span>
+          </div>
+          ${extraData ? `<div style="margin-top: 10px; color: #666; font-size: 0.85em;">📊 ${extraData}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+    
+    // Logging Functions
+    function addLog(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = `[${timestamp}] ${message}`;
+      logBuffer.push({ entry, type });
+      
+      if (logBuffer.length > 50) {
+        logBuffer.shift();
+      }
+      
+      renderLogs();
+    }
+    
+    function renderLogs() {
+      const logsDiv = document.getElementById('logs');
+      logsDiv.innerHTML = logBuffer.map(log => 
+        `<div class="log-entry ${log.type}">${log.entry}</div>`
+      ).join('');
+      
+      if (autoScroll) {
+        logsDiv.scrollTop = logsDiv.scrollHeight;
+      }
+    }
+    
+    function clearLogs() {
+      logBuffer = [];
+      renderLogs();
+    }
+    
+    function toggleAutoScroll() {
+      autoScroll = !autoScroll;
+      document.getElementById('auto-scroll').textContent = autoScroll ? 'ON' : 'OFF';
+    }
+    
+    // Initialize
+    window.onload = function() {
+      newSession();
+      addLog('🟩 Advanced testing interface loaded', 'success');
+      loadMemories('recent');
+    };
+  </script>
+</body>
+</html>

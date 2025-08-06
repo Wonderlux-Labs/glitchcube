@@ -4,7 +4,7 @@ require_relative '../../config/constants'
 
 module Utils
   module LocationHelper
-    extend self
+    module_function
 
     # Get current coordinates
     def coordinates
@@ -40,7 +40,7 @@ module Utils
     def haversine_distance(lat1, lng1, lat2, lng2)
       # Haversine formula for great-circle distance
       r = 3959 # Earth's radius in miles
-      
+
       # Convert to radians
       lat1_rad = lat1 * Math::PI / 180
       lat2_rad = lat2 * Math::PI / 180

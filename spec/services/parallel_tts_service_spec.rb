@@ -16,7 +16,7 @@ RSpec.describe Services::ParallelTTSService do
     it 'uses the first successful provider' do
       # Mock the underlying speak method to simulate provider behaviors
       call_count = 0
-      allow(service).to receive(:speak) do |message, options|
+      allow(service).to receive(:speak) do |_message, options|
         call_count += 1
         case options[:provider]
         when :cloud
@@ -73,7 +73,7 @@ RSpec.describe Services::ParallelTTSService do
   describe '#speak_cascade' do
     it 'tries providers in sequence until one succeeds' do
       # Mock the underlying speak method to simulate provider behaviors
-      allow(service).to receive(:speak) do |message, options|
+      allow(service).to receive(:speak) do |_message, options|
         case options[:provider]
         when :cloud
           raise 'Cloud error'
@@ -100,7 +100,7 @@ RSpec.describe Services::ParallelTTSService do
     end
 
     it 'pre-warms providers in parallel' do
-      expect(service).to receive(:warm_up_providers).with([:cloud, :google, :piper, :elevenlabs])
+      expect(service).to receive(:warm_up_providers).with(%i[cloud google piper elevenlabs])
       allow(service).to receive(:speak_with_provider).and_return(true)
       allow(Services::LoggerService).to receive(:log_tts)
 
@@ -127,7 +127,7 @@ RSpec.describe Services::ParallelTTSService do
 
     it 'succeeds if any provider succeeds' do
       # Mock the underlying speak method to simulate mixed success
-      allow(service).to receive(:speak) do |message, options|
+      allow(service).to receive(:speak) do |_message, options|
         case options[:provider]
         when :cloud
           raise 'Error'
@@ -154,7 +154,7 @@ RSpec.describe Services::ParallelTTSService do
       it 'uses redundant mode for reliability' do
         expect(service).to receive(:speak_redundant).with(
           test_message,
-          hash_including(providers: [:cloud, :google, :piper])
+          hash_including(providers: %i[cloud google piper])
         ).and_return(true)
 
         service.speak_intelligent(test_message, priority: :critical)
@@ -165,7 +165,7 @@ RSpec.describe Services::ParallelTTSService do
       it 'uses race mode for speed' do
         expect(service).to receive(:speak_race).with(
           test_message,
-          hash_including(providers: [:cloud, :google])
+          hash_including(providers: %i[cloud google])
         ).and_return(true)
 
         service.speak_intelligent(test_message, priority: :fast)
@@ -176,7 +176,7 @@ RSpec.describe Services::ParallelTTSService do
       it 'uses cascade mode with all providers' do
         expect(service).to receive(:speak_cascade).with(
           test_message,
-          hash_including(providers: [:cloud, :google, :piper, :elevenlabs])
+          hash_including(providers: %i[cloud google piper elevenlabs])
         ).and_return(true)
 
         service.speak_intelligent(test_message, priority: :reliable)

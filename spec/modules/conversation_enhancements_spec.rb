@@ -67,7 +67,7 @@ RSpec.describe ConversationEnhancements do
   describe '#execute_with_retry' do
     it 'succeeds on first attempt' do
       attempt_count = 0
-      
+
       result = test_instance.execute_with_retry(3) do
         attempt_count += 1
         'success'
@@ -79,17 +79,15 @@ RSpec.describe ConversationEnhancements do
 
     it 'retries with exponential backoff' do
       attempt_count = 0
-      
+
       allow(test_instance).to receive(:sleep).with(0.5).once
       allow(test_instance).to receive(:sleep).with(1.0).once
 
       result = test_instance.execute_with_retry(3) do
         attempt_count += 1
-        if attempt_count < 3
-          raise 'Temporary error'
-        else
-          'success'
-        end
+        raise 'Temporary error' if attempt_count < 3
+
+        'success'
       end
 
       expect(result).to eq('success')
@@ -114,9 +112,7 @@ RSpec.describe ConversationEnhancements do
     end
 
     it 'enriches context with sensor data' do
-      allow(mock_client).to receive(:battery_level).and_return(85)
-      allow(mock_client).to receive(:temperature).and_return(22.5)
-      allow(mock_client).to receive(:motion_detected?).and_return(false)
+      allow(mock_client).to receive_messages(battery_level: 85, temperature: 22.5, motion_detected?: false)
 
       enriched = test_instance.enrich_context_with_sensors(context)
 
@@ -130,8 +126,7 @@ RSpec.describe ConversationEnhancements do
 
     it 'handles sensor failures gracefully' do
       allow(mock_client).to receive(:battery_level).and_raise('Sensor error')
-      allow(mock_client).to receive(:temperature).and_return(22.5)
-      allow(mock_client).to receive(:motion_detected?).and_return(true)
+      allow(mock_client).to receive_messages(temperature: 22.5, motion_detected?: true)
 
       enriched = test_instance.enrich_context_with_sensors(context)
 
@@ -141,9 +136,9 @@ RSpec.describe ConversationEnhancements do
 
     it 'skips enrichment when not requested' do
       plain_context = { other: 'data' }
-      
+
       result = test_instance.enrich_context_with_sensors(plain_context)
-      
+
       expect(result[:sensor_data]).to be_nil
     end
   end
@@ -151,21 +146,21 @@ RSpec.describe ConversationEnhancements do
   describe '#attempt_error_recovery' do
     it 'attempts connection recovery for connection errors' do
       expect(test_instance).to receive(:attempt_connection_recovery).and_return(true)
-      
+
       result = test_instance.attempt_error_recovery('connection refused')
       expect(result).to be true
     end
 
     it 'attempts timeout recovery for timeout errors' do
       expect(test_instance).to receive(:attempt_timeout_recovery).and_return(true)
-      
+
       result = test_instance.attempt_error_recovery('timeout error')
       expect(result).to be true
     end
 
     it 'attempts rate limit recovery' do
       expect(test_instance).to receive(:attempt_rate_limit_recovery).and_return(true)
-      
+
       result = test_instance.attempt_error_recovery('rate limit exceeded')
       expect(result).to be true
     end
@@ -187,7 +182,7 @@ RSpec.describe ConversationEnhancements do
 
     it 'attempts auto-recovery on failure' do
       attempt_count = 0
-      
+
       expect(test_instance).to receive(:attempt_error_recovery).with(
         'network error',
         { operation: 'test_operation' }
@@ -195,11 +190,9 @@ RSpec.describe ConversationEnhancements do
 
       result = test_instance.with_self_healing('test_operation', max_retries: 2) do
         attempt_count += 1
-        if attempt_count == 1
-          raise 'network error'
-        else
-          'recovered'
-        end
+        raise 'network error' if attempt_count == 1
+
+        'recovered'
       end
 
       expect(result).to eq('recovered')
@@ -207,17 +200,15 @@ RSpec.describe ConversationEnhancements do
 
     it 'uses exponential backoff when auto-recovery fails' do
       attempt_count = 0
-      
+
       expect(test_instance).to receive(:attempt_error_recovery).and_return(false)
       expect(test_instance).to receive(:sleep).with(2).once # 2^(2-1) = 2
 
       result = test_instance.with_self_healing('test_operation', max_retries: 2) do
         attempt_count += 1
-        if attempt_count == 1
-          raise 'error'
-        else
-          'success'
-        end
+        raise 'error' if attempt_count == 1
+
+        'success'
       end
 
       expect(result).to eq('success')

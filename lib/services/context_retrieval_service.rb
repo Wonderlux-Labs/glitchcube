@@ -167,11 +167,11 @@ module Services
 
     def generate_answer(question, contexts)
       context_text = contexts.map { |c| c[:content] }.join("\n\n---\n\n")
-      
+
       prompt = "Based on the following context, answer the question:\n\nContext:\n#{context_text}\n\nQuestion: #{question}\n\nAnswer:"
 
       result = @generator.complete(
-        system_prompt: "You are a helpful assistant that answers questions based on provided context.",
+        system_prompt: 'You are a helpful assistant that answers questions based on provided context.',
         user_message: prompt,
         model: GlitchCube.config.default_ai_model,
         temperature: 0.7

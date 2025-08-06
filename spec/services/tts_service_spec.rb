@@ -74,7 +74,7 @@ RSpec.describe Services::TTSService do
           '/api/services/tts/speak',
           hash_including(
             data: hash_including(
-              options: { 
+              options: {
                 voice: 'JennyNeural',
                 style: 'friendly'
               }
@@ -170,7 +170,7 @@ RSpec.describe Services::TTSService do
 
       it 'returns false for nil message' do
         expect(home_assistant).not_to receive(:post)
-        
+
         result = service.speak(nil)
         expect(result).to be false
       end
@@ -181,7 +181,7 @@ RSpec.describe Services::TTSService do
         expect(home_assistant).to receive(:post).and_raise(
           HomeAssistantClient::Error, 'Cloud TTS failed'
         )
-        
+
         expect(home_assistant).to receive(:call_service).with(
           'tts',
           'google_translate_say',
@@ -204,7 +204,7 @@ RSpec.describe Services::TTSService do
         expect(home_assistant).to receive(:post).and_raise(
           HomeAssistantClient::Error, 'Cloud TTS failed'
         )
-        
+
         expect(home_assistant).to receive(:call_service).and_raise(
           HomeAssistantClient::Error, 'Google TTS also failed'
         )
@@ -256,7 +256,7 @@ RSpec.describe Services::TTSService do
   describe '#broadcast' do
     it 'sends message to multiple entities' do
       entities = ['media_player.kitchen', 'media_player.bedroom']
-      
+
       entities.each do |entity|
         expect(service).to receive(:speak).with(
           'Broadcast message',
@@ -270,12 +270,12 @@ RSpec.describe Services::TTSService do
 
     it 'returns false if any entity fails' do
       entities = ['media_player.kitchen', 'media_player.bedroom']
-      
+
       expect(service).to receive(:speak).with(
         'Test',
         entity_id: 'media_player.kitchen'
       ).and_return(true)
-      
+
       expect(service).to receive(:speak).with(
         'Test',
         entity_id: 'media_player.bedroom'

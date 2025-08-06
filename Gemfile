@@ -12,8 +12,8 @@ gem 'sinatra-contrib', '~> 4.1'
 gem 'open_router', '~> 0.3'
 
 # Database
-gem 'pg', '~> 1.5'
 gem 'activerecord', '~> 7.2'
+gem 'pg', '~> 1.5'
 gem 'sinatra-activerecord', '~> 2.0'
 
 # API Support

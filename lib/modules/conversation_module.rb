@@ -6,35 +6,32 @@ require_relative '../services/system_prompt_service'
 require_relative '../services/logger_service'
 require_relative '../services/llm_service'
 require_relative '../services/tts_service'
+require_relative '../services/conversation_session'
 require_relative '../home_assistant_client'
 require_relative 'conversation_responses'
 require_relative 'conversation_enhancements'
 
 class ConversationModule
   include ConversationEnhancements
-  
+
   def call(message:, context: {}, persona: nil, mood: nil)
     # Use persona from context or default, also support legacy mood parameter
     persona ||= mood || context[:persona] || context[:mood] || 'neutral'
-    
-    # Get or create conversation
-    conversation = find_or_create_conversation(context)
-    
-    # Record user message
-    add_message_to_conversation(conversation, {
-      role: 'user',
-      content: message,
-      persona: persona
-    })
-    
+
+    # Get or create conversation session using ActiveRecord
+    session = Services::ConversationSession.find_or_create(
+      session_id: context[:session_id],
+      context: context.merge(persona: persona)
+    )
+
     system_prompt = build_system_prompt(persona, context)
-    
+
     # Prepare structured output schema based on context
     response_schema = get_response_schema(context)
-    
+
     begin
       start_time = Time.now
-      
+
       # Build options including structured output support
       llm_options = {
         model: GlitchCube.config.ai.default_model,
@@ -42,154 +39,141 @@ class ConversationModule
         max_tokens: GlitchCube.config.conversation&.max_tokens || 200,
         timeout: GlitchCube.config.conversation&.completion_timeout || 20
       }
-      
+
       # Add structured output if schema is provided
-      if response_schema
-        llm_options[:response_format] = GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(response_schema)
-      end
-      
+      llm_options[:response_format] = GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(response_schema) if response_schema
+
       # Add tool support if tools are configured
       if context[:tools]
         llm_options[:tools] = context[:tools]
         llm_options[:tool_choice] = context[:tool_choice] || 'auto'
         llm_options[:parallel_tool_calls] = context[:parallel_tool_calls] != false
       end
-      
-      # Use new LLM service with structured outputs
-      llm_response = Services::LLMService.complete(
-        system_prompt: system_prompt,
-        user_message: message,
+
+      # Get conversation history for context (doesn't include current message yet)
+      conversation_history = session.messages_for_llm
+
+      # Build messages array with system prompt, history, and current message
+      messages = [
+        { role: 'system', content: system_prompt }
+      ]
+
+      # Add conversation history (previous messages)
+      messages.concat(conversation_history)
+
+      # Add current user message
+      messages << { role: 'user', content: message }
+
+      # Now save the user message to database
+      session.add_message(
+        role: 'user',
+        content: message,
+        persona: persona
+      )
+
+      # Use new LLM service with full conversation context
+      llm_response = Services::LLMService.complete_with_messages(
+        messages: messages,
         **llm_options
       )
-      
+
       response_time_ms = ((Time.now - start_time) * 1000).round
-      
+
       # Extract data from response object
       response_text = llm_response.response_text
       continue_conversation = llm_response.continue_conversation?
-      
+
       # Calculate cost
       cost = llm_response.cost
-      
+
       # Record assistant message
-      add_message_to_conversation(conversation, {
+      session.add_message(
         role: 'assistant',
         content: response_text,
         persona: persona,
-        model_used: llm_response.model,
+        model: llm_response.model,
         prompt_tokens: llm_response.usage[:prompt_tokens],
         completion_tokens: llm_response.usage[:completion_tokens],
         cost: cost,
         response_time_ms: response_time_ms,
-        metadata: { 
-          continue_conversation: continue_conversation
-        }.compact
-      })
-      
-      # Update conversation totals
-      update_conversation_totals(conversation)
+        continue_conversation: continue_conversation
+      )
 
-      response_text ||= generate_fallback_response(message, persona)
+      # Only use fallback if response_text is nil or empty
+      response_text = generate_fallback_response(message, persona) if response_text.nil? || response_text.strip.empty?
 
       result = {
         response: response_text,
-        conversation_id: conversation[:session_id],
-        session_id: conversation[:session_id],
+        conversation_id: session.session_id,
+        session_id: session.session_id,
         persona: persona,
         suggested_mood: persona, # Backward compatibility
-        confidence: 1.0, # Backward compatibility
         model: llm_response.model,
         cost: cost,
         tokens: llm_response.usage,
         continue_conversation: continue_conversation
       }
 
-      speak_response(response_text, context)
-      log_interaction(conversation, message, response_text, persona)
-      update_kiosk_display(message, response_text, persona)
+      # Wrap post-response operations to prevent fallback on their errors
+      begin
+        speak_response(response_text, context)
+      rescue StandardError => e
+        puts "Warning: TTS failed but conversation succeeded: #{e.message}"
+        # Log but don't fail the conversation
+      end
+
+      begin
+        log_interaction(session, message, response_text, persona)
+      rescue StandardError => e
+        puts "Warning: Interaction logging failed: #{e.message}"
+        # Log but don't fail the conversation
+      end
+
+      begin
+        update_kiosk_display(message, response_text, persona)
+      rescue StandardError => e
+        puts "Warning: Kiosk display update failed: #{e.message}"
+        # Already handled in the method but adding for clarity
+      end
 
       result
     rescue Services::LLMService::RateLimitError => e
-      handle_rate_limit_error(conversation, message, persona, e)
+      handle_rate_limit_error(session, message, persona, e)
     rescue Services::LLMService::LLMError => e
-      handle_llm_error(conversation, message, persona, e)
+      handle_llm_error(session, message, persona, e)
     rescue StandardError => e
-      handle_general_error(conversation, message, persona, e)
+      handle_general_error(session, message, persona, e)
     end
   end
 
   private
 
-  def parse_llm_response(content)
-    # Try to parse as JSON for structured response
-    begin
-      if content.is_a?(String)
-        # Clean content - sometimes the response has markdown json blocks
-        cleaned = content.strip
-        cleaned = cleaned.gsub(/^```json\s*/, '').gsub(/\s*```$/, '') if cleaned.include?('```')
-        
-        if cleaned.start_with?('{')
-          parsed = JSON.parse(cleaned)
-          result = {
-            response: parsed['response'] || parsed['text'] || content,
-            continue_conversation: parsed['continue_conversation'] != false # Default to true
-          }
-          
-          # Extract additional structured data if present
-          result[:actions] = parsed['actions'] if parsed['actions']
-          result[:lighting] = parsed['lighting'] if parsed['lighting']
-          result[:inner_thoughts] = parsed['inner_thoughts'] if parsed['inner_thoughts']
-          result[:memory_note] = parsed['memory_note'] if parsed['memory_note']
-          result[:request_action] = parsed['request_action'] if parsed['request_action']
-          result[:tool_calls] = parsed['tool_calls'] if parsed['tool_calls']
-          
-          result
-        else
-          # Fallback to simple text response with smart continuation detection
-          {
-            response: content,
-            continue_conversation: detect_continuation_intent(content)
-          }
-        end
-      else
-        # Fallback to simple text response with smart continuation detection
-        {
-          response: content.to_s,
-          continue_conversation: detect_continuation_intent(content.to_s)
-        }
-      end
-    rescue JSON::ParserError => e
-      # If JSON parsing fails, treat as plain text
-      Rails.logger.warn "Failed to parse LLM JSON response: #{e.message}" if defined?(Rails)
-      {
-        response: content,
-        continue_conversation: detect_continuation_intent(content)
-      }
-    end
-  end
-
   def detect_continuation_intent(text)
     return true unless text
-    
+
     text_lower = text.downcase
-    
+
     # Check for explicit endings
     return false if text_lower.match?(/\b(goodbye|bye|farewell|see you|talk later)\b/)
-    
+
     # Check for questions or engagement
     return true if text.include?('?')
     return true if text_lower.match?(/\b(would you|do you|can you|tell me|what|how|why|let me know)\b/)
-    
+
     # Default to continuing for engagement
     true
   end
-  
+
   def get_response_schema(context)
     # Load schema class if not already loaded
-    require_relative '../schemas/conversation_response_schema' rescue nil
-    
+    begin
+      require_relative '../schemas/conversation_response_schema'
+    rescue StandardError
+      nil
+    end
+
     return nil unless defined?(GlitchCube::Schemas::ConversationResponseSchema)
-    
+
     # Select appropriate schema based on context
     if context[:image_analysis]
       GlitchCube::Schemas::ConversationResponseSchema.image_analysis_response
@@ -203,43 +187,6 @@ class ConversationModule
     end
   end
 
-  def find_or_create_conversation(context)
-    session_id = context[:session_id] || SecureRandom.uuid
-    
-    # Simple in-memory conversation tracking without database dependency
-    @conversations ||= {}
-    @conversations[session_id] ||= {
-      session_id: session_id,
-      source: context[:source] || 'api',
-      started_at: Time.current,
-      metadata: context.except(:session_id, :source),
-      messages: [],
-      total_cost: 0.0,
-      total_tokens: 0
-    }
-  end
-  
-  def add_message_to_conversation(conversation, message_data)
-    conversation[:messages] << message_data.merge(timestamp: Time.current)
-  end
-  
-  def update_conversation_totals(conversation)
-    conversation[:total_cost] = conversation[:messages].sum { |msg| msg[:cost] || 0.0 }
-    conversation[:total_tokens] = conversation[:messages].sum do |msg|
-      (msg[:prompt_tokens] || 0) + (msg[:completion_tokens] || 0)
-    end
-  end
-  
-  def calculate_message_cost(response)
-    return 0.0 unless response[:usage] && response[:model]
-    
-    GlitchCube::ModelPricing.calculate_cost(
-      response[:model],
-      response[:usage][:prompt_tokens],
-      response[:usage][:completion_tokens]
-    )
-  end
-
   def build_system_prompt(persona, context)
     # Map persona to character for prompt file selection
     character = persona == 'neutral' ? nil : persona
@@ -251,11 +198,50 @@ class ConversationModule
       interaction_count: context[:interaction_count] || 1
     )
 
-    # Generate system prompt with current datetime and context
-    Services::SystemPromptService.new(
+    # Generate base system prompt
+    base_prompt = Services::SystemPromptService.new(
       character: character,
       context: enriched_context
     ).generate
+
+    # Add relevant memories if available
+    inject_memories_into_prompt(base_prompt, context)
+  end
+
+  def inject_memories_into_prompt(base_prompt, context)
+    # Skip memory injection if explicitly disabled
+    return base_prompt if context[:skip_memories] == true
+
+    # Get current location from context or Home Assistant
+    location = context[:location] || fetch_current_location
+
+    # Get relevant memories (simplified: location, recent, upcoming)
+    memories = Services::MemoryRecallService.get_relevant_memories(
+      location: location,
+      context: context,
+      limit: 3
+    )
+
+    # Format and inject memories
+    if memories.any?
+      memory_context = Services::MemoryRecallService.format_for_context(memories)
+      "#{base_prompt}#{memory_context}"
+    else
+      base_prompt
+    end
+  rescue StandardError => e
+    Rails.logger.warn "Failed to inject memories: #{e.message}"
+    base_prompt
+  end
+
+  def fetch_current_location
+    return nil unless GlitchCube.config.home_assistant.url
+
+    client = HomeAssistantClient.new
+    location = client.get_state('sensor.glitchcube_location')
+    location&.dig('state')
+  rescue StandardError
+    nil
   end
 
   def generate_fallback_response(_message, persona)
@@ -324,8 +310,6 @@ class ConversationModule
     "#{base_response} #{encouragement}"
   end
 
-
-
   def speak_response(response_text, context = {})
     return if response_text.nil? || response_text.strip.empty?
 
@@ -333,10 +317,10 @@ class ConversationModule
     begin
       # Use the new TTS service with character support
       tts_service = Services::TTSService.new
-      
+
       # Get mood/persona from context for character voice
       mood = context[:mood] || context[:persona] || 'neutral'
-      
+
       # Use the TTS service with mood support
       success = tts_service.speak(
         response_text,
@@ -361,7 +345,6 @@ class ConversationModule
     end
   end
 
-
   def update_kiosk_display(message, response, persona)
     # Update the kiosk service with new interaction data
     require_relative '../services/kiosk_service'
@@ -372,169 +355,133 @@ class ConversationModule
                                                 response: response
                                               })
     Services::KioskService.add_inner_thought('Just shared something meaningful with a visitor')
-    
+
     # Also update AWTRIX display if available
     update_awtrix_display(message, response, persona)
   rescue StandardError => e
     # Don't let kiosk update failures break the conversation
     puts "Failed to update kiosk display: #{e.message}"
   end
-  
-  def update_awtrix_display(message, response, persona)
+
+  def update_awtrix_display(_message, response, persona)
     return unless GlitchCube.config.home_assistant.url
-    
+
     # Run display updates in parallel
     Concurrent::Future.execute do
-      begin
-        home_assistant = HomeAssistantClient.new
-        
-        # Choose color based on persona/mood
-        color = case persona
-                when 'playful'
-                  [255, 0, 255] # Magenta
-                when 'contemplative'
-                  [0, 100, 255] # Blue
-                when 'mysterious'
-                  [128, 0, 128] # Purple
-                else
-                  [255, 255, 255] # White
-                end
-        
-        # Show a brief summary or mood indicator
-        display_text = if response.length > 50
-                        "💭 #{persona}..."
-                      else
-                        response[0..30]
-                      end
-        
-        # Send to AWTRIX display
-        home_assistant.awtrix_display_text(
-          display_text,
-          color: color,
-          duration: 5,
-          rainbow: persona == 'playful'
-        )
-        
-        # Also set mood light
-        home_assistant.awtrix_mood_light(color, brightness: 80)
-        
-      rescue => e
-        puts "⚠️ AWTRIX update failed: #{e.message}"
-      end
+      home_assistant = HomeAssistantClient.new
+
+      # Choose color based on persona/mood
+      color = case persona
+              when 'playful'
+                [255, 0, 255] # Magenta
+              when 'contemplative'
+                [0, 100, 255] # Blue
+              when 'mysterious'
+                [128, 0, 128] # Purple
+              else
+                [255, 255, 255] # White
+              end
+
+      # Show a brief summary or mood indicator
+      display_text = if response.length > 50
+                       "💭 #{persona}..."
+                     else
+                       response[0..30]
+                     end
+
+      # Send to AWTRIX display
+      home_assistant.awtrix_display_text(
+        display_text,
+        color: color,
+        duration: 5,
+        rainbow: persona == 'playful'
+      )
+
+      # Also set mood light
+      home_assistant.awtrix_mood_light(color, brightness: 80)
+    rescue StandardError => e
+      puts "⚠️ AWTRIX update failed: #{e.message}"
     end
-  rescue => e
+  rescue StandardError => e
     puts "⚠️ Failed to initiate AWTRIX update: #{e.message}"
   end
 
-  def handle_rate_limit_error(conversation, message, persona, error)
-    response_text = "I need to take a brief pause - too many thoughts at once! Can you give me a moment?"
-    
+  def handle_rate_limit_error(session, _message, persona, _error)
+    response_text = 'I need to take a brief pause - too many thoughts at once! Can you give me a moment?'
+
     # Still record the response
-    add_message_to_conversation(conversation, {
+    session.add_message(
       role: 'assistant',
       content: response_text,
-      persona: persona,
-      metadata: { confidence: 0.0 }
-    })
-    
+      persona: persona
+    )
+
     speak_response(response_text, {})
-    
+
     {
       response: response_text,
-      conversation_id: conversation[:session_id],
-      session_id: conversation[:session_id],
+      conversation_id: session.session_id,
+      session_id: session.session_id,
       persona: persona,
       suggested_mood: persona,
-      confidence: 0.0,
       error: 'rate_limit'
     }
   end
 
-  def handle_llm_error(conversation, message, persona, error)
+  def handle_llm_error(session, message, persona, _error)
     response_text = generate_offline_response(message, persona)
-    
-    add_message_to_conversation(conversation, {
+
+    session.add_message(
       role: 'assistant',
       content: response_text,
-      persona: persona,
-      metadata: { confidence: 0.0 }
-    })
-    
+      persona: persona
+    )
+
     speak_response(response_text, {})
-    
+
     {
       response: response_text,
-      conversation_id: conversation[:session_id],
-      session_id: conversation[:session_id],
+      conversation_id: session.session_id,
+      session_id: session.session_id,
       persona: persona,
       suggested_mood: persona,
-      confidence: 0.0,
       error: 'llm_error'
     }
   end
 
-  def handle_general_error(conversation, message, persona, error)
+  def handle_general_error(session, message, persona, _error)
     response_text = generate_fallback_response(message, persona)
-    
-    add_message_to_conversation(conversation, {
+
+    session.add_message(
       role: 'assistant',
       content: response_text,
-      persona: persona,
-      metadata: { confidence: 0.0 }
-    })
-    
+      persona: persona
+    )
+
     Services::LoggerService.log_interaction(
       user_message: message,
       ai_response: response_text,
-      mood: persona,
-      confidence: 0.0
+      mood: persona
     )
-    
+
     speak_response(response_text, {})
-    
+
     {
       response: response_text,
-      conversation_id: conversation[:session_id],
-      session_id: conversation[:session_id],
+      conversation_id: session.session_id,
+      session_id: session.session_id,
       persona: persona,
       suggested_mood: persona,
-      confidence: 0.0,
       error: 'general_error'
     }
   end
 
-  def log_interaction(conversation, message, response, persona)
+  def log_interaction(session, message, response, persona)
     Services::LoggerService.log_interaction(
       user_message: message,
       ai_response: response,
       mood: persona,
-      confidence: 1.0,
-      conversation_id: conversation[:session_id],
-      session_id: conversation[:session_id]
+      session_id: session.session_id
     )
   end
-
-  def extract_content_from_response(response)
-    # Handle different response formats from OpenRouter
-    if response.is_a?(Hash) || response.is_a?(HashWithIndifferentAccess)
-      # Standard OpenAI format response (with indifferent access)
-      choices = response[:choices] || response['choices']
-      if choices && choices.is_a?(Array) && !choices.empty?
-        message = choices[0][:message] || choices[0]['message']
-        message[:content] || message['content'] || ''
-      # Alternative format with direct content
-      elsif response[:content] || response['content']
-        response[:content] || response['content']
-      else
-        ''
-      end
-    elsif response.is_a?(String)
-      # Direct string response
-      response
-    else
-      ''
-    end
-  end
-  
-
 end

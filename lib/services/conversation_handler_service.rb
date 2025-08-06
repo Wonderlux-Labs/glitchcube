@@ -21,7 +21,7 @@ module Services
       nil
     end
 
-    # Get or create home assistant agent - deprecated, use ConversationModule directly instead  
+    # Get or create home assistant agent - deprecated, use ConversationModule directly instead
     def home_assistant_agent
       # Desiru removed - use ConversationModule directly
       nil
@@ -31,7 +31,7 @@ module Services
     def should_continue_conversation?(result)
       # First check if the LLM explicitly indicated continuation
       return true if result[:continue_conversation] == true
-      
+
       return false unless result[:response]
 
       response_text = result[:response].downcase
@@ -149,11 +149,11 @@ module Services
     # Send proactive conversation to Home Assistant voice system
     def send_conversation_to_ha(message, context)
       home_assistant = HomeAssistantClient.new
-      
+
       begin
         # Start conversation via HA's conversation service
         response = home_assistant.call_service(
-          'conversation', 
+          'conversation',
           'process',
           {
             text: message,
@@ -162,7 +162,7 @@ module Services
             language: context[:language] || 'en'
           }
         )
-        
+
         {
           status: 'sent',
           ha_conversation_id: response['conversation_id'] || context[:conversation_id],
@@ -181,15 +181,15 @@ module Services
         }
       end
     end
-    
+
     # Continue an existing Home Assistant conversation
     def continue_ha_conversation(conversation_id, message, context = {})
       home_assistant = HomeAssistantClient.new
-      
+
       begin
         response = home_assistant.call_service(
           'conversation',
-          'process', 
+          'process',
           {
             text: message,
             conversation_id: conversation_id,
@@ -197,7 +197,7 @@ module Services
             language: context[:language] || 'en'
           }
         )
-        
+
         {
           status: 'continued',
           ha_conversation_id: conversation_id,
@@ -212,11 +212,11 @@ module Services
         }
       end
     end
-    
+
     # Sync conversation with Home Assistant
     def sync_with_ha(conversation, ha_conversation_id, device_id = nil)
       return unless conversation.respond_to?(:update!)
-      
+
       conversation.update!(
         ha_conversation_id: ha_conversation_id,
         ha_device_id: device_id || 'glitchcube',
@@ -253,10 +253,10 @@ module Services
           conversation_id: result[:conversation_id],
           session_id: result[:session_id]
         }
-        
+
         # Add HA conversation ID if present
         enhanced_result[:ha_conversation_id] = context[:ha_conversation_id] if context[:ha_conversation_id]
-        
+
         enhanced_result
       else
         result

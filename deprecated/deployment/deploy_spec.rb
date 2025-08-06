@@ -35,7 +35,7 @@ RSpec.describe 'Deploy Route' do
         let(:webhook_secret) { 'test-secret' }
         let(:payload) { { ref: 'refs/heads/main' }.to_json }
         let(:signature) do
-          'sha256=' + OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha256'), webhook_secret, payload)
+          "sha256=#{OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new('sha256'), webhook_secret, payload)}"
         end
 
         before do
@@ -47,14 +47,14 @@ RSpec.describe 'Deploy Route' do
         end
 
         it 'accepts valid signature' do
-          post '/deploy', payload, 
+          post '/deploy', payload,
                'CONTENT_TYPE' => 'application/json',
                'HTTP_X_HUB_SIGNATURE_256' => signature
           expect(last_response.status).to eq(202)
         end
 
         it 'rejects invalid signature' do
-          post '/deploy', payload, 
+          post '/deploy', payload,
                'CONTENT_TYPE' => 'application/json',
                'HTTP_X_HUB_SIGNATURE_256' => 'sha256=invalid'
           expect(last_response.status).to eq(401)

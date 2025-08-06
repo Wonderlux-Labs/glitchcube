@@ -7,10 +7,10 @@ RSpec.describe 'Enhanced Character System' do
     it 'buddy gets customer service tools' do
       service = Services::SystemPromptService.new(
         character: 'buddy',
-        context: { available_tools: ['customer_satisfaction_survey', 'technical_support', 'booking_system'] }
+        context: { available_tools: %w[customer_satisfaction_survey technical_support booking_system] }
       )
       prompt = service.generate
-      
+
       expect(prompt).to include('AVAILABLE TOOLS')
       expect(prompt).to include('Customer Satisfaction Survey')
       expect(prompt).to include('Technical Support')
@@ -19,10 +19,10 @@ RSpec.describe 'Enhanced Character System' do
     it 'lomi gets performance and aesthetic tools' do
       service = Services::SystemPromptService.new(
         character: 'lomi',
-        context: { available_tools: ['runway_lighting', 'music_control', 'shade_generator'] }
+        context: { available_tools: %w[runway_lighting music_control shade_generator] }
       )
       prompt = service.generate
-      
+
       expect(prompt).to include('AVAILABLE TOOLS')
       expect(prompt).to include('Runway Lighting')
       expect(prompt).to include('Shade Generator')
@@ -31,10 +31,10 @@ RSpec.describe 'Enhanced Character System' do
     it 'jax gets bartending and music tools' do
       service = Services::SystemPromptService.new(
         character: 'jax',
-        context: { available_tools: ['classic_music_player', 'life_advice_dispenser', 'electronic_music_killer'] }
+        context: { available_tools: %w[classic_music_player life_advice_dispenser electronic_music_killer] }
       )
       prompt = service.generate
-      
+
       expect(prompt).to include('AVAILABLE TOOLS')
       expect(prompt).to include('Classic Music Player')
       expect(prompt).to include('Electronic Music Killer')
@@ -58,7 +58,7 @@ RSpec.describe 'Enhanced Character System' do
     it 'includes environmental context in prompts' do
       service = Services::SystemPromptService.new(character: 'buddy', context: rich_context)
       prompt = service.generate
-      
+
       expect(prompt).to include('CURRENT ENVIRONMENT')
       expect(prompt).to include('Center Camp')
       expect(prompt).to include('95°F')
@@ -69,7 +69,7 @@ RSpec.describe 'Enhanced Character System' do
       # JAX should hate the electronic music context
       service = Services::SystemPromptService.new(character: 'jax', context: rich_context)
       prompt = service.generate
-      
+
       expect(prompt).to include('electronic music (EDM)')
       expect(prompt).to include('Current Mood: energetic')
     end
@@ -81,7 +81,7 @@ RSpec.describe 'Enhanced Character System' do
     it 'buddy focuses on helpful service context' do
       service = Services::SystemPromptService.new(character: 'buddy', context: context)
       prompt = service.generate
-      
+
       expect(prompt).to include('Battery Level: 25%')
       expect(prompt).to include('Party Mode: active')
     end
@@ -89,7 +89,7 @@ RSpec.describe 'Enhanced Character System' do
     it 'zorp focuses on party-related context' do
       service = Services::SystemPromptService.new(character: 'zorp', context: context)
       prompt = service.generate
-      
+
       expect(prompt).to include('Party Mode: active')
     end
   end

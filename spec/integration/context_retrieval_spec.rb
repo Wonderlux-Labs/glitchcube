@@ -133,7 +133,6 @@ RSpec.describe 'Simple RAG Integration', :failing do
 
   describe '#answer_with_context' do
     it 'uses context to answer questions', vcr: { cassette_name: 'rag_with_context' } do
-      
       result = rag.answer_with_context('What are you?')
 
       expect(result).to be_a(Hash)

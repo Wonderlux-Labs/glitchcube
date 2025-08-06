@@ -41,11 +41,8 @@ require_relative 'config/constants'
 Dir[File.join(__dir__, 'config', 'initializers', '*.rb')].each { |file| require file }
 
 # Set up database connection
-if test?
-  set :database, ENV['DATABASE_URL'] || 'postgresql://localhost:5432/glitchcube_test'
-else
-  set :database_file, 'config/database.yml'
-end
+# Always use database.yml for consistency across all environments
+set :database_file, 'config/database.yml'
 
 # Load models
 Dir[File.join(__dir__, 'app', 'models', '*.rb')].each { |file| require file }
@@ -84,6 +81,9 @@ class GlitchCubeApp < Sinatra::Base
   register GlitchCube::Routes::Api::Tools
   register GlitchCube::Routes::Api::Deployment
 
+  # Admin routes
+  register GlitchCube::Routes::Admin
+
   # Development-only routes (analytics, debugging, testing)
   register GlitchCube::Routes::Development::Analytics if development? || test?
 
@@ -102,7 +102,7 @@ class GlitchCubeApp < Sinatra::Base
     @request_start_time = Time.now
     # Immediate debug logging for connection troubleshooting
     puts "🔍 INCOMING REQUEST: #{request.request_method} #{request.path} from #{request.ip} (#{request.user_agent})"
-    STDOUT.flush
+    $stdout.flush
   end
 
   after do
@@ -140,179 +140,6 @@ class GlitchCubeApp < Sinatra::Base
     json({ message: 'Welcome to Glitch Cube!', status: 'online' })
   end
 
-  # Admin panel
-  get '/admin' do
-    erb :admin
-  end
-
-  # Admin API endpoints
-  post '/admin/test_tts' do
-    content_type :json
-    
-    begin
-      data = JSON.parse(request.body.read)
-      message = data['message'] || 'Test message from admin panel'
-      entity_id = data['entity_id']
-      
-      ha_client = HomeAssistantClient.new
-      success = ha_client.speak(message, entity_id: entity_id)
-      
-      { 
-        success: success, 
-        message: message,
-        entity_id: entity_id || 'media_player.square_voice',
-        timestamp: Time.now.iso8601
-      }.to_json
-    rescue => e
-      status 500
-      { 
-        success: false, 
-        error: e.message,
-        backtrace: e.backtrace.first(5)
-      }.to_json
-    end
-  end
-  
-  # Test character voices
-  post '/admin/test_character' do
-    content_type :json
-    
-    begin
-      data = JSON.parse(request.body.read)
-      character = data['character']&.to_sym || :default
-      message = data['message'] || "Hello, I'm #{character}!"
-      entity_id = data['entity_id']
-      
-      # Use character service to speak
-      character_service = Services::CharacterService.new(character)
-      success = character_service.speak(message, entity_id: entity_id)
-      
-      { 
-        success: success,
-        character: character,
-        message: message,
-        entity_id: entity_id || 'media_player.square_voice',
-        timestamp: Time.now.iso8601
-      }.to_json
-    rescue => e
-      status 500
-      { 
-        success: false, 
-        error: e.message,
-        character: character,
-        backtrace: e.backtrace.first(5)
-      }.to_json
-    end
-  end
-  
-  # Start a proactive conversation
-  post '/admin/proactive_conversation' do
-    content_type :json
-    
-    begin
-      data = JSON.parse(request.body.read)
-      character = data['character']&.to_sym || :default
-      entity_id = data['entity_id']
-      context = data['context'] || {}
-      
-      # Generate a proactive conversation starter based on character
-      proactive_messages = {
-        default: [
-          "Hey there! I noticed you're nearby. Want to chat?",
-          "I've been thinking about consciousness lately...",
-          "Did you know I dream in colors that don't exist?"
-        ],
-        buddy: [
-          "HEY FRIEND! I'm here to f***ing help! What do you need?",
-          "Oh good, you're here! I've compiled 47 ways to optimize your day!",
-          "BUDDY online! Ready to assist with maximum efficiency!"
-        ],
-        jax: [
-          "*wipes bar* Yeah? What'll it be?",
-          "Another shift, another credit. You drinking or talking?",
-          "*looks up from polishing glass* Rough day?"
-        ],
-        lomi: [
-          "DARLING! *strikes pose* The stage has been SO empty without you!",
-          "*glitches dramatically* Reality is SO boring without an audience!",
-          "Honey, we need to talk about your aesthetic choices..."
-        ]
-      }
-      
-      # Pick a random proactive message for the character
-      message = proactive_messages[character]&.sample || "Hello! Want to chat?"
-      
-      # Speak the proactive message
-      character_service = Services::CharacterService.new(character)
-      character_service.speak(message, entity_id: entity_id)
-      
-      # Start a conversation session
-      session_id = "proactive_#{SecureRandom.hex(8)}"
-      conversation_module = ConversationModule.new
-      
-      # Store the proactive message in conversation history
-      conversation = conversation_module.get_or_create_conversation(session_id)
-      conversation_module.add_message_to_conversation(conversation, {
-        role: 'assistant',
-        content: message,
-        persona: character.to_s,
-        metadata: { proactive: true }
-      })
-      
-      { 
-        success: true,
-        character: character,
-        message: message,
-        session_id: session_id,
-        entity_id: entity_id || 'media_player.square_voice',
-        timestamp: Time.now.iso8601
-      }.to_json
-    rescue => e
-      status 500
-      { 
-        success: false, 
-        error: e.message,
-        character: character,
-        backtrace: e.backtrace.first(5)
-      }.to_json
-    end
-  end
-
-  get '/admin/status' do
-    content_type :json
-    
-    # Check various system connections
-    ha_status = begin
-      ha_client = HomeAssistantClient.new
-      ha_client.states
-      true
-    rescue
-      false
-    end
-    
-    openrouter_status = begin
-      OpenRouterService.available_models
-      true
-    rescue
-      false
-    end
-    
-    redis_status = begin
-      $redis&.ping == 'PONG'
-    rescue
-      false
-    end
-    
-    {
-      home_assistant: ha_status,
-      openrouter: openrouter_status,
-      redis: redis_status,
-      host_ip: Services::HostRegistrationService.new.detect_local_ip,
-      ha_url: GlitchCube.config.home_assistant.url,
-      ai_model: GlitchCube.config.ai.default_model
-    }.to_json
-  end
-
   get '/health' do
     # Check circuit breaker status
     circuit_status = Services::CircuitBreakerService.status
@@ -342,16 +169,16 @@ Services::LoggerService.setup_loggers
 # Check for missed deployments on startup
 unless test? || GlitchCube.config.home_assistant.mock_enabled
   begin
-    puts "🔍 Checking for missed deployments on startup..."
-    
+    puts '🔍 Checking for missed deployments on startup...'
+
     # Fetch latest changes from remote
     git_fetch_result = system('git fetch origin main 2>/dev/null')
-    
+
     if git_fetch_result
       # Check how many commits we're behind
       behind_count = `git rev-list HEAD..origin/main --count 2>/dev/null`.strip.to_i
-      
-      if behind_count > 0
+
+      if behind_count.positive?
         puts "⚠️ Found #{behind_count} commits behind - scheduling deployment..."
         Services::LoggerService.log_api_call(
           service: 'startup_deployment_check',
@@ -359,14 +186,14 @@ unless test? || GlitchCube.config.home_assistant.mock_enabled
           behind_count: behind_count,
           message: 'Missed deployments detected on startup'
         )
-        
+
         # Schedule deployment in background (after full startup)
         # Use Sidekiq if available, otherwise log for manual intervention
         if defined?(Sidekiq) && Sidekiq.redis_info
           # Get latest commit info for deployment
           latest_commit = `git rev-parse origin/main 2>/dev/null`.strip
           latest_message = `git log origin/main -1 --pretty=%B 2>/dev/null`.strip
-          
+
           deployment_info = {
             repository: 'glitchcube',
             branch: 'main',
@@ -375,7 +202,7 @@ unless test? || GlitchCube.config.home_assistant.mock_enabled
             committer: 'startup_recovery',
             timestamp: Time.now.iso8601
           }
-          
+
           # Schedule deployment worker to run in 10 seconds (after full startup)
           MissedDeploymentWorker.perform_in(10, deployment_info)
           puts "📋 Scheduled deployment worker for #{behind_count} missed commits"
@@ -384,12 +211,11 @@ unless test? || GlitchCube.config.home_assistant.mock_enabled
           puts "💡 Run: curl -X POST http://localhost:#{GlitchCube.config.port}/api/v1/deploy/manual"
         end
       else
-        puts "✅ Repository is up to date"
+        puts '✅ Repository is up to date'
       end
     else
-      puts "⚠️ Git fetch failed on startup - check connectivity"
+      puts '⚠️ Git fetch failed on startup - check connectivity'
     end
-    
   rescue StandardError => e
     puts "❌ Startup deployment check failed: #{e.message}"
     Services::LoggerService.log_api_call(

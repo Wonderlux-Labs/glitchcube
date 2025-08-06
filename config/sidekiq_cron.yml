@@ -16,3 +16,9 @@ host_registration:
   class: "HostRegistrationWorker"
   queue: default
   description: "Register Glitch Cube IP with Home Assistant for dynamic discovery"
+
+personality_memory:
+  cron: "*/30 * * * *"  # Every 30 minutes
+  class: "Jobs::PersonalityMemoryJob"
+  queue: low
+  description: "Extract and store interesting memories from recent conversations"

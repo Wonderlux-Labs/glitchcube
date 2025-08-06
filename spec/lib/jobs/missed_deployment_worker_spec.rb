@@ -4,7 +4,7 @@ require 'spec_helper'
 
 RSpec.describe MissedDeploymentWorker do
   let(:worker) { described_class.new }
-  
+
   let(:deployment_info) do
     {
       'repository' => 'glitchcube',
@@ -26,24 +26,24 @@ RSpec.describe MissedDeploymentWorker do
           { step: 'ha_restart', success: true, message: 'Home Assistant restarted' },
           { step: 'service_restart', success: true, message: 'Services restarted' }
         ]
-        
+
         allow(GlitchCube::Routes::Api::Deployment)
           .to receive(:execute_deployment)
           .and_return(success_results)
-          
+
         allow(Services::LoggerService)
           .to receive(:log_api_call)
 
         result = worker.perform(deployment_info)
-        
+
         expect(result).to eq(success_results)
         expect(Services::LoggerService)
           .to have_received(:log_api_call)
           .with(hash_including(
-            service: 'missed_deployment_worker',
-            success: true,
-            message: 'Missed deployment recovery completed successfully'
-          ))
+                  service: 'missed_deployment_worker',
+                  success: true,
+                  message: 'Missed deployment recovery completed successfully'
+                ))
       end
     end
 
@@ -55,55 +55,55 @@ RSpec.describe MissedDeploymentWorker do
           { step: 'config_sync', success: false, message: 'Configuration sync failed' },
           { step: 'ha_restart', success: false, message: 'Skipped due to config sync failure' }
         ]
-        
+
         allow(GlitchCube::Routes::Api::Deployment)
           .to receive(:execute_deployment)
           .and_return(failed_results)
-          
+
         allow(Services::LoggerService)
           .to receive(:log_api_call)
 
         expect { worker.perform(deployment_info) }
           .to raise_error('Deployment failed at: config_sync, ha_restart')
-          
+
         expect(Services::LoggerService)
           .to have_received(:log_api_call)
           .with(hash_including(
-            service: 'missed_deployment_worker',
-            success: false,
-            failed_steps: ['config_sync', 'ha_restart']
-          ))
+                  service: 'missed_deployment_worker',
+                  success: false,
+                  failed_steps: %w[config_sync ha_restart]
+                ))
       end
     end
 
     context 'when deployment raises exception' do
       it 'logs error and re-raises for Sidekiq retry' do
         error = StandardError.new('Git connection failed')
-        
+
         allow(GlitchCube::Routes::Api::Deployment)
           .to receive(:execute_deployment)
           .and_raise(error)
-          
+
         allow(Services::LoggerService)
           .to receive(:log_api_call)
 
         expect { worker.perform(deployment_info) }
           .to raise_error('Git connection failed')
-          
+
         expect(Services::LoggerService)
           .to have_received(:log_api_call)
           .with(hash_including(
-            service: 'missed_deployment_worker',
-            status: 500,
-            error: 'Git connection failed'
-          ))
+                  service: 'missed_deployment_worker',
+                  status: 500,
+                  error: 'Git connection failed'
+                ))
       end
     end
 
     context 'with minimal deployment info' do
       it 'uses defaults for missing fields' do
         minimal_info = { 'commit_sha' => 'def456' }
-        
+
         allow(GlitchCube::Routes::Api::Deployment)
           .to receive(:execute_deployment) do |deployment_data|
             expect(deployment_data[:repository]).to eq('startup_recovery')
@@ -111,7 +111,7 @@ RSpec.describe MissedDeploymentWorker do
             expect(deployment_data[:commit_sha]).to eq('def456')
             expect(deployment_data[:commit_message]).to eq('Missed deployment recovery on startup')
             expect(deployment_data[:triggered_by]).to eq('missed_deployment_recovery')
-            
+
             [{ step: 'test', success: true, message: 'Test completed' }]
           end
 

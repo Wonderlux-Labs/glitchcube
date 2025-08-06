@@ -84,14 +84,7 @@ webhook:
 api:
 
 # REST Commands for external integrations
-rest_command:
-  # Update external status page (Uptime Kuma)
-  update_status_page:
-    url: "https://status.wlux.casa/api/push/Bf8nrx6ykq?status={{ status }}&msg={{ msg | urlencode }}&ping={{ ping }}"
-    method: GET
-    headers:
-      User-Agent: "Glitch Cube Status Monitor"
-    timeout: 10
+rest_command: !include rest_commands.yaml
 
 # Shell commands for deployment and SSH key management
 shell_command:

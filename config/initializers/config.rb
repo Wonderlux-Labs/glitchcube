@@ -81,6 +81,11 @@ module GlitchCube
           internal_token: ENV.fetch('INTERNAL_DEPLOYMENT_TOKEN', nil)
         ),
 
+        # Self-Healing Error Handler (EXPERIMENTAL)
+        self_healing_mode: ENV.fetch('SELF_HEALING', 'OFF').upcase,
+        self_healing_min_confidence: ENV.fetch('SELF_HEALING_MIN_CONFIDENCE', '0.85').to_f,
+        self_healing_error_threshold: ENV.fetch('SELF_HEALING_ERROR_THRESHOLD', '3').to_i,
+
         # Development/Test
         development?: ENV['RACK_ENV'] == 'development',
         test?: ENV['RACK_ENV'] == 'test',
@@ -97,7 +102,7 @@ module GlitchCube
 
       # Always required for core functionality (except in test)
       errors << 'OPENROUTER_API_KEY is required - please add to .env file' if openrouter_api_key.nil? || openrouter_api_key.empty?
-      
+
       # Required in production
       if production?
         errors << 'SESSION_SECRET should be explicitly set in production' if ENV['SESSION_SECRET'].nil?
@@ -142,6 +147,19 @@ module GlitchCube
 
       # Only attempt connection if we have all required parameters
       true
+    end
+
+    # Self-healing helper methods
+    def self_healing_enabled?
+      self_healing_mode != 'OFF'
+    end
+
+    def self_healing_dry_run?
+      self_healing_mode == 'DRY_RUN'
+    end
+
+    def self_healing_yolo?
+      self_healing_mode == 'YOLO'
     end
 
     # Database safety checks to prevent data loss

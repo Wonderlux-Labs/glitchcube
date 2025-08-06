@@ -24,10 +24,10 @@ module GlitchCube
             if location.nil?
               status 503 # Service Unavailable
               json({
-                error: 'GPS tracking not available',
-                message: 'No GPS data - simulation not running and no Home Assistant connection',
-                timestamp: Time.now.utc.iso8601
-              })
+                     error: 'GPS tracking not available',
+                     message: 'No GPS data - simulation not running and no Home Assistant connection',
+                     timestamp: Time.now.utc.iso8601
+                   })
             else
               # Add proximity data for map reactions
               if location[:lat] && location[:lng]
@@ -56,7 +56,7 @@ module GlitchCube
 
           app.get '/api/v1/gps/home' do
             content_type :json
-            
+
             require_relative '../../cube/settings'
             home_coords = Cube::Settings.home_camp_coordinates
             json(home_coords)
@@ -72,11 +72,11 @@ module GlitchCube
                 history_file = File.expand_path('../../../data/simulation/route_history.json', __dir__)
                 if File.exist?(history_file)
                   history_data = JSON.parse(File.read(history_file))
-                  
+
                   # Format history for display
                   require_relative '../../services/gps_tracking_service'
                   gps_service = Services::GpsTrackingService.new
-                  
+
                   formatted_history = history_data.map do |point|
                     address = gps_service.brc_address_from_coordinates(point['lat'], point['lng'])
                     {
@@ -87,7 +87,7 @@ module GlitchCube
                       destination: point['destination']
                     }
                   end
-                  
+
                   json({ history: formatted_history, total_points: formatted_history.length, mode: 'simulated' })
                 else
                   # No history file yet
@@ -110,7 +110,7 @@ module GlitchCube
                     address: '5:30 & Atwood'
                   }
                 ]
-                
+
                 json({ history: history, total_points: history.length, mode: 'sample' })
               end
             rescue StandardError => e
@@ -147,15 +147,15 @@ module GlitchCube
 
           app.get '/api/v1/gps/landmarks' do
             content_type :json
-            
+
             require_relative '../../utils/burning_man_landmarks'
             landmarks = Utils::BurningManLandmarks.all_landmarks
-            
+
             json({
-              landmarks: landmarks,
-              count: landmarks.length,
-              source: 'Burning Man Innovate GIS Data 2025'
-            })
+                   landmarks: landmarks,
+                   count: landmarks.length,
+                   source: 'Burning Man Innovate GIS Data 2025'
+                 })
           end
         end
       end

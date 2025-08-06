@@ -111,10 +111,10 @@ RSpec.describe Services::SystemPromptService do
         %w[buddy default jax lomi zorp].each do |character_name|
           context "with #{character_name} character" do
             let(:character) { character_name }
-            
+
             it "loads #{character_name} prompt successfully" do
               result = service.generate
-              
+
               expect(result).to be_a(String)
               expect(result.length).to be > 100
               expect(result).to include('CURRENT DATE AND TIME:')

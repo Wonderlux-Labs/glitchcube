@@ -13,11 +13,11 @@ module Services
     class RateLimitError < LLMError; end
     class AuthenticationError < LLMError; end
     class ModelNotFoundError < LLMError; end
-    
+
     DEFAULT_MODEL = 'openrouter/auto'
     DEFAULT_TEMPERATURE = 0.7
     DEFAULT_MAX_TOKENS = 500
-    
+
     class << self
       # Simple completion with system prompt and user message
       def complete(system_prompt:, user_message:, model: nil, **options)
@@ -25,20 +25,20 @@ module Services
           { role: 'system', content: system_prompt },
           { role: 'user', content: user_message }
         ]
-        
+
         complete_with_messages(messages: messages, model: model, **options)
       end
-      
+
       # Completion with full message history
       def complete_with_messages(messages:, model: nil, **options)
         model ||= GlitchCube.config.ai.default_model || DEFAULT_MODEL
-        
+
         # Validate model isn't blacklisted
         validate_model!(model)
-        
+
         # Build request parameters
         params = build_params(messages, model, options)
-        
+
         # Make API call with circuit breaker and retry logic
         response = with_retry_logic(model: model, max_attempts: 3) do
           with_circuit_breaker do
@@ -47,49 +47,47 @@ module Services
             end
           end
         end
-        
+
         # Parse and return response
         parse_response(response, model)
-      rescue => e
+      rescue StandardError => e
         puts "DEBUG: Original error class: #{e.class}" if ENV['DEBUG']
         puts "DEBUG: Original error message: #{e.message}" if ENV['DEBUG']
         puts "DEBUG: Original error backtrace: #{e.backtrace.first(3).join("\n")}" if ENV['DEBUG']
         handle_error(e)
       end
-      
+
       # Get available models (cached)
       def available_models
         @models_cache ||= {}
         cache_key = 'available_models'
-        
+
         # Return cached if fresh (1 hour)
-        if @models_cache[cache_key] && @models_cache[cache_key][:expires_at] > Time.now
-          return @models_cache[cache_key][:data]
-        end
-        
+        return @models_cache[cache_key][:data] if @models_cache[cache_key] && @models_cache[cache_key][:expires_at] > Time.now
+
         # Fetch fresh models
         models = with_circuit_breaker do
           client.models
         end
-        
+
         # Cache the result
         @models_cache[cache_key] = {
           data: models,
           expires_at: Time.now + 3600
         }
-        
+
         models
-      rescue => e
+      rescue StandardError => e
         handle_error(e)
       end
-      
+
       # Clear model cache
       def clear_cache!
         @models_cache = {}
       end
-      
+
       private
-      
+
       def client
         # Configure OpenRouter with proper settings
         if GlitchCube.config.helicone_api_key
@@ -111,11 +109,10 @@ module Services
             config.extra_headers = {}
           end
         end
-        
+
         @client ||= ::OpenRouter::Client.new
       end
-      
-      
+
       def build_params(messages, model, options)
         extras = {
           temperature: options[:temperature] || DEFAULT_TEMPERATURE,
@@ -129,9 +126,7 @@ module Services
         }.compact
 
         # Add structured output support
-        if options[:response_format]
-          extras[:response_format] = options[:response_format]
-        end
+        extras[:response_format] = options[:response_format] if options[:response_format]
 
         # Add tool/function calling support
         if options[:tools]
@@ -140,19 +135,13 @@ module Services
         end
 
         # Add parallel tool calls support (OpenAI models)
-        if options[:parallel_tool_calls] != nil
-          extras[:parallel_tool_calls] = options[:parallel_tool_calls]
-        end
+        extras[:parallel_tool_calls] = options[:parallel_tool_calls] unless options[:parallel_tool_calls].nil?
 
         # Add provider-specific options
-        if options[:provider]
-          extras[:provider] = options[:provider]
-        end
+        extras[:provider] = options[:provider] if options[:provider]
 
         # Add transforms for cost optimization
-        if options[:transforms]
-          extras[:transforms] = options[:transforms]
-        end
+        extras[:transforms] = options[:transforms] if options[:transforms]
 
         {
           messages: messages,
@@ -160,16 +149,16 @@ module Services
           extras: extras
         }
       end
-      
+
       def make_api_call(params)
         start_time = Time.now
-        
+
         # Log the request
         log_api_request(params)
-        
+
         puts "DEBUG: Calling complete with model: #{params[:model]}" if ENV['DEBUG']
         puts "DEBUG: Extras: #{params[:extras].inspect}" if ENV['DEBUG']
-        
+
         # Make the actual API call using the gem's signature:
         # complete(messages, model: 'model', extras: { all other params })
         response = client.complete(
@@ -177,21 +166,21 @@ module Services
           model: params[:model],
           extras: params[:extras]
         )
-        
+
         puts "DEBUG: Response class: #{response.class}" if ENV['DEBUG']
         puts "DEBUG: Response: #{response.inspect[0..500]}" if ENV['DEBUG']
-        
+
         # Log the response
         duration = ((Time.now - start_time) * 1000).round
         log_api_response(response, params[:model], duration)
-        
+
         response
       end
-      
+
       def parse_response(response, model)
         # Safely extract model from response
         response_model = safe_extract(response) { |r| r[:model] || r['model'] } || model
-        
+
         # Return LLMResponse object for cleaner API
         LLMResponse.new(
           raw_response: response,
@@ -201,13 +190,13 @@ module Services
           tool_calls: extract_tool_calls(response)
         )
       end
-      
+
       def extract_content(response)
         safe_extract(response) do |r|
           return r if r.is_a?(String)
-          
+
           # Try standard OpenAI format
-          if r[:choices] && r[:choices].is_a?(Array) && !r[:choices].empty?
+          if r[:choices].is_a?(Array) && !r[:choices].empty?
             choice = r[:choices].first
             if choice.is_a?(Hash)
               safe_dig(choice, :message, :content) || safe_dig(choice, 'message', 'content') || ''
@@ -220,13 +209,13 @@ module Services
           end
         end
       end
-      
+
       def extract_usage(response)
         safe_extract(response) do |r|
           return { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } if r.is_a?(String)
-          
+
           usage = r[:usage] || r['usage'] || {}
-          
+
           {
             prompt_tokens: usage[:prompt_tokens] || usage['prompt_tokens'] || 0,
             completion_tokens: usage[:completion_tokens] || usage['completion_tokens'] || 0,
@@ -234,26 +223,26 @@ module Services
           }
         end
       end
-      
+
       def extract_tool_calls(response)
         safe_extract(response) do |r|
           return nil if r.is_a?(String)
-          return nil unless r[:choices] && r[:choices].is_a?(Array)
-          
+          return nil unless r[:choices].is_a?(Array)
+
           choice = r[:choices].first
-          return nil unless choice && choice.is_a?(Hash)
-          
+          return nil unless choice.is_a?(Hash)
+
           message = choice[:message] || choice['message']
           return nil unless message
-          
+
           tool_calls = message[:tool_calls] || message['tool_calls']
-          return nil unless tool_calls && tool_calls.is_a?(Array)
-          
+          return nil unless tool_calls.is_a?(Array)
+
           # Format tool calls for easier consumption
           tool_calls.map do |tool_call|
             func = tool_call[:function] || tool_call['function']
             next unless func
-            
+
             {
               id: tool_call[:id] || tool_call['id'],
               type: tool_call[:type] || tool_call['type'] || 'function',
@@ -265,40 +254,39 @@ module Services
           end.compact
         end
       end
-      
+
       def validate_model!(model)
         # Check against blacklist if ModelPresets is available
-        if defined?(GlitchCube::ModelPresets)
-          GlitchCube::ModelPresets.validate_model!(model)
-        end
+        return unless defined?(GlitchCube::ModelPresets)
+
+        GlitchCube::ModelPresets.validate_model!(model)
       end
-      
-      def with_circuit_breaker(&block)
-        Services::CircuitBreakerService.openrouter_breaker.call(&block)
+
+      def with_circuit_breaker(&)
+        Services::CircuitBreakerService.openrouter_breaker.call(&)
       rescue CircuitBreaker::CircuitOpenError => e
         raise LLMError, "OpenRouter service temporarily unavailable: #{e.message}"
       end
-      
-      def with_timeout(seconds, &block)
-        Timeout.timeout(seconds, &block)
+
+      def with_timeout(seconds, &)
+        Timeout.timeout(seconds, &)
       rescue Timeout::Error
         raise LLMError, "Request timed out after #{seconds} seconds"
       end
-      
+
       def with_retry_logic(model:, max_attempts: 3)
         attempt = 0
         delay = 1.0
         last_error = nil
-        
+
         begin
           attempt += 1
           puts "🔄 LLM API attempt #{attempt}/#{max_attempts} for model: #{model}" if attempt > 1
-          
+
           result = yield
-          
+
           puts "✅ LLM API call succeeded on attempt #{attempt}" if attempt > 1
           return result
-          
         rescue RateLimitError => e
           last_error = e
           if attempt < max_attempts
@@ -309,12 +297,10 @@ module Services
             delay *= 2
             retry
           end
-          
         rescue AuthenticationError => e
           # Never retry authentication errors
           last_error = e
-          puts "❌ Authentication failed - not retrying"
-          
+          puts '❌ Authentication failed - not retrying'
         rescue LLMError => e
           last_error = e
           if attempt < max_attempts
@@ -323,8 +309,7 @@ module Services
             delay *= 2 # Exponential backoff
             retry
           end
-          
-        rescue => e
+        rescue StandardError => e
           last_error = e
           if attempt < max_attempts
             puts "⏳ Unexpected error - waiting #{delay}s before retry..."
@@ -333,12 +318,12 @@ module Services
             retry
           end
         end
-        
+
         # All retries exhausted
         puts "❌ LLM API failed after #{attempt} attempts"
         raise last_error
       end
-      
+
       def handle_error(error)
         case error
         when ::OpenRouter::ServerError
@@ -355,11 +340,11 @@ module Services
           raise LLMError, "Unexpected error: #{error_message}"
         end
       end
-      
+
       def handle_openrouter_error(error)
         # OpenRouter::ServerError may be raised with just a string message
         error_msg = error.respond_to?(:message) ? error.message : error.to_s
-        
+
         if error_msg.include?('rate limit')
           raise RateLimitError, error_msg
         elsif error_msg.include?('model not found')
@@ -368,10 +353,10 @@ module Services
           raise LLMError, "OpenRouter error: #{error_msg}"
         end
       end
-      
+
       def handle_client_error(error)
         return unless error.response
-        
+
         status = error.response[:status]
         case status
         when 402
@@ -384,7 +369,7 @@ module Services
           raise LLMError, "API error (#{status}): #{error.message}"
         end
       end
-      
+
       def log_api_request(params)
         Services::LoggerService.log_api_call(
           service: 'openrouter',
@@ -396,11 +381,11 @@ module Services
           max_tokens: params[:extras][:max_tokens]
         )
       end
-      
+
       def log_api_response(response, model, duration)
         usage = extract_usage(response)
         content = extract_content(response)
-        
+
         Services::LoggerService.log_api_call(
           service: 'openrouter',
           endpoint: '/chat/completions',
@@ -412,7 +397,7 @@ module Services
           response_length: content.to_s.length
         )
       end
-      
+
       # Safe extraction helper that handles any response type
       def safe_extract(response)
         # If it's already a hash-like object, use it
@@ -431,36 +416,36 @@ module Services
           # For any other type, convert to string and yield
           yield(response.to_s)
         end
-      rescue => e
+      rescue StandardError => e
         # If anything goes wrong, return empty string
         Rails.logger.error "Failed to extract from response: #{e.message}" if defined?(Rails)
         ''
       end
-      
+
       # Safe dig that works with both symbol and string keys
       def safe_dig(hash, *keys)
         return nil unless hash.respond_to?(:dig)
-        
+
         # Try with the keys as given
         result = hash.dig(*keys)
         return result if result
-        
+
         # If keys are symbols, try with strings
         if keys.all? { |k| k.is_a?(Symbol) }
           string_keys = keys.map(&:to_s)
           result = hash.dig(*string_keys)
           return result if result
         end
-        
+
         # If keys are strings, try with symbols
         if keys.all? { |k| k.is_a?(String) }
           symbol_keys = keys.map(&:to_sym)
           result = hash.dig(*symbol_keys)
           return result if result
         end
-        
+
         nil
-      rescue
+      rescue StandardError
         nil
       end
     end

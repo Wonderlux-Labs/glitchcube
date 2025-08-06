@@ -15,9 +15,9 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
     context 'in test environment' do
       it 'registers analytics routes', :pending do
         expect(app.routes['GET']).to include(
-          /^\/api\/v1\/logs\/errors$/,
-          /^\/api\/v1\/logs\/circuit_breakers$/,
-          /^\/api\/v1\/analytics\/conversations$/
+          %r{^/api/v1/logs/errors$},
+          %r{^/api/v1/logs/circuit_breakers$},
+          %r{^/api/v1/analytics/conversations$}
         )
       end
     end
@@ -28,8 +28,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
     let(:error_stats) { [{ error: 'Connection timeout', count: 3 }] }
 
     before do
-      allow(Services::LoggerService).to receive(:error_summary).and_return(error_summary)
-      allow(Services::LoggerService).to receive(:error_stats).and_return(error_stats)
+      allow(Services::LoggerService).to receive_messages(error_summary: error_summary, error_stats: error_stats)
     end
 
     it 'returns error statistics' do
@@ -63,9 +62,9 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
 
       body = JSON.parse(last_response.body)
       expect(body['circuit_breakers']).to eq([
-        { 'name' => 'openrouter', 'state' => 'closed', 'failure_count' => 0 },
-        { 'name' => 'home_assistant', 'state' => 'open', 'failure_count' => 5 }
-      ])
+                                               { 'name' => 'openrouter', 'state' => 'closed', 'failure_count' => 0 },
+                                               { 'name' => 'home_assistant', 'state' => 'open', 'failure_count' => 5 }
+                                             ])
       expect(body['actions']['reset_all']).to eq('/api/v1/logs/circuit_breakers/reset')
       expect(body['actions']['reset_single']).to eq('/api/v1/logs/circuit_breakers/:name/reset')
     end
@@ -176,7 +175,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
 
   describe 'GET /api/v1/analytics/modules/:module_name' do
     let(:module_analytics) do
-      { 
+      {
         total_calls: 50,
         average_response_time: 1.2,
         success_rate: 0.95

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateConversations < ActiveRecord::Migration[7.2]
   def change
     create_table :conversations do |t|
@@ -10,10 +12,10 @@ class CreateConversations < ActiveRecord::Migration[7.2]
       t.jsonb :metadata, default: {}
       t.datetime :started_at
       t.datetime :ended_at
-      
+
       t.timestamps
     end
-    
+
     add_index :conversations, :session_id
     add_index :conversations, :started_at
     add_index :conversations, :persona

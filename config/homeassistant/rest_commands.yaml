@@ -1,38 +1,47 @@
-# REST commands for GitHub deployment automation
-rest_command:
-  trigger_glitchcube_deployment:
-    url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/internal"
-    method: POST
-    headers:
-      Content-Type: "application/json"
-    payload: >
-      {
-        "repository": "{{ repository }}",
-        "branch": "{{ branch }}",
-        "commit_sha": "{{ commit_sha }}",
-        "commit_message": "{{ commit_message }}",
-        "committer": "{{ committer }}",
-        "timestamp": "{{ now().isoformat() }}"
-      }
-    timeout: 60
-    
-  check_deployment_status:
-    url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/status"
-    method: GET
-    timeout: 10
-    
-  manual_glitchcube_deployment:
-    url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/internal"
-    method: POST
-    headers:
-      Content-Type: "application/json"
-    payload: >
-      {
-        "repository": "manual deployment",
-        "branch": "main",
-        "commit_sha": "manual",
-        "commit_message": "{{ message | default('Manual deployment from Home Assistant') }}",
-        "committer": "{{ committer | default('Home Assistant') }}",
-        "timestamp": "{{ now().isoformat() }}"
-      }
-    timeout: 60
+# REST commands for external integrations
+
+# Update external status page (Uptime Kuma)
+update_status_page:
+  url: "https://status.wlux.casa/api/push/Bf8nrx6ykq?status={{ status }}&msg={{ msg | urlencode }}&ping={{ ping }}"
+  method: GET
+  headers:
+    User-Agent: "Glitch Cube Status Monitor"
+  timeout: 10
+
+# GitHub deployment automation
+trigger_glitchcube_deployment:
+  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/internal"
+  method: POST
+  headers:
+    Content-Type: "application/json"
+  payload: >
+    {
+      "repository": "{{ repository }}",
+      "branch": "{{ branch }}",
+      "commit_sha": "{{ commit_sha }}",
+      "commit_message": "{{ commit_message }}",
+      "committer": "{{ committer }}",
+      "timestamp": "{{ now().isoformat() }}"
+    }
+  timeout: 60
+  
+check_deployment_status:
+  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/status"
+  method: GET
+  timeout: 10
+  
+manual_glitchcube_deployment:
+  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/internal"
+  method: POST
+  headers:
+    Content-Type: "application/json"
+  payload: >
+    {
+      "repository": "manual deployment",
+      "branch": "main",
+      "commit_sha": "manual",
+      "commit_message": "{{ message | default('Manual deployment from Home Assistant') }}",
+      "committer": "{{ committer | default('Home Assistant') }}",
+      "timestamp": "{{ now().isoformat() }}"
+    }
+  timeout: 60

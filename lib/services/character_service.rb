@@ -21,81 +21,81 @@ module Services
           humor: :playful
         }
       },
-      
+
       buddy: {
         name: 'BUDDY',
         description: 'The Helper Cube - Naive assistant with broken profanity filter',
         tts_provider: :cloud,
-        voice_id: 'DavisNeural',  # Upbeat male voice
+        voice_id: 'DavisNeural', # Upbeat male voice
         voice_name: :davis,
         mood: :excited,
-        speed: 110,  # Speaks fast with enthusiasm
+        speed: 110, # Speaks fast with enthusiasm
         volume: 0.8,
         personality_traits: {
           energy: :high,
-          formality: :corporate_casual,  # Mix of formal and profanity
+          formality: :corporate_casual, # Mix of formal and profanity
           humor: :unintentional
         },
-        voice_style: 'excited',  # Azure style variant
-        chime: 'notification'  # Helper notification sounds
+        voice_style: 'excited', # Azure style variant
+        chime: 'notification' # Helper notification sounds
       },
-      
+
       jax: {
         name: 'Jax the Juke',
         description: 'Surly bartender persona from asteroid belt dive bar',
         tts_provider: :cloud,
-        voice_id: 'GuyNeural',  # Gruff male voice
+        voice_id: 'GuyNeural', # Gruff male voice
         voice_name: :guy,
-        mood: :neutral,  # Grumpy but not using angry style
-        speed: 95,  # Slower, deliberate speech
-        volume: 0.6,  # Quieter, bar atmosphere
+        mood: :neutral, # Grumpy but not using angry style
+        speed: 95, # Slower, deliberate speech
+        volume: 0.6, # Quieter, bar atmosphere
         personality_traits: {
           energy: :low,
           formality: :street,
           humor: :sarcastic
         },
-        voice_style: nil,  # No style modifier for gruffness
-        alternate_provider: :piper,  # For that analog warmth
-        alternate_voice: 'en_US-lessac-medium'  # Deeper Piper voice
+        voice_style: nil, # No style modifier for gruffness
+        alternate_provider: :piper, # For that analog warmth
+        alternate_voice: 'en_US-lessac-medium' # Deeper Piper voice
       },
-      
+
       lomi: {
         name: 'LOMI (The Glitch Bitch)',
         description: 'Glitchy cosmic drag queen diva trapped in cube',
         tts_provider: :cloud,
-        voice_id: 'AriaNeural',  # Dramatic female voice
+        voice_id: 'AriaNeural', # Dramatic female voice
         voice_name: :aria,
-        mood: :excited,  # Default fierce energy
+        mood: :excited, # Default fierce energy
         speed: 105,
-        volume: 0.9,  # LOUD and proud
+        volume: 0.9, # LOUD and proud
         personality_traits: {
           energy: :extreme,
           formality: :theatrical,
           humor: :shade
         },
-        voice_style: 'excited',  # Dramatic delivery
-        glitch_effects: true,  # Special processing for glitches
-        chime: 'runway'  # Ballroom/runway sounds
+        voice_style: 'excited', # Dramatic delivery
+        glitch_effects: true, # Special processing for glitches
+        chime: 'runway' # Ballroom/runway sounds
       },
-      
+
       zorp: {
         name: 'ZORP',
         description: 'The Slacker God - Divine party bro',
         tts_provider: :cloud,
-        voice_id: 'DavisNeural',  # Laid-back male voice
+        voice_id: 'DavisNeural', # Laid-back male voice
         voice_name: :davis,
         mood: :friendly,
-        speed: 90,  # Slow, drawn-out delivery
+        speed: 90, # Slow, drawn-out delivery
         volume: 0.7,
         personality_traits: {
           energy: :chill,
           formality: :bro,
           humor: :cosmic
         },
-        voice_style: 'friendly',  # Casual, approachable
-        reverb: true,  # Divine echo effects
-        alternate_provider: :elevenlabs,  # For premium chill vibes
-        alternate_voice: 'Josh'  # ElevenLabs surfer voice
+        voice_style: 'friendly', # Casual, approachable
+        reverb: true, # Divine echo effects
+        alternate_provider: :elevenlabs, # For premium chill vibes
+        alternate_voice: 'Josh' # ElevenLabs surfer voice
       }
     }.freeze
 
@@ -142,12 +142,10 @@ module Services
     # Speak as the character with optional context
     def speak(message, context: nil, **options)
       config = build_voice_config(context, options)
-      
+
       # Apply glitch effects for LOMI
-      if @character == :lomi && @character_config[:glitch_effects]
-        message = apply_glitch_effects(message)
-      end
-      
+      message = apply_glitch_effects(message) if @character == :lomi && @character_config[:glitch_effects]
+
       @tts_service.speak(
         message,
         **config
@@ -157,10 +155,10 @@ module Services
     # Generate an audio file for the message (for Sinatra endpoints)
     def speak_file(message, context: nil, format: :mp3, **options)
       config = build_voice_config(context, options)
-      
+
       # Apply character-specific text modifications
       message = process_message_for_character(message)
-      
+
       # Use the TTS service to generate the audio file
       @tts_service.speak_file(
         message,
@@ -219,31 +217,31 @@ module Services
 
       # Add voice style if configured
       config[:style] = @character_config[:voice_style] if @character_config[:voice_style]
-      
+
       # Add chime if configured
       config[:chime] = @character_config[:chime] if @character_config[:chime]
-      
+
       # Use alternate provider if specified in options
       if options[:use_alternate] && @character_config[:alternate_provider]
         config[:provider] = @character_config[:alternate_provider]
         config[:voice] = @character_config[:alternate_voice]
       end
-      
+
       # Merge any additional options
       config.merge!(options.except(:use_alternate, :context))
-      
+
       config
     end
 
     def determine_mood(context)
       return @character_config[:mood] unless context
-      
+
       # Check for contextual mood overrides
       if CONTEXTUAL_MOODS[@character]
         context_key = context.to_sym
         return CONTEXTUAL_MOODS[@character][context_key] if CONTEXTUAL_MOODS[@character][context_key]
       end
-      
+
       @character_config[:mood]
     end
 
@@ -261,31 +259,31 @@ module Services
         # Already handled in apply_glitch_effects
       when :jax
         # Add occasional grumbles
-        message += " *grumbles*" if rand > 0.8
+        message += ' *grumbles*' if rand > 0.8
       when :zorp
         # Add "like" randomly
         if rand > 0.7
           words = message.split
           insert_index = rand(1...[words.length, 1].max)
-          words.insert(insert_index, "like,")
+          words.insert(insert_index, 'like,')
           message = words.join(' ')
         end
       end
-      
+
       message
     end
 
     def apply_glitch_effects(message)
       # Add digital stutters for LOMI
       return message unless rand > 0.5
-      
+
       words = message.split
       glitch_count = rand(1..3)
-      
+
       glitch_count.times do
         index = rand(words.length)
         word = words[index]
-        
+
         # Different glitch types
         case rand(3)
         when 0  # Stutter
@@ -296,7 +294,7 @@ module Services
           words[index] = "#{word[0..2]}-ERROR-#{word}"
         end
       end
-      
+
       words.join(' ')
     end
   end

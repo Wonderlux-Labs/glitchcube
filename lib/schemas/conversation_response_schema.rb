@@ -20,7 +20,7 @@ module GlitchCube
             },
             mood: {
               type: 'string',
-              enum: ['playful', 'contemplative', 'mysterious', 'neutral', 'curious', 'excited'],
+              enum: %w[playful contemplative mysterious neutral curious excited],
               description: 'Current emotional state of the Glitch Cube'
             },
             actions: {
@@ -34,7 +34,7 @@ module GlitchCube
                   data: { type: 'object' },
                   target: { type: 'object' }
                 },
-                required: ['domain', 'service']
+                required: %w[domain service]
               }
             },
             lighting: {
@@ -51,7 +51,7 @@ module GlitchCube
                 },
                 effect: {
                   type: 'string',
-                  enum: ['solid', 'pulse', 'rainbow', 'glitch', 'fade']
+                  enum: %w[solid pulse rainbow glitch fade]
                 },
                 brightness: { type: 'integer', minimum: 0, maximum: 100 }
               }
@@ -70,13 +70,13 @@ module GlitchCube
               properties: {
                 type: {
                   type: 'string',
-                  enum: ['move', 'charge', 'rotate', 'attention', 'help']
+                  enum: %w[move charge rotate attention help]
                 },
                 details: { type: 'string' }
               }
             }
           },
-          required: ['response', 'continue_conversation'],
+          required: %w[response continue_conversation],
           additionalProperties: false
         }
       end
@@ -95,7 +95,7 @@ module GlitchCube
               description: 'Whether to continue the conversation'
             }
           },
-          required: ['response', 'continue_conversation'],
+          required: %w[response continue_conversation],
           additionalProperties: false
         }
       end
@@ -127,14 +127,14 @@ module GlitchCube
                       name: { type: 'string' },
                       arguments: { type: 'string' }
                     },
-                    required: ['name', 'arguments']
+                    required: %w[name arguments]
                   }
                 },
-                required: ['id', 'type', 'function']
+                required: %w[id type function]
               }
             }
           },
-          required: ['response', 'continue_conversation'],
+          required: %w[response continue_conversation],
           additionalProperties: false
         }
       end
@@ -170,7 +170,7 @@ module GlitchCube
               description: 'Suggested way to interact based on what I see'
             }
           },
-          required: ['response', 'continue_conversation'],
+          required: %w[response continue_conversation],
           additionalProperties: false
         }
       end

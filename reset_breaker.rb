@@ -1,4 +1,6 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 require_relative 'config/initializers/config'
 require_relative 'lib/services/circuit_breaker_service'
 

@@ -50,6 +50,14 @@ Metrics/BlockLength:
     - 'spec/**/*'
     - 'config/**/*'
     - 'app.rb'
+    - 'Rakefile'
+    - 'db/migrations/**/*'
+    - 'db/schema.rb'
+    - 'deprecated/**/*'
+    - 'discover_tts_voices.rb'
+    - 'lib/routes/**/*'
+    - 'lib/services/gps_tracking_service.rb'
+    - 'lib/tasks/**/*'
 
 Metrics/ModuleLength:
   Max: 150

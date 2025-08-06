@@ -41,10 +41,10 @@ desc 'Console (alternate method using IRB)'
 task :c do
   require 'irb'
   require './app'
-  
+
   # Load all lib files
   Dir[File.join(__dir__, 'lib/**/*.rb')].each { |f| require f }
-  
+
   # Start IRB
   ARGV.clear
   IRB.start
@@ -53,61 +53,62 @@ end
 desc 'Show all routes'
 task :routes do
   require_relative 'app'
-  
+
   puts "\n🎲 Glitch Cube Routes"
-  puts "===================="
-  
+  puts '===================='
+
   routes = []
-  
+
   # Helper to check if a route renders a view
   def check_for_view(file, line)
     return nil unless file && File.exist?(file)
-    
+
     # Read a few lines around the route handler
     lines = File.readlines(file)
     start_line = [line - 1, 0].max
     end_line = [line + 20, lines.length].min
-    
+
     # Look for erb/haml/slim render calls in the handler
     handler_code = lines[start_line...end_line].join
-    
-    if handler_code =~ /erb\s*[(:]\s*[:'](\w+)/
-      return "erb: #{$1}"
-    elsif handler_code =~ /haml\s*[(:]\s*[:'](\w+)/
-      return "haml: #{$1}"
-    elsif handler_code =~ /slim\s*[(:]\s*[:'](\w+)/
-      return "slim: #{$1}"
-    elsif handler_code =~ /render\s+['"]([^'"]+)['"]/
-      return "render: #{$1}"
+
+    case handler_code
+    when /erb\s*[(:]\s*[:'](\w+)/
+      return "erb: #{Regexp.last_match(1)}"
+    when /haml\s*[(:]\s*[:'](\w+)/
+      return "haml: #{Regexp.last_match(1)}"
+    when /slim\s*[(:]\s*[:'](\w+)/
+      return "slim: #{Regexp.last_match(1)}"
+    when /render\s+['"]([^'"]+)['"]/
+      return "render: #{Regexp.last_match(1)}"
     end
-    
+
     nil
   end
-  
+
   # Get routes from the main app
   GlitchCubeApp.routes.each do |method, method_routes|
     method_routes.each do |route|
       pattern = route[0]
       # Route structure: [pattern, keys, conditions, block]
       block = route[3]
-      
+
       # Clean up the pattern
       path = pattern.to_s
-      path = path.gsub(/^\(\?\-mix:/, '') # Remove regex prefix
+      path = path.gsub(/^\(\?-mix:/, '') # Remove regex prefix
       path = path.gsub(/\)$/, '')          # Remove closing paren
       path = path.gsub(/\$$/, '')          # Remove end anchor
-      path = path.gsub(/\^/, '')           # Remove start anchor
-      path = path.gsub(/\\/, '')           # Remove escape chars
-      
+      path = path.gsub('^', '') # Remove start anchor
+      path = path.gsub('\\', '') # Remove escape chars
+
       handler_info = 'inline'
       view_info = nil
-      
-      if block && block.source_location
+
+      if block&.source_location
         file, line = block.source_location
         handler_info = "#{file}:#{line}"
         view_info = check_for_view(file, line)
       end
-      
+
       routes << {
         method: method.upcase,
         path: path.empty? ? '/' : path,
@@ -116,26 +117,26 @@ task :routes do
       }
     end
   end
-  
+
   # Sort routes by path then method
   routes.sort_by! { |r| [r[:path], r[:method]] }
-  
+
   # Calculate column widths
   method_width = routes.map { |r| r[:method].length }.max + 2
   path_width = routes.map { |r| r[:path].length }.max + 2
   handler_width = routes.map { |r| r[:handler].length }.max + 2
-  
+
   # Print header
   puts "\n#{' METHOD'.ljust(method_width)} #{'PATH'.ljust(path_width)} #{'HANDLER'.ljust(handler_width)} VIEW"
-  puts "-" * (method_width + path_width + handler_width + 20)
-  
+  puts '-' * (method_width + path_width + handler_width + 20)
+
   # Print routes
   routes.each do |route|
     line = "#{route[:method].ljust(method_width)} #{route[:path].ljust(path_width)} #{route[:handler].ljust(handler_width)}"
     line += " 📄 #{route[:view]}" if route[:view]
     puts line
   end
-  
+
   puts "\nTotal routes: #{routes.size}"
   puts "Routes with views: #{routes.count { |r| r[:view] }}"
 end

@@ -16,7 +16,7 @@ class FaradayLogger < Faraday::Middleware
     puts "URL: #{env.url}"
     puts "Headers: #{env.request_headers.select { |k, _| k.downcase.include?('content') || k.downcase.include?('auth') }.inspect}"
     puts "Body (first 500): #{env.body.to_s[0..500]}"
-    
+
     @app.call(env).on_complete do |response_env|
       puts "\n=== RESPONSE ==="
       puts "Status: #{response_env.status}"
@@ -31,7 +31,7 @@ end
 module OpenRouter
   class Client
     def connection
-      @connection ||= Faraday.new(url: uri_base || "https://openrouter.ai/api/v1") do |f|
+      @connection ||= Faraday.new(url: uri_base || 'https://openrouter.ai/api/v1') do |f|
         f.use FaradayLogger
         f.request :json
         f.response :json
@@ -41,20 +41,20 @@ module OpenRouter
   end
 end
 
-client = OpenRouter::Client.new(access_token: ENV['OPENROUTER_API_KEY'])
+client = OpenRouter::Client.new(access_token: ENV.fetch('OPENROUTER_API_KEY', nil))
 
 schema = {
-  type: "json_schema",
+  type: 'json_schema',
   json_schema: {
-    name: "response",
+    name: 'response',
     strict: true,
     schema: {
-      type: "object",
+      type: 'object',
       properties: {
-        response: { type: "string" },
-        continue_conversation: { type: "boolean" }
+        response: { type: 'string' },
+        continue_conversation: { type: 'boolean' }
       },
-      required: ["response", "continue_conversation"],
+      required: %w[response continue_conversation],
       additionalProperties: false
     }
   }
@@ -70,10 +70,10 @@ begin
       max_tokens: 150
     }
   )
-  
+
   puts "\n=== FINAL ==="
   puts "Success! Response: #{response.dig('choices', 0, 'message', 'content')}"
-rescue => e
+rescue StandardError => e
   puts "\n=== ERROR ==="
   puts "Error: #{e.class} - #{e.message}"
   puts e.backtrace.first(5)

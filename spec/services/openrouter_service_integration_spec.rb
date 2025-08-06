@@ -21,16 +21,14 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
     described_class.instance_variable_set(:@client, nil)
     described_class.instance_variable_set(:@request_handler, nil)
     described_class.clear_cache!
-    
+
     # Create a fresh mock for each test to avoid RSpec double leakage
     @mock_client = instance_double(OpenRouter::Client)
     allow(OpenRouter::Client).to receive(:new).and_return(@mock_client)
   end
-  
+
   # Use @mock_client instead of mock_client method
-  def mock_client
-    @mock_client
-  end
+  attr_reader :mock_client
 
   describe 'blacklist validation' do
     it 'prevents using expensive models' do

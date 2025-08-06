@@ -49,49 +49,49 @@ module Cube
       end
 
       def session_secret
-        ENV['SESSION_SECRET']
+        ENV.fetch('SESSION_SECRET', nil)
       end
 
       # API Keys and Tokens
       def openrouter_api_key
-        ENV['OPENROUTER_API_KEY']
+        ENV.fetch('OPENROUTER_API_KEY', nil)
       end
 
       def openai_api_key
-        ENV['OPENAI_API_KEY']
+        ENV.fetch('OPENAI_API_KEY', nil)
       end
 
       def anthropic_api_key
-        ENV['ANTHROPIC_API_KEY']
+        ENV.fetch('ANTHROPIC_API_KEY', nil)
       end
 
       def helicone_api_key
-        ENV['HELICONE_API_KEY']
+        ENV.fetch('HELICONE_API_KEY', nil)
       end
 
       def home_assistant_token
-        ENV['HOME_ASSISTANT_TOKEN'] || ENV['HA_TOKEN']
+        ENV['HOME_ASSISTANT_TOKEN'] || ENV.fetch('HA_TOKEN', nil)
       end
 
       def github_webhook_secret
-        ENV['GITHUB_WEBHOOK_SECRET']
+        ENV.fetch('GITHUB_WEBHOOK_SECRET', nil)
       end
 
       def beacon_token
-        ENV['BEACON_TOKEN']
+        ENV.fetch('BEACON_TOKEN', nil)
       end
 
       def master_password
-        ENV['MASTER_PASSWORD']
+        ENV.fetch('MASTER_PASSWORD', nil)
       end
 
       # URLs and Endpoints
       def home_assistant_url
-        ENV['HOME_ASSISTANT_URL'] || ENV['HA_URL']
+        ENV['HOME_ASSISTANT_URL'] || ENV.fetch('HA_URL', nil)
       end
 
       def beacon_url
-        ENV['BEACON_URL']
+        ENV.fetch('BEACON_URL', nil)
       end
 
       def database_url
@@ -99,11 +99,11 @@ module Cube
       end
 
       def redis_url
-        ENV['REDIS_URL']
+        ENV.fetch('REDIS_URL', nil)
       end
 
       def ai_gateway_url
-        ENV['AI_GATEWAY_URL']
+        ENV.fetch('AI_GATEWAY_URL', nil)
       end
 
       def beacon_enabled?
@@ -117,6 +117,7 @@ module Cube
         return :sqlite if db_url.start_with?('sqlite')
         return :mariadb if db_url.include?('mysql') || db_url.include?('mariadb')
         return :postgres if db_url.include?('postgres')
+
         :sqlite # default
       end
 
@@ -135,37 +136,44 @@ module Cube
       # MariaDB specific settings (only relevant when using MariaDB)
       def mariadb_host
         return nil unless using_mariadb?
+
         ENV.fetch('MARIADB_HOST', 'localhost')
       end
 
       def mariadb_port
         return nil unless using_mariadb?
+
         ENV.fetch('MARIADB_PORT', '3306').to_i
       end
 
       def mariadb_database
         return nil unless using_mariadb?
+
         ENV.fetch('MARIADB_DATABASE', 'glitchcube')
       end
 
       def mariadb_username
         return nil unless using_mariadb?
+
         ENV.fetch('MARIADB_USERNAME', 'glitchcube')
       end
 
       def mariadb_password
         return nil unless using_mariadb?
+
         ENV.fetch('MARIADB_PASSWORD', 'glitchcube')
       end
 
       def mariadb_url
         return nil unless using_mariadb?
+
         "mysql2://#{mariadb_username}:#{mariadb_password}@#{mariadb_host}:#{mariadb_port}/#{mariadb_database}"
       end
 
       # SQLite specific settings
       def sqlite_path
         return nil unless using_sqlite?
+
         # Extract path from sqlite:// URL
         url = database_url
         url.sub('sqlite://', '')
@@ -219,16 +227,16 @@ module Cube
         # Calculate coordinates based on BRC address
         time_str = home_camp_time
         street = home_camp_street
-        
+
         # Convert time to angle (2:00 = 30°, 3:00 = 60°, etc.)
         time_parts = time_str.split(':')
         hour = time_parts[0].to_i
-        minute = time_parts[1]&.to_i || 0
-        
+        minute = time_parts[1].to_i
+
         # BRC is rotated ~30° from north, 2:00 points roughly east
         angle_degrees = (hour * 30) + (minute * 0.5) - 60 # Offset for BRC orientation
         angle_radians = angle_degrees * Math::PI / 180
-        
+
         # Distance from center based on street (rough approximation)
         street_distances = {
           'Esplanade' => 0.002,
@@ -236,17 +244,17 @@ module Cube
           'E' => 0.007, 'F' => 0.008, 'G' => 0.009, 'H' => 0.010,
           'I' => 0.011, 'J' => 0.012, 'K' => 0.013, 'L' => 0.014
         }
-        
+
         distance = street_distances[street] || 0.008 # Default to F street distance
-        
+
         # Center Camp coordinates
         center_lat = 40.786958
         center_lng = -119.202994
-        
+
         # Calculate home coordinates
         home_lat = center_lat + (distance * Math.sin(angle_radians))
         home_lng = center_lng + (distance * Math.cos(angle_radians))
-        
+
         { lat: home_lat, lng: home_lng, address: "#{time_str} & #{street}" }
       end
 
@@ -275,6 +283,7 @@ module Cube
       def default_log_level
         return 'DEBUG' if development?
         return 'WARN' if test?
+
         'INFO'
       end
 
@@ -283,6 +292,7 @@ module Cube
         return :mac_mini if mac_mini_deployment?
         return :docker if docker_deployment?
         return :production if production?
+
         :development
       end
 
@@ -298,9 +308,9 @@ module Cube
         errors << 'HOME_ASSISTANT_TOKEN is required' if home_assistant_token.nil? || home_assistant_token.empty?
         errors << 'HOME_ASSISTANT_URL is required' if home_assistant_url.nil? || home_assistant_url.empty?
 
-        unless errors.empty?
-          raise "Production configuration errors:\n#{errors.join("\n")}"
-        end
+        return if errors.empty?
+
+        raise "Production configuration errors:\n#{errors.join("\n")}"
       end
 
       # Override mechanism for testing
@@ -322,11 +332,13 @@ module Cube
 
       def env_true?(key)
         return @overrides[key.downcase.to_sym] if overridden?(key.downcase.to_sym)
+
         ENV[key] == 'true'
       end
 
       def env_value(key, default = nil)
         return @overrides[key.downcase.to_sym] if overridden?(key.downcase.to_sym)
+
         ENV.fetch(key, default)
       end
     end

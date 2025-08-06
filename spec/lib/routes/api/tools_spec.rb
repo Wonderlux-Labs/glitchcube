@@ -16,8 +16,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
 
   before do
     allow(Services::ConversationHandlerService).to receive(:new).and_return(conversation_handler_service)
-    allow(conversation_handler_service).to receive(:tool_agent).and_return(tool_agent)
-    allow(conversation_handler_service).to receive(:home_assistant_agent).and_return(ha_agent)
+    allow(conversation_handler_service).to receive_messages(tool_agent: tool_agent, home_assistant_agent: ha_agent)
   end
 
   describe 'POST /api/v1/tool_test' do
@@ -59,7 +58,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
 
     it 'passes custom messages to tool agent' do
       custom_message = 'What is the current temperature and humidity?'
-      
+
       post '/api/v1/tool_test',
            { message: custom_message }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -89,7 +88,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
       backtrace = (1..10).map { |i| "line #{i}" }
       error = StandardError.new('Test error')
       allow(error).to receive(:backtrace).and_return(backtrace)
-      
+
       allow(tool_agent).to receive(:call).and_raise(error)
 
       post '/api/v1/tool_test',
@@ -141,7 +140,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
 
     it 'handles sensor status requests' do
       sensor_message = 'What are all the current sensor readings?'
-      
+
       post '/api/v1/home_assistant',
            { message: sensor_message }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -153,7 +152,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
 
     it 'handles device control requests' do
       control_message = 'Turn the RGB light to red and increase brightness to 80%'
-      
+
       post '/api/v1/home_assistant',
            { message: control_message }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -180,7 +179,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
 
     it 'can handle multiple simultaneous requests' do
       complex_message = 'Check battery level, if below 20% turn light red and speak a low battery warning, otherwise turn light green'
-      
+
       post '/api/v1/home_assistant',
            { message: complex_message }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }

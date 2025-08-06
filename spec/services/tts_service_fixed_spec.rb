@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 require_relative '../../lib/services/tts_service'
 
@@ -69,9 +71,9 @@ RSpec.describe Services::TTSService do
           .with('tts', 'google_translate_say', anything)
 
         # Capture output to verify error message
-        expect {
+        expect do
           tts_service.speak('Test message')
-        }.to output(/TTS completely failed/).to_stdout
+        end.to output(/TTS completely failed/).to_stdout
 
         # Method should return false on failure
         expect(tts_service.speak('Test message')).to be false

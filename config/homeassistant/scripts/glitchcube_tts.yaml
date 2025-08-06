@@ -1,0 +1,42 @@
+glitchcube_tts:
+  alias: "GlitchCube TTS"
+  description: "Text-to-speech for GlitchCube with mood support"
+  fields:
+    message:
+      description: "Message to speak"
+      required: true
+      example: "Hello, I am the Glitch Cube"
+    voice:
+      description: "Voice to use (with optional variant like JennyNeural||cheerful)"
+      required: false
+      default: "JennyNeural"
+      example: "JennyNeural||cheerful"
+    media_player:
+      description: "Media player entity to use"
+      required: false
+      default: "media_player.square_voice"
+      example: "media_player.square_voice"
+    language:
+      description: "Language code"
+      required: false
+      default: "en-US"
+      example: "en-US"
+    cache:
+      description: "Whether to cache the TTS audio"
+      required: false
+      default: true
+      example: true
+  sequence:
+    - service: tts.speak
+      data:
+        entity_id: tts.home_assistant_cloud
+        media_player_entity_id: "{{ media_player | default('media_player.square_voice') }}"
+        message: "{{ message }}"
+        language: "{{ language | default('en-US') }}"
+        cache: "{{ cache | default(true) }}"
+        options: >
+          {% if voice is defined and voice %}
+            {"voice": "{{ voice }}"}
+          {% else %}
+            {"voice": "JennyNeural"}
+          {% endif %}

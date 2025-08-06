@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class CreateApiCalls < ActiveRecord::Migration[7.2]
   def change
     create_table :api_calls do |t|
@@ -11,12 +13,12 @@ class CreateApiCalls < ActiveRecord::Migration[7.2]
       t.jsonb :request_data, default: {}
       t.jsonb :response_data, default: {}
       t.string :error_message
-      
+
       t.timestamps
     end
-    
+
     add_index :api_calls, :service
     add_index :api_calls, :created_at
-    add_index :api_calls, [:service, :endpoint]
+    add_index :api_calls, %i[service endpoint]
   end
 end

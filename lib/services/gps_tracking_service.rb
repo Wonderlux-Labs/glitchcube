@@ -15,10 +15,8 @@ module Services
     # Get current GPS coordinates from Home Assistant device tracker
     def current_location
       # Check for simulation mode first to bypass HA completely
-      if Cube::Settings.simulate_cube_movement?
-        return fallback_location
-      end
-      
+      return fallback_location if Cube::Settings.simulate_cube_movement?
+
       # GPS configuration with fallback
       begin
         device_tracker_entity = GlitchCube.config.gps.device_tracker_entity
@@ -113,7 +111,7 @@ module Services
 
       landmarks.each do |landmark|
         distance = haversine_distance(lat, lng, landmark[:lat], landmark[:lng])
-        
+
         # Convert radius from meters to miles for comparison
         radius_miles = landmark[:radius] / 1609.34
 
@@ -249,7 +247,6 @@ module Services
 
       'Beyond Kilgore' # Past the city limits
     end
-
 
     # Detect nearby porto clusters
     def detect_nearby_portos(lat, lng)

@@ -36,8 +36,7 @@ RSpec.describe HomeAssistantParallelTool do
 
       it 'handles partial failures gracefully' do
         allow(mock_client).to receive(:state).and_raise('Sensor not found')
-        allow(mock_client).to receive(:set_light).and_return(true)
-        allow(mock_client).to receive(:speak).and_return(true)
+        allow(mock_client).to receive_messages(set_light: true, speak: true)
 
         result = described_class.call(actions: actions)
 
@@ -50,8 +49,7 @@ RSpec.describe HomeAssistantParallelTool do
           sleep(4) # Exceed 3 second timeout
           { 'state' => '22.5' }
         end
-        allow(mock_client).to receive(:set_light).and_return(true)
-        allow(mock_client).to receive(:speak).and_return(true)
+        allow(mock_client).to receive_messages(set_light: true, speak: true)
 
         result = described_class.call(actions: actions)
 

@@ -4,7 +4,7 @@ require 'simplecov'
 SimpleCov.start do
   add_filter '/spec/'
   add_filter '/config/'
-  
+
   # Continue generating coverage report even if tests fail
   at_exit do
     SimpleCov.result.format! if SimpleCov.running
@@ -17,7 +17,7 @@ SimpleCov.at_exit do
 end
 
 ENV['RACK_ENV'] = 'test'
-# Note: Using real Home Assistant instance for tests - no mock needed
+# NOTE: Using real Home Assistant instance for tests - no mock needed
 
 # Load environment variables - CI can override by setting before .env load
 require 'dotenv'
@@ -50,23 +50,40 @@ RSpec.configure do |config|
   config.before(:suite) do
     require 'sidekiq/testing'
     Sidekiq::Testing.fake!
+
+    # Ensure test database is properly migrated
+    # ActiveRecord should already be connected via app.rb
+    begin
+      # Check if we can connect
+      ActiveRecord::Base.connection
+      # Run any pending migrations
+      ActiveRecord::Migration.maintain_test_schema!
+    rescue ActiveRecord::NoDatabaseError
+      # Database doesn't exist, create it
+      puts 'Creating test database...'
+      system('RACK_ENV=test bundle exec rake db:create')
+      system('RACK_ENV=test bundle exec rake db:migrate')
+    end
   end
 
   # Configure test environment settings
-  config.before(:each) do
+  config.before do
+    # Clean database between tests
+    Memory.destroy_all if defined?(Memory)
+    Message.destroy_all if defined?(Message)
+    Conversation.destroy_all if defined?(Conversation)
+
     # Disable circuit breakers in tests via ENV variable (works in both local and CI)
     ENV['DISABLE_CIRCUIT_BREAKERS'] = 'true'
-    
+
     # Override GlitchCube config for tests
-    if defined?(GlitchCube) && GlitchCube.respond_to?(:config)
-      # Ensure AI config is available
-      if GlitchCube.config.ai.nil?
-        GlitchCube.config.ai = OpenStruct.new(
-          default_model: 'google/gemini-2.5-flash',
-          temperature: 0.8,
-          max_tokens: 200
-        )
-      end
+    # Ensure AI config is available
+    if defined?(GlitchCube) && GlitchCube.respond_to?(:config) && GlitchCube.config.ai.nil?
+      GlitchCube.config.ai = OpenStruct.new(
+        default_model: 'google/gemini-2.5-flash',
+        temperature: 0.8,
+        max_tokens: 200
+      )
     end
   end
 
@@ -139,12 +156,12 @@ WebMock.disable_net_connect!(
 WebMock.after_request do |request_signature, response|
   host = request_signature.uri.host
   is_allowed_local = host&.match?(/localhost|127\.0\.0\.1|\.local$/)
-  
+
   if response.status.first == 200 && !is_allowed_local
     puts "⚠️  LIVE HTTP REQUEST: #{request_signature.method.upcase} #{request_signature.uri}"
-    puts "   This should be using a VCR cassette instead!"
+    puts '   This should be using a VCR cassette instead!'
   elsif is_allowed_local && host&.match?(/\.local$/)
     puts "📡 Home Assistant call: #{request_signature.method.upcase} #{request_signature.uri}"
-    puts "   Consider recording this in a VCR cassette for consistent tests"
+    puts '   Consider recording this in a VCR cassette for consistent tests'
   end
 end

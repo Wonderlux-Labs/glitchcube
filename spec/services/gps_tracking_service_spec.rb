@@ -7,7 +7,7 @@ require_relative '../../lib/home_assistant_client'
 RSpec.describe Services::GpsTrackingService do
   let(:service) { described_class.new }
   let(:ha_client) { instance_double(HomeAssistantClient) }
-  
+
   before do
     allow(HomeAssistantClient).to receive(:new).and_return(ha_client)
   end
@@ -21,7 +21,7 @@ RSpec.describe Services::GpsTrackingService do
 
   describe '#current_location' do
     let(:device_tracker_entity) { 'device_tracker.glitch_cube' }
-    
+
     before do
       allow(GlitchCube.config.gps).to receive(:device_tracker_entity).and_return(device_tracker_entity)
     end
@@ -47,7 +47,7 @@ RSpec.describe Services::GpsTrackingService do
 
       it 'returns formatted GPS data' do
         result = service.current_location
-        
+
         expect(result).to include(
           lat: 40.7863,
           lng: -119.2065,
@@ -67,7 +67,7 @@ RSpec.describe Services::GpsTrackingService do
 
       it 'returns default location at Glitch Cube installation' do
         result = service.current_location
-        
+
         expect(result).to include(
           lat: 40.7864,
           lng: -119.2065,
@@ -85,7 +85,7 @@ RSpec.describe Services::GpsTrackingService do
 
       it 'returns default location when error occurs' do
         result = service.current_location
-        
+
         expect(result).to include(
           lat: 40.786958,
           lng: -119.202994,
@@ -98,7 +98,7 @@ RSpec.describe Services::GpsTrackingService do
     end
   end
 
-  # Note: track_movement method doesn't exist in the service
+  # NOTE: track_movement method doesn't exist in the service
   # These tests are commented out but kept for reference if the method is added later
   # describe '#track_movement' do
   #   # Test implementation would go here
@@ -109,7 +109,7 @@ RSpec.describe Services::GpsTrackingService do
       it 'detects when at Center Camp', :pending do
         # Use Center Camp's exact coordinates
         landmarks = service.detect_nearby_landmarks(40.786958, -119.202994)
-        
+
         center_camp = landmarks.find { |l| l[:name] == 'Center Camp' }
         expect(center_camp).not_to be_nil
         expect(center_camp[:distance]).to be < 0.01 # Should be very close
@@ -119,7 +119,7 @@ RSpec.describe Services::GpsTrackingService do
         # Use coordinates that are definitely near multiple landmarks
         # This is near Center Camp and should detect it
         landmarks = service.detect_nearby_landmarks(40.7869, -119.2030)
-        
+
         expect(landmarks).to be_an(Array)
         expect(landmarks).not_to be_empty
         # Should detect at least Center Camp which is at 40.786958, -119.202994
@@ -129,13 +129,13 @@ RSpec.describe Services::GpsTrackingService do
       it 'returns empty array when far from all landmarks' do
         # Far away location (San Francisco)
         landmarks = service.detect_nearby_landmarks(37.7749, -122.4194)
-        
+
         expect(landmarks).to eq([])
       end
     end
   end
 
-  # Note: journey_summary method doesn't exist in the service
+  # NOTE: journey_summary method doesn't exist in the service
   # These tests are commented out but kept for reference if the method is added later
   # describe '#journey_summary' do
   #   # Test implementation would go here
@@ -149,7 +149,7 @@ RSpec.describe Services::GpsTrackingService do
     it 'calculates distance correctly' do
       # Test the haversine_distance method that was missing
       distance = service.haversine_distance(40.7864, -119.2065, 40.7900, -119.2100)
-      
+
       expect(distance).to be_a(Float)
       expect(distance).to be > 0
       expect(distance).to be < 1 # Should be less than 1 mile for these coordinates
@@ -168,7 +168,7 @@ RSpec.describe Services::GpsTrackingService do
     it 'handles missing configuration gracefully' do
       allow(GlitchCube.config).to receive(:gps).and_raise(NoMethodError)
       allow(ha_client).to receive(:states).and_return([])
-      
+
       # Should fall back to ENV variable
       expect { service.current_location }.not_to raise_error
     end

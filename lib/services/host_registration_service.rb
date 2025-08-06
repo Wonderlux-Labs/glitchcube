@@ -23,17 +23,17 @@ module Services
     def register_with_retry_loop
       max_attempts = 20
       attempt = 1
-      
+
       puts "🔄 Starting host registration with Home Assistant (max #{max_attempts} attempts)..."
-      
+
       while attempt <= max_attempts
         puts "  Attempt #{attempt}/#{max_attempts}..."
-        
+
         if register_with_home_assistant
-          puts "✅ Successfully registered with Home Assistant!"
+          puts '✅ Successfully registered with Home Assistant!'
           return true
         end
-        
+
         # Progressive backoff: 5s, 10s, 15s, then 30s intervals
         sleep_time = case attempt
                      when 1..3
@@ -41,12 +41,12 @@ module Services
                      else
                        30
                      end
-        
+
         puts "  ⏳ Waiting #{sleep_time}s before retry..."
         sleep(sleep_time)
         attempt += 1
       end
-      
+
       puts "❌ Failed to register with Home Assistant after #{max_attempts} attempts"
       false
     end
@@ -111,7 +111,7 @@ module Services
       socket.connect('8.8.8.8', 80) # Google DNS
       local_ip = socket.addr.last
       socket.close
-      
+
       # Validate it's a private IP address
       if private_ip?(local_ip)
         local_ip
@@ -128,10 +128,11 @@ module Services
       # Get all network interfaces and find the first non-loopback IPv4 address
       Socket.ip_address_list.each do |addr|
         next unless addr.ipv4? && !addr.ipv4_loopback? && !addr.ipv4_multicast?
+
         ip = addr.ip_address
         return ip if private_ip?(ip)
       end
-      
+
       nil
     end
 
@@ -148,6 +149,7 @@ module Services
 
     def extract_host_from_url(url)
       return 'localhost' unless url
+
       URI.parse(url).host
     rescue URI::InvalidURIError
       'localhost'

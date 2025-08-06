@@ -13,17 +13,17 @@ Sidekiq.configure_server do |config|
   if File.exist?(schedule_file) && Sidekiq.server?
     cron_schedule = YAML.load_file(schedule_file)
     Sidekiq::Cron::Job.load_from_hash(cron_schedule)
-    
-    puts "🔥 Sidekiq-cron jobs loaded at startup:"
+
+    puts '🔥 Sidekiq-cron jobs loaded at startup:'
     cron_schedule.each do |job_name, job_config|
       status = if job_config.key?('active') && !job_config['active']
-        '❌ DISABLED'
-      else
-        '✅ ACTIVE'
-      end
+                 '❌ DISABLED'
+               else
+                 '✅ ACTIVE'
+               end
       puts "   #{status} #{job_name}: #{job_config['cron']} (#{job_config['description']})"
     end
-    
+
     # Also show runtime status after loading
     config.on(:startup) do
       sleep 1 # Give jobs time to load
@@ -36,7 +36,7 @@ Sidekiq.configure_server do |config|
       puts
     end
   else
-    puts "⚠️  No sidekiq_cron.yml file found or not in server mode"
+    puts '⚠️  No sidekiq_cron.yml file found or not in server mode'
   end
 end
 

@@ -59,7 +59,7 @@ module Services
 
     def tools_section
       return '' if context.nil?
-      
+
       available_tools = context[:available_tools]
       return '' if available_tools.nil? || available_tools.empty?
 
@@ -108,25 +108,25 @@ module Services
     def extract_environment_context
       return {} if context.nil? || context.empty?
 
-      environment_keys = [
-        :current_location, :temperature, :dust_level, :nearby_sounds,
-        :people_detected, :battery_level, :time_of_day, :current_mood,
-        :dust_storm_warning, :party_mode
+      environment_keys = %i[
+        current_location temperature dust_level nearby_sounds
+        people_detected battery_level time_of_day current_mood
+        dust_storm_warning party_mode
       ]
 
-      context.select { |key, _| environment_keys.include?(key) }
+      context.slice(*environment_keys)
     end
 
     def extract_additional_context
       return {} if context.nil? || context.empty?
 
-      excluded_keys = [
-        :available_tools, :current_location, :temperature, :dust_level,
-        :nearby_sounds, :people_detected, :battery_level, :time_of_day,
-        :current_mood, :dust_storm_warning, :party_mode
+      excluded_keys = %i[
+        available_tools current_location temperature dust_level
+        nearby_sounds people_detected battery_level time_of_day
+        current_mood dust_storm_warning party_mode
       ]
 
-      context.reject { |key, _| excluded_keys.include?(key) }
+      context.except(*excluded_keys)
     end
 
     def tool_description(tool)

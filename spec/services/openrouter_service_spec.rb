@@ -44,7 +44,7 @@ RSpec.describe OpenRouterService do
     it 'accepts custom options' do
       mock_client = instance_double(OpenRouter::Client)
       allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
-      
+
       expect(mock_client).to receive(:complete).with({
                                                        model: 'different-model',
                                                        messages: [{ role: 'user', content: 'Test prompt' }],
@@ -68,11 +68,11 @@ RSpec.describe OpenRouterService do
 
   describe '.complete_with_context' do
     let(:mock_client) { instance_double(OpenRouter::Client) }
-    
+
     before do
       allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
     end
-    
+
     it 'handles string messages' do
       expect(mock_client).to receive(:complete).with(
         hash_including(
@@ -128,7 +128,7 @@ RSpec.describe OpenRouterService do
   describe '.available_models' do
     let(:mock_models) { %w[model1 model2 model3] }
     let(:mock_client) { instance_double(OpenRouter::Client) }
-    
+
     before do
       allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
     end
@@ -162,11 +162,11 @@ RSpec.describe OpenRouterService do
 
   describe '.clear_cache!' do
     let(:mock_client) { instance_double(OpenRouter::Client) }
-    
+
     before do
       allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
     end
-    
+
     it 'clears the model cache' do
       # Fill cache
       allow(mock_client).to receive(:models).and_return(['model1'])
@@ -184,11 +184,11 @@ RSpec.describe OpenRouterService do
 
   describe 'convenience methods' do
     let(:mock_client) { instance_double(OpenRouter::Client) }
-    
+
     before do
       allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
     end
-    
+
     describe '.complete_cheap' do
       it 'uses the small_cheapest preset' do
         expect(mock_client).to receive(:complete).with(
@@ -222,11 +222,11 @@ RSpec.describe OpenRouterService do
 
   describe 'private methods' do
     let(:mock_client) { instance_double(OpenRouter::Client) }
-    
+
     before do
       allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
     end
-    
+
     describe '#format_messages' do
       it 'formats different message types correctly' do
         # This tests the private method indirectly through complete_with_context

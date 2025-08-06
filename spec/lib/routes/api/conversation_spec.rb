@@ -90,7 +90,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation, :failing do
 
     it 'processes full conversation with HA integration' do
       post '/api/v1/conversation',
-           { 
+           {
              message: 'Turn the light blue and tell me about the weather',
              mood: 'curious',
              context: { voice_interaction: true }
@@ -98,7 +98,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation, :failing do
            { 'CONTENT_TYPE' => 'application/json' }
 
       expect(last_response).to be_ok
-      
+
       body = JSON.parse(last_response.body)
       expect(body['success']).to be true
       expect(body['data']['response']).to eq('Great conversation!')
@@ -120,9 +120,9 @@ RSpec.describe GlitchCube::Routes::Api::Conversation, :failing do
 
     it 'preserves existing session ID' do
       env 'rack.session', { session_id: 'existing-session' }
-      
+
       post '/api/v1/conversation',
-           { 
+           {
              message: 'Continue conversation',
              context: { session_id: 'existing-session' }
            }.to_json,
@@ -137,7 +137,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation, :failing do
 
     it 'handles voice interaction context' do
       post '/api/v1/conversation',
-           { 
+           {
              message: 'Hello',
              context: {
                voice_interaction: true,
@@ -210,13 +210,12 @@ RSpec.describe GlitchCube::Routes::Api::Conversation, :failing do
     let(:proactive_message) { 'Hello! I noticed someone approaching. How can I help you today?' }
 
     before do
-      allow(conversation_handler_service).to receive(:generate_proactive_message).and_return(proactive_message)
-      allow(conversation_handler_service).to receive(:send_conversation_to_ha).and_return({ success: true })
+      allow(conversation_handler_service).to receive_messages(generate_proactive_message: proactive_message, send_conversation_to_ha: { success: true })
     end
 
     it 'generates proactive conversation starters' do
       post '/api/v1/conversation/start',
-           { 
+           {
              trigger: 'motion_detected',
              context: { location: 'main_area', time_of_day: 'evening' }
            }.to_json,
@@ -237,7 +236,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation, :failing do
 
     it 'uses custom message when provided' do
       custom_message = 'Welcome to the playa!'
-      
+
       post '/api/v1/conversation/start',
            { message: custom_message }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }

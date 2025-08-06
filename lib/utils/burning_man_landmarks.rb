@@ -4,12 +4,12 @@ module Utils
   module BurningManLandmarks
     def self.load_landmarks
       landmarks_file = File.expand_path('../../data/gis/burning_man_landmarks.json', __dir__)
-      
+
       unless File.exist?(landmarks_file)
         # Return basic landmarks if official data not available
         return default_landmarks
       end
-      
+
       begin
         data = JSON.parse(File.read(landmarks_file))
         landmarks = data['landmarks'].map do |landmark|
@@ -22,27 +22,23 @@ module Utils
             context: landmark['context'] || "Near #{landmark['name']}"
           }
         end
-        
+
         # Filter to only include the most important landmarks for GPS proximity detection
-        important_landmarks = landmarks.select do |landmark|
+        landmarks.select do |landmark|
           important_types = %w[center sacred gathering medical transport service]
           important_types.include?(landmark[:type])
         end
-        
-        important_landmarks
       rescue StandardError => e
         puts "Warning: Could not load official landmarks (#{e.message}), using defaults"
         default_landmarks
       end
     end
-    
+
     def self.all_landmarks
       landmarks_file = File.expand_path('../../data/gis/burning_man_landmarks.json', __dir__)
-      
-      unless File.exist?(landmarks_file)
-        return []
-      end
-      
+
+      return [] unless File.exist?(landmarks_file)
+
       begin
         data = JSON.parse(File.read(landmarks_file))
         data['landmarks'].map do |landmark|
@@ -60,9 +56,7 @@ module Utils
         []
       end
     end
-    
-    private
-    
+
     def self.default_landmarks
       [
         {

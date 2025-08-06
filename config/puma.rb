@@ -36,10 +36,10 @@ end
 
 # Logging
 log_path = if Cube::Settings.test?
-  'logs/test'
-else
-  'logs'
-end
+             'logs/test'
+           else
+             'logs'
+           end
 
 if Cube::Settings.development?
   # Verbose logging in development
@@ -61,21 +61,17 @@ end
 # This loads the app before forking workers, saving memory
 if worker_count > 1
   preload_app!
-  
+
   before_fork do
     # Disconnect from database before forking
     # This prevents connection pool issues
     require_relative '../config/persistence'
-    if defined?(ActiveRecord::Base)
-      ActiveRecord::Base.connection_pool.disconnect!
-    end
+    ActiveRecord::Base.connection_pool.disconnect! if defined?(ActiveRecord::Base)
   end
 
   on_worker_boot do
     # Reconnect to database in each worker
-    if defined?(ActiveRecord::Base)
-      ActiveRecord::Base.establish_connection
-    end
+    ActiveRecord::Base.establish_connection if defined?(ActiveRecord::Base)
   end
 end
 
@@ -115,7 +111,7 @@ dirs_to_create.each do |dir|
   FileUtils.mkdir_p(dir) unless File.directory?(dir)
 end
 
-puts "🟢 Puma configured:"
+puts '🟢 Puma configured:'
 puts "  Environment: #{Cube::Settings.rack_env}"
 puts "  Port: #{Cube::Settings.port}"
 puts "  Workers: #{worker_count}"

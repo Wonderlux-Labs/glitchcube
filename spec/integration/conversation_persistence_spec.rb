@@ -20,7 +20,7 @@ RSpec.describe 'Conversation with Persistence Integration', :database, :vcr do
 
   before do
     # Persistence removed with Desiru framework
-    skip "Persistence functionality removed - using in-memory conversation storage now"
+    skip 'Persistence functionality removed - using in-memory conversation storage now'
   end
 
   describe 'Full conversation flow' do

@@ -16,32 +16,32 @@ Pry.config.commands.alias_command 'n', 'next'
 Pry.config.commands.alias_command 'q', 'exit'
 
 # Custom commands
-Pry::Commands.create_command "test-tts" do
-  description "Test TTS with a character"
-  
+Pry::Commands.create_command 'test-tts' do
+  description 'Test TTS with a character'
+
   def options(opt)
-    opt.on :c, :character=, "Character to use (default: default)"
-    opt.on :m, :message=, "Message to speak"
+    opt.on :c, :character=, 'Character to use (default: default)'
+    opt.on :m, :message=, 'Message to speak'
   end
-  
+
   def process
     character = opts[:c] || :default
-    message = opts[:m] || "Testing TTS from Pry console!"
-    
+    message = opts[:m] || 'Testing TTS from Pry console!'
+
     tts = Services::CharacterService.new(character: character.to_sym)
     result = tts.speak(message)
-    output.puts result ? "✅ Spoke as #{character}" : "❌ TTS failed"
+    output.puts result ? "✅ Spoke as #{character}" : '❌ TTS failed'
   end
 end
 
-Pry::Commands.create_command "characters" do
-  description "List available characters"
-  
+Pry::Commands.create_command 'characters' do
+  description 'List available characters'
+
   def process
     Services::CharacterService::CHARACTERS.each do |key, char|
       output.puts "#{key.to_s.ljust(10)} - #{char[:name]} (#{char[:voice_id]})"
       output.puts "             #{char[:description]}"
-      output.puts ""
+      output.puts ''
     end
   end
 end
@@ -58,8 +58,8 @@ end
 Pry.config.history_file = "#{Dir.home}/.pry_history_glitchcube"
 
 # Welcome message for project-specific console
-if $0 == 'bin/console' || $0.end_with?('pry')
-  puts "🎲 GlitchCube project loaded!"
-  puts "   Custom commands: test-tts, characters"
-  puts "   Aliases: r=reload!, c=continue, s=step, n=next, q=exit"
+if $PROGRAM_NAME == 'bin/console' || $PROGRAM_NAME.end_with?('pry')
+  puts '🎲 GlitchCube project loaded!'
+  puts '   Custom commands: test-tts, characters'
+  puts '   Aliases: r=reload!, c=continue, s=step, n=next, q=exit'
 end

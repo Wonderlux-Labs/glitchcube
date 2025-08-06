@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../lib/services/weather_service'
 
-RSpec.describe WeatherService, :vcr, skip: "Weather service being moved to HA side" do
+RSpec.describe WeatherService, :vcr, skip: 'Weather service being moved to HA side' do
   let(:service) { described_class.new }
   let(:mock_ha_states) do
     [
@@ -143,7 +143,6 @@ RSpec.describe WeatherService, :vcr, skip: "Weather service being moved to HA si
       expect(result.length).to be <= 255
     end
   end
-
 
   describe 'integration with real APIs', :vcr do
     it 'attempts to connect to real HA and records the interaction' do
