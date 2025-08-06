@@ -18,26 +18,165 @@ module Services
     }.freeze
 
     # Available voices for Nabu Casa Cloud (2025 expanded catalog)
+    # Organized by English variant
     CLOUD_VOICES = {
-      # US English neural voices with emotional variants
-      jenny: 'JennyNeural',
-      aria: 'AriaNeural',
-      guy: 'GuyNeural',
-      davis: 'DavisNeural',
-      # Add more as needed
+      # == US English (en-US) ==
+      # Primary voices with extensive variant support
+      jenny: 'JennyNeural',      # Female, default, most variants
+      aria: 'AriaNeural',        # Female, empathetic option
+      davis: 'DavisNeural',      # Male, warm
+      guy: 'GuyNeural',          # Male, professional
+      
+      # Additional US voices
+      amber: 'AmberNeural',      # Female
+      ana: 'AnaNeural',          # Female child
+      andrew: 'AndrewNeural',    # Male
+      ashley: 'AshleyNeural',    # Female
+      brandon: 'BrandonNeural',  # Male
+      christopher: 'ChristopherNeural', # Male
+      cora: 'CoraNeural',        # Female
+      elizabeth: 'ElizabethNeural', # Female
+      emma: 'EmmaNeural',        # Female
+      eric: 'EricNeural',        # Male
+      jacob: 'JacobNeural',      # Male
+      jane: 'JaneNeural',        # Female
+      jason: 'JasonNeural',      # Male
+      michelle: 'MichelleNeural', # Female
+      monica: 'MonicaNeural',    # Female
+      nancy: 'NancyNeural',      # Female
+      roger: 'RogerNeural',      # Male
+      sara: 'SaraNeural',        # Female
+      steffan: 'SteffanNeural',  # Male
+      tony: 'TonyNeural',        # Male
+      
+      # == British English (en-GB) ==
+      abbi: 'AbbiNeural',        # Female
+      alfie: 'AlfieNeural',      # Male
+      bella: 'BellaNeural',      # Female
+      elliot: 'ElliotNeural',    # Male
+      ethan: 'EthanNeural',      # Male
+      hollie: 'HollieNeural',    # Female
+      libby: 'LibbyNeural',      # Female
+      maisie: 'MaisieNeural',    # Female
+      noah: 'NoahNeural',        # Male
+      oliver: 'OliverNeural',    # Male
+      olivia: 'OliviaNeural',    # Female
+      ryan: 'RyanNeural',        # Male (has variants!)
+      sonia: 'SoniaNeural',      # Female (has variants!)
+      thomas: 'ThomasNeural',    # Male
+      
+      # == Australian English (en-AU) ==
+      annette: 'AnnetteNeural',  # Female
+      carly: 'CarlyNeural',      # Female
+      darren: 'DarrenNeural',    # Male
+      duncan: 'DuncanNeural',    # Male
+      elsie: 'ElsieNeural',      # Female
+      freya: 'FreyaNeural',      # Female
+      joanne: 'JoanneNeural',    # Female
+      ken: 'KenNeural',          # Male
+      kim: 'KimNeural',          # Female
+      natasha: 'NatashaNeural',  # Female
+      neil: 'NeilNeural',        # Male
+      tim: 'TimNeural',          # Male
+      tina: 'TinaNeural',        # Female
+      william: 'WilliamNeural',  # Male
+      
+      # == Indian English (en-IN) ==
+      aarav: 'AaravNeural',      # Male
+      aarti: 'AartiNeural',      # Female
+      aashi: 'AashiNeural',      # Female
+      ananya: 'AnanyaNeural',    # Female
+      arjun: 'ArjunNeural',      # Male
+      kavya: 'KavyaNeural',      # Female
+      kunal: 'KunalNeural',      # Male
+      neerja: 'NeerjaNeural',    # Female (has variants!)
+      prabhat: 'PrabhatNeural',  # Male
+      rehaan: 'RehaanNeural',    # Male
+      
+      # == Canadian English (en-CA) ==
+      clara: 'ClaraNeural',      # Female
+      liam: 'LiamNeural',        # Male
+      
+      # == Other English variants ==
+      # Irish (en-IE)
+      connor: 'ConnorNeural',    # Male
+      emily_ie: 'EmilyNeural',   # Female
+      
+      # New Zealand (en-NZ)
+      mitchell: 'MitchellNeural', # Male
+      molly: 'MollyNeural',      # Female
+      
+      # South African (en-ZA)
+      leah: 'LeahNeural',        # Female
+      luke: 'LukeNeural',        # Male
+      
+      # Multilingual voices (support variants)
+      andrew_multi: 'AndrewMultilingualNeural',
+      ava_multi: 'AvaMultilingualNeural', 
+      brian_multi: 'BrianMultilingualNeural',
+      emma_multi: 'EmmaMultilingualNeural',
+      
+      # Default
       default: 'JennyNeural'
     }.freeze
 
-    # Mood to voice style mapping (2025 feature)
-    MOOD_STYLES = {
+    # Mood to voice variant mapping
+    # These get appended to voice names with || separator
+    MOOD_TO_VOICE_SUFFIX = {
+      # Emotional states
       friendly: 'friendly',
       angry: 'angry',
       sad: 'sad',
       excited: 'excited',
-      whisper: 'whisper',
       cheerful: 'cheerful',
       terrified: 'terrified',
-      neutral: nil # no style modifier
+      hopeful: 'hopeful',
+      
+      # Speaking styles
+      whisper: 'whispering',
+      whispering: 'whispering',
+      shouting: 'shouting',
+      unfriendly: 'unfriendly',
+      
+      # Professional styles
+      assistant: 'assistant',
+      chat: 'chat',
+      customerservice: 'customerservice',
+      newscast: 'newscast',
+      
+      # Aria-specific
+      empathetic: 'empathetic',
+      narration: 'narration-professional',
+      newscast_casual: 'newscast-casual',
+      newscast_formal: 'newscast-formal',
+      
+      # No variant
+      neutral: nil,
+      normal: nil,
+      default: nil
+    }.freeze
+    
+    # Voices that support emotional variants
+    # Based on hass-nabucasa voice_data.py
+    VOICES_WITH_VARIANTS = {
+      # US English voices with variants
+      'JennyNeural' => %w[assistant chat customerservice newscast angry cheerful sad excited friendly terrified shouting unfriendly whispering hopeful],
+      'AriaNeural' => %w[chat customerservice narration-professional newscast-casual newscast-formal cheerful empathetic angry sad excited friendly terrified shouting unfriendly whispering hopeful],
+      'DavisNeural' => %w[chat angry cheerful excited friendly hopeful sad shouting terrified unfriendly whispering],
+      'GuyNeural' => %w[newscast angry cheerful sad excited friendly terrified shouting unfriendly whispering hopeful],
+      
+      # British English voices with variants
+      'RyanNeural' => %w[cheerful chat whispering sad],
+      'SoniaNeural' => %w[cheerful sad],
+      
+      # Indian English voice with variants
+      'NeerjaNeural' => %w[newscast cheerful empathetic],
+      
+      # Multilingual voices with variants
+      'AndrewMultilingualNeural' => %w[angry cheerful excited friendly hopeful sad shouting terrified unfriendly whispering],
+      'AvaMultilingualNeural' => %w[angry cheerful excited friendly hopeful sad shouting terrified unfriendly whispering],
+      'BrianMultilingualNeural' => %w[angry cheerful excited friendly hopeful sad shouting terrified unfriendly whispering],
+      'EmmaMultilingualNeural' => %w[angry cheerful excited friendly hopeful sad shouting terrified unfriendly whispering]
     }.freeze
 
     # Speech speed modifiers by mood
@@ -85,9 +224,27 @@ module Services
       voice ||= @default_voice
       entity_id ||= @default_entity
       
-      # Apply mood-based modifications
-      if mood && MOOD_STYLES.key?(mood.to_sym)
-        options[:style] = MOOD_STYLES[mood.to_sym] if MOOD_STYLES[mood.to_sym]
+      # Apply mood-based voice selection
+      # In HA Cloud, moods are implemented as separate voice variants using || separator
+      if mood && MOOD_TO_VOICE_SUFFIX.key?(mood.to_sym) && [:cloud, :nabu_casa].include?(provider.to_sym)
+        suffix = MOOD_TO_VOICE_SUFFIX[mood.to_sym]
+        if suffix
+          # Get the base voice name
+          base_voice_name = CLOUD_VOICES[voice.to_sym] || voice.to_s
+          # Remove any existing style suffix if present
+          base_voice_name = base_voice_name.split('||').first
+          
+          # Check if this voice supports the requested variant
+          if voice_supports_variant?(base_voice_name, suffix)
+            # Create mood-specific voice name with || separator
+            mood_voice = "#{base_voice_name}||#{suffix}"
+            # Use the mood-specific voice
+            voice = mood_voice
+            puts "🎭 Using mood-specific voice: #{mood_voice} for mood: #{mood}"
+          else
+            puts "⚠️  Voice #{base_voice_name} doesn't support #{suffix} variant, using base voice"
+          end
+        end
         speed ||= MOOD_SPEEDS[mood.to_sym]
       end
       
@@ -260,6 +417,45 @@ module Services
       end
     end
 
+    # Check if a voice supports a specific variant
+    def voice_supports_variant?(voice_name, variant)
+      return false unless VOICES_WITH_VARIANTS.key?(voice_name)
+      VOICES_WITH_VARIANTS[voice_name].include?(variant.to_s)
+    end
+    
+    # Get available variants for a voice
+    def available_variants_for(voice_name)
+      base_name = voice_name.to_s.split('||').first
+      VOICES_WITH_VARIANTS[base_name] || []
+    end
+    
+    # Get best voice for mood (with fallback logic)
+    def best_voice_for_mood(mood, preferred_voice = :jenny)
+      return CLOUD_VOICES[preferred_voice] unless mood
+      
+      suffix = MOOD_TO_VOICE_SUFFIX[mood.to_sym]
+      return CLOUD_VOICES[preferred_voice] unless suffix
+      
+      # Try preferred voice first
+      base_voice = CLOUD_VOICES[preferred_voice] || 'JennyNeural'
+      if voice_supports_variant?(base_voice, suffix)
+        return "#{base_voice}||#{suffix}"
+      end
+      
+      # Fallback to JennyNeural (has most variants)
+      if voice_supports_variant?('JennyNeural', suffix)
+        return "JennyNeural||#{suffix}"
+      end
+      
+      # Fallback to AriaNeural (has empathetic)
+      if voice_supports_variant?('AriaNeural', suffix)
+        return "AriaNeural||#{suffix}"
+      end
+      
+      # Final fallback to base voice
+      base_voice
+    end
+    
     private
 
     def speak_standard(
@@ -285,21 +481,25 @@ module Services
 
       # Use modern tts.speak action for cloud providers
       if [:cloud, :nabu_casa].include?(provider.to_sym)
-        data = {
-          target: {
-            entity_id: provider_id
-          },
-          data: {
-            media_player_entity_id: entity_id,
-            message: message,
-            language: language,
-            cache: cache
-          }
+        # The correct format for Home Assistant 2025 tts.speak service
+        # The entire payload should be flat, not nested under 'data'
+        service_data = {
+          entity_id: provider_id,  # The TTS entity (e.g., tts.home_assistant_cloud)
+          media_player_entity_id: entity_id,  # The speaker (e.g., media_player.square_voice)
+          message: message,
+          language: language,
+          cache: cache
         }
         
-        data[:data][:options] = tts_options unless tts_options.empty?
+        service_data[:options] = tts_options unless tts_options.empty?
         
-        @home_assistant.call_service('tts', 'speak', data)
+        puts "📣 TTS Request Details:"
+        puts "  Provider: #{provider_id}"
+        puts "  Speaker: #{entity_id}"
+        puts "  Message: #{truncate_message(message)}"
+        puts "  Service data: #{service_data.inspect}"
+        
+        @home_assistant.call_service('tts', 'speak', service_data)
       else
         # Legacy service call format for other providers
         service_data = {
@@ -380,24 +580,21 @@ module Services
       tts_options = {}
 
       # Add voice selection
+      # Voice might already be a mood-specific variant like "JennyNeural-Friendly"
       if voice
-        voice_name = CLOUD_VOICES[voice.to_sym] || voice.to_s
+        # Check if it's a symbol from our mapping or a direct string
+        voice_name = if voice.is_a?(Symbol) && CLOUD_VOICES.key?(voice)
+                       CLOUD_VOICES[voice]
+                     else
+                       voice.to_s
+                     end
         tts_options[:voice] = voice_name
       end
 
-      # Add style if provided (2025 feature for cloud TTS)
-      if options[:style]
-        tts_options[:style] = options[:style]
-      end
-
-      # Add speed adjustment (provider-specific)
-      if speed && speed != 100 && [:cloud, :nabu_casa, :elevenlabs].include?(provider.to_sym)
-        tts_options[:speed] = speed
-      end
-
-      # Add any additional provider-specific options
-      tts_options.merge!(options.except(:style, :tts_platform))
-
+      # Note: Home Assistant Cloud TTS doesn't support separate 'style' or 'speed' parameters
+      # Emotional styles are handled via voice selection (e.g., JennyNeural-Friendly)
+      # Speed adjustments would require SSML or different implementation
+      
       tts_options
     end
 

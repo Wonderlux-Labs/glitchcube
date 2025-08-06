@@ -317,6 +317,21 @@ class HomeAssistantClient
       raise AuthenticationError, 'Invalid token'
     when 404
       raise NotFoundError, 'Entity or service not found'
+    when 400
+      # Parse error details for better debugging
+      error_body = begin
+        JSON.parse(response.body)
+      rescue
+        response.body
+      end
+      
+      error_msg = if error_body.is_a?(Hash)
+        error_body['message'] || error_body['error'] || response.body
+      else
+        response.body
+      end
+      
+      raise Error, "Bad Request (400): #{error_msg}"
     else
       raise Error, "HA API error: #{response.code} - #{response.body}"
     end

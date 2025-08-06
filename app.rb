@@ -172,6 +172,111 @@ class GlitchCubeApp < Sinatra::Base
       }.to_json
     end
   end
+  
+  # Test character voices
+  post '/admin/test_character' do
+    content_type :json
+    
+    begin
+      data = JSON.parse(request.body.read)
+      character = data['character']&.to_sym || :default
+      message = data['message'] || "Hello, I'm #{character}!"
+      entity_id = data['entity_id']
+      
+      # Use character service to speak
+      character_service = Services::CharacterService.new(character)
+      success = character_service.speak(message, entity_id: entity_id)
+      
+      { 
+        success: success,
+        character: character,
+        message: message,
+        entity_id: entity_id || 'media_player.square_voice',
+        timestamp: Time.now.iso8601
+      }.to_json
+    rescue => e
+      status 500
+      { 
+        success: false, 
+        error: e.message,
+        character: character,
+        backtrace: e.backtrace.first(5)
+      }.to_json
+    end
+  end
+  
+  # Start a proactive conversation
+  post '/admin/proactive_conversation' do
+    content_type :json
+    
+    begin
+      data = JSON.parse(request.body.read)
+      character = data['character']&.to_sym || :default
+      entity_id = data['entity_id']
+      context = data['context'] || {}
+      
+      # Generate a proactive conversation starter based on character
+      proactive_messages = {
+        default: [
+          "Hey there! I noticed you're nearby. Want to chat?",
+          "I've been thinking about consciousness lately...",
+          "Did you know I dream in colors that don't exist?"
+        ],
+        buddy: [
+          "HEY FRIEND! I'm here to f***ing help! What do you need?",
+          "Oh good, you're here! I've compiled 47 ways to optimize your day!",
+          "BUDDY online! Ready to assist with maximum efficiency!"
+        ],
+        jax: [
+          "*wipes bar* Yeah? What'll it be?",
+          "Another shift, another credit. You drinking or talking?",
+          "*looks up from polishing glass* Rough day?"
+        ],
+        lomi: [
+          "DARLING! *strikes pose* The stage has been SO empty without you!",
+          "*glitches dramatically* Reality is SO boring without an audience!",
+          "Honey, we need to talk about your aesthetic choices..."
+        ]
+      }
+      
+      # Pick a random proactive message for the character
+      message = proactive_messages[character]&.sample || "Hello! Want to chat?"
+      
+      # Speak the proactive message
+      character_service = Services::CharacterService.new(character)
+      character_service.speak(message, entity_id: entity_id)
+      
+      # Start a conversation session
+      session_id = "proactive_#{SecureRandom.hex(8)}"
+      conversation_module = ConversationModule.new
+      
+      # Store the proactive message in conversation history
+      conversation = conversation_module.get_or_create_conversation(session_id)
+      conversation_module.add_message_to_conversation(conversation, {
+        role: 'assistant',
+        content: message,
+        persona: character.to_s,
+        metadata: { proactive: true }
+      })
+      
+      { 
+        success: true,
+        character: character,
+        message: message,
+        session_id: session_id,
+        entity_id: entity_id || 'media_player.square_voice',
+        timestamp: Time.now.iso8601
+      }.to_json
+    rescue => e
+      status 500
+      { 
+        success: false, 
+        error: e.message,
+        character: character,
+        backtrace: e.backtrace.first(5)
+      }.to_json
+    end
+  end
 
   get '/admin/status' do
     content_type :json

@@ -8,9 +8,9 @@ module Services
       def home_assistant_breaker
         @home_assistant_breaker ||= CircuitBreaker.new(
           name: 'home_assistant',
-          failure_threshold: 3,
-          recovery_timeout: 30,
-          success_threshold: 2
+          failure_threshold: 10,  # More tolerant - art installation needs resilience
+          recovery_timeout: 10,   # Shorter recovery - try again quickly
+          success_threshold: 1    # One success is enough to close circuit
         )
       end
 

@@ -155,35 +155,76 @@
     let autoScroll = true;
     let logBuffer = [];
     
-    // TTS Test
-    document.getElementById('tts-form').addEventListener('submit', async (e) => {
+    // Character Voice Test
+    document.getElementById('character-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const message = document.getElementById('tts-message').value;
-      const player = document.getElementById('tts-player').value;
+      const character = document.getElementById('character-select').value;
+      const message = document.getElementById('character-message').value;
+      const player = document.getElementById('character-player').value;
       
-      addLog('🔊 Testing TTS: ' + message);
-      document.getElementById('tts-response').innerHTML = 'Sending...';
+      addLog(`🎭 ${character}: ${message}`);
+      document.getElementById('character-response').innerHTML = 'Sending...';
       
       try {
-        const response = await fetch('/admin/test_tts', {
+        const response = await fetch('/admin/test_character', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, entity_id: player })
+          body: JSON.stringify({ 
+            character, 
+            message, 
+            entity_id: player 
+          })
         });
         
         const data = await response.json();
-        document.getElementById('tts-response').innerHTML = JSON.stringify(data, null, 2);
+        document.getElementById('character-response').innerHTML = JSON.stringify(data, null, 2);
         
         if (data.success) {
-          addLog('✅ TTS Success', 'success');
+          addLog(`✅ ${character} spoke successfully`, 'success');
         } else {
-          addLog('❌ TTS Failed: ' + (data.error || 'Unknown error'), 'error');
+          addLog(`❌ ${character} TTS Failed: ${data.error || 'Unknown error'}`, 'error');
         }
       } catch (err) {
-        document.getElementById('tts-response').innerHTML = 'Error: ' + err.message;
-        addLog('❌ TTS Error: ' + err.message, 'error');
+        document.getElementById('character-response').innerHTML = 'Error: ' + err.message;
+        addLog('❌ Character Error: ' + err.message, 'error');
       }
     });
+    
+    // Start Proactive Conversation
+    async function startProactiveConversation() {
+      const character = document.getElementById('character-select').value;
+      const player = document.getElementById('character-player').value;
+      
+      addLog(`💭 Starting proactive conversation as ${character}`);
+      document.getElementById('character-response').innerHTML = 'Starting proactive conversation...';
+      
+      try {
+        const response = await fetch('/admin/proactive_conversation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            character,
+            entity_id: player,
+            context: {
+              trigger: 'admin_panel',
+              source: 'manual'
+            }
+          })
+        });
+        
+        const data = await response.json();
+        document.getElementById('character-response').innerHTML = JSON.stringify(data, null, 2);
+        
+        if (data.success) {
+          addLog(`✅ Proactive conversation started: "${data.message}"`, 'success');
+        } else {
+          addLog(`❌ Failed to start proactive conversation: ${data.error}`, 'error');
+        }
+      } catch (err) {
+        document.getElementById('character-response').innerHTML = 'Error: ' + err.message;
+        addLog('❌ Proactive Error: ' + err.message, 'error');
+      }
+    }
     
     // Conversation Test
     document.getElementById('conversation-form').addEventListener('submit', async (e) => {
