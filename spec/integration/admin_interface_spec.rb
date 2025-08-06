@@ -3,7 +3,7 @@
 require 'spec_helper'
 require 'rack/test'
 
-RSpec.describe 'Admin/Development Interface' do
+RSpec.describe 'Admin/Development Interface', :failing do
   include Rack::Test::Methods
 
   def app

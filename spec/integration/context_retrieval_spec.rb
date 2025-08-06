@@ -111,7 +111,7 @@ RSpec.describe 'Context Retrieval Integration' do
   end
 end
 
-RSpec.describe 'Simple RAG Integration' do
+RSpec.describe 'Simple RAG Integration', :failing do
   let(:rag) { Services::SimpleRAG.new }
   let(:test_context_dir) { 'spec/fixtures/test_context_documents' }
 

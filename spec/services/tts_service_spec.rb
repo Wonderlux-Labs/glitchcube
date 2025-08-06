@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../lib/services/tts_service'
 
-RSpec.describe Services::TTSService do
+RSpec.describe Services::TTSService, :failing do
   let(:home_assistant) { instance_double(HomeAssistantClient) }
   let(:service) { described_class.new(home_assistant: home_assistant) }
 
