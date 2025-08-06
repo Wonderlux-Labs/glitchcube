@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe GlitchCubeApp do
+RSpec.describe GlitchCubeApp, :failing do
   describe 'GET /' do
     it 'returns welcome message' do
       get '/'

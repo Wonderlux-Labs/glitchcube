@@ -18,10 +18,10 @@ jobs:
       matrix:
         ruby-version: ['3.3']
       # Ensure all matrix jobs fail if any fail
-      fail-fast: true
     
     env:
       RACK_ENV: test
+      MOCK_HOME_ASSISTANT: true
 
     steps:
     - uses: actions/checkout@v4

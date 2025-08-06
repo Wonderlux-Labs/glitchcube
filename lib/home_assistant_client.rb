@@ -16,8 +16,8 @@ class HomeAssistantClient
   attr_reader :base_url, :token
 
   def initialize(base_url: nil, token: nil)
-    if GlitchCube.config.home_assistant.mock_enabled
-      # Use mock HA endpoints when explicitly enabled
+    if GlitchCube.config.home_assistant.mock_enabled || GlitchCube.config.test?
+      # Use mock HA endpoints when explicitly enabled or in test environment
       @base_url = base_url || GlitchCube.config.home_assistant.url || "http://localhost:#{GlitchCube.config.port}/mock_ha"
       @token = token || GlitchCube.config.home_assistant.token || 'mock-token-123'
     else
@@ -25,8 +25,12 @@ class HomeAssistantClient
       @base_url = base_url || GlitchCube.config.home_assistant.url
       @token = token || GlitchCube.config.home_assistant.token
 
-      raise Error, 'Home Assistant URL not configured. Set HOME_ASSISTANT_URL or HA_URL environment variable.' unless @base_url
-      raise Error, 'Home Assistant token not configured. Set HOME_ASSISTANT_TOKEN environment variable.' unless @token
+      unless @base_url
+        raise Error, 'Home Assistant URL not configured. Set HOME_ASSISTANT_URL or HA_URL environment variable.'
+      end
+      unless @token
+        raise Error, 'Home Assistant token not configured. Set HOME_ASSISTANT_TOKEN environment variable.'
+      end
     end
   end
 

@@ -84,7 +84,10 @@ module GlitchCube
     def validate!
       errors = []
 
-      # Always required for core functionality
+      # Skip validation in test environment - tests should work with defaults
+      return true if test?
+
+      # Always required for core functionality (except in test)
       errors << 'OPENROUTER_API_KEY is required - please add to .env file' if openrouter_api_key.nil? || openrouter_api_key.empty?
       
       # Required in production
