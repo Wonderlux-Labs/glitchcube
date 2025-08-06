@@ -3,61 +3,54 @@
 module Utils
   module BurningManLandmarks
     def self.load_landmarks
-      landmarks_file = File.expand_path('../../data/gis/burning_man_landmarks.json', __dir__)
-
-      unless File.exist?(landmarks_file)
-        # Return basic landmarks if official data not available
-        return default_landmarks
-      end
-
+      # Use ActiveRecord Landmark model instead of hardcoded data
       begin
-        data = JSON.parse(File.read(landmarks_file))
-        landmarks = data['landmarks'].map do |landmark|
+        # Filter to only include the most important landmarks for GPS proximity detection
+        important_types = %w[center sacred gathering medical transport service]
+        
+        landmarks = Landmark.active.where(landmark_type: important_types).map do |landmark|
           {
-            name: landmark['name'],
-            lat: landmark['lat'],
-            lng: landmark['lng'],
-            radius: landmark['radius'] || 30,
-            type: landmark['type'] || 'poi',
-            context: landmark['context'] || "Near #{landmark['name']}"
+            name: landmark.name,
+            lat: landmark.latitude,
+            lng: landmark.longitude,
+            radius: landmark.radius_meters,
+            type: landmark.landmark_type,
+            context: landmark.description || "Near #{landmark.name}"
           }
         end
-
-        # Filter to only include the most important landmarks for GPS proximity detection
-        landmarks.select do |landmark|
-          important_types = %w[center sacred gathering medical transport service]
-          important_types.include?(landmark[:type])
-        end
+        
+        # Return default landmarks if database query returns empty
+        return default_landmarks if landmarks.empty?
+        
+        landmarks
       rescue StandardError => e
-        puts "Warning: Could not load official landmarks (#{e.message}), using defaults"
+        puts "Warning: Could not load landmarks from database (#{e.message}), using defaults"
         default_landmarks
       end
     end
 
     def self.all_landmarks
-      landmarks_file = File.expand_path('../../data/gis/burning_man_landmarks.json', __dir__)
-
-      return [] unless File.exist?(landmarks_file)
-
+      # Use ActiveRecord Landmark model for all landmarks
       begin
-        data = JSON.parse(File.read(landmarks_file))
-        data['landmarks'].map do |landmark|
+        Landmark.active.map do |landmark|
           {
-            name: landmark['name'],
-            lat: landmark['lat'],
-            lng: landmark['lng'],
-            radius: landmark['radius'] || 30,
-            type: landmark['type'] || 'poi',
-            context: landmark['context'] || "Near #{landmark['name']}",
-            icon: landmark['icon'] || '📍'
+            name: landmark.name,
+            lat: landmark.latitude,
+            lng: landmark.longitude,
+            radius: landmark.radius_meters,
+            type: landmark.landmark_type,
+            context: landmark.description || "Near #{landmark.name}",
+            icon: landmark.icon || '📍'
           }
         end
-      rescue StandardError
+      rescue StandardError => e
+        puts "Warning: Could not load all landmarks from database (#{e.message})"
         []
       end
     end
 
     def self.default_landmarks
+      # Minimal hardcoded fallbacks for when database is unavailable
       [
         {
           name: 'Center Camp',

@@ -1,0 +1,32 @@
+---
+# Simple movement duration tracking automation
+
+# Update previous coordinates when GPS changes (for movement detection)
+- id: update_previous_coordinates
+  alias: "Update Previous Coordinates"
+  trigger:
+    - platform: state
+      entity_id: device_tracker.glitch_cube
+      attribute: latitude
+    - platform: state
+      entity_id: device_tracker.glitch_cube
+      attribute: longitude
+  condition:
+    - condition: template
+      value_template: >
+        {% set current_lat = state_attr('device_tracker.glitch_cube', 'latitude') %}
+        {% set current_lng = state_attr('device_tracker.glitch_cube', 'longitude') %}
+        {{ current_lat is not none and current_lng is not none }}
+  action:
+    - delay:
+        seconds: 5  # Wait 5 seconds to let movement detection run
+    - service: input_number.set_value
+      target:
+        entity_id: input_number.glitch_cube_prev_lat
+      data:
+        value: "{{ state_attr('device_tracker.glitch_cube', 'latitude') }}"
+    - service: input_number.set_value
+      target:
+        entity_id: input_number.glitch_cube_prev_lng  
+      data:
+        value: "{{ state_attr('device_tracker.glitch_cube', 'longitude') }}"

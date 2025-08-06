@@ -60,9 +60,9 @@ module Jobs
                   {
                     'destinations' => default_destinations,
                     'movement' => {
-                      'speed' => 0.0005, # 5x faster movement
+                      'speed' => 0.002, # 5x faster movement
                       'arrival_threshold' => 0.0005,
-                      'update_interval' => 3, # Update every 3 seconds instead of 10
+                      'update_interval' => 15, # Update every 3 seconds instead of 10
                       'max_duration' => 1800,
                       'wander_factor' => 0.2
                     },
@@ -76,6 +76,24 @@ module Jobs
     end
 
     def default_destinations
+      # Load destinations from database landmarks instead of hardcoded
+      begin
+        landmarks = Landmark.active.limit(10).map do |landmark|
+          {
+            'name' => landmark.name,
+            'lat' => landmark.latitude.to_f,
+            'lng' => landmark.longitude.to_f,
+            'type' => landmark.landmark_type
+          }
+        end
+        
+        # Return database landmarks if available
+        return landmarks if landmarks.any?
+      rescue StandardError => e
+        logger.warn "Could not load landmarks from database: #{e.message}"
+      end
+
+      # Fallback to core destinations if database unavailable
       [
         { 'name' => 'Center Camp', 'lat' => 40.786958, 'lng' => -119.202994, 'type' => 'gathering' },
         { 'name' => 'The Man', 'lat' => 40.786963, 'lng' => -119.203007, 'type' => 'center' },
@@ -192,10 +210,10 @@ module Jobs
         @current_location[:lng]
       )
 
-      # Save current coordinates
+      # Save current coordinates to Redis
       coords = {
-        lat: @current_location[:lat].round(6),
-        lng: @current_location[:lng].round(6),
+        lat: @current_location[:lat].round(8),  # Match database precision (10,8)
+        lng: @current_location[:lng].round(8),  # Match database precision (11,8)
         timestamp: Time.now.utc.iso8601,
         address: address,
         context: context,
@@ -203,8 +221,10 @@ module Jobs
         source: 'simulation'
       }
 
-      ensure_directory(File.dirname(SIM_FILE))
-      File.write(SIM_FILE, JSON.pretty_generate(coords))
+      # Store in Redis with 5 minute TTL
+      require 'redis'
+      redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+      redis.setex('current_cube_location', 300, JSON.generate(coords))
 
       # Save history
       save_history
@@ -244,7 +264,7 @@ module Jobs
     end
 
     def format_location(loc)
-      "#{loc[:lat].round(6)}, #{loc[:lng].round(6)}"
+      "#{loc[:lat].round(8)}, #{loc[:lng].round(8)}"  # Consistent database precision
     end
 
     def log_movement
@@ -254,21 +274,7 @@ module Jobs
                   "Heading to: #{@destination[:name]} (#{meters}m away)"
     end
 
-    # Calculate distance using Haversine formula
-    def haversine_distance(lat1, lng1, lat2, lng2)
-      r = 3959 # Earth's radius in miles
-
-      lat1_rad = lat1 * Math::PI / 180
-      lat2_rad = lat2 * Math::PI / 180
-      lat_diff = (lat2 - lat1) * Math::PI / 180
-      lng_diff = (lng2 - lng1) * Math::PI / 180
-
-      a = (Math.sin(lat_diff / 2)**2) +
-          (Math.cos(lat1_rad) * Math.cos(lat2_rad) *
-          (Math.sin(lng_diff / 2)**2))
-
-      c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-      r * c
-    end
+    # Use consistent distance calculation from LocationHelper
+    # (already included at top of class)
   end
 end

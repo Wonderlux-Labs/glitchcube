@@ -2,6 +2,7 @@
 
 require_relative '../utils/location_helper'
 require_relative '../utils/burning_man_landmarks'
+require_relative '../utils/brc_coordinate_service'
 require_relative '../cube/settings'
 
 module Services
@@ -12,16 +13,19 @@ module Services
       @ha_client = ::HomeAssistantClient.new
     end
 
-    # Get current GPS coordinates from Home Assistant device tracker
+    # Get current GPS coordinates - tries HA first, then simulation, then random landmark
     def current_location
-      # Check for simulation mode first to bypass HA completely
-      return fallback_location if Cube::Settings.simulate_cube_movement?
+      # Check for simulation mode first
+      if Cube::Settings.simulate_cube_movement?
+        sim_location = load_simulation_location
+        return sim_location if sim_location
+      end
 
-      # GPS configuration with fallback
-      begin
-        device_tracker_entity = GlitchCube.config.gps.device_tracker_entity
+      # Try real GPS from Home Assistant
+      device_tracker_entity = begin
+        GlitchCube.config.gps.device_tracker_entity
       rescue StandardError
-        device_tracker_entity = ENV.fetch('GPS_DEVICE_TRACKER_ENTITY', 'device_tracker.glitch_cube')
+        'device_tracker.glitch_cube'
       end
 
       begin
@@ -32,100 +36,125 @@ module Services
           lng = entity_state['attributes']['longitude']&.to_f
 
           if lat && lng
-            {
+            return {
               lat: lat,
               lng: lng,
               timestamp: Time.parse(entity_state['last_updated']),
               accuracy: entity_state['attributes']['gps_accuracy'],
               battery: entity_state['attributes']['battery_level'],
               address: brc_address_from_coordinates(lat, lng),
-              context: location_context(lat, lng)
+              # Flatten context/distance hash if returned by location_context
+              **(ctx = location_context(lat, lng)).is_a?(Hash) ? ctx : { context: ctx },
+              source: 'gps'
             }
-          else
-            fallback_location
           end
-        else
-          default_installation_location
         end
-      rescue StandardError => e
-        Services::LoggerService.log_api_call(
-          service: 'GPS Tracking',
-          endpoint: 'current_location',
-          error: e.message,
-          success: false
-        )
-        fallback_location
+      rescue StandardError
+        # GPS unavailable - will use random landmark
       end
+
+      # No GPS available - pick random landmark
+      random_landmark_location
     end
 
     # Convert GPS coordinates to Burning Man address format
     def brc_address_from_coordinates(lat, lng)
-      # Distance from center camp (Golden Spike: 40.786958, -119.202994)
-      center_lat = 40.786958
-      center_lng = -119.202994
-
-      distance = distance_from(lat, lng)
-
-      # Determine radial street (time-based)
-      bearing = calculate_bearing(center_lat, center_lng, lat, lng)
-      radial_street = bearing_to_time_street(bearing)
-
-      # Determine concentric street (lettered/named)
-      concentric_street = distance_to_concentric_street(distance)
-
-      if radial_street && concentric_street
-        "#{radial_street} & #{concentric_street}"
-      else
-        "GPS: #{lat.round(4)}, #{lng.round(4)}"
-      end
+      Utils::BrcCoordinateService.brc_address_from_coordinates(lat, lng)
     end
 
     # Get contextual location description with proximity detection
     def location_context(lat, lng)
       nearby_landmarks = detect_nearby_landmarks(lat, lng)
-      return nearby_landmarks.first[:context] if nearby_landmarks.any?
+      brc_area = Utils::BrcCoordinateService.brc_address_from_coordinates(lat, lng)
+      the_man = Utils::BrcCoordinateService.golden_spike_coordinates
+      distance = Utils::BrcCoordinateService.distance_between_points(the_man[:lat], the_man[:lng], lat, lng)
+      distance_str = "#{format('%.2f', distance)} mi from The Man"
 
-      center_distance = distance_from(lat, lng)
+      # Section logic: classify area into "In The City", "Inner Playa", etc.
+      section =
+        if brc_area.include?('Esplanade') || brc_area =~ /\d{1,2}:\d{2}/
+          'In The City'
+        elsif brc_area.include?('Inner Playa')
+          'Inner Playa'
+        elsif brc_area.include?('Outer Playa')
+          'Outer Playa'
+        elsif brc_area.include?('Deep Playa')
+          'Deep Playa'
+        else
+          'Unknown Area'
+        end
 
-      case center_distance
-      when 0..0.5
-        'Center Camp'
-      when 0.5..2.0
-        # In the city - show BRC address instead of "Inner City"
-        brc_address_from_coordinates(lat, lng)
-      when 2.0..5.0
-        'Outer Playa'
-      when 5.0..15.0
-        'Deep Playa'
-      when 15.0..50.0
-        'Way Out There'
+      if nearby_landmarks.any?
+        context = nearby_landmarks.first[:context]
+        landmark_name = nearby_landmarks.first[:name]
+        {
+          context: context,
+          landmark_name: landmark_name,
+          brc_area: brc_area,
+          section: section,
+          distance_from_man: distance_str
+        }
       else
-        'RENO?!?!'
+        {
+          context: '',
+          landmark_name: nil,
+          brc_area: brc_area,
+          section: section,
+          distance_from_man: distance_str
+        }
       end
     end
 
     # Detect nearby landmarks and return proximity info
     def detect_nearby_landmarks(lat, lng)
-      landmarks = Utils::BurningManLandmarks.load_landmarks
-      nearby = []
+      require_relative '../utils/geo_constants'
 
-      landmarks.each do |landmark|
-        distance = haversine_distance(lat, lng, landmark[:lat], landmark[:lng])
+      all_nearby = []
 
-        # Convert radius from meters to miles for comparison
-        radius_miles = landmark[:radius] / 1609.34
+      # Only show major landmarks: plazas, center camp, rods road, the man, big landmarks
+      # Skip toilets/portos since they're funny but not needed
+      landmark_queries = {
+        'center' => Utils::GeoConstants::PROXIMITY_DISTANCES[:camps],     # Center Camp, The Man
+        'sacred' => Utils::GeoConstants::PROXIMITY_DISTANCES[:camps],     # Temple
+        'plaza' => Utils::GeoConstants::PROXIMITY_DISTANCES[:camps],      # Plazas
+        'service' => Utils::GeoConstants::PROXIMITY_DISTANCES[:services], # Rods Road
+        'art' => Utils::GeoConstants::PROXIMITY_DISTANCES[:art]           # Big art installations
+      }
 
-        next unless distance <= radius_miles
+      # Query each landmark type with its appropriate radius
+      landmark_queries.each do |type, radius|
+        type_landmarks = Landmark.active
+          .where(landmark_type: type)
+          .near_location(lat, lng, radius)
 
-        nearby << {
-          name: landmark[:name],
-          type: landmark[:type],
+        type_landmarks.each do |landmark|
+          distance = landmark.distance_from(lat, lng)
+          all_nearby << {
+            name: landmark.name,
+            type: landmark.landmark_type,
+            distance: distance,
+            context: landmark.description || "Near #{landmark.name}"
+          }
+        end
+      end
+
+      # Get any other landmark types with default proximity (25 feet)
+      other_types = Landmark.active
+        .where.not(landmark_type: landmark_queries.keys)
+        .near_location(lat, lng, Utils::GeoConstants::PROXIMITY_DISTANCES[:landmarks])
+
+      other_types.each do |landmark|
+        distance = landmark.distance_from(lat, lng)
+        all_nearby << {
+          name: landmark.name,
+          type: landmark.landmark_type,
           distance: distance,
-          context: landmark[:context] || "Near #{landmark[:name]}"
+          context: landmark.description || "Near #{landmark.name}"
         }
       end
 
-      nearby.sort_by { |l| l[:distance] }
+      # Sort by distance and remove duplicates
+      all_nearby.uniq { |l| l[:name] }.sort_by { |l| l[:distance] }
     end
 
     # Get proximity data for map reactions
@@ -145,131 +174,77 @@ module Services
 
     private
 
-    def fallback_location
-      # Simulation override: check for simulated coordinates file if SIMULATE_CUBE_MOVEMENT is enabled
-      if Cube::Settings.simulate_cube_movement?
-        sim_file = File.expand_path('../../data/simulation/current_coordinates.json', __dir__)
-        if File.exist?(sim_file)
-          begin
-            coords = JSON.parse(File.read(sim_file))
-            return {
-              lat: coords['lat'],
-              lng: coords['lng'],
-              timestamp: begin
-                Time.parse(coords['timestamp'])
-              rescue StandardError
-                Time.now
-              end,
-              accuracy: nil,
-              battery: nil,
-              address: coords['address'] || brc_address_from_coordinates(coords['lat'], coords['lng']),
-              context: coords['context'] || location_context(coords['lat'], coords['lng']),
-              source: coords['source'] || 'simulation'
-            }
-          rescue StandardError => e
-            # Log and fall through to default
-            Services::LoggerService.log_api_call(
-              service: 'GPS Tracking',
-              endpoint: 'fallback_location',
-              error: "Error reading simulated coordinates: #{e.message}",
-              success: false
-            )
-          end
-        end
-      end
-      # Return Center Camp coordinates when error occurs or simulation fails
+    def load_simulation_location
+      require 'redis'
+      redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+      coords_json = redis.get('current_cube_location')
+      return nil unless coords_json
+
+      coords = JSON.parse(coords_json)
+      lat = coords['lat']
+      lng = coords['lng']
+
       {
-        lat: 40.786958,
-        lng: -119.202994,
+        lat: lat,
+        lng: lng,
+        timestamp: begin
+          Time.parse(coords['timestamp'])
+        rescue StandardError
+          Time.now
+        end,
+        accuracy: nil,
+        battery: nil,
+        address: coords['address'], # Use cached address from Redis
+        # Recompute context/distance for simulation
+        **(ctx = location_context(lat, lng)).is_a?(Hash) ? ctx : { context: ctx },
+        destination: coords['destination'], # Include destination for movement info
+        source: 'simulation'
+      }
+    rescue StandardError => e
+      Services::LoggerService.log_api_call(
+        service: 'GPS Tracking',
+        endpoint: 'load_simulation_location',
+        error: "Error reading simulation from Redis: #{e.message}",
+        success: false
+      )
+      nil
+    end
+
+    def random_landmark_location
+      # Pick a random landmark from database
+      landmark = Landmark.active.order('RANDOM()').first
+      lat = landmark.latitude.to_f
+      lng = landmark.longitude.to_f
+
+      {
+        lat: lat,
+        lng: lng,
         timestamp: Time.now,
         accuracy: nil,
         battery: nil,
-        address: '2:00 & Atwood',
-        context: 'Center Camp - Heart of the City',
-        source: 'default'
+        address: brc_address_from_coordinates(lat, lng),
+        **(ctx = location_context(lat, lng)).is_a?(Hash) ? ctx : { context: ctx },
+        source: 'random_location'
       }
     end
 
-    # Default location when no GPS data is available at all
-    def default_installation_location
-      {
-        lat: 40.7864,
-        lng: -119.2065,
-        timestamp: Time.now,
-        accuracy: nil,
-        battery: nil,
-        address: 'Black Rock City',
-        context: 'Default Location',
-        source: 'default'
-      }
-    end
-
-    # Calculate bearing between two points
-    def calculate_bearing(lat1, lng1, lat2, lng2)
-      lat1_rad = lat1 * Math::PI / 180
-      lat2_rad = lat2 * Math::PI / 180
-      lng_diff = (lng2 - lng1) * Math::PI / 180
-
-      y = Math.sin(lng_diff) * Math.cos(lat2_rad)
-      x = (Math.cos(lat1_rad) * Math.sin(lat2_rad)) -
-          (Math.sin(lat1_rad) * Math.cos(lat2_rad) * Math.cos(lng_diff))
-
-      bearing = Math.atan2(y, x) * 180 / Math::PI
-      (bearing + 360) % 360 # Normalize to 0-360
-    end
-
-    # Convert bearing to Burning Man time-based street
-    def bearing_to_time_street(bearing)
-      # BRC streets: 2:00 at 30°, 3:00 at 60°, etc.
-      # Adjust for BRC orientation (2:00 is not due north)
-      adjusted_bearing = (bearing + 60) % 360 # Offset for BRC orientation
-      hour = ((adjusted_bearing / 30.0).round % 12)
-      hour = 12 if hour.zero?
-
-      if (2..10).include?(hour)
-        "#{hour}:00"
-      else
-        nil # Outside main city radials
-      end
-    end
-
-    # Convert distance to lettered/named concentric street
-    def distance_to_concentric_street(distance_miles)
-      # BRC 2025 street names (innermost to outermost)
-      streets = %w[Esplanade Atwood Bradbury Cherryh Dick Ellison Farmer Gibson Herbert Ishiguro Jemisin Kilgore]
-
-      # Approximate distances (in miles from center)
-      street_distances = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
-
-      street_distances.each_with_index do |street_distance, index|
-        return streets[index] if distance_miles <= street_distance
-      end
-
-      'Beyond Kilgore' # Past the city limits
-    end
-
-    # Detect nearby porto clusters
+    # Detect nearby porto clusters using spatial database queries
     def detect_nearby_portos(lat, lng)
-      # This would load actual porto locations from the GeoJSON
-      # For now, approximate based on known concentrations
-      porto_clusters = [
-        { name: 'Esplanade Portos', lat: 40.7865, lng: -119.2030, radius: 50 },
-        { name: 'Deep Playa Portos', lat: 40.7800, lng: -119.2000, radius: 75 }
-      ]
+      # Use spatial query for toilet landmarks
+      toilet_landmarks = Landmark.active
+        .where(landmark_type: 'toilet')
+        .near_location(lat, lng, Utils::GeoConstants::PROXIMITY_DISTANCES[:toilets])
 
-      nearby_portos = []
-      porto_clusters.each do |cluster|
-        distance = haversine_distance(lat, lng, cluster[:lat], cluster[:lng])
-        next unless distance <= cluster[:radius]
-
-        nearby_portos << {
-          name: cluster[:name],
-          distance: distance,
-          type: 'portos'
+      nearby_portos = toilet_landmarks.map do |toilet|
+        {
+          name: toilet.name,
+          distance: toilet.distance_from(lat, lng),
+          type: 'toilet'
         }
       end
 
-      nearby_portos
+      # Sort by distance
+      nearby_portos.sort_by { |p| p[:distance] }
     end
 
     # Determine map visual mode based on proximity

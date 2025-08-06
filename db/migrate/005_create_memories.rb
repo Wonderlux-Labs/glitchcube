@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateMemories < ActiveRecord::Migration[7.2]
+class CreateMemories < ActiveRecord::Migration[7.1]
   def change
     create_table :memories do |t|
       # Essential fields only

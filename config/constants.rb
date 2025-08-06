@@ -2,23 +2,23 @@
 
 module GlitchCube
   module Constants
-    # Location: Black Rock City (Burning Man location)
+    # Location: Black Rock City (Burning Man location) - Golden Spike coordinates
     LOCATION = {
       city: 'Black Rock City',
       state: 'Nevada',
       country: 'USA',
-      latitude: 40.7864,
-      longitude: -119.2065,
+      latitude: 40.786958,  # Golden Spike (Center Camp) latitude
+      longitude: -119.202994, # Golden Spike (Center Camp) longitude
       timezone: 'America/Los_Angeles', # Pacific Time
       timezone_name: 'Pacific Time'
     }.freeze
 
     # Geographic coordinates for weather APIs and location-based services
     COORDINATES = {
-      lat: 40.7864,
-      lng: -119.2065,
-      lat_lng: [40.7864, -119.2065],
-      lat_lng_string: '40.7864,-119.2065'
+      lat: 40.786958,  # Golden Spike (Center Camp) latitude
+      lng: -119.202994, # Golden Spike (Center Camp) longitude
+      lat_lng: [40.786958, -119.202994],
+      lat_lng_string: '40.786958,-119.202994'
     }.freeze
 
     # Installation location details

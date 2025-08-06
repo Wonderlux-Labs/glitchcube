@@ -11,8 +11,9 @@ if development? || test?
     # Load defaults, test-specific, then local overrides
     Dotenv.load('.env.defaults', '.env.test', '.env')
   else
-    # Load defaults first, then override with .env
-    Dotenv.load('.env.defaults', '.env')
+    # Load defaults first, then environment-specific, then override with .env
+    env_file = ".env.#{ENV['RACK_ENV'] || 'development'}"
+    Dotenv.load('.env.defaults', env_file, '.env')
   end
 end
 
@@ -106,8 +107,9 @@ class GlitchCubeApp < Sinatra::Base
   end
 
   after do
-    # Skip logging for static assets and favicon
+    # Skip logging for static assets, favicon, and GPS polling endpoints
     return if request.path_info.start_with?('/assets', '/favicon')
+    return if request.path_info.start_with?('/api/v1/gps/') && request.get?
 
     duration = ((@request_start_time ? Time.now - @request_start_time : 0) * 1000).round
 

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateConversations < ActiveRecord::Migration[7.2]
+class CreateConversations < ActiveRecord::Migration[7.1]
   def change
     create_table :conversations do |t|
       t.string :session_id, null: false

@@ -1,2 +1,2 @@
-web: bundle exec puma -C config/puma.rb
-worker: RACK_ENV=development bundle exec sidekiq -r ./app.rb -C config/sidekiq.yml
+web: RACK_ENV=${RACK_ENV:-development} PORT=${PORT:-4567} PUMA_WORKERS=${PUMA_WORKERS:-0} PUMA_MIN_THREADS=${PUMA_MIN_THREADS:-1} PUMA_MAX_THREADS=${PUMA_MAX_THREADS:-5} bundle exec puma -C config/puma.rb
+worker: RACK_ENV=${RACK_ENV:-development} bundle exec sidekiq -r ./app.rb -C config/sidekiq.yml

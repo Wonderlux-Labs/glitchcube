@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class AddHaFieldsToConversations < ActiveRecord::Migration[7.0]
+class AddHaFieldsToConversations < ActiveRecord::Migration[7.1]
   def change
     add_column :conversations, :ha_conversation_id, :string
     add_column :conversations, :ha_device_id, :string

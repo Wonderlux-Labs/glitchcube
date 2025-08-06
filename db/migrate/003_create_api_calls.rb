@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateApiCalls < ActiveRecord::Migration[7.2]
+class CreateApiCalls < ActiveRecord::Migration[7.1]
   def change
     create_table :api_calls do |t|
       t.string :service, null: false # 'openrouter', 'home_assistant'
