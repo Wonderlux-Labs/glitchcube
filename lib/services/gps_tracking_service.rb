@@ -44,10 +44,10 @@ module Services
               context: location_context(lat, lng)
             }
           else
-            nil
+            fallback_location
           end
         else
-          nil
+          default_installation_location
         end
       rescue StandardError => e
         Services::LoggerService.log_api_call(
@@ -56,7 +56,7 @@ module Services
           error: e.message,
           success: false
         )
-        nil
+        fallback_location
       end
     end
 
@@ -179,8 +179,31 @@ module Services
           end
         end
       end
-      # No fallback coordinates - return nil if no real data
-      nil
+      # Return Center Camp coordinates when error occurs or simulation fails
+      {
+        lat: 40.786958,
+        lng: -119.202994,
+        timestamp: Time.now,
+        accuracy: nil,
+        battery: nil,
+        address: '2:00 & Atwood',
+        context: 'Center Camp - Heart of the City',
+        source: 'default'
+      }
+    end
+
+    # Default location when no GPS data is available at all
+    def default_installation_location
+      {
+        lat: 40.7864,
+        lng: -119.2065,
+        timestamp: Time.now,
+        accuracy: nil,
+        battery: nil,
+        address: 'Black Rock City',
+        context: 'Default Location',
+        source: 'default'
+      }
     end
 
     # Calculate bearing between two points
