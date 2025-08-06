@@ -59,6 +59,9 @@ dump.rdb
 
 # Data directory - all runtime data, volumes, logs, etc.
 /data/
+# But include important GIS data needed for tests
+!/data/gis/
+!/data/gis/burning_man_landmarks.json
 
 # Docker & Deployment
 docker-compose.override.yml

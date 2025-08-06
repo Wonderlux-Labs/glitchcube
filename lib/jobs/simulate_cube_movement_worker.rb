@@ -199,6 +199,7 @@ module Jobs
         timestamp: Time.now.utc.iso8601,
         address: address,
         context: context,
+        destination: @destination[:name],
         source: 'simulation'
       }
 
