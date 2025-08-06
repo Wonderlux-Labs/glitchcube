@@ -4,6 +4,16 @@ require 'simplecov'
 SimpleCov.start do
   add_filter '/spec/'
   add_filter '/config/'
+  
+  # Continue generating coverage report even if tests fail
+  at_exit do
+    SimpleCov.result.format! if SimpleCov.running
+  end
+end
+
+# Suppress SimpleCov error messages on test failures
+SimpleCov.at_exit do
+  SimpleCov.result.format!
 end
 
 ENV['RACK_ENV'] = 'test'

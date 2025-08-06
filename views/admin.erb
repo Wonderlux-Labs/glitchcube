@@ -83,24 +83,33 @@
   <h1>🟩 GLITCH CUBE ADMIN 🟩</h1>
   
   <div class="container">
-    <!-- TTS Test Panel -->
+    <!-- Character TTS Panel -->
     <div class="panel">
-      <h2>TTS Test</h2>
-      <form id="tts-form">
+      <h2>Character Voice Test</h2>
+      <form id="character-form">
+        <label>Character:</label>
+        <select id="character-select">
+          <option value="default">Glitch Cube (Default)</option>
+          <option value="buddy">BUDDY - Helper Cube</option>
+          <option value="jax">Jax the Juke - Bartender</option>
+          <option value="lomi">LOMI - Glitch Diva</option>
+        </select>
+        
         <label>Message:</label>
-        <input type="text" id="tts-message" value="Hello from Glitch Cube!" required>
+        <input type="text" id="character-message" placeholder="What should they say?" required>
         
         <label>Media Player:</label>
-        <select id="tts-player">
+        <select id="character-player">
           <option value="media_player.square_voice">Square Voice (Default)</option>
           <option value="media_player.kitchen">Kitchen</option>
           <option value="media_player.living_room">Living Room</option>
         </select>
         
-        <button type="submit">🔊 Test TTS</button>
+        <button type="submit">🎭 Speak as Character</button>
+        <button type="button" onclick="startProactiveConversation()">💭 Start Proactive Chat</button>
       </form>
       
-      <div id="tts-response" class="response"></div>
+      <div id="character-response" class="response"></div>
     </div>
     
     <!-- Conversation Test Panel -->

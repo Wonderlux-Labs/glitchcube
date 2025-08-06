@@ -299,7 +299,7 @@ module Services
         
         data[:data][:options] = tts_options unless tts_options.empty?
         
-        @home_assistant.post('/api/services/tts/speak', data)
+        @home_assistant.call_service('tts', 'speak', data)
       else
         # Legacy service call format for other providers
         service_data = {
@@ -404,22 +404,9 @@ module Services
     def handle_tts_error(error, message, entity_id)
       puts "⚠️  TTS failed for '#{truncate_message(message)}' on #{entity_id}: #{error.message}"
       
-      # Try fallback to basic TTS if using advanced features
-      if @default_provider != :google
-        puts "🔄 Attempting fallback to Google TTS..."
-        begin
-          @home_assistant.call_service(
-            'tts',
-            'google_translate_say',
-            entity_id: entity_id,
-            message: message
-          )
-          return true
-        rescue => fallback_error
-          puts "⚠️  Fallback also failed: #{fallback_error.message}"
-        end
-      end
-
+      # No Google TTS fallback - we don't have a key
+      puts "❌ TTS completely failed - no fallback available"
+      
       false
     end
 
@@ -507,14 +494,8 @@ module Services
       output_path = generate_temp_audio_path(format)
       
       begin
-        # Try to use HA's Google TTS
-        @home_assistant.call_service(
-          'tts',
-          'google_translate_say',
-          entity_id: 'media_player.none',  # Don't play, just generate
-          message: message,
-          cache: true
-        )
+        # No Google TTS - we don't have a key
+        raise "Audio file generation requires cloud TTS"
         
         # Get the cached file path from HA
         # This would need actual implementation based on HA's TTS cache structure
