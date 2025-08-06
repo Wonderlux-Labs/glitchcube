@@ -4,7 +4,11 @@ require 'spec_helper'
 require_relative '../../lib/services/conversation_service'
 require_relative '../../lib/modules/conversation_module'
 
-RSpec.describe 'Conversation with Persistence Integration', :vcr do
+RSpec.describe 'Conversation with Persistence Integration', :database, :vcr do
+  before(:all) do
+    skip('Skipping database persistence specs: DATABASE_URL is not set to Postgres') unless ENV['DATABASE_URL']&.start_with?('postgres')
+  end
+
   let(:conversation_service) { Services::ConversationService.new(context: initial_context) }
   let(:initial_context) do
     {
