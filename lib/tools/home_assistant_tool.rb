@@ -128,7 +128,7 @@ class HomeAssistantTool
 
   def self.speak_message(client, params)
     message = params['message'] || 'Hello from Glitch Cube!'
-    entity_id = params['entity_id'] || 'media_player.glitch_cube_speaker'
+    entity_id = params['entity_id'] || 'media_player.square_voice'
 
     response = client.call_service('tts', 'google_translate_say', {
                                      entity_id: entity_id,

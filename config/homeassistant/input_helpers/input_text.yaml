@@ -16,3 +16,8 @@ current_weather:
   max: 255
   initial: "Weather data unavailable"
   icon: "mdi:weather-partly-cloudy"
+
+glitchcube_host:
+  name: "Glitch Cube Host IP"
+  max: 15
+  icon: "mdi:cube-outline"

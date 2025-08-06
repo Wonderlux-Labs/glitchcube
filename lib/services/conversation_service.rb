@@ -19,7 +19,7 @@ module Services
       result = conversation_module.call(
         message: message,
         context: @context,
-        mood: mood
+        persona: mood
       )
 
       # Update context with any relevant information from the response

@@ -1,0 +1,9 @@
+# Sidekiq configuration
+:concurrency: 5
+:timeout: 25
+:queues:
+  - default
+  - low
+:environment: <%= ENV['RACK_ENV'] || 'development' %>
+:redis:
+  url: <%= ENV.fetch('REDIS_URL', 'redis://localhost:6379/0') %>

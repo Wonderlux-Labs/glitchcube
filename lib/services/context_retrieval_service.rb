@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'desiru'
-
 module Services
   class ContextRetrievalService
     CONTEXT_DIR = 'data/context_documents'

@@ -1,0 +1,72 @@
+# REST Commands for GlitchCube Integration
+
+rest_command:
+  # Start a proactive conversation
+  glitchcube_start_conversation:
+    url: >
+      {% set host = states('input_text.glitchcube_host') %}
+      http://{{ host }}:4567/api/v1/conversation/start
+    method: POST
+    headers:
+      Content-Type: "application/json"
+    payload: >
+      {
+        "trigger": "{{ trigger }}",
+        "context": {{ context | default('{}') | tojson }},
+        "message": "{{ message | default('') }}"
+      }
+    timeout: 10
+
+  # Send webhook event to Ruby backend
+  glitchcube_webhook:
+    url: >
+      {% set host = states('input_text.glitchcube_host') %}
+      http://{{ host }}:4567/api/v1/ha_webhook
+    method: POST
+    headers:
+      Content-Type: "application/json"
+    payload: >
+      {
+        "event_type": "{{ event_type }}",
+        "conversation_id": "{{ conversation_id | default('') }}",
+        "device_id": "{{ device_id | default('glitchcube') }}",
+        "text": "{{ text | default('') }}",
+        "context": {{ context | default('{}') | tojson }}
+      }
+    timeout: 10
+
+  # Continue an existing conversation
+  glitchcube_continue_conversation:
+    url: >
+      {% set host = states('input_text.glitchcube_host') %}
+      http://{{ host }}:4567/api/v1/conversation
+    method: POST
+    headers:
+      Content-Type: "application/json"
+    payload: >
+      {
+        "message": "{{ message }}",
+        "context": {
+          "conversation_id": "{{ conversation_id }}",
+          "ha_conversation_id": "{{ ha_conversation_id }}",
+          "session_id": "{{ session_id }}",
+          "device_id": "{{ device_id | default('glitchcube') }}",
+          "voice_interaction": true
+        }
+      }
+    timeout: 15
+
+  # Send TTS request
+  glitchcube_speak:
+    url: >
+      {% set host = states('input_text.glitchcube_host') %}
+      http://{{ host }}:4567/api/v1/tts
+    method: POST
+    headers:
+      Content-Type: "application/json"
+    payload: >
+      {
+        "text": "{{ text }}",
+        "voice": "{{ voice | default('default') }}"
+      }
+    timeout: 10

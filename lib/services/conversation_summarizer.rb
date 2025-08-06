@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require 'desiru'
+require_relative 'llm_service'
 
 module Services
   class ConversationSummarizer
     def initialize
-      @summarizer = create_summarizer
+      @llm_service = Services::LLMService.new
     end
 
     def summarize_conversation(messages, context = {})
@@ -13,140 +13,103 @@ module Services
 
       # Format conversation for summarization
       conversation_text = format_conversation(messages)
+      
+      system_prompt = <<~PROMPT
+        You are an expert at summarizing conversations.
+        Provide a concise summary capturing the key points and overall theme.
+        Focus on: main topics discussed, any decisions made, and notable moments.
+        Keep the summary under 5 bullet points.
+      PROMPT
+
+      user_prompt = <<~PROMPT
+        Summarize this conversation:
+        
+        #{conversation_text}
+      PROMPT
 
       # Generate summary
-      result = @summarizer.call(
-        text: conversation_text,
-        max_points: 5
+      response = @llm_service.complete(
+        system_prompt: system_prompt,
+        user_message: user_prompt,
+        model: GlitchCube.config.ai.default_model,
+        temperature: 0.3,
+        max_tokens: 200
       )
 
-      # Parse key_points from the result string
-      key_points = parse_key_points(result)
-
-      summary = {
-        key_points: key_points || extract_fallback_points(messages),
-        mood_progression: extract_mood_changes(messages),
-        topics_discussed: extract_topics(conversation_text),
-        duration: calculate_duration(messages),
-        message_count: messages.length,
-        context: context,
-        timestamp: Time.now.iso8601
-      }
-
-      # Store summary if persistence is available
-      store_summary(summary) if defined?(GlitchCube::Persistence)
-
-      summary
+      parse_summary(response[:content])
     rescue StandardError => e
-      puts "Summarization failed: #{e.message}"
+      Rails.logger.error "Failed to summarize conversation: #{e.message}"
       nil
     end
 
-    def get_recent_summaries(limit: 10)
-      return [] unless defined?(GlitchCube::Persistence)
+    def summarize_day(conversations, date = Date.today)
+      return nil if conversations.empty?
 
-      # Fetch from persistence layer
-      GlitchCube::Persistence.get_conversation_summaries(limit: limit)
-    rescue StandardError => e
-      puts "Failed to fetch summaries: #{e.message}"
-      []
+      summaries = conversations.map do |conv|
+        messages = conv['messages'] || []
+        next if messages.empty?
+
+        {
+          time: conv['started_at'],
+          persona: conv['persona'],
+          summary: summarize_conversation(messages)
+        }
+      end.compact
+
+      return nil if summaries.empty?
+
+      system_prompt = <<~PROMPT
+        You are creating a daily summary of interactions with an autonomous art installation.
+        Synthesize the individual conversation summaries into a cohesive daily narrative.
+        Highlight patterns, interesting moments, and the overall mood of the day.
+      PROMPT
+
+      user_prompt = <<~PROMPT
+        Date: #{date}
+        
+        Individual conversation summaries:
+        #{summaries.map { |s| "#{s[:time]} (#{s[:persona]}): #{s[:summary]}" }.join("\n\n")}
+        
+        Create a unified daily summary.
+      PROMPT
+
+      response = @llm_service.complete(
+        system_prompt: system_prompt,
+        user_message: user_prompt,
+        model: GlitchCube.config.ai.default_model,
+        temperature: 0.4,
+        max_tokens: 300
+      )
+
+      {
+        date: date,
+        conversation_count: conversations.size,
+        summary: response[:content],
+        generated_at: Time.now
+      }
     end
 
     private
 
-    def create_summarizer
-      # Use Predict module due to ChainOfThought bug in 0.2.0
-      Desiru::Modules::Predict.new(
-        'text: str, max_points: int -> key_points: list[str]'
-      )
-    end
-
     def format_conversation(messages)
       messages.map do |msg|
-        role = msg[:role] || (msg[:from_user] ? 'User' : 'Glitch Cube')
-        content = msg[:content] || msg[:message] || msg[:response]
-        "#{role}: #{content}"
+        role = msg['role'] || msg[:role]
+        content = msg['content'] || msg[:content]
+        "#{role.capitalize}: #{content}"
       end.join("\n\n")
     end
 
-    def extract_fallback_points(messages)
-      # Simple fallback if AI summarization fails
-      points = []
+    def parse_summary(raw_summary)
+      return nil if raw_summary.nil? || raw_summary.empty?
 
-      # First and last messages
-      points << "Conversation started with: #{messages.first[:content] || messages.first[:message]}"
-      points << "Ended with: #{messages.last[:content] || messages.last[:response]}" if messages.length > 1
-
-      # Count questions
-      question_count = messages.count { |m| m[:content]&.include?('?') || m[:message]&.include?('?') }
-      points << "#{question_count} questions were asked" if question_count.positive?
-
-      points
-    end
-
-    def extract_mood_changes(messages)
-      moods = messages.map { |m| m[:mood] || m[:suggested_mood] }.compact.uniq
-      moods.empty? ? ['neutral'] : moods
-    end
-
-    def extract_topics(text)
-      # Simple keyword extraction
-      keywords = %w[art consciousness creativity play mystery think wonder color light
-                    experience perception reality dream imagine create explore feel]
-
-      found_topics = keywords.select do |keyword|
-        text.downcase.include?(keyword)
+      # Extract bullet points if formatted that way
+      points = raw_summary.scan(/^[\*\-•]\s*(.+)$/m).flatten
+      
+      if points.any?
+        points.map(&:strip).join("\n")
+      else
+        raw_summary.strip
       end
-
-      found_topics.take(5)
-    end
-
-    def calculate_duration(messages)
-      return 0 if messages.length < 2
-
-      first_time = parse_time(messages.first[:timestamp] || messages.first[:created_at])
-      last_time = parse_time(messages.last[:timestamp] || messages.last[:created_at])
-
-      return 0 unless first_time && last_time
-
-      (last_time - first_time).to_i
-    rescue StandardError
-      0
-    end
-
-    def parse_time(time_value)
-      case time_value
-      when Time then time_value
-      when String then Time.parse(time_value)
-      end
-    end
-
-    def parse_key_points(result)
-      return nil unless result
-
-      # Desiru Predict module returns a string like "key_points:\n- item1\n- item2"
-      # We need to parse this into an array
-      if result.is_a?(String)
-        # Extract the key_points section
-        if result.include?('key_points:')
-          points_text = result.split('key_points:').last.strip
-          # Parse bullet points
-          points = points_text.split("\n").map { |line| line.strip.gsub(/^-\s*/, '') }.reject(&:empty?)
-          return points unless points.empty?
-        end
-      elsif result.is_a?(Hash) && result[:key_points]
-        # In case Desiru returns a properly structured hash
-        return result[:key_points]
-      end
-
-      nil
-    end
-
-    def store_summary(summary)
-      # Store in persistence layer if available
-      GlitchCube::Persistence.store_conversation_summary(summary)
-    rescue StandardError => e
-      puts "Failed to store summary: #{e.message}"
     end
   end
 end

@@ -5,12 +5,7 @@ homeassistant:
   longitude: -119.218725792
   elevation: 3848
   time_zone: "America/Los_Angeles"
-
-  
-  # Allow external webhooks for art installation
-  external_url: "https://zjd6lgd6yhigawnj06mkguhholcsfdul.ui.nabu.casa:8123"
-  internal_url: "http://localhost:8123"
-
+default_config:
 # Enable frontend and API
 frontend:
   themes: !include_dir_merge_named themes
@@ -28,7 +23,7 @@ history:
 
 # Enable recorder with MariaDB for better performance
 recorder:
-  db_url: !env_var "RECORDER_DB_URL"
+  db_url: mysql://homeassistant:homeassistantd@core-mariadb/homeassistant?charset=utf8mb4
   purge_keep_days: 10  # Keep 10 days of history
   commit_interval: 5   # Commit every 5 seconds for reliability
   include:
@@ -76,17 +71,10 @@ input_text: !include input_helpers/input_text.yaml
 input_number: !include input_helpers/input_number.yaml
 input_boolean: !include input_helpers/input_boolean.yaml
 
-# Additional input helpers for bandwidth monitoring
-input_boolean: !include_dir_merge_named input_helpers/
-input_number: !include_dir_merge_named input_helpers/
-input_text: !include_dir_merge_named input_helpers/
-
 # Include all sensors (REST sensors and template sensors)
 sensor: !include_dir_merge_list sensors/
 template: !include_dir_merge_list template/
-
-# MQTT configuration for Govee and AWTRIX integrations
-mqtt: !include mqtt.yaml
+binary_sensor: !include_dir_merge_list binary_sensors/
 
 # Enable webhook integration (for external API calls)
 webhook:
@@ -104,10 +92,32 @@ rest_command:
       User-Agent: "Glitch Cube Status Monitor"
     timeout: 10
 
-# Shell commands for deployment
+# Shell commands for deployment and SSH key management
 shell_command:
   deploy_glitchcube: '/home/eric/glitchcube/scripts/pull-from-github.sh'
   rollback_glitchcube: 'cd /home/eric/glitchcube && docker tag glitchcube:last-known-good glitchcube:latest && docker-compose up -d glitchcube sidekiq'
+  
+  # SSH key setup for git operations
+  setup_ssh_key: |
+    if [ ! -d "/root/.ssh" ]; then
+      mkdir -p /root/.ssh
+      chmod 700 /root/.ssh
+    fi
+    if [ ! -f "/root/.ssh/id_rsa" ] && [ -f "/share/ssh_key" ]; then
+      cp /share/ssh_key /root/.ssh/id_rsa
+      chmod 600 /root/.ssh/id_rsa
+      eval "$(ssh-agent -s)" 2>/dev/null
+      ssh-add /root/.ssh/id_rsa 2>/dev/null
+    fi
+  
+  # Check SSH key status
+  check_ssh_key_status: |
+    if [ -f "/root/.ssh/id_rsa" ]; then
+      echo "SSH key exists: $(ls -la /root/.ssh/id_rsa)"
+      ssh-keygen -l -f /root/.ssh/id_rsa 2>/dev/null || echo "SSH key validation failed"
+    else
+      echo "SSH key not found at /root/.ssh/id_rsa"
+    fi
 
 # Scene configuration for different installation modes
 scene: !include scenes.yaml
@@ -140,9 +150,3 @@ logger:
     # Keep authentication warnings visible
     homeassistant.components.http.ban: warning
     homeassistant.components.auth: info
-
-# Note: panel_iframe has been deprecated in newer HA versions
-# Use the Home Assistant Community Store (HACS) integrations for file editing
-# or access services directly via their URLs:
-# - File Editor: http://glitchcube.local:3218
-# - Log Viewer: http://glitchcube.local:8888

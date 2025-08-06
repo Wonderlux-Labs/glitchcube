@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative '../utils/location_helper'
+require_relative '../utils/burning_man_landmarks'
 require_relative '../cube/settings'
 
 module Services
@@ -43,10 +44,10 @@ module Services
               context: location_context(lat, lng)
             }
           else
-            fallback_location
+            nil
           end
         else
-          fallback_location
+          nil
         end
       rescue StandardError => e
         Services::LoggerService.log_api_call(
@@ -55,7 +56,7 @@ module Services
           error: e.message,
           success: false
         )
-        fallback_location
+        nil
       end
     end
 
@@ -107,7 +108,7 @@ module Services
 
     # Detect nearby landmarks and return proximity info
     def detect_nearby_landmarks(lat, lng)
-      landmarks = burning_man_landmarks
+      landmarks = Utils::BurningManLandmarks.load_landmarks
       nearby = []
 
       landmarks.each do |landmark|
@@ -178,17 +179,8 @@ module Services
           end
         end
       end
-      # Default to Center Camp if no simulation
-      center_camp = { lat: 40.786958, lng: -119.202994 }
-      {
-        lat: center_camp[:lat],
-        lng: center_camp[:lng],
-        timestamp: Time.now,
-        accuracy: nil,
-        battery: nil,
-        address: brc_address_from_coordinates(center_camp[:lat], center_camp[:lng]),
-        context: location_context(center_camp[:lat], center_camp[:lng])
-      }
+      # No fallback coordinates - return nil if no real data
+      nil
     end
 
     # Calculate bearing between two points
@@ -235,83 +227,6 @@ module Services
       'Beyond Kilgore' # Past the city limits
     end
 
-    # Burning Man landmarks with GPS coordinates and proximity radii
-    def burning_man_landmarks
-      [
-        {
-          name: 'Center Camp',
-          lat: 40.786958,
-          lng: -119.202994,
-          radius: 50, # meters - much smaller radius
-          type: 'gathering',
-          context: 'Center Camp - Heart of the City'
-        },
-        {
-          name: 'The Temple',
-          lat: 40.7800,
-          lng: -119.2030,
-          radius: 15, # meters - very small radius
-          type: 'sacred',
-          context: 'Approaching the Temple 🏛️'
-        },
-        {
-          name: 'The Man',
-          lat: 40.7850,
-          lng: -119.2030,
-          radius: 15, # meters - very small radius
-          type: 'center',
-          context: 'Near The Man 🔥'
-        },
-        {
-          name: 'Airport',
-          lat: 40.6622,
-          lng: -119.4341,
-          radius: 500,
-          type: 'transport',
-          context: 'Black Rock City Airport ✈️'
-        },
-        {
-          name: 'Arctica (3:00 & G)',
-          lat: 40.7865,
-          lng: -119.2045,
-          radius: 100,
-          type: 'service',
-          context: 'Near Arctica Ice Sales ❄️'
-        },
-        {
-          name: 'Arctica (6:15 & B)',
-          lat: 40.7860,
-          lng: -119.2025,
-          radius: 100,
-          type: 'service',
-          context: 'Near Arctica Ice Sales ❄️'
-        },
-        {
-          name: 'Arctica (9:00 & G)',
-          lat: 40.7855,
-          lng: -119.2015,
-          radius: 100,
-          type: 'service',
-          context: 'Near Arctica Ice Sales ❄️'
-        },
-        {
-          name: 'Emergency Services (3:00 & C)',
-          lat: 40.7870,
-          lng: -119.2040,
-          radius: 150,
-          type: 'medical',
-          context: 'Near Emergency Medical 🚑'
-        },
-        {
-          name: 'Emergency Services (9:00 & C)',
-          lat: 40.7850,
-          lng: -119.2020,
-          radius: 150,
-          type: 'medical',
-          context: 'Near Emergency Medical 🚑'
-        }
-      ]
-    end
 
     # Detect nearby porto clusters
     def detect_nearby_portos(lat, lng)

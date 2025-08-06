@@ -15,7 +15,7 @@ module GlitchCube
         port: ENV.fetch('PORT', '4567').to_i,
         session_secret: ENV.fetch('SESSION_SECRET') { SecureRandom.hex(64) },
         rack_env: ENV.fetch('RACK_ENV', 'development'),
-        database_url: ENV.fetch('DATABASE_URL', 'sqlite://data/glitchcube.db'),
+        database_url: ENV.fetch('DATABASE_URL', 'postgresql://localhost:5432/glitchcube_development'),
         redis_url: ENV.fetch('REDIS_URL', nil),
 
         # MariaDB Configuration
@@ -81,9 +81,11 @@ module GlitchCube
     def validate!
       errors = []
 
+      # Always required for core functionality
+      errors << 'OPENROUTER_API_KEY is required - please add to .env file' if openrouter_api_key.nil? || openrouter_api_key.empty?
+      
       # Required in production
       if production?
-        errors << 'OPENROUTER_API_KEY is required' if openrouter_api_key.nil? || openrouter_api_key.empty?
         errors << 'SESSION_SECRET should be explicitly set in production' if ENV['SESSION_SECRET'].nil?
 
         errors << 'HOME_ASSISTANT_TOKEN is required when not using mock' if home_assistant.url && !home_assistant.mock_enabled && home_assistant.token.nil?

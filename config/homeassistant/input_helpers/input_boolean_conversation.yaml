@@ -1,0 +1,18 @@
+# Input Boolean helpers for conversation state
+
+input_boolean:
+  # Track if a conversation is currently active
+  glitchcube_conversation_active:
+    name: GlitchCube Conversation Active
+    icon: mdi:forum
+
+  # Track if conversation should continue
+  glitchcube_conversation_continue:
+    name: GlitchCube Continue Conversation
+    initial: true
+    icon: mdi:message-reply
+
+  # Track if GlitchCube initiated the conversation
+  glitchcube_conversation_initiated:
+    name: GlitchCube Initiated Conversation
+    icon: mdi:chat-processing

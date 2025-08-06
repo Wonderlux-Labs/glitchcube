@@ -1,0 +1,104 @@
+---
+# SSH Key Setup Automation
+# Copies SSH key from /share/ssh_key to /root/.ssh/ on Home Assistant startup
+# This automation ensures SSH keys are properly configured for git operations
+
+- id: ssh_key_setup_startup
+  alias: "SSH Key Setup on Startup"
+  description: "Configure SSH keys for git operations on Home Assistant startup"
+  trigger:
+    - platform: homeassistant
+      event: start
+  condition: []
+  action:
+    - service: shell_command.setup_ssh_key
+      data: {}
+    - delay: 
+        seconds: 5
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.ssh_key_status
+  mode: single
+
+# Additional automation to check SSH key status periodically
+- id: ssh_key_health_check
+  alias: "SSH Key Health Check"
+  description: "Verify SSH key is properly configured every 6 hours"
+  trigger:
+    - platform: time_pattern
+      hours: "/6"
+  condition: []
+  action:
+    - service: shell_command.check_ssh_key_status
+      data: {}
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.ssh_key_status
+  mode: single
+
+# Alert when SSH key status is problematic
+- id: ssh_key_status_alert
+  alias: "SSH Key Status Alert"
+  description: "Alert when SSH key is missing or invalid"
+  trigger:
+    - platform: state
+      entity_id: sensor.ssh_key_status
+      to: 
+        - "missing"
+        - "invalid"
+      for:
+        minutes: 2
+  condition: []
+  action:
+    - service: persistent_notification.create
+      data:
+        title: "SSH Key Issue Detected"
+        message: >
+          SSH key status: {{ trigger.to_state.state }}
+          
+          {% if trigger.to_state.state == 'missing' %}
+          SSH key not found at /root/.ssh/id_rsa. 
+          Please ensure /share/ssh_key exists and run the SSH Key Setup automation.
+          {% elif trigger.to_state.state == 'invalid' %}
+          SSH key exists but appears to be corrupted or invalid.
+          Please check the key file and re-run setup if needed.
+          {% endif %}
+          
+          This may affect git deployment operations.
+        notification_id: "ssh_key_alert"
+    - service: system_log.write
+      data:
+        message: "SSH Key {{ trigger.to_state.state }} - deployment operations may be affected"
+        level: warning
+        logger: homeassistant.components.glitchcube.ssh_key
+  mode: single
+
+# Auto-retry SSH key setup if it fails initially
+- id: ssh_key_setup_retry
+  alias: "SSH Key Setup Retry"
+  description: "Retry SSH key setup if it fails on first attempt"
+  trigger:
+    - platform: state
+      entity_id: sensor.ssh_key_status
+      to: "missing"
+      for:
+        minutes: 5
+  condition:
+    - condition: template
+      value_template: "{{ states('sensor.ssh_key_status') == 'missing' }}"
+    - condition: template
+      value_template: "{{ states('input_boolean.ssh_retry_enabled', 'on') == 'on' }}"
+  action:
+    - service: shell_command.setup_ssh_key
+      data: {}
+    - delay:
+        seconds: 10
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.ssh_key_status
+    - service: system_log.write
+      data:
+        message: "SSH Key setup retry executed"
+        level: info
+        logger: homeassistant.components.glitchcube.ssh_key
+  mode: single

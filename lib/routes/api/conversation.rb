@@ -57,8 +57,7 @@ module GlitchCube
               conversation_handler = Services::ConversationHandlerService.new
               response_data = conversation_handler.process_conversation(
                 message: request_body['message'],
-                context: context,
-                mood: request_body['mood'] || 'neutral'
+                context: context
               )
 
               json({
@@ -97,8 +96,7 @@ module GlitchCube
               conversation_handler = Services::ConversationHandlerService.new
               conv_result = conversation_handler.conversation_module.call(
                 message: message,
-                context: context,
-                mood: request_body['mood'] || 'neutral'
+                context: context
               )
 
               # Combine RAG and conversation results
@@ -106,8 +104,6 @@ module GlitchCube
                      success: true,
                      data: {
                        response: conv_result[:response],
-                       suggested_mood: conv_result[:suggested_mood],
-                       confidence: [conv_result[:confidence], rag_result[:confidence]].max,
                        contexts_used: rag_result[:contexts_used]
                      },
                      timestamp: Time.now.iso8601
@@ -155,6 +151,131 @@ module GlitchCube
                      success: false,
                      error: e.message
                    })
+            end
+          end
+
+          # Webhook endpoint for Home Assistant to trigger conversations
+          app.post '/api/v1/ha_webhook' do
+            content_type :json
+            
+            begin
+              request_body = JSON.parse(request.body.read)
+              conversation_handler = Services::ConversationHandlerService.new
+              
+              # Process HA webhook events
+              case request_body['event_type']
+              when 'conversation_started'
+                # HA started a conversation, sync it
+                context = {
+                  ha_conversation_id: request_body['conversation_id'],
+                  device_id: request_body['device_id'],
+                  session_id: request_body['session_id'] || SecureRandom.uuid,
+                  voice_interaction: true
+                }
+                
+                # Find or create conversation and sync with HA
+                conversation = Conversation.find_or_create_by(
+                  ha_conversation_id: request_body['conversation_id']
+                ) do |conv|
+                  conv.session_id = context[:session_id]
+                  conv.source = 'home_assistant'
+                  conv.started_at = Time.current
+                  conv.metadata = context
+                end
+                
+                conversation_handler.sync_with_ha(
+                  conversation,
+                  request_body['conversation_id'],
+                  request_body['device_id']
+                )
+                
+                json({
+                  success: true,
+                  conversation_id: conversation.id,
+                  ha_conversation_id: conversation.ha_conversation_id
+                })
+                
+              when 'conversation_continued'
+                # HA is continuing a conversation
+                ha_conv_id = request_body['conversation_id']
+                conversation = Conversation.find_by(ha_conversation_id: ha_conv_id)
+                
+                if conversation
+                  # Process the message through your system
+                  result = conversation_handler.process_conversation(
+                    message: request_body['text'],
+                    context: { 
+                      ha_conversation_id: ha_conv_id,
+                      device_id: request_body['device_id'],
+                      voice_interaction: true,
+                      session_id: conversation.session_id
+                    }
+                  )
+                  
+                  # Send response back to HA if needed
+                  if result[:response] && request_body['send_response'] != false
+                    conversation_handler.continue_ha_conversation(
+                      ha_conv_id, 
+                      result[:response],
+                      { device_id: request_body['device_id'] }
+                    )
+                  end
+                  
+                  json({
+                    success: true,
+                    data: result
+                  })
+                else
+                  # No existing conversation, create new one
+                  result = conversation_handler.process_conversation(
+                    message: request_body['text'],
+                    context: {
+                      ha_conversation_id: ha_conv_id,
+                      device_id: request_body['device_id'],
+                      voice_interaction: true,
+                      session_id: SecureRandom.uuid
+                    }
+                  )
+                  
+                  json({
+                    success: true,
+                    data: result,
+                    new_conversation: true
+                  })
+                end
+                
+              when 'trigger_action'
+                # HA wants to trigger a specific action
+                action = request_body['action']
+                context = request_body['context'] || {}
+                
+                # Process action through conversation system
+                result = conversation_handler.process_conversation(
+                  message: "Execute action: #{action}",
+                  context: context.merge(action_request: action),
+                  mood: 'neutral'
+                )
+                
+                json({
+                  success: true,
+                  action: action,
+                  result: result
+                })
+                
+              else
+                json({
+                  success: false,
+                  error: "Unknown event type: #{request_body['event_type']}"
+                })
+              end
+              
+            rescue StandardError => e
+              status 400
+              json({ 
+                success: false, 
+                error: e.message,
+                backtrace: e.backtrace.first(5)
+              })
             end
           end
         end

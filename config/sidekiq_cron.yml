@@ -10,3 +10,9 @@ memory_cleanup:
   class: "Jobs::MemoryCleanupJob"
   queue: low
   description: "Clean up old memory files and consolidate data"
+
+host_registration:
+  cron: "*/5 * * * *"  # Every 5 minutes
+  class: "HostRegistrationWorker"
+  queue: default
+  description: "Register Glitch Cube IP with Home Assistant for dynamic discovery"

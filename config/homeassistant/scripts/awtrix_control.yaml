@@ -1,0 +1,175 @@
+# AWTRIX 3 Control Scripts for Glitch Cube
+
+# Send custom app message to AWTRIX
+awtrix_send_custom_app:
+  alias: "AWTRIX Send Custom App"
+  description: "Send a custom app message to AWTRIX display"
+  fields:
+    app_name:
+      description: "Name of the custom app (no spaces)"
+      example: "glitchcube"
+      required: true
+      selector:
+        text:
+    text:
+      description: "Text to display"
+      example: "Hello World"
+      required: true
+      selector:
+        text:
+    color:
+      description: "Text color as hex string"
+      example: "#FF0000"
+      default: "#FFFFFF"
+      selector:
+        text:
+    duration:
+      description: "Display duration in seconds"
+      example: 10
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          step: 1
+          mode: slider
+    rainbow:
+      description: "Enable rainbow text effect"
+      example: false
+      default: false
+      selector:
+        boolean:
+    icon:
+      description: "Icon ID or base64 encoded 8x8 image"
+      example: "1234"
+      default: ""
+      selector:
+        text:
+  sequence:
+    - service: mqtt.publish
+      data_template:
+        topic: "marquee/custom/{{ app_name }}"
+        payload: >-
+          {
+            "text": "{{ text }}",
+            "color": "{{ color }}",
+            "duration": {{ duration }},
+            "rainbow": {{ rainbow | lower }}
+            {%- if icon is defined and icon != "" -%}
+            ,
+            "icon": "{{ icon }}"
+            {%- endif %}
+          }
+
+# Send notification to AWTRIX
+awtrix_send_notification:
+  alias: "AWTRIX Send Notification"
+  description: "Send a notification to AWTRIX display"
+  fields:
+    text:
+      description: "Notification text"
+      example: "Alert!"
+      required: true
+      selector:
+        text:
+    color:
+      description: "Text color as hex string"
+      example: "#FF0000"
+      default: "#FFFFFF"
+      selector:
+        text:
+    duration:
+      description: "Display duration in seconds (since we can't dismiss)"
+      example: 10
+      default: 8
+      selector:
+        number:
+          min: 1
+          max: 120
+          step: 1
+          mode: slider
+    wakeup:
+      description: "Turn on matrix if it's off"
+      example: true
+      default: true
+      selector:
+        boolean:
+    sound:
+      description: "Sound to play (RTTTL string or MP3 filename without extension)"
+      example: "alarm"
+      default: ""
+      selector:
+        text:
+    icon:
+      description: "Icon ID or base64 encoded 8x8 image"
+      example: "1234"
+      default: ""
+      selector:
+        text:
+    stack:
+      description: "Stack multiple notifications"
+      example: true
+      default: true
+      selector:
+        boolean:
+  sequence:
+    - service: mqtt.publish
+      data_template:
+        topic: "marquee/notify"
+        payload: >-
+          {
+            "text": "{{ text }}",
+            "color": "{{ color }}",
+            "duration": {{ duration }},
+            "wakeup": {{ wakeup | lower }},
+            "stack": {{ stack | lower }}
+            {%- if sound is defined and sound != "" -%}
+            ,
+            "sound": "{{ sound }}"
+            {%- endif -%}
+            {%- if icon is defined and icon != "" -%}
+            ,
+            "icon": "{{ icon }}"
+            {%- endif %}
+          }
+
+# Clear AWTRIX display
+awtrix_clear_display:
+  alias: "AWTRIX Clear Display"
+  description: "Clear all custom apps from AWTRIX"
+  sequence:
+    - service: mqtt.publish
+      data:
+        topic: "marquee/custom/glitchcube"
+        payload: ""
+
+# Set AWTRIX mood light
+awtrix_set_mood_light:
+  alias: "AWTRIX Set Mood Light"
+  description: "Control AWTRIX mood lighting"
+  fields:
+    color:
+      description: "Color as hex string"
+      example: "#FF00FF"
+      required: true
+      selector:
+        text:
+    brightness:
+      description: "Brightness level (0-255)"
+      example: 100
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 255
+          step: 1
+          mode: slider
+  sequence:
+    - service: mqtt.publish
+      data_template:
+        topic: "marquee/moodlight"
+        payload: >-
+          {
+            "color": "{{ color }}",
+            "brightness": {{ brightness }}
+          }

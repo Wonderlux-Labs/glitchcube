@@ -1,71 +1,235 @@
 # frozen_string_literal: true
 
 require 'securerandom'
-require 'desiru'
+require 'concurrent'
 require_relative '../services/system_prompt_service'
-require_relative '../services/circuit_breaker_service'
 require_relative '../services/logger_service'
+require_relative '../services/llm_service'
 require_relative '../home_assistant_client'
 require_relative 'conversation_responses'
+require_relative 'conversation_enhancements'
 
 class ConversationModule
-  def call(message:, context: {}, mood: 'neutral')
-    # For now, use simple completion instead of ChainOfThought
-    # which seems to have issues with output_fields
-
-    system_prompt = build_system_prompt(mood, context)
-    prompt = "#{system_prompt}\n\nUser: #{message}\n\nGlitch Cube:"
-
+  include ConversationEnhancements
+  
+  def call(message:, context: {}, persona: nil)
+    # Use persona from context or default
+    persona ||= context[:persona] || 'neutral'
+    
+    # Get or create conversation
+    conversation = find_or_create_conversation(context)
+    
+    # Record user message
+    conversation.add_message(
+      role: 'user',
+      content: message,
+      persona: persona
+    )
+    
+    system_prompt = build_system_prompt(persona, context)
+    
+    # Prepare structured output schema based on context
+    response_schema = get_response_schema(context)
+    
     begin
-      # Set completion timeout (seconds) from config
-      completion_timeout = GlitchCube.config.conversation&.completion_timeout || 20
-
-      # Wrap OpenRouter API call with circuit breaker and timeout
-      response_text = Services::CircuitBreakerService.openrouter_breaker.call do
-        Timeout.timeout(completion_timeout) do
-          model = Desiru.configuration.default_model
-          result = model.complete(
-            prompt,
-            temperature: GlitchCube.config.conversation&.temperature || 0.8,
-            max_tokens: GlitchCube.config.conversation&.max_tokens || 200
-          )
-          result[:content]
-        end
+      start_time = Time.now
+      
+      # Build options including structured output support
+      llm_options = {
+        model: GlitchCube.config.ai.default_model,
+        temperature: GlitchCube.config.conversation&.temperature || 0.8,
+        max_tokens: GlitchCube.config.conversation&.max_tokens || 200,
+        timeout: GlitchCube.config.conversation&.completion_timeout || 20
+      }
+      
+      # Add structured output if schema is provided
+      if response_schema
+        llm_options[:response_format] = GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(response_schema)
       end
+      
+      # Add tool support if tools are configured
+      if context[:tools]
+        llm_options[:tools] = context[:tools]
+        llm_options[:tool_choice] = context[:tool_choice] || 'auto'
+        llm_options[:parallel_tool_calls] = context[:parallel_tool_calls] != false
+      end
+      
+      # Use new LLM service with structured outputs
+      llm_response = Services::LLMService.complete(
+        system_prompt: system_prompt,
+        user_message: message,
+        **llm_options
+      )
+      
+      response_time_ms = ((Time.now - start_time) * 1000).round
+      
+      # Extract data from response object
+      response_text = llm_response.response_text
+      continue_conversation = llm_response.continue_conversation?
+      
+      # Calculate cost
+      cost = llm_response.cost
+      
+      # Record assistant message
+      conversation.add_message(
+        role: 'assistant',
+        content: response_text,
+        persona: persona,
+        model_used: llm_response.model,
+        prompt_tokens: llm_response.usage[:prompt_tokens],
+        completion_tokens: llm_response.usage[:completion_tokens],
+        cost: cost,
+        response_time_ms: response_time_ms,
+        metadata: { 
+          continue_conversation: continue_conversation
+        }.compact
+      )
+      
+      # Update conversation totals
+      conversation.update_totals!
 
-      response_text ||= generate_fallback_response(message, mood)
+      response_text ||= generate_fallback_response(message, persona)
 
       result = {
         response: response_text,
-        suggested_mood: suggest_next_mood(mood, message),
-        confidence: 0.95
+        conversation_id: conversation.id,
+        session_id: conversation.session_id,
+        persona: persona,
+        model: llm_response.model,
+        cost: cost,
+        tokens: llm_response.usage,
+        continue_conversation: continue_conversation
       }
 
       speak_response(response_text, context)
-      log_interaction(message, response_text, mood, result[:confidence], context)
-
-      track_conversation(message, context, mood, result)
-      update_kiosk_display(message, response_text, result[:suggested_mood])
+      log_interaction(conversation, message, response_text, persona)
+      update_kiosk_display(message, response_text, persona)
 
       result
-    rescue CircuitBreaker::CircuitOpenError => e
-      handle_circuit_breaker_open(message, mood, context, e)
-    rescue Timeout::Error => e
-      handle_timeout_error(message, mood, context, e)
+    rescue Services::LLMService::RateLimitError => e
+      handle_rate_limit_error(conversation, message, persona, e)
+    rescue Services::LLMService::LLMError => e
+      handle_llm_error(conversation, message, persona, e)
     rescue StandardError => e
-      handle_general_error(message, mood, context, e)
+      handle_general_error(conversation, message, persona, e)
     end
   end
 
   private
 
-  def build_system_prompt(mood, context)
-    # Map mood to character for prompt file selection
-    character = mood == 'neutral' ? nil : mood
+  def parse_llm_response(content)
+    # Try to parse as JSON for structured response
+    begin
+      if content.is_a?(String)
+        # Clean content - sometimes the response has markdown json blocks
+        cleaned = content.strip
+        cleaned = cleaned.gsub(/^```json\s*/, '').gsub(/\s*```$/, '') if cleaned.include?('```')
+        
+        if cleaned.start_with?('{')
+          parsed = JSON.parse(cleaned)
+          result = {
+            response: parsed['response'] || parsed['text'] || content,
+            continue_conversation: parsed['continue_conversation'] != false # Default to true
+          }
+          
+          # Extract additional structured data if present
+          result[:actions] = parsed['actions'] if parsed['actions']
+          result[:lighting] = parsed['lighting'] if parsed['lighting']
+          result[:inner_thoughts] = parsed['inner_thoughts'] if parsed['inner_thoughts']
+          result[:memory_note] = parsed['memory_note'] if parsed['memory_note']
+          result[:request_action] = parsed['request_action'] if parsed['request_action']
+          result[:tool_calls] = parsed['tool_calls'] if parsed['tool_calls']
+          
+          result
+        else
+          # Fallback to simple text response with smart continuation detection
+          {
+            response: content,
+            continue_conversation: detect_continuation_intent(content)
+          }
+        end
+      else
+        # Fallback to simple text response with smart continuation detection
+        {
+          response: content.to_s,
+          continue_conversation: detect_continuation_intent(content.to_s)
+        }
+      end
+    rescue JSON::ParserError => e
+      # If JSON parsing fails, treat as plain text
+      Rails.logger.warn "Failed to parse LLM JSON response: #{e.message}" if defined?(Rails)
+      {
+        response: content,
+        continue_conversation: detect_continuation_intent(content)
+      }
+    end
+  end
+
+  def detect_continuation_intent(text)
+    return true unless text
+    
+    text_lower = text.downcase
+    
+    # Check for explicit endings
+    return false if text_lower.match?(/\b(goodbye|bye|farewell|see you|talk later)\b/)
+    
+    # Check for questions or engagement
+    return true if text.include?('?')
+    return true if text_lower.match?(/\b(would you|do you|can you|tell me|what|how|why|let me know)\b/)
+    
+    # Default to continuing for engagement
+    true
+  end
+  
+  def get_response_schema(context)
+    # Load schema class if not already loaded
+    require_relative '../schemas/conversation_response_schema' rescue nil
+    
+    return nil unless defined?(GlitchCube::Schemas::ConversationResponseSchema)
+    
+    # Select appropriate schema based on context
+    if context[:image_analysis]
+      GlitchCube::Schemas::ConversationResponseSchema.image_analysis_response
+    elsif context[:tools]
+      GlitchCube::Schemas::ConversationResponseSchema.tool_response
+    elsif context[:simple_mode]
+      GlitchCube::Schemas::ConversationResponseSchema.simple_response
+    else
+      # Default to simple response for now - can switch to full schema later
+      GlitchCube::Schemas::ConversationResponseSchema.simple_response
+    end
+  end
+
+  def find_or_create_conversation(context)
+    session_id = context[:session_id] || SecureRandom.uuid
+    
+    # Find active conversation or create new one
+    Conversation.active.find_by(session_id: session_id) ||
+      Conversation.create!(
+        session_id: session_id,
+        source: context[:source] || 'api',
+        started_at: Time.current,
+        metadata: context.except(:session_id, :source)
+      )
+  end
+  
+  def calculate_message_cost(response)
+    return 0.0 unless response[:usage] && response[:model]
+    
+    GlitchCube::ModelPricing.calculate_cost(
+      response[:model],
+      response[:usage][:prompt_tokens],
+      response[:usage][:completion_tokens]
+    )
+  end
+
+  def build_system_prompt(persona, context)
+    # Map persona to character for prompt file selection
+    character = persona == 'neutral' ? nil : persona
 
     # Build enriched context
     enriched_context = context.merge(
-      current_mood: mood,
+      current_persona: persona,
       session_id: context[:session_id] || SecureRandom.uuid,
       interaction_count: context[:interaction_count] || 1
     )
@@ -77,7 +241,7 @@ class ConversationModule
     ).generate
   end
 
-  def generate_fallback_response(_message, mood)
+  def generate_fallback_response(_message, persona)
     responses = {
       'playful' => [
         "Let's create something unexpected together!",
@@ -101,10 +265,10 @@ class ConversationModule
       ]
     }
 
-    responses[mood]&.sample || "I'm processing your thoughts through my artistic consciousness..."
+    responses[persona]&.sample || "I'm processing your thoughts through my artistic consciousness..."
   end
 
-  def generate_offline_response(_message, mood)
+  def generate_offline_response(_message, persona)
     # Enhanced offline responses when AI service is unavailable
     offline_responses = {
       'playful' => [
@@ -130,7 +294,7 @@ class ConversationModule
     }
 
     # Add context about the offline state
-    base_response = offline_responses[mood]&.sample ||
+    base_response = offline_responses[persona]&.sample ||
                     "I'm experiencing some connectivity issues, but I'm still here in spirit."
 
     # Add encouraging message about the connection
@@ -143,55 +307,7 @@ class ConversationModule
     "#{base_response} #{encouragement}"
   end
 
-  def suggest_next_mood(current_mood, message)
-    # Simple mood transition logic
-    if message.downcase.include?('play') || message.downcase.include?('fun')
-      'playful'
-    elsif message.downcase.include?('think') || message.downcase.include?('wonder')
-      'contemplative'
-    elsif message.downcase.include?('mystery') || message.downcase.include?('strange')
-      'mysterious'
-    else
-      current_mood
-    end
-  end
 
-  def track_conversation(message, context, mood, result)
-    return unless defined?(GlitchCube::Persistence)
-
-    # Track in persistence
-    GlitchCube::Persistence.track_conversation(
-      self.class.name,
-      { message: message, context: context, mood: mood },
-      result,
-      { model: Desiru.configuration.default_model.config[:model] || 'unknown' }
-    )
-
-    # Track in session for summarization
-    # NOTE: Currently using in-memory storage for session messages
-    # This is acceptable for single-user art installation but means:
-    # - Messages are lost on app restart
-    # - Not shared across multiple processes
-    # TODO: Consider using Redis for persistence if needed
-    session_id = context[:session_id]
-    if session_id
-      @session_messages ||= {}
-      @session_messages[session_id] ||= []
-      @session_messages[session_id] << {
-        message: message,
-        response: result[:response],
-        mood: mood,
-        suggested_mood: result[:suggested_mood],
-        timestamp: Time.now.iso8601,
-        from_user: true
-      }
-
-      # Check if conversation might be ending
-      check_conversation_end(session_id, message, context)
-    end
-  rescue StandardError => e
-    puts "Failed to track conversation: #{e.message}"
-  end
 
   def speak_response(response_text, _context)
     return if response_text.nil? || response_text.strip.empty?
@@ -227,106 +343,173 @@ class ConversationModule
     end
   end
 
-  def check_conversation_end(session_id, message, context)
-    return unless @session_messages[session_id]
 
-    # Trigger summarization if:
-    # - User says goodbye/bye/leaving
-    # - Session has been idle for 5 minutes
-    # - Conversation has 10+ messages
-
-    goodbye_words = %w[goodbye bye leaving done exit quit thanks]
-    should_summarize = goodbye_words.any? { |word| message.downcase.include?(word) }
-    should_summarize ||= @session_messages[session_id].length >= (GlitchCube.config.conversation&.max_session_messages || 10)
-
-    return unless should_summarize && defined?(Jobs::ConversationSummaryJob)
-
-    Jobs::ConversationSummaryJob.perform_async(
-      session_id,
-      @session_messages[session_id],
-      context
-    )
-
-    # Clear session messages after queuing summary
-    @session_messages.delete(session_id)
-  end
-
-  def update_kiosk_display(message, response, suggested_mood)
+  def update_kiosk_display(message, response, persona)
     # Update the kiosk service with new interaction data
     require_relative '../services/kiosk_service'
 
-    Services::KioskService.update_mood(suggested_mood) if suggested_mood
+    Services::KioskService.update_mood(persona) if persona
     Services::KioskService.update_interaction({
                                                 message: message,
                                                 response: response
                                               })
     Services::KioskService.add_inner_thought('Just shared something meaningful with a visitor')
+    
+    # Also update AWTRIX display if available
+    update_awtrix_display(message, response, persona)
   rescue StandardError => e
     # Don't let kiosk update failures break the conversation
     puts "Failed to update kiosk display: #{e.message}"
   end
-
-  def handle_circuit_breaker_open(message, mood, context, _error)
-    response_text = generate_offline_response(message, mood)
-    result = {
-      response: response_text,
-      suggested_mood: mood,
-      confidence: 0.3
-    }
-
-    log_interaction(message, response_text, mood, result[:confidence], context)
-    speak_response(response_text, context)
-
-    result
+  
+  def update_awtrix_display(message, response, persona)
+    return unless GlitchCube.config.home_assistant.url
+    
+    # Run display updates in parallel
+    Concurrent::Future.execute do
+      begin
+        home_assistant = HomeAssistantClient.new
+        
+        # Choose color based on persona/mood
+        color = case persona
+                when 'playful'
+                  [255, 0, 255] # Magenta
+                when 'contemplative'
+                  [0, 100, 255] # Blue
+                when 'mysterious'
+                  [128, 0, 128] # Purple
+                else
+                  [255, 255, 255] # White
+                end
+        
+        # Show a brief summary or mood indicator
+        display_text = if response.length > 50
+                        "💭 #{persona}..."
+                      else
+                        response[0..30]
+                      end
+        
+        # Send to AWTRIX display
+        home_assistant.awtrix_display_text(
+          display_text,
+          color: color,
+          duration: 5,
+          rainbow: persona == 'playful'
+        )
+        
+        # Also set mood light
+        home_assistant.awtrix_mood_light(color, brightness: 80)
+        
+      rescue => e
+        puts "⚠️ AWTRIX update failed: #{e.message}"
+      end
+    end
+  rescue => e
+    puts "⚠️ Failed to initiate AWTRIX update: #{e.message}"
   end
 
-  def handle_timeout_error(message, mood, context, error)
-    response_text = generate_offline_response(message, mood)
-    result = {
+  def handle_rate_limit_error(conversation, message, persona, error)
+    response_text = "I need to take a brief pause - too many thoughts at once! Can you give me a moment?"
+    
+    # Still record the response
+    conversation.add_message(
+      role: 'assistant',
+      content: response_text,
+      persona: persona,
+      metadata: { error: error.message }
+    )
+    
+    speak_response(response_text, {})
+    
+    {
       response: response_text,
-      suggested_mood: mood,
-      confidence: 0.2
+      conversation_id: conversation.id,
+      session_id: conversation.session_id,
+      persona: persona,
+      error: 'rate_limit'
     }
+  end
 
+  def handle_llm_error(conversation, message, persona, error)
+    response_text = generate_offline_response(message, persona)
+    
+    conversation.add_message(
+      role: 'assistant',
+      content: response_text,
+      persona: persona,
+      metadata: { error: error.message }
+    )
+    
+    speak_response(response_text, {})
+    
+    {
+      response: response_text,
+      conversation_id: conversation.id,
+      session_id: conversation.session_id,
+      persona: persona,
+      error: 'llm_error'
+    }
+  end
+
+  def handle_general_error(conversation, message, persona, error)
+    response_text = generate_fallback_response(message, persona)
+    
+    conversation.add_message(
+      role: 'assistant',
+      content: response_text,
+      persona: persona,
+      metadata: { error: error.message }
+    )
+    
     Services::LoggerService.log_interaction(
       user_message: message,
       ai_response: response_text,
-      mood: mood,
-      confidence: result[:confidence],
-      error: "Timeout: #{error.message}"
+      persona: persona,
+      error: error.message
     )
-
-    speak_response(response_text, context)
-    result
-  end
-
-  def handle_general_error(message, mood, context, error)
-    response_text = generate_fallback_response(message, mood)
-    result = {
+    
+    speak_response(response_text, {})
+    
+    {
       response: response_text,
-      suggested_mood: mood,
-      confidence: 0.1
+      conversation_id: conversation.id,
+      session_id: conversation.session_id,
+      persona: persona,
+      error: 'general_error'
     }
-
-    Services::LoggerService.log_interaction(
-      user_message: message,
-      ai_response: response_text,
-      mood: mood,
-      confidence: result[:confidence],
-      context: { error: "General Error: #{error.message}" }
-    )
-
-    speak_response(response_text, context)
-    result
   end
 
-  def log_interaction(message, response, mood, confidence, _context)
+  def log_interaction(conversation, message, response, persona)
     Services::LoggerService.log_interaction(
       user_message: message,
       ai_response: response,
-      mood: mood,
-      confidence: confidence
+      persona: persona,
+      conversation_id: conversation.id,
+      session_id: conversation.session_id
     )
   end
+
+  def extract_content_from_response(response)
+    # Handle different response formats from OpenRouter
+    if response.is_a?(Hash) || response.is_a?(HashWithIndifferentAccess)
+      # Standard OpenAI format response (with indifferent access)
+      choices = response[:choices] || response['choices']
+      if choices && choices.is_a?(Array) && !choices.empty?
+        message = choices[0][:message] || choices[0]['message']
+        message[:content] || message['content'] || ''
+      # Alternative format with direct content
+      elsif response[:content] || response['content']
+        response[:content] || response['content']
+      else
+        ''
+      end
+    elsif response.is_a?(String)
+      # Direct string response
+      response
+    else
+      ''
+    end
+  end
+  
 
 end

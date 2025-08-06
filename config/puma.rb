@@ -19,8 +19,8 @@ worker_count = Integer(ENV.fetch('PUMA_WORKERS', '1'))
 workers worker_count
 
 # Port configuration
-# Always use 4567 in development, ignore Foreman's PORT
-configured_port = Cube::Settings.development? ? 4567 : Cube::Settings.port
+# Use Foreman's PORT if set, otherwise use default port
+configured_port = ENV['PORT']&.to_i || Cube::Settings.port
 port configured_port
 
 # Environment
@@ -94,10 +94,8 @@ restart_command 'bundle exec puma'
 worker_timeout 30 if worker_count > 1
 worker_shutdown_timeout 10 if worker_count > 1
 
-# Request logging format
-if Cube::Settings.development? || ENV['VERBOSE_LOGS'] == 'true'
-  log_requests true
-end
+# Request logging format - always log for debugging
+log_requests true
 
 # Tag for logging (useful when running multiple apps)
 tag 'glitchcube'

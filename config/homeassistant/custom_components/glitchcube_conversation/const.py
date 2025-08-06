@@ -3,7 +3,7 @@
 DOMAIN = "glitchcube_conversation"
 
 # Configuration defaults
-DEFAULT_HOST = "localhost"  # Host networking - all containers use localhost
+DEFAULT_HOST = "localhost"  # Fallback only - should use dynamic IP from input_text.glitchcube_host
 DEFAULT_PORT = 4567
 DEFAULT_API_PATH = "/api/v1/conversation"
 DEFAULT_TIMEOUT = 10

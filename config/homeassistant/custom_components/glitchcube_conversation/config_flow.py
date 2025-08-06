@@ -19,8 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("host", default=DEFAULT_HOST): str,
-        vol.Required("port", default=DEFAULT_PORT): int,
+        vol.Optional("port", default=DEFAULT_PORT): int,
     }
 )
 
@@ -28,8 +27,26 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
     
-    # Use user-provided host and port for validation (all containers use host networking)
-    host = data.get("host", DEFAULT_HOST)
+    # Try to get dynamic host from input_text entity first
+    try:
+        glitchcube_host_state = hass.states.get("input_text.glitchcube_host")
+        if glitchcube_host_state and glitchcube_host_state.state:
+            dynamic_host = glitchcube_host_state.state
+            _LOGGER.info(f"Found dynamic Glitch Cube host: {dynamic_host}")
+            host = dynamic_host
+        else:
+            # No dynamic host available - skip validation since Mac Mini may not be running yet
+            return {
+                "title": "Glitch Cube (Dynamic IP)",
+                "version": "unknown - will connect when Glitch Cube starts"
+            }
+    except Exception as e:
+        _LOGGER.warning(f"Could not read dynamic host, will connect when available: {e}")
+        return {
+            "title": "Glitch Cube (Dynamic IP)",
+            "version": "unknown - will connect when Glitch Cube starts"
+        }
+    
     port = data.get("port", DEFAULT_PORT)
     url = f"http://{host}:{port}/health"
     timeout = aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT)
@@ -67,8 +84,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         
         if user_input is not None:
             try:
-                # Set unique ID to prevent duplicate configurations
-                unique_id = f"{user_input['host']}:{user_input['port']}"
+                # Set unique ID to prevent duplicate configurations - use domain since IP is dynamic
+                unique_id = f"{DOMAIN}"
                 await self.async_set_unique_id(unique_id)
                 self._abort_if_unique_id_configured()
                 

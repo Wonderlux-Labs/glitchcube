@@ -8,16 +8,18 @@ gem 'rake', '~> 13.3'
 gem 'sinatra', '~> 4.1'
 gem 'sinatra-contrib', '~> 4.1'
 
-# Desiru AI Framework
-gem 'anthropic', '~> 1.3'
-gem 'desiru', git: 'https://github.com/estiens/desiru.git', branch: 'main'
-gem 'grape', '~> 2.4'
+# AI & API
 gem 'open_router', '~> 0.3'
+
+# Database
+gem 'pg', '~> 1.5'
+gem 'activerecord', '~> 7.2'
+gem 'sinatra-activerecord', '~> 2.0'
+
+# API Support
+gem 'grape', '~> 2.4'
 gem 'ostruct'
 gem 'rack-cors', '~> 3.0'
-gem 'ruby-openai', '~> 8.1'
-gem 'sequel', '~> 5.95'
-gem 'sqlite3', '~> 2.7' # SQLite adapter for Sequel
 
 # Environment and Configuration
 gem 'dotenv', '~> 3.1'
@@ -33,6 +35,7 @@ gem 'sidekiq-cron', '~> 1.12'
 
 # HTTP Client
 gem 'httparty', '~> 0.23'
+gem 'net-ping', '~> 2.0'
 
 # JSON handling
 gem 'json', '~> 2.13'

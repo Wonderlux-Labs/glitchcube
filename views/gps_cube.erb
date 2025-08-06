@@ -282,6 +282,16 @@
                 const response = await fetch('/api/v1/gps/location');
                 const data = await response.json();
                 
+                if (response.status === 503 || data.error) {
+                    // No GPS data available
+                    contextEl.textContent = data.message || 'GPS service unavailable';
+                    coordinatesEl.textContent = 'No coordinates available';
+                    statusEl.textContent = 'GPS tracking offline';
+                    statusEl.className = 'status offline';
+                    simulationBadgeEl.classList.remove('active');
+                    return;
+                }
+                
                 if (data.lat && data.lng) {
                     // Update marker position
                     if (cubeMarker) {
@@ -455,8 +465,8 @@
         // Store landmarks for distance calculations
         const landmarks = [
             { name: 'Center Camp', lat: 40.786958, lng: -119.202994, icon: '🏕️' },
-            { name: 'Temple', lat: 40.7800, lng: -119.2030, icon: '🏛️' },
-            { name: 'The Man', lat: 40.7850, lng: -119.2030, icon: '🔥' }
+            { name: 'Temple', lat: 40.791815, lng: -119.196622, icon: '🏛️' },
+            { name: 'The Man', lat: 40.786963, lng: -119.203007, icon: '🔥' }
         ];
         
         // Add landmarks with proper visibility logic

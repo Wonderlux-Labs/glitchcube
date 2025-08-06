@@ -56,6 +56,9 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         self._api_url = f"http://{host}:{port}/api/v1/conversation"
         self._timeout = DEFAULT_TIMEOUT  # Optimized for voice interactions
         
+        # Store conversation sessions for continuity
+        self._conversation_sessions = {}
+        
         _LOGGER.info("Initialized Glitch Cube conversation agent: %s", self._api_url)
 
     @property
@@ -63,6 +66,36 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         """Return list of supported languages."""
         return SUPPORTED_LANGUAGES
 
+    def _get_current_api_url(self) -> str:
+        """Get the current API URL, checking for dynamic host first."""
+        try:
+            # Try to get dynamic host from input_text entity
+            glitchcube_host_state = self.hass.states.get("input_text.glitchcube_host")
+            if glitchcube_host_state and glitchcube_host_state.state:
+                dynamic_host = glitchcube_host_state.state
+                port = self._config_entry.data.get("port", DEFAULT_PORT)
+                api_url = f"http://{dynamic_host}:{port}/api/v1/conversation"
+                _LOGGER.debug(f"Using dynamic host from input_text: {dynamic_host}")
+                return api_url
+        except Exception as e:
+            _LOGGER.warning(f"Could not read dynamic host, using configured: {e}")
+        
+        # Fallback to configured API URL
+        return self._api_url
+
+    def _get_or_create_session(self, conversation_id: str) -> str:
+        """Get or create a session ID for conversation continuity."""
+        if conversation_id not in self._conversation_sessions:
+            self._conversation_sessions[conversation_id] = {
+                "session_id": f"ha_{conversation_id}_{dt_util.utcnow().timestamp()}",
+                "started_at": dt_util.utcnow().isoformat(),
+                "turn_count": 0
+            }
+        
+        # Increment turn count
+        self._conversation_sessions[conversation_id]["turn_count"] += 1
+        return self._conversation_sessions[conversation_id]["session_id"]
+    
     async def async_process(
         self, user_input: conversation.ConversationInput
     ) -> conversation.ConversationResult:
@@ -70,11 +103,19 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         _LOGGER.debug("Processing conversation: %s", user_input.text)
         
         try:
+            # Get current API URL (may be dynamic)
+            api_url = self._get_current_api_url()
+            
+            # Get or create session for conversation continuity
+            session_id = self._get_or_create_session(user_input.conversation_id)
+            
             # Prepare request payload for Sinatra app
             payload = {
                 "message": user_input.text,
                 "context": {
                     "conversation_id": user_input.conversation_id,
+                    "ha_conversation_id": user_input.conversation_id,
+                    "session_id": session_id,
                     "device_id": user_input.device_id,
                     "language": user_input.language,
                     "voice_interaction": True,
@@ -87,11 +128,11 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
                 }
             }
             
-            # Call Sinatra app
+            # Call Sinatra app using dynamic URL
             timeout = aiohttp.ClientTimeout(total=self._timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
-                    self._api_url,
+                    api_url,
                     json=payload,
                     headers={"Content-Type": "application/json"}
                 ) as response:
@@ -135,14 +176,24 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         # NOTE: Primary speech response comes from intent_response.async_set_speech above
         await self._handle_media_actions(conversation_data)
         
-        # Determine if conversation should continue
-        continue_conversation = conversation_data.get(CONTINUE_KEY, False)
+        # Determine if conversation should continue - default to True for ongoing conversations
+        continue_conversation = conversation_data.get(CONTINUE_KEY, True)
         
-        _LOGGER.debug(
-            "Conversation result: response_length=%d, continue=%s", 
-            len(response_text), 
-            continue_conversation
-        )
+        # Store session info for debugging
+        if user_input.conversation_id in self._conversation_sessions:
+            turn_count = self._conversation_sessions[user_input.conversation_id]["turn_count"]
+            _LOGGER.debug(
+                "Conversation result: response_length=%d, continue=%s, turn=%d", 
+                len(response_text), 
+                continue_conversation,
+                turn_count
+            )
+        else:
+            _LOGGER.debug(
+                "Conversation result: response_length=%d, continue=%s", 
+                len(response_text), 
+                continue_conversation
+            )
         
         return conversation.ConversationResult(
             conversation_id=user_input.conversation_id,
@@ -265,6 +316,36 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
             response=intent_response,
             continue_conversation=False,
         )
+
+
+    async def trigger_proactive_conversation(self, trigger_type: str, context: dict = None):
+        """Trigger proactive conversation from HA automations."""
+        api_url = self._get_current_api_url().replace('/conversation', '/conversation/start')
+        
+        payload = {
+            "trigger": trigger_type,
+            "context": context or {},
+            "device_id": "glitchcube"
+        }
+        
+        try:
+            timeout = aiohttp.ClientTimeout(total=self._timeout)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(
+                    api_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                ) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        _LOGGER.info("Triggered proactive conversation: %s", trigger_type)
+                        return result
+                    else:
+                        _LOGGER.error("Failed to trigger proactive conversation: %s", response.status)
+                        return None
+        except Exception as e:
+            _LOGGER.error("Error triggering proactive conversation: %s", str(e))
+            return None
 
 
 class ConversationError(Exception):

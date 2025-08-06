@@ -136,7 +136,7 @@ module Services
         track_error('web_request', error) if error
       end
 
-      def log_tts(message:, success:, duration: nil, error: nil)
+      def log_tts(message:, success:, duration: nil, error: nil, **extra_params)
         ensure_loggers
 
         tts_data = {

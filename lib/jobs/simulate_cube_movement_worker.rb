@@ -78,8 +78,8 @@ module Jobs
     def default_destinations
       [
         { 'name' => 'Center Camp', 'lat' => 40.786958, 'lng' => -119.202994, 'type' => 'gathering' },
-        { 'name' => 'The Man', 'lat' => 40.7850, 'lng' => -119.2030, 'type' => 'center' },
-        { 'name' => 'The Temple', 'lat' => 40.7800, 'lng' => -119.2030, 'type' => 'sacred' }
+        { 'name' => 'The Man', 'lat' => 40.786963, 'lng' => -119.203007, 'type' => 'center' },
+        { 'name' => 'The Temple', 'lat' => 40.791815, 'lng' => -119.196622, 'type' => 'sacred' }
       ]
     end
 

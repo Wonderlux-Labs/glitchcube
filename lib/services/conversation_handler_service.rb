@@ -35,6 +35,9 @@ module Services
 
     # Determine if conversation should continue based on response content
     def should_continue_conversation?(result)
+      # First check if the LLM explicitly indicated continuation
+      return true if result[:continue_conversation] == true
+      
       return false unless result[:response]
 
       response_text = result[:response].downcase
@@ -42,12 +45,20 @@ module Services
       # Check for question indicators
       return true if response_text.include?('?')
 
-      # Check for confirmation requests
-      confirmation_phrases = ['do you want', 'would you like', 'should i', 'can i', 'shall i']
-      return true if confirmation_phrases.any? { |phrase| response_text.include?(phrase) }
+      # Check for confirmation requests or engagement phrases
+      continuation_phrases = [
+        'do you want', 'would you like', 'should i', 'can i', 'shall i',
+        'tell me', 'what about', 'how about', 'let me know', 'interested in',
+        'shall we', 'want to hear', 'curious about', 'wondering if'
+      ]
+      return true if continuation_phrases.any? { |phrase| response_text.include?(phrase) }
 
-      # Check if result explicitly requests continuation
-      result[:continue_conversation] == true
+      # Check for explicit conversation enders
+      ending_phrases = ['goodbye', 'bye', 'see you', 'talk to you later', 'nice talking']
+      return false if ending_phrases.any? { |phrase| response_text.include?(phrase) }
+
+      # Default to continuing for art installation engagement
+      true
     end
 
     # Extract Home Assistant actions from conversation result
@@ -93,7 +104,7 @@ module Services
         media_actions << {
           type: 'tts',
           message: result[:tts_message],
-          entity_id: 'media_player.glitchcube_speaker',
+          entity_id: 'media_player.square_voice',
           deprecated: true
         }
       end
@@ -103,7 +114,7 @@ module Services
         media_actions << {
           type: 'sound_effect',
           url: result[:sound_effect_url],
-          entity_id: 'media_player.glitchcube_speaker'
+          entity_id: 'media_player.square_voice'
         }
       end
 
@@ -112,7 +123,7 @@ module Services
         media_actions << {
           type: 'audio',
           url: result[:audio_url],
-          entity_id: 'media_player.glitchcube_speaker'
+          entity_id: 'media_player.square_voice'
         }
       end
 
@@ -143,34 +154,116 @@ module Services
 
     # Send proactive conversation to Home Assistant voice system
     def send_conversation_to_ha(message, context)
-      # TODO: In practice, this would call HA's conversation service
-      # or trigger an automation that starts the voice conversation
-      {
-        status: 'sent',
-        message: message,
-        device_id: context[:device_id] || 'glitchcube_voice',
-        timestamp: Time.now.iso8601
-      }
+      home_assistant = HomeAssistantClient.new
+      
+      begin
+        # Start conversation via HA's conversation service
+        response = home_assistant.call_service(
+          'conversation', 
+          'process',
+          {
+            text: message,
+            conversation_id: context[:conversation_id],
+            device_id: context[:device_id] || 'glitchcube',
+            language: context[:language] || 'en'
+          }
+        )
+        
+        {
+          status: 'sent',
+          ha_conversation_id: response['conversation_id'] || context[:conversation_id],
+          message: message,
+          device_id: context[:device_id] || 'glitchcube',
+          timestamp: Time.now.iso8601
+        }
+      rescue StandardError => e
+        # Fallback response if HA conversation service is unavailable
+        {
+          status: 'fallback',
+          message: message,
+          device_id: context[:device_id] || 'glitchcube',
+          timestamp: Time.now.iso8601,
+          error: e.message
+        }
+      end
+    end
+    
+    # Continue an existing Home Assistant conversation
+    def continue_ha_conversation(conversation_id, message, context = {})
+      home_assistant = HomeAssistantClient.new
+      
+      begin
+        response = home_assistant.call_service(
+          'conversation',
+          'process', 
+          {
+            text: message,
+            conversation_id: conversation_id,
+            device_id: context[:device_id] || 'glitchcube',
+            language: context[:language] || 'en'
+          }
+        )
+        
+        {
+          status: 'continued',
+          ha_conversation_id: conversation_id,
+          response: response,
+          timestamp: Time.now.iso8601
+        }
+      rescue StandardError => e
+        {
+          status: 'error',
+          error: e.message,
+          timestamp: Time.now.iso8601
+        }
+      end
+    end
+    
+    # Sync conversation with Home Assistant
+    def sync_with_ha(conversation, ha_conversation_id, device_id = nil)
+      return unless conversation.respond_to?(:update!)
+      
+      conversation.update!(
+        ha_conversation_id: ha_conversation_id,
+        ha_device_id: device_id || 'glitchcube',
+        metadata: (conversation.metadata || {}).merge(
+          ha_synced_at: Time.now.iso8601,
+          ha_conversation_active: true
+        )
+      )
+    rescue StandardError => e
+      Rails.logger.error "Failed to sync with HA: #{e.message}" if defined?(Rails)
+      puts "Failed to sync with HA: #{e.message}"
     end
 
     # Process a conversation request with full context enhancement
-    def process_conversation(message:, context: {}, mood: 'neutral')
+    def process_conversation(message:, context: {})
       result = conversation_module.call(
         message: message,
-        context: context,
-        mood: mood
+        context: context
       )
+
+      # Sync with HA if conversation IDs are present
+      if context[:ha_conversation_id] && result[:conversation_id]
+        conversation = Conversation.find_by(id: result[:conversation_id])
+        sync_with_ha(conversation, context[:ha_conversation_id], context[:device_id]) if conversation
+      end
 
       # Enhance response for Home Assistant voice integration if needed
       if context[:voice_interaction]
-        {
+        enhanced_result = {
           response: result[:response],
-          suggested_mood: result[:suggested_mood],
-          confidence: result[:confidence],
           continue_conversation: should_continue_conversation?(result),
           actions: extract_ha_actions(result),
-          media_actions: extract_media_actions(result)
+          media_actions: extract_media_actions(result),
+          conversation_id: result[:conversation_id],
+          session_id: result[:session_id]
         }
+        
+        # Add HA conversation ID if present
+        enhanced_result[:ha_conversation_id] = context[:ha_conversation_id] if context[:ha_conversation_id]
+        
+        enhanced_result
       else
         result
       end

@@ -44,7 +44,7 @@ RSpec.describe Services::ConversationService do
         expect(service.conversation_module).to receive(:call).with(
           message: message,
           context: hash_including(initial_context),
-          mood: mood
+          persona: mood
         )
 
         service.process_message(message, mood: mood)

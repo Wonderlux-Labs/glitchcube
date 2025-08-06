@@ -1,60 +1,41 @@
 # frozen_string_literal: true
 
-require 'desiru/jobs/base'
-require 'desiru/jobs/scheduler'
+require 'sidekiq'
 require_relative '../services/beacon_service'
 
 module Jobs
-  class BeaconHeartbeatJob < Desiru::Jobs::Base
-    include Desiru::Jobs::Schedulable
+  class BeaconHeartbeatJob
+    include Sidekiq::Worker
+    
+    sidekiq_options queue: 'default', retry: 3
 
-    def perform(job_id = nil)
+    def perform
       beacon = Services::BeaconService.new
       success = beacon.send_heartbeat
 
-      # Store the result using Desiru's job result storage
-      store_result(job_id || "beacon-heartbeat-#{Time.now.to_i}", {
-                     status: success ? 'completed' : 'failed',
-                     timestamp: Time.now.iso8601,
-                     device_id: GlitchCube.config.device.id
-                   })
+      logger.info "Beacon heartbeat #{success ? 'sent' : 'failed'} at #{Time.now.iso8601}"
     rescue StandardError => e
-      Desiru.logger.error "Beacon heartbeat failed: #{e.message}"
-
-      # Store failure result
-      store_result(job_id || "beacon-heartbeat-#{Time.now.to_i}", {
-                     status: 'error',
-                     error: e.message,
-                     timestamp: Time.now.iso8601
-                   })
+      logger.error "Beacon heartbeat failed: #{e.message}"
+      raise # Re-raise for Sidekiq retry
     end
   end
 
   # Job to send critical alerts
-  class BeaconAlertJob < Desiru::Jobs::Base
-    include Desiru::Jobs::Schedulable
+  class BeaconAlertJob
+    include Sidekiq::Worker
+    
+    sidekiq_options queue: 'alerts', retry: 5
 
-    def perform(job_id = nil, message = nil, level = 'info')
+    def perform(message = nil, level = 'info')
       return unless message
 
       beacon = Services::BeaconService.new
       beacon.send_alert(message, level)
 
-      # Store the result
-      store_result(job_id || "beacon-alert-#{Time.now.to_i}", {
-                     status: 'sent',
-                     message: message,
-                     level: level,
-                     timestamp: Time.now.iso8601
-                   })
+      logger.info "Beacon alert sent: #{message} (#{level})"
     rescue StandardError => e
-      Desiru.logger.error "Beacon alert failed: #{e.message}"
-
-      store_result(job_id || "beacon-alert-#{Time.now.to_i}", {
-                     status: 'error',
-                     error: e.message,
-                     timestamp: Time.now.iso8601
-                   })
+      logger.error "Beacon alert failed: #{e.message}"
+      raise # Re-raise for Sidekiq retry
     end
   end
 end

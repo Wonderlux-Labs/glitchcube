@@ -3,6 +3,7 @@
 require 'sinatra'
 require 'sinatra/json'
 require 'sinatra/reloader' if development?
+require 'sinatra/activerecord'
 
 # Load environment variables
 if development? || test?
@@ -11,13 +12,15 @@ if development? || test?
   Dotenv.load('.env.defaults', '.env')
 end
 
-require 'desiru'
 require 'json'
 require 'sidekiq'
 require 'redis'
+require 'active_record'
 
-# Load patches for gem compatibility issues
-require_relative 'lib/patches/desiru_openrouter_errors'
+# Load Sidekiq configuration with cron job logging
+require_relative 'config/sidekiq' if defined?(Sidekiq)
+
+# Load services
 
 # Load circuit breaker service
 require_relative 'lib/services/circuit_breaker_service'
@@ -25,29 +28,20 @@ require_relative 'lib/services/circuit_breaker_service'
 # Load logger service
 require_relative 'lib/services/logger_service'
 
-# Load database startup service
-require_relative 'lib/services/database_startup_service'
-
 # Load application constants and config first
 require_relative 'config/constants'
 
 # Load initializers (including config.rb)
 Dir[File.join(__dir__, 'config', 'initializers', '*.rb')].each { |file| require file }
 
-# Ensure databases are ready on app startup
-Services::DatabaseStartupService.ensure_databases_ready!
+# Set up database connection
+set :database_file, 'config/database.yml'
 
-# Configure Desiru with OpenRouter
-Desiru.configure do |config|
-  config.default_model = Desiru::Models::OpenRouter.new(
-    api_key: GlitchCube.config.openrouter_api_key,
-    model: GlitchCube.config.default_ai_model
-  )
-end
+# Load models
+Dir[File.join(__dir__, 'app', 'models', '*.rb')].each { |file| require file }
 
-# Configure persistence (optional - will work without it)
-require_relative 'config/persistence'
-GlitchCube::Persistence.configure!
+# Load model pricing
+require_relative 'config/model_pricing'
 
 Dir[File.join(__dir__, 'lib', 'modules', '*.rb')].each { |file| require file }
 Dir[File.join(__dir__, 'lib', 'tools', '*.rb')].each { |file| require file }
@@ -59,7 +53,9 @@ Dir[File.join(__dir__, 'lib', 'routes', '**', '*.rb')].each { |file| require fil
 class GlitchCubeApp < Sinatra::Base
   configure do
     set :server, :puma
+    set :bind, '0.0.0.0'
     set :port, GlitchCube.config.port
+    # Let Puma handle binding via BIND_ALL environment variable
     enable :sessions
     set :session_secret, GlitchCube.config.session_secret
   end
@@ -71,21 +67,17 @@ class GlitchCubeApp < Sinatra::Base
   # Register route modules
   # Core application routes
   register GlitchCube::Routes::Core::Kiosk
-  
+
   # Main API routes
   register GlitchCube::Routes::Api::Gps
   register GlitchCube::Routes::Api::Conversation
   register GlitchCube::Routes::Api::Tools
-  
+
   # Development-only routes (analytics, debugging, testing)
-  if development? || test?
-    register GlitchCube::Routes::Development::Analytics
-  end
-  
+  register GlitchCube::Routes::Development::Analytics if development? || test?
+
   # Deployment routes (conditionally loaded for Mac Mini setup)
-  if GlitchCube.config.deployment&.mac_mini && defined?(GlitchCube::Routes::Deploy)
-    register GlitchCube::Routes::Deploy
-  end
+  register GlitchCube::Routes::Deploy if GlitchCube.config.deployment&.mac_mini && defined?(GlitchCube::Routes::Deploy)
 
   helpers do
     # Centralized conversation handler service
@@ -97,6 +89,9 @@ class GlitchCubeApp < Sinatra::Base
   # Request logging for all endpoints
   before do
     @request_start_time = Time.now
+    # Immediate debug logging for connection troubleshooting
+    puts "🔍 INCOMING REQUEST: #{request.request_method} #{request.path} from #{request.ip} (#{request.user_agent})"
+    STDOUT.flush
   end
 
   after do
@@ -134,6 +129,74 @@ class GlitchCubeApp < Sinatra::Base
     json({ message: 'Welcome to Glitch Cube!', status: 'online' })
   end
 
+  # Admin panel
+  get '/admin' do
+    erb :admin
+  end
+
+  # Admin API endpoints
+  post '/admin/test_tts' do
+    content_type :json
+    
+    begin
+      data = JSON.parse(request.body.read)
+      message = data['message'] || 'Test message from admin panel'
+      entity_id = data['entity_id']
+      
+      ha_client = HomeAssistantClient.new
+      success = ha_client.speak(message, entity_id: entity_id)
+      
+      { 
+        success: success, 
+        message: message,
+        entity_id: entity_id || 'media_player.square_voice',
+        timestamp: Time.now.iso8601
+      }.to_json
+    rescue => e
+      status 500
+      { 
+        success: false, 
+        error: e.message,
+        backtrace: e.backtrace.first(5)
+      }.to_json
+    end
+  end
+
+  get '/admin/status' do
+    content_type :json
+    
+    # Check various system connections
+    ha_status = begin
+      ha_client = HomeAssistantClient.new
+      ha_client.states
+      true
+    rescue
+      false
+    end
+    
+    openrouter_status = begin
+      OpenRouterService.available_models
+      true
+    rescue
+      false
+    end
+    
+    redis_status = begin
+      $redis&.ping == 'PONG'
+    rescue
+      false
+    end
+    
+    {
+      home_assistant: ha_status,
+      openrouter: openrouter_status,
+      redis: redis_status,
+      host_ip: Services::HostRegistrationService.new.detect_local_ip,
+      ha_url: GlitchCube.config.home_assistant.url,
+      ai_model: GlitchCube.config.ai.default_model
+    }.to_json
+  end
+
   get '/health' do
     # Check circuit breaker status
     circuit_status = Services::CircuitBreakerService.status
@@ -159,5 +222,10 @@ end
 
 # Initialize logger service after app is defined
 Services::LoggerService.setup_loggers
+
+# Register with Home Assistant on startup (Sidekiq job)
+unless GlitchCube.config.home_assistant.mock_enabled
+  InitialHostRegistrationWorker.perform_in(5) # 5 seconds
+end
 
 GlitchCubeApp.run! if __FILE__ == $PROGRAM_NAME

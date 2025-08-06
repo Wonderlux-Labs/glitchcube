@@ -83,12 +83,47 @@ class HomeAssistantClient
     call_service('light', 'turn_off', { entity_id: entity_id })
   end
 
-  # TTS methods
+  # TTS methods - Updated for new Home Assistant format
   def speak(message, entity_id: nil)
-    call_service('tts', 'speak', {
-                   message: message,
-                   entity_id: entity_id || 'media_player.glitch_cube_speaker'
-                 })
+    target_entity = entity_id || 'media_player.square_voice'
+    
+    # Try new format first (tts.speak action with tts.home_assistant_cloud)
+    begin
+      # Use tts.home_assistant_cloud as the TTS engine
+      # New HA format requires target and data to be separate
+      post('/api/services/tts/speak', {
+             target: {
+               entity_id: 'tts.home_assistant_cloud'
+             },
+             data: {
+               media_player_entity_id: target_entity,
+               message: message
+             }
+           })
+    rescue Error => e
+      # Fallback to legacy cloud_say format
+      begin
+        call_service('tts', 'cloud_say', {
+                       entity_id: target_entity,
+                       message: message
+                     })
+      rescue Error => fallback_error
+        # Final fallback to google_translate 
+        begin
+          call_service('tts', 'google_translate_say', {
+                         entity_id: target_entity,
+                         message: message
+                       })
+        rescue Error => final_error
+          puts "⚠️  All TTS methods failed: #{e.message} | #{fallback_error.message} | #{final_error.message}"
+          # Don't raise error - just log and continue without TTS
+          puts "🔇 Continuing without TTS"
+          return false
+        end
+      end
+    end
+    
+    true
   end
 
   # Voice assistant
@@ -99,6 +134,57 @@ class HomeAssistantClient
   # Camera
   def take_snapshot(entity_id: 'camera.glitch_cube')
     call_service('camera', 'snapshot', { entity_id: entity_id })
+  end
+
+  # AWTRIX Display Control Methods
+  def awtrix_display_text(text, app_name: 'glitchcube', color: '#FFFFFF', duration: 5, rainbow: false, icon: nil)
+    data = {
+      app_name: app_name,
+      text: text,
+      color: color,
+      duration: duration,
+      rainbow: rainbow
+    }
+    data[:icon] = icon if icon
+
+    call_service('script', 'awtrix_send_custom_app', data)
+  rescue Error => e
+    puts "⚠️  Failed to send text to AWTRIX: #{e.message}"
+    false
+  end
+
+  def awtrix_notify(text, color: '#FFFFFF', duration: 8, sound: nil, icon: nil, wakeup: true, stack: true)
+    data = {
+      text: text,
+      color: color,
+      duration: duration,  # Using duration instead of hold since users can't dismiss
+      wakeup: wakeup,
+      stack: stack
+    }
+    data[:sound] = sound if sound
+    data[:icon] = icon if icon
+
+    call_service('script', 'awtrix_send_notification', data)
+  rescue Error => e
+    puts "⚠️  Failed to send notification to AWTRIX: #{e.message}"
+    false
+  end
+
+  def awtrix_clear_display
+    call_service('script', 'awtrix_clear_display', {})
+  rescue Error => e
+    puts "⚠️  Failed to clear AWTRIX display: #{e.message}"
+    false
+  end
+
+  def awtrix_mood_light(color, brightness: 100)
+    call_service('script', 'awtrix_set_mood_light', {
+                   color: color,
+                   brightness: brightness
+                 })
+  rescue Error => e
+    puts "⚠️  Failed to set AWTRIX mood light: #{e.message}"
+    false
   end
 
   # Sensor readings
@@ -192,7 +278,8 @@ class HomeAssistantClient
         endpoint: path,
         method: 'POST',
         status: response.code.to_i,
-        duration: duration
+        duration: duration,
+        request_data: data
       )
 
       handle_response(response)

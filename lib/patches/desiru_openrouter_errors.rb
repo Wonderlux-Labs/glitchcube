@@ -16,7 +16,7 @@ module Desiru
                     # Route through Helicone cloud service for observability
                     ::OpenRouter::Client.new(
                       access_token: api_key,
-                      uri_base: 'https://oai.helicone.ai/v1',
+                      uri_base: 'https://oai.helicone.ai',
                       extra_headers: {
                         'Helicone-Auth' => "Bearer #{GlitchCube.config.helicone_api_key}",
                         'Helicone-Target-URL' => 'https://openrouter.ai/api/v1'
@@ -76,13 +76,64 @@ module Desiru
           raise ValidationError, "Invalid request: #{error.message}"
         when ::Faraday::TooManyRequestsError
           raise RateLimitError, 'OpenRouter API rate limit exceeded'
-        when ::Faraday::PaymentRequiredError
-          raise NetworkError, 'OpenRouter payment required - check your account balance'
+        when ::Faraday::ClientError
+          # Handle specific client errors
+          if error.response
+            status = error.response[:status]
+            case status
+            when 402
+              raise NetworkError, 'OpenRouter payment required - check your account balance'
+            when 400
+              raise ValidationError, "Bad request: #{error.message}"
+            when 401
+              raise AuthenticationError, 'Invalid API key'
+            when 403
+              raise AuthenticationError, 'Forbidden - check API permissions'
+            when 429
+              raise RateLimitError, 'Rate limit exceeded'
+            else
+              raise ValidationError, "Client error (#{status}): #{error.message}"
+            end
+          else
+            raise ValidationError, "Client error: #{error.message}"
+          end
         when ::OpenRouter::ServerError
           raise NetworkError, "OpenRouter server error: #{error.message}"
         else
           raise NetworkError, "OpenRouter API error: #{error.message}"
         end
+      end
+
+      # Format the response into standard Desiru format
+      def format_response(response, model)
+        # Handle string responses (some models return plain text)
+        if response.is_a?(String)
+          return {
+            content: response,
+            raw: response,
+            model: model,
+            usage: {
+              prompt_tokens: 0,
+              completion_tokens: 0,
+              total_tokens: 0
+            }
+          }
+        end
+
+        # OpenRouter uses OpenAI-compatible response format
+        content = response.dig('choices', 0, 'message', 'content') || ''
+        usage = response['usage'] || {}
+
+        {
+          content: content,
+          raw: response,
+          model: model,
+          usage: {
+            prompt_tokens: usage['prompt_tokens'] || 0,
+            completion_tokens: usage['completion_tokens'] || 0,
+            total_tokens: (usage['prompt_tokens'] || 0) + (usage['completion_tokens'] || 0)
+          }
+        }
       end
     end
   end

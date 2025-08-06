@@ -21,13 +21,22 @@ module GlitchCube
             gps_service = Services::GpsTrackingService.new
             location = gps_service.current_location
 
-            # Add proximity data for map reactions
-            if location[:lat] && location[:lng]
-              proximity = gps_service.proximity_data(location[:lat], location[:lng])
-              location[:proximity] = proximity
-            end
+            if location.nil?
+              status 503 # Service Unavailable
+              json({
+                error: 'GPS tracking not available',
+                message: 'No GPS data - simulation not running and no Home Assistant connection',
+                timestamp: Time.now.utc.iso8601
+              })
+            else
+              # Add proximity data for map reactions
+              if location[:lat] && location[:lng]
+                proximity = gps_service.proximity_data(location[:lat], location[:lng])
+                location[:proximity] = proximity
+              end
 
-            json(location)
+              json(location)
+            end
           end
 
           app.get '/api/v1/gps/proximity' do
@@ -134,6 +143,19 @@ module GlitchCube
           app.get '/api/v1/gis/plazas' do
             content_type :json
             send_file File.join(settings.root, 'data/gis/plazas.geojson')
+          end
+
+          app.get '/api/v1/gps/landmarks' do
+            content_type :json
+            
+            require_relative '../../utils/burning_man_landmarks'
+            landmarks = Utils::BurningManLandmarks.all_landmarks
+            
+            json({
+              landmarks: landmarks,
+              count: landmarks.length,
+              source: 'Burning Man Innovate GIS Data 2025'
+            })
           end
         end
       end

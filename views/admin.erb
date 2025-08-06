@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Glitch Cube Admin</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .panel {
+      border: 1px solid #0f0;
+      padding: 20px;
+      background: #001100;
+    }
+    h1, h2 {
+      color: #00ff00;
+      text-shadow: 0 0 10px #0f0;
+    }
+    input, textarea, select {
+      background: #000;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 10px;
+      width: 100%;
+      box-sizing: border-box;
+      font-family: monospace;
+    }
+    button {
+      background: #003300;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-family: monospace;
+      margin: 5px;
+    }
+    button:hover {
+      background: #005500;
+      box-shadow: 0 0 10px #0f0;
+    }
+    .response {
+      background: #000;
+      border: 1px solid #333;
+      padding: 10px;
+      margin: 10px 0;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .status {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #0f0;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-bottom: 1px solid #333;
+    }
+    .error {
+      color: #ff0000;
+    }
+    .success {
+      color: #00ff00;
+    }
+    #logs {
+      max-height: 400px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🟩 GLITCH CUBE ADMIN 🟩</h1>
+  
+  <div class="container">
+    <!-- TTS Test Panel -->
+    <div class="panel">
+      <h2>TTS Test</h2>
+      <form id="tts-form">
+        <label>Message:</label>
+        <input type="text" id="tts-message" value="Hello from Glitch Cube!" required>
+        
+        <label>Media Player:</label>
+        <select id="tts-player">
+          <option value="media_player.square_voice">Square Voice (Default)</option>
+          <option value="media_player.kitchen">Kitchen</option>
+          <option value="media_player.living_room">Living Room</option>
+        </select>
+        
+        <button type="submit">🔊 Test TTS</button>
+      </form>
+      
+      <div id="tts-response" class="response"></div>
+    </div>
+    
+    <!-- Conversation Test Panel -->
+    <div class="panel">
+      <h2>Conversation Test</h2>
+      <form id="conversation-form">
+        <label>Message:</label>
+        <textarea id="conv-message" rows="3" required>What is your name?</textarea>
+        
+        <label>Mood:</label>
+        <select id="conv-mood">
+          <option value="neutral">Neutral</option>
+          <option value="playful">Playful</option>
+          <option value="contemplative">Contemplative</option>
+          <option value="mysterious">Mysterious</option>
+        </select>
+        
+        <label>Session ID:</label>
+        <input type="text" id="session-id" value="test-session-123">
+        
+        <button type="submit">💬 Send Message</button>
+      </form>
+      
+      <div id="conversation-response" class="response"></div>
+    </div>
+  </div>
+  
+  <!-- Status Panel -->
+  <div class="panel status">
+    <h2>System Status</h2>
+    <div id="status-info">Loading...</div>
+  </div>
+  
+  <!-- Logs Panel -->
+  <div class="panel">
+    <h2>Live Logs</h2>
+    <button onclick="clearLogs()">Clear Logs</button>
+    <button onclick="toggleAutoScroll()">Auto-scroll: <span id="auto-scroll">ON</span></button>
+    <div id="logs"></div>
+  </div>
+  
+  <script>
+    let autoScroll = true;
+    let logBuffer = [];
+    
+    // TTS Test
+    document.getElementById('tts-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = document.getElementById('tts-message').value;
+      const player = document.getElementById('tts-player').value;
+      
+      addLog('🔊 Testing TTS: ' + message);
+      document.getElementById('tts-response').innerHTML = 'Sending...';
+      
+      try {
+        const response = await fetch('/admin/test_tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, entity_id: player })
+        });
+        
+        const data = await response.json();
+        document.getElementById('tts-response').innerHTML = JSON.stringify(data, null, 2);
+        
+        if (data.success) {
+          addLog('✅ TTS Success', 'success');
+        } else {
+          addLog('❌ TTS Failed: ' + (data.error || 'Unknown error'), 'error');
+        }
+      } catch (err) {
+        document.getElementById('tts-response').innerHTML = 'Error: ' + err.message;
+        addLog('❌ TTS Error: ' + err.message, 'error');
+      }
+    });
+    
+    // Conversation Test
+    document.getElementById('conversation-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = document.getElementById('conv-message').value;
+      const mood = document.getElementById('conv-mood').value;
+      const sessionId = document.getElementById('session-id').value;
+      
+      addLog('💬 Sending: ' + message);
+      document.getElementById('conversation-response').innerHTML = 'Processing...';
+      
+      try {
+        const response = await fetch('/api/v1/conversation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            message, 
+            context: { 
+              session_id: sessionId,
+              source: 'admin_panel' 
+            },
+            mood 
+          })
+        });
+        
+        const data = await response.json();
+        document.getElementById('conversation-response').innerHTML = JSON.stringify(data, null, 2);
+        
+        if (data.response) {
+          addLog('🤖 Response: ' + data.response, 'success');
+        } else {
+          addLog('❌ No response generated', 'error');
+        }
+      } catch (err) {
+        document.getElementById('conversation-response').innerHTML = 'Error: ' + err.message;
+        addLog('❌ Conversation Error: ' + err.message, 'error');
+      }
+    });
+    
+    // Status Updates
+    async function updateStatus() {
+      try {
+        const response = await fetch('/admin/status');
+        const data = await response.json();
+        
+        document.getElementById('status-info').innerHTML = `
+          <div>HA Connection: <span class="${data.home_assistant ? 'success' : 'error'}">${data.home_assistant ? 'Connected' : 'Disconnected'}</span></div>
+          <div>OpenRouter: <span class="${data.openrouter ? 'success' : 'error'}">${data.openrouter ? 'Connected' : 'Disconnected'}</span></div>
+          <div>Redis: <span class="${data.redis ? 'success' : 'error'}">${data.redis ? 'Connected' : 'Disconnected'}</span></div>
+          <div>Host IP: ${data.host_ip || 'Unknown'}</div>
+          <div>HA URL: ${data.ha_url || 'Not configured'}</div>
+          <div>Model: ${data.ai_model || 'Not configured'}</div>
+        `;
+      } catch (err) {
+        document.getElementById('status-info').innerHTML = 'Error loading status: ' + err.message;
+      }
+    }
+    
+    // Logging
+    function addLog(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = `[${timestamp}] ${message}`;
+      logBuffer.push({ entry, type });
+      
+      if (logBuffer.length > 100) {
+        logBuffer.shift();
+      }
+      
+      renderLogs();
+    }
+    
+    function renderLogs() {
+      const logsDiv = document.getElementById('logs');
+      logsDiv.innerHTML = logBuffer.map(log => 
+        `<div class="log-entry ${log.type}">${log.entry}</div>`
+      ).join('');
+      
+      if (autoScroll) {
+        logsDiv.scrollTop = logsDiv.scrollHeight;
+      }
+    }
+    
+    function clearLogs() {
+      logBuffer = [];
+      renderLogs();
+    }
+    
+    function toggleAutoScroll() {
+      autoScroll = !autoScroll;
+      document.getElementById('auto-scroll').textContent = autoScroll ? 'ON' : 'OFF';
+    }
+    
+    // Initialize
+    updateStatus();
+    setInterval(updateStatus, 5000);
+    addLog('Admin panel loaded');
+  </script>
+</body>
+</html>

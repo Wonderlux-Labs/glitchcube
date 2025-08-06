@@ -1,13 +1,18 @@
 # Glitch Cube Deployment Sensors
 # Tracks deployment status and triggers updates
 
-# Binary sensor that indicates if update is needed
+# Template sensor that indicates if update is needed (as text state)
 - platform: template
   sensors:
     glitchcube_update_needed:
       friendly_name: "Glitch Cube Update Needed"
       value_template: "{{ states('input_boolean.glitchcube_update_pending') }}"
-      device_class: update
+      icon_template: >
+        {% if is_state('input_boolean.glitchcube_update_pending', 'on') %}
+          mdi:update
+        {% else %}
+          mdi:check-circle
+        {% endif %}
       
 # Sensor to track current deployed commit
 - platform: command_line

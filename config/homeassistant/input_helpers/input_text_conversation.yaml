@@ -1,0 +1,26 @@
+# Input Text helpers for conversation tracking
+
+input_text:
+  # Store current conversation ID
+  glitchcube_conversation_id:
+    name: GlitchCube Conversation ID
+    max: 100
+    icon: mdi:identifier
+
+  # Store HA conversation ID
+  glitchcube_ha_conversation_id:
+    name: GlitchCube HA Conversation ID
+    max: 100
+    icon: mdi:home-assistant
+
+  # Store session ID
+  glitchcube_session_id:
+    name: GlitchCube Session ID
+    max: 100
+    icon: mdi:cookie
+
+  # Store last conversation trigger
+  glitchcube_conversation_trigger:
+    name: GlitchCube Conversation Trigger
+    max: 50
+    icon: mdi:source-branch

@@ -1,6 +1,14 @@
 # frozen_string_literal: true
 
 require 'rspec/core/rake_task'
+require 'sinatra/activerecord/rake'
+
+# Load the app for database tasks
+namespace :db do
+  task :load_config do
+    require './app'
+  end
+end
 
 RSpec::Core::RakeTask.new(:spec)
 
@@ -23,7 +31,20 @@ end
 
 desc 'Console with application loaded'
 task :console do
-  exec 'bundle exec pry -r ./app.rb'
+  exec 'bin/console'
+end
+
+desc 'Console (alternate method using IRB)'
+task :c do
+  require 'irb'
+  require './app'
+  
+  # Load all lib files
+  Dir[File.join(__dir__, 'lib/**/*.rb')].each { |f| require f }
+  
+  # Start IRB
+  ARGV.clear
+  IRB.start
 end
 
 desc 'Show all routes'
