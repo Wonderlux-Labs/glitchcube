@@ -194,9 +194,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
       mock_model = double('model')
       allow(mock_model).to receive_messages(complete: { content: 'Hello there!' }, config: { model: 'test-model' })
 
-      allow(Desiru).to receive(:configuration).and_return(
-        double(default_model: mock_model)
-      )
+      # Mock removed - Desiru no longer used
 
       allow(HomeAssistantClient).to receive(:new).and_return(
         double(speak: true)

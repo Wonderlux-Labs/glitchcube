@@ -38,7 +38,7 @@ module Services
 
       parse_summary(response[:content])
     rescue StandardError => e
-      Rails.logger.error "Failed to summarize conversation: #{e.message}"
+      puts "Failed to summarize conversation: #{e.message}"
       nil
     end
 
