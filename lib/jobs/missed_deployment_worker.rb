@@ -65,7 +65,8 @@ class MissedDeploymentWorker
     
     Services::LoggerService.log_api_call(
       service: 'missed_deployment_worker',
-      method: 'perform',
+      endpoint: 'perform',
+      method: 'POST',
       status: 500,
       error: e.message,
       backtrace: e.backtrace.first(3)

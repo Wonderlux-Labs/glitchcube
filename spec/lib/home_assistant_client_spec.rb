@@ -13,7 +13,7 @@ RSpec.describe HomeAssistantClient do
 
     it 'uses HA URL from config' do
       client = described_class.new
-      expect(client.base_url).to eq('http://localhost:8123')
+      expect(client.base_url).to eq('http://localhost:4567/mock_ha')
     end
 
     it 'uses token from config' do
