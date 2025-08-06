@@ -5,7 +5,7 @@ require 'json'
 require 'openssl'
 require_relative '../../../lib/routes/api/deployment'
 
-RSpec.describe 'Deployment API', type: :request, :failing do
+RSpec.describe 'Deployment API', type: :request do
   let(:app) { GlitchCubeApp.new }
   
   # Mock GitHub webhook payload

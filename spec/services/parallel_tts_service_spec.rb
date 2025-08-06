@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../lib/services/parallel_tts_service'
 
-RSpec.describe Services::ParallelTTSService, :failing do
+RSpec.describe Services::ParallelTTSService do
   let(:service) { described_class.new }
   let(:mock_ha_client) { instance_double(HomeAssistantClient) }
   let(:test_message) { 'Hello from Glitch Cube!' }

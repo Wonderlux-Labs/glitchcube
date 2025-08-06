@@ -1,13 +1,17 @@
 name: Deploy via Home Assistant
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Test Suite"]
+    types:
+      - completed
     branches: [ main ]
   workflow_dispatch:  # Allow manual triggers
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     
     steps:
     - name: Send deployment webhook to Home Assistant
