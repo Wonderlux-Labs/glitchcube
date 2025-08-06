@@ -53,7 +53,15 @@ module GlitchCube
         timezone: ENV.fetch('TZ', 'America/Los_Angeles'),
         master_password: ENV.fetch('MASTER_PASSWORD', nil),
 
-        # AI Conversation Parameters
+        # AI Configuration
+        ai: OpenStruct.new(
+          default_model: ENV.fetch('DEFAULT_AI_MODEL', 'google/gemini-2.5-flash'),
+          temperature: ENV.fetch('AI_TEMPERATURE', '0.8').to_f,
+          max_tokens: ENV.fetch('AI_MAX_TOKENS', '200').to_i,
+          max_session_messages: ENV.fetch('MAX_SESSION_MESSAGES', '10').to_i
+        ),
+
+        # AI Conversation Parameters (deprecated - use ai section)
         conversation: OpenStruct.new(
           temperature: ENV.fetch('AI_TEMPERATURE', '0.8').to_f,
           max_tokens: ENV.fetch('AI_MAX_TOKENS', '200').to_i,

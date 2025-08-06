@@ -112,7 +112,7 @@ RSpec.describe Services::LLMService, 'structured output support' do
         )
       end
       
-      it 'indicates continuation correctly', :pending do
+      it 'indicates continuation correctly' do
         VCR.use_cassette('llm_service_continue_true', record: :new_episodes) do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Respond in JSON format.',
@@ -144,7 +144,7 @@ RSpec.describe Services::LLMService, 'structured output support' do
         end
       end
       
-      it 'handles edge cases that cause 400 errors', :pending do
+      it 'handles edge cases that cause 400 errors' do
         # Test the specific messages that were causing 400 errors
         messages = [
           "What do you think about creativity?",

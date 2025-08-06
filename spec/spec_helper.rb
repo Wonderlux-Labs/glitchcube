@@ -9,9 +9,10 @@ end
 ENV['RACK_ENV'] = 'test'
 # Note: Using real Home Assistant instance for tests - no mock needed
 
-# Set test API keys - load from .env if available, otherwise use test defaults
+# Load environment variables - CI can override by setting before .env load
 require 'dotenv'
-Dotenv.load('.env')
+Dotenv.load('.env.test', '.env')
+# Fallback defaults if not set anywhere
 ENV['OPENROUTER_API_KEY'] ||= 'test-api-key'
 ENV['HOME_ASSISTANT_TOKEN'] ||= 'test-ha-token'
 
@@ -39,13 +40,24 @@ RSpec.configure do |config|
   config.before(:suite) do
     require 'sidekiq/testing'
     Sidekiq::Testing.fake!
-    
-    # Disable proactive conversation monitoring during tests
-    ENV['DISABLE_PROACTIVE_MONITORING'] = 'true'
   end
 
-  config.after(:suite) do
-    ENV.delete('DISABLE_PROACTIVE_MONITORING')
+  # Configure test environment settings
+  config.before(:each) do
+    # Disable circuit breakers in tests via ENV variable (works in both local and CI)
+    ENV['DISABLE_CIRCUIT_BREAKERS'] = 'true'
+    
+    # Override GlitchCube config for tests
+    if defined?(GlitchCube) && GlitchCube.respond_to?(:config)
+      # Ensure AI config is available
+      if GlitchCube.config.ai.nil?
+        GlitchCube.config.ai = OpenStruct.new(
+          default_model: 'google/gemini-2.5-flash',
+          temperature: 0.8,
+          max_tokens: 200
+        )
+      end
+    end
   end
 
   config.expect_with :rspec do |expectations|

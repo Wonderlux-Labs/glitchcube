@@ -11,12 +11,12 @@ RSpec.describe HomeAssistantClient do
       allow(GlitchCube.config.home_assistant).to receive(:mock_enabled).and_return(true)
     end
 
-    it 'uses HA URL from config', :pending do
+    it 'uses HA URL from config' do
       client = described_class.new
       expect(client.base_url).to eq('http://localhost:4567/mock_ha')
     end
 
-    it 'uses token from config', :pending do
+    it 'uses token from config' do
       client = described_class.new
       expect(client.token).to eq('test-ha-token')
     end

@@ -38,7 +38,7 @@ RSpec.describe ConversationEnhancements do
     it 'executes all tools in parallel' do
       results = test_instance.execute_parallel_tools(tool_calls)
 
-      expect(results).to have(2).items
+      expect(results.length).to eq(2)
       expect(results[0]).to include(tool: 'home_assistant', success: true)
       expect(results[1]).to include(tool: 'test_tool', success: true)
     end

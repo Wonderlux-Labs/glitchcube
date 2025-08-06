@@ -93,17 +93,16 @@ class HomeAssistantClient
     
     # Try new format first (tts.speak action with tts.home_assistant_cloud)
     begin
-      # Use tts.home_assistant_cloud as the TTS engine
-      # New HA format requires target and data to be separate
-      post('/api/services/tts/speak', {
-             target: {
-               entity_id: 'tts.home_assistant_cloud'
-             },
-             data: {
-               media_player_entity_id: target_entity,
-               message: message
-             }
-           })
+      # Use tts.speak service with proper format
+      call_service('tts', 'speak', {
+                     target: {
+                       entity_id: 'tts.home_assistant_cloud'
+                     },
+                     data: {
+                       media_player_entity_id: target_entity,
+                       message: message
+                     }
+                   })
     rescue Error => e
       # Fallback to legacy cloud_say format
       begin

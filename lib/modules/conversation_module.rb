@@ -5,6 +5,7 @@ require 'concurrent'
 require_relative '../services/system_prompt_service'
 require_relative '../services/logger_service'
 require_relative '../services/llm_service'
+require_relative '../services/tts_service'
 require_relative '../home_assistant_client'
 require_relative 'conversation_responses'
 require_relative 'conversation_enhancements'
@@ -325,28 +326,29 @@ class ConversationModule
 
 
 
-  def speak_response(response_text, _context)
+  def speak_response(response_text, context = {})
     return if response_text.nil? || response_text.strip.empty?
 
     start_time = Time.now
     begin
-      # Use HomeAssistant client to speak the response
-      home_assistant = HomeAssistantClient.new
-      home_assistant.speak(response_text)
+      # Use the new TTS service with character support
+      tts_service = Services::TTSService.new
+      
+      # Get mood/persona from context for character voice
+      mood = context[:mood] || context[:persona] || 'neutral'
+      
+      # Use the TTS service with mood support
+      success = tts_service.speak(
+        response_text,
+        mood: mood,
+        cache: true
+      )
 
       duration = ((Time.now - start_time) * 1000).round
       Services::LoggerService.log_tts(
         message: response_text,
-        success: true,
+        success: success,
         duration: duration
-      )
-    rescue HomeAssistantClient::Error => e
-      duration = ((Time.now - start_time) * 1000).round
-      Services::LoggerService.log_tts(
-        message: response_text,
-        success: false,
-        duration: duration,
-        error: "HA Error: #{e.message}"
       )
     rescue StandardError => e
       duration = ((Time.now - start_time) * 1000).round

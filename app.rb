@@ -3,14 +3,20 @@
 require 'sinatra'
 require 'sinatra/json'
 require 'sinatra/reloader' if development?
-require 'sinatra/activerecord'
 
-# Load environment variables
+# Load environment variables BEFORE ActiveRecord
 if development? || test?
   require 'dotenv'
-  # Load defaults first, then override with .env
-  Dotenv.load('.env.defaults', '.env')
+  if test?
+    # Load defaults, test-specific, then local overrides
+    Dotenv.load('.env.defaults', '.env.test', '.env')
+  else
+    # Load defaults first, then override with .env
+    Dotenv.load('.env.defaults', '.env')
+  end
 end
+
+require 'sinatra/activerecord'
 
 require 'json'
 require 'sidekiq'
@@ -35,7 +41,11 @@ require_relative 'config/constants'
 Dir[File.join(__dir__, 'config', 'initializers', '*.rb')].each { |file| require file }
 
 # Set up database connection
-set :database_file, 'config/database.yml'
+if test?
+  set :database, ENV['DATABASE_URL'] || 'postgresql://localhost:5432/glitchcube_test'
+else
+  set :database_file, 'config/database.yml'
+end
 
 # Load models
 Dir[File.join(__dir__, 'app', 'models', '*.rb')].each { |file| require file }
