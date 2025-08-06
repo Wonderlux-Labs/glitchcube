@@ -19,7 +19,7 @@
             entity_id: input_text.current_environment
           data:
             value: "{{ trigger.data.environment }}"
-        - service: logbook.log
+        - service: system_log.write
           data:
             name: "Glitch Cube"
             message: "🌍 Environment updated: {{ trigger.data.environment }}"
@@ -34,7 +34,7 @@
             entity_id: input_text.current_weather
           data:
             value: "{{ trigger.data.weather }}"
-        - service: logbook.log
+        - service: system_log.write
           data:
             name: "Glitch Cube"
             message: "🌤️ Weather updated: {{ trigger.data.weather }}"
@@ -49,7 +49,7 @@
             entity_id: input_number.avg_sound_db
           data:
             value: "{{ trigger.data.sound_db | float }}"
-        - service: logbook.log
+        - service: system_log.write
           data:
             name: "Glitch Cube"
             message: "🔊 Sound level updated: {{ trigger.data.sound_db }}dB"
@@ -64,7 +64,7 @@
             entity_id: input_text.current_persona
           data:
             value: "{{ trigger.data.persona }}"
-        - service: logbook.log
+        - service: system_log.write
           data:
             name: "Glitch Cube"
             message: "🎭 Persona changed to {{ trigger.data.persona }}"
@@ -79,7 +79,7 @@
             entity_id: input_datetime.last_interaction
           data:
             datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
-        - service: logbook.log
+        - service: system_log.write
           data:
             name: "Glitch Cube"
             message: "Interaction recorded from {{ trigger.data.source | default('unknown') }}"

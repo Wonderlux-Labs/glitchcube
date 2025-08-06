@@ -2,7 +2,7 @@
   alias: "Alert on High Temperature"
   trigger:
     - platform: numeric_state
-      entity_id: sensor.cube_cpu_thermal_0_temperature
+      entity_id: sensor.macmini_composite_temperature
       above: 158  # Alert at 158°F (70°C equivalent for desert conditions)
       for:
         minutes: 5
@@ -10,5 +10,5 @@
     - service: logbook.log
       data:
         name: "Glitch Cube Alert"
-        message: "🌡️ High temperature detected: {{ states('sensor.cube_cpu_thermal_0_temperature') }}°F"
+        message: "🌡️ High temperature detected: {{ states('sensor.macmini_composite_temperature') }}°F"
         domain: "glitchcube"

@@ -6,8 +6,8 @@ generate_health_report:
         entity_id:
           - sensor.glitch_cube_app_health
           - sensor.internet_connectivity
-          - sensor.cube_cpu_thermal_0_temperature
-          - sensor.cube_uptime
+          - sensor.macmini_composite_temperature
+          - sensor.macmini_uptime
           - sensor.installation_health
     - delay: "00:00:02"
     - service: logbook.log
@@ -18,7 +18,7 @@ generate_health_report:
           Status: {{ states('sensor.current_status') }}
           App: {{ states('sensor.glitch_cube_app_health') }},
           Internet: {{ states('sensor.internet_connectivity') }},
-          Temperature: {{ states('sensor.cube_cpu_thermal_0_temperature') }}°F,
-          Uptime: {{ states('sensor.cube_uptime') }},
+          Temperature: {{ states('sensor.macmini_composite_temperature') }}°F,
+          Uptime: {{ states('sensor.macmini_uptime') }},
           Offline Mode: {{ states('input_boolean.offline_mode') }}
         domain: "glitchcube"

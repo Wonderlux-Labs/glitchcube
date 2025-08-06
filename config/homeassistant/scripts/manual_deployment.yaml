@@ -1,0 +1,44 @@
+manual_glitchcube_deployment:
+  alias: "Manual Glitch Cube Deployment"
+  description: "Manually trigger a Glitch Cube deployment"
+  fields:
+    message:
+      description: "Deployment message"
+      example: "Emergency hotfix deployment"
+      default: "Manual deployment from Home Assistant"
+    committer:
+      description: "Who is triggering this deployment"
+      example: "Admin User"
+      default: "Home Assistant User"
+  sequence:
+    - service: notify.persistent_notification
+      data:
+        title: "🚀 Manual Deployment Started"
+        message: >
+          Message: {{ message }}
+          Triggered by: {{ committer }}
+          Time: {{ now().strftime('%Y-%m-%d %H:%M:%S') }}
+          
+    - service: rest_command.manual_glitchcube_deployment
+      data:
+        message: "{{ message }}"
+        committer: "{{ committer }}"
+        
+    - delay: "00:00:10"  # Wait 10 seconds for deployment
+    
+    - service: rest_command.check_deployment_status
+      response_variable: deployment_status
+      
+    - service: notify.persistent_notification
+      data:
+        title: "📊 Manual Deployment Status"
+        message: >
+          {% if deployment_status.status == 200 %}
+          ✅ Manual deployment completed successfully
+          Current branch: {{ deployment_status.content.current_branch }}
+          Current commit: {{ deployment_status.content.current_commit }}
+          Behind by: {{ deployment_status.content.commits_behind }} commits
+          Last commit: {{ deployment_status.content.last_commit_message }}
+          {% else %}
+          ❌ Failed to get deployment status ({{ deployment_status.status }})
+          {% endif %}

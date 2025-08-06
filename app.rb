@@ -72,6 +72,7 @@ class GlitchCubeApp < Sinatra::Base
   register GlitchCube::Routes::Api::Gps
   register GlitchCube::Routes::Api::Conversation
   register GlitchCube::Routes::Api::Tools
+  register GlitchCube::Routes::Api::Deployment
 
   # Development-only routes (analytics, debugging, testing)
   register GlitchCube::Routes::Development::Analytics if development? || test?

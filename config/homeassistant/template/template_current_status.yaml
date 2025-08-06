@@ -8,7 +8,7 @@ sensor:
       {% set location = "Black Rock Desert, NV" %}
       {% set persona = states('sensor.current_persona') %}
       {% set last_interaction = states('sensor.last_interaction_time') %}
-      {% set temp = states('sensor.cube_cpu_thermal_0_temperature') %}
+      {% set temp = states('sensor.macmini_composite_temperature') %}
       {% set internet = states('sensor.internet_connectivity') %}
       {% set weather = states('input_text.current_weather') %}
       {% set env = states('input_text.current_environment') %}

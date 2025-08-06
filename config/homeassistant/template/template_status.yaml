@@ -23,7 +23,7 @@ sensor:
     state: >
       {% set app_health = states('sensor.glitch_cube_app_health') %}
       {% set internet = states('sensor.internet_connectivity') %}
-      {% set temp = states('sensor.cube_cpu_thermal_0_temperature') | float(0) %}
+      {% set temp = states('sensor.macmini_composite_temperature') | float(0) %}
       {% set offline_mode = states('input_boolean.offline_mode') %}
       {# 
         Health Logic:

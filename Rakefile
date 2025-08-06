@@ -3,6 +3,9 @@
 require 'rspec/core/rake_task'
 require 'sinatra/activerecord/rake'
 
+# Load custom rake tasks
+Dir[File.join(__dir__, 'lib/tasks/*.rake')].each { |f| load f }
+
 # Load the app for database tasks
 namespace :db do
   task :load_config do

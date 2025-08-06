@@ -23,7 +23,7 @@ history:
 
 # Enable recorder with MariaDB for better performance
 recorder:
-  db_url: mysql://homeassistant:homeassistantd@core-mariadb/homeassistant?charset=utf8mb4
+  db_url: mysql://homeassistant:homeassistant@core-mariadb/homeassistant?charset=utf8mb4
   purge_keep_days: 10  # Keep 10 days of history
   commit_interval: 5   # Commit every 5 seconds for reliability
   include:
@@ -39,6 +39,7 @@ recorder:
       - sensor.installation_health
       - sensor.last_interaction_time
       - sensor.current_persona
+# Enable recorder with MariaDB for better performance
 
 # HTTP configuration for webhooks
 http:

@@ -1,0 +1,47 @@
+- id: github_deployment_webhook
+  alias: "GitHub Deployment Webhook"
+  description: "Receives GitHub webhook and triggers local deployment"
+  trigger:
+    - platform: webhook
+      webhook_id: github_deploy
+      local_only: false  # Allow external access
+  condition:
+    # Only process if it looks like a GitHub webhook (has repository info)
+    - condition: template
+      value_template: "{{ trigger.json.repository is defined }}"
+  action:
+    - service: notify.persistent_notification
+      data:
+        title: "🚀 GitHub Deployment Started"
+        message: >
+          Repository: {{ trigger.json.repository.full_name if trigger.json.repository else 'Unknown' }}
+          Branch: {{ trigger.json.ref | regex_replace('refs/heads/', '') if trigger.json.ref else 'Unknown' }}
+          Commit: {{ trigger.json.after[:8] if trigger.json.after else 'Unknown' }}
+          Committer: {{ trigger.json.commits[0].committer.name if trigger.json.commits and trigger.json.commits|length > 0 else 'Unknown' }}
+        
+    - service: rest_command.trigger_glitchcube_deployment
+      data:
+        repository: "{{ trigger.json.repository.full_name if trigger.json.repository else 'manual' }}"
+        branch: "{{ trigger.json.ref | regex_replace('refs/heads/', '') if trigger.json.ref else 'main' }}"
+        commit_sha: "{{ trigger.json.after if trigger.json.after else 'manual' }}"
+        commit_message: "{{ trigger.json.commits[0].message if trigger.json.commits and trigger.json.commits|length > 0 else 'GitHub webhook deployment' }}"
+        committer: "{{ trigger.json.commits[0].committer.name if trigger.json.commits and trigger.json.commits|length > 0 else 'GitHub' }}"
+        
+    - delay: "00:00:05"  # Wait 5 seconds
+    
+    - service: rest_command.check_deployment_status
+      response_variable: deployment_status
+      
+    - service: notify.persistent_notification
+      data:
+        title: "📊 Deployment Status"
+        message: >
+          {% if deployment_status.status == 200 %}
+          ✅ Deployment completed successfully
+          Current branch: {{ deployment_status.content.current_branch }}
+          Current commit: {{ deployment_status.content.current_commit }}
+          Behind by: {{ deployment_status.content.commits_behind }} commits
+          {% else %}
+          ❌ Failed to get deployment status ({{ deployment_status.status }})
+          {% endif %}
+  mode: queued  # Allow multiple deployments to queue

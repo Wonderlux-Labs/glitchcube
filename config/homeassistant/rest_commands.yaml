@@ -1,72 +1,38 @@
-# REST Commands for GlitchCube Integration
-
+# REST commands for GitHub deployment automation
 rest_command:
-  # Start a proactive conversation
-  glitchcube_start_conversation:
-    url: >
-      {% set host = states('input_text.glitchcube_host') %}
-      http://{{ host }}:4567/api/v1/conversation/start
+  trigger_glitchcube_deployment:
+    url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/internal"
     method: POST
     headers:
       Content-Type: "application/json"
     payload: >
       {
-        "trigger": "{{ trigger }}",
-        "context": {{ context | default('{}') | tojson }},
-        "message": "{{ message | default('') }}"
+        "repository": "{{ repository }}",
+        "branch": "{{ branch }}",
+        "commit_sha": "{{ commit_sha }}",
+        "commit_message": "{{ commit_message }}",
+        "committer": "{{ committer }}",
+        "timestamp": "{{ now().isoformat() }}"
       }
+    timeout: 60
+    
+  check_deployment_status:
+    url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/status"
+    method: GET
     timeout: 10
-
-  # Send webhook event to Ruby backend
-  glitchcube_webhook:
-    url: >
-      {% set host = states('input_text.glitchcube_host') %}
-      http://{{ host }}:4567/api/v1/ha_webhook
+    
+  manual_glitchcube_deployment:
+    url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/internal"
     method: POST
     headers:
       Content-Type: "application/json"
     payload: >
       {
-        "event_type": "{{ event_type }}",
-        "conversation_id": "{{ conversation_id | default('') }}",
-        "device_id": "{{ device_id | default('glitchcube') }}",
-        "text": "{{ text | default('') }}",
-        "context": {{ context | default('{}') | tojson }}
+        "repository": "manual deployment",
+        "branch": "main",
+        "commit_sha": "manual",
+        "commit_message": "{{ message | default('Manual deployment from Home Assistant') }}",
+        "committer": "{{ committer | default('Home Assistant') }}",
+        "timestamp": "{{ now().isoformat() }}"
       }
-    timeout: 10
-
-  # Continue an existing conversation
-  glitchcube_continue_conversation:
-    url: >
-      {% set host = states('input_text.glitchcube_host') %}
-      http://{{ host }}:4567/api/v1/conversation
-    method: POST
-    headers:
-      Content-Type: "application/json"
-    payload: >
-      {
-        "message": "{{ message }}",
-        "context": {
-          "conversation_id": "{{ conversation_id }}",
-          "ha_conversation_id": "{{ ha_conversation_id }}",
-          "session_id": "{{ session_id }}",
-          "device_id": "{{ device_id | default('glitchcube') }}",
-          "voice_interaction": true
-        }
-      }
-    timeout: 15
-
-  # Send TTS request
-  glitchcube_speak:
-    url: >
-      {% set host = states('input_text.glitchcube_host') %}
-      http://{{ host }}:4567/api/v1/tts
-    method: POST
-    headers:
-      Content-Type: "application/json"
-    payload: >
-      {
-        "text": "{{ text }}",
-        "voice": "{{ voice | default('default') }}"
-      }
-    timeout: 10
+    timeout: 60

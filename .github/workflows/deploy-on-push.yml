@@ -1,0 +1,56 @@
+name: Deploy via Home Assistant
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual triggers
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Send deployment webhook to Home Assistant
+      run: |
+        # Create the webhook payload with GitHub context
+        payload=$(cat <<EOF
+        {
+          "repository": {
+            "full_name": "${{ github.repository }}"
+          },
+          "ref": "${{ github.ref }}",
+          "after": "${{ github.sha }}",
+          "commits": [
+            {
+              "id": "${{ github.sha }}",
+              "message": "${{ github.event.head_commit.message }}",
+              "committer": {
+                "name": "${{ github.actor }}"
+              }
+            }
+          ],
+          "pusher": {
+            "name": "${{ github.actor }}"
+          },
+          "head_commit": {
+            "message": "${{ github.event.head_commit.message }}"
+          }
+        }
+        EOF
+        )
+        
+        # Send to Home Assistant webhook (URL includes the webhook_id)
+        curl -X POST \
+          -H "Content-Type: application/json" \
+          -d "$payload" \
+          "https://zjd6lgd6yhigawnj06mkguhholcsfdul.ui.nabu.casa/api/webhook/github_deploy"
+      
+    - name: Log deployment info
+      run: |
+        echo "🚀 Deployment webhook sent to Home Assistant"
+        echo "Repository: ${{ github.repository }}"
+        echo "Commit: ${{ github.sha }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Committer: ${{ github.actor }}"
+        echo "Message: ${{ github.event.head_commit.message }}"
+        echo "Webhook URL: https://zjd6lgd6yhigawnj06mkguhholcsfdul.ui.nabu.casa/api/webhook/github_deploy"

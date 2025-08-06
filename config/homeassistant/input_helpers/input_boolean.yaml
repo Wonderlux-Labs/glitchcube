@@ -52,9 +52,3 @@ temp_critical:
   name: "Temperature Critical"
   initial: false
   icon: "mdi:thermometer-alert"
-
-# SSH Key Management
-ssh_retry_enabled:
-  name: "SSH Key Retry Enabled"
-  initial: true
-  icon: "mdi:key-variant"

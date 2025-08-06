@@ -67,7 +67,10 @@ module GlitchCube
 
         # Deployment Configuration
         deployment: OpenStruct.new(
-          mac_mini: ENV.fetch('MAC_MINI_DEPLOYMENT', 'true') == 'true'
+          mac_mini: ENV.fetch('MAC_MINI_DEPLOYMENT', 'true') == 'true',
+          github_webhook_secret: ENV.fetch('GITHUB_WEBHOOK_SECRET', nil),
+          api_key: ENV.fetch('DEPLOYMENT_API_KEY', nil),
+          internal_token: ENV.fetch('INTERNAL_DEPLOYMENT_TOKEN', nil)
         ),
 
         # Development/Test

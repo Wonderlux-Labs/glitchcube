@@ -23,8 +23,8 @@
           value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
   action:
     - variables:
-        uptime_status: "{{ 'down' if states('sensor.installation_health') in ['critical', 'offline'] else 'up' }}"
-        status_message: "{{ (states('sensor.current_status') or 'No status')[:150] }}"
+        uptime_status: "{{ 'down' if states('sensor.installation_health', 'unknown') in ['critical', 'offline'] else 'up' }}"
+        status_message: "{{ (states('sensor.current_status', 'Starting...') or 'No status')[:150] }}"
     # Push to Uptime Kuma status page
     - service: rest_command.update_status_page
       data:
@@ -32,7 +32,6 @@
         msg: "{{ status_message }}"
         ping: "{{ now().timestamp() | round(0) }}"
     # Log the status update (less verbose)
-    - service: logbook.log
+    - service: system_log.write
       data:
-        name: "Status Page"
         message: "📊 Status updated: {{ uptime_status }} - {{ status_message[:50] }}{{ '...' if status_message|length > 50 else '' }}"

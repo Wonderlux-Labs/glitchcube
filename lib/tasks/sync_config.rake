@@ -17,8 +17,7 @@ namespace :config do
       'configuration.yaml',
       'automations.yaml',
       'scenes.yaml',
-      'scripts.yaml',
-      'mqtt.yaml'
+      'scripts.yaml'
     ]
     
     # Sync directories
@@ -69,8 +68,7 @@ namespace :config do
       'configuration.yaml',
       'automations.yaml',
       'scenes.yaml',
-      'scripts.yaml', 
-      'mqtt.yaml'
+      'scripts.yaml'
     ]
     
     # Push directories
@@ -251,6 +249,31 @@ namespace :config do
     ensure
       # Cleanup temp directory
       FileUtils.rm_rf(temp_dir)
+    end
+  end
+  
+  desc 'Sync configuration (rsync-style with deletions)'
+  task :sync do
+    puts "🔄 Syncing configuration files with glitch.local (with deletions)..."
+    
+    # Ensure local directory exists
+    FileUtils.mkdir_p(LOCAL_CONFIG_PATH)
+    
+    # Use rsync for proper sync with deletions
+    rsync_cmd = [
+      'rsync', '-av', '--delete', '--exclude=*.log*', '--exclude=*.db*',
+      '--exclude=.storage/', '--exclude=backups/', '--exclude=tts/',
+      '--exclude=.cloud/', '--exclude=deps/', '--exclude=.DS_Store',
+      "#{REMOTE_HOST}:#{REMOTE_CONFIG_PATH}/",
+      "#{LOCAL_CONFIG_PATH}/"
+    ].join(' ')
+    
+    puts "  📡 Running: #{rsync_cmd}"
+    if system(rsync_cmd)
+      puts "✅ Configuration sync completed!"
+    else
+      puts "❌ Sync failed!"
+      exit 1
     end
   end
   
