@@ -22,7 +22,8 @@ class MissedDeploymentWorker
 
     Services::LoggerService.log_api_call(
       service: 'missed_deployment_worker',
-      method: 'perform',
+      endpoint: 'perform',
+      method: 'POST',
       deployment_info: deployment_data,
       message: 'Starting missed deployment recovery'
     )
@@ -36,7 +37,8 @@ class MissedDeploymentWorker
       puts "✅ Missed deployment recovery completed successfully"
       Services::LoggerService.log_api_call(
         service: 'missed_deployment_worker',
-        method: 'perform',
+        endpoint: 'perform',
+        method: 'POST',
         deployment_info: deployment_data,
         results: results,
         success: true,
@@ -48,7 +50,8 @@ class MissedDeploymentWorker
       
       Services::LoggerService.log_api_call(
         service: 'missed_deployment_worker',
-        method: 'perform',
+        endpoint: 'perform',
+        method: 'POST',
         deployment_info: deployment_data,
         results: results,
         success: false,

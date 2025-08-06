@@ -32,8 +32,6 @@ RSpec.describe GlitchCubeApp do
              { message: 'Hello Glitch Cube!' }.to_json,
              { 'CONTENT_TYPE' => 'application/json' }
 
-        puts "Response status: #{last_response.status}"
-        puts "Response body: #{last_response.body}"
         expect(last_response).to be_ok
         body = JSON.parse(last_response.body)
         expect(body['success']).to be true
