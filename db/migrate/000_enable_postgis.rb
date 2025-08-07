@@ -2,8 +2,9 @@
 
 class EnablePostgis < ActiveRecord::Migration[7.1]
   def up
-    # Enable PostGIS extension - must be the very first migration
+    # Enable PostGIS extensions - must be the very first migration
     enable_extension 'postgis'
+    enable_extension 'postgis_topology'
   end
 
   def down

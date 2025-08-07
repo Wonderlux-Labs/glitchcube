@@ -64,27 +64,27 @@ module Services
     class << self
       # Quick state change methods for conversation flow
       def set_listening
-        set_state(:listening)
+        new.set_state(:listening)
       end
 
       def set_thinking  
-        set_state(:thinking)
+        new.set_state(:thinking)
       end
 
       def set_speaking
-        set_state(:speaking)
+        new.set_state(:speaking)
       end
 
       def set_completed
-        set_state(:completed)
+        new.set_state(:completed)
       end
 
       def set_error
-        set_state(:error)
+        new.set_state(:error)
       end
 
       def set_idle
-        set_state(:idle)
+        new.set_state(:idle)
       end
 
       # Custom color for mood-based feedback

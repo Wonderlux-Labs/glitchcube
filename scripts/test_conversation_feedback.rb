@@ -3,9 +3,7 @@
 
 # Test script for ConversationFeedbackService
 # Demonstrates all conversation states with LED feedback
-
-require_relative '../config/initializers/config'
-require_relative '../lib/services/conversation_feedback_service'
+# Run with: bundle exec rake run_script[scripts/test_conversation_feedback.rb]
 
 puts "🎭 Testing Conversation Feedback LED States"
 puts "=" * 50
