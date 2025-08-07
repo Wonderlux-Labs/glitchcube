@@ -68,7 +68,7 @@ RSpec.describe Services::ConversationTracer do
         )
 
         traces = tracer.traces
-        expect(traces).to have(1).item
+        expect(traces.size).to eq(1)
         expect(traces.first[:service]).to eq('ConversationModule')
         expect(traces.first[:action]).to eq('start_conversation')
         expect(traces.first[:data][:persona]).to eq('playful')
@@ -84,7 +84,7 @@ RSpec.describe Services::ConversationTracer do
         )
 
         traces = tracer.traces
-        expect(traces).to have(1).item
+        expect(traces.size).to eq(1)
         expect(traces.first[:service]).to eq('ConversationSession')
         expect(traces.first[:action]).to eq('create_session')
         expect(traces.first[:data][:created]).to be true
@@ -125,7 +125,7 @@ RSpec.describe Services::ConversationTracer do
         )
 
         traces = tracer.traces
-        expect(traces).to have(1).item
+        expect(traces.size).to eq(1)
         expect(traces.first[:service]).to eq('LLMService')
         expect(traces.first[:action]).to eq('complete_with_messages')
         expect(traces.first[:data][:model]).to eq('gpt-4')
@@ -179,10 +179,10 @@ RSpec.describe Services::ConversationTracer do
         )
 
         traces = tracer.traces
-        expect(traces).to have(1).item
+        expect(traces.size).to eq(1)
         expect(traces.first[:service]).to eq('MemoryRecallService')
         expect(traces.first[:data][:memories_found]).to eq(2)
-        expect(traces.first[:data][:memory_details]).to have(2).items
+        expect(traces.first[:data][:memory_details].size).to eq(2)
         expect(traces.first[:data][:memory_details].first[:category]).to eq('event')
       end
 
@@ -222,7 +222,7 @@ RSpec.describe Services::ConversationTracer do
         )
 
         traces = tracer.traces
-        expect(traces).to have(1).item
+        expect(traces.size).to eq(1)
         expect(traces.first[:service]).to eq('ToolExecutor')
         expect(traces.first[:data][:tool_count]).to eq(2)
         expect(traces.first[:data][:tools_called]).to eq(['weather_lookup', 'memory_search'])
@@ -275,7 +275,7 @@ RSpec.describe Services::ConversationTracer do
         expect(formatted[:trace_id]).to eq(tracer.trace_id)
         expect(formatted[:session_id]).to eq(session_id)
         expect(formatted[:total_steps]).to eq(1)
-        expect(formatted[:traces]).to have(1).item
+        expect(formatted[:traces].size).to eq(1)
         expect(formatted[:started_at]).to be_present
         expect(formatted[:total_duration_ms]).to be > 0
       end
@@ -344,7 +344,7 @@ RSpec.describe Services::ConversationTracer do
 
         result = described_class.get_session_traces(session_id, limit: 10)
         
-        expect(result).to have(1).item
+        expect(result.size).to eq(1)
         expect(result.first[:session_id]).to eq(session_id)
       end
 

@@ -28,7 +28,7 @@ jobs:
     
     services:
       postgres:
-        image: postgres:15
+        image: postgis/postgis:15-3.3
         env:
           POSTGRES_USER: glitchcube
           POSTGRES_PASSWORD: glitchcube_test
