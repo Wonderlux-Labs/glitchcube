@@ -158,6 +158,14 @@ class GlitchCubeApp < Sinatra::Base
          })
   end
 
+  # Health push endpoint for Uptime Kuma monitoring
+  # Reads consolidated health data from Home Assistant sensor.health_monitoring
+  get '/health/push' do
+    service = Services::HealthPushService.new
+    result = service.push_health_status
+    json(result)
+  end
+
   not_found do
     json({ error: 'Not found', status: 404 })
   end

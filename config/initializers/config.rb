@@ -35,13 +35,6 @@ module GlitchCube
           mock_enabled: ENV['MOCK_HOME_ASSISTANT'] == 'true'
         ),
 
-        # Beacon Service
-        beacon: OpenStruct.new(
-          url: ENV.fetch('BEACON_URL', nil),
-          token: ENV.fetch('BEACON_TOKEN', nil),
-          enabled: !ENV['BEACON_URL'].nil? && !ENV['BEACON_URL'].empty?
-        ),
-
         # Device/Installation Info
         device: OpenStruct.new(
           id: ENV.fetch('DEVICE_ID', 'glitch_cube_001'),
@@ -109,7 +102,6 @@ module GlitchCube
 
         errors << 'HOME_ASSISTANT_TOKEN is required when not using mock' if home_assistant.url && !home_assistant.mock_enabled && home_assistant.token.nil?
 
-        errors << 'BEACON_TOKEN is required when BEACON_URL is set' if beacon.enabled && beacon.token.nil?
       end
 
       raise "Configuration errors:\n#{errors.join("\n")}" unless errors.empty?

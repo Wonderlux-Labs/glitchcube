@@ -1,9 +1,22 @@
 # Sidekiq configuration
 :concurrency: 5
 :timeout: 25
+
+# Queue priorities (higher weight = higher priority)
 :queues:
-  - default
-  - low
+  - [critical, 3]  # For urgent operations
+  - [default, 2]   # Normal priority jobs
+  - [low, 1]       # Background maintenance
+
 :environment: <%= ENV['RACK_ENV'] || 'development' %>
+
+# Redis configuration
 :redis:
   url: <%= ENV.fetch('REDIS_URL', 'redis://localhost:6379/0') %>
+  namespace: glitchcube
+
+# Dead job retention (30 days)
+:dead_max_jobs: 1000
+
+# Job history retention
+:max_retries: 25

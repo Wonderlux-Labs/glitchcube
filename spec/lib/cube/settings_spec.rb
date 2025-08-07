@@ -161,30 +161,6 @@ RSpec.describe Cube::Settings do
         expect(described_class.home_assistant_url).to eq('http://fallback.local')
       end
     end
-
-    describe '.beacon_url' do
-      it 'returns the BEACON_URL value' do
-        ENV['BEACON_URL'] = 'http://beacon.example.com'
-        expect(described_class.beacon_url).to eq('http://beacon.example.com')
-      end
-    end
-
-    describe '.beacon_enabled?' do
-      it 'returns true when BEACON_URL is set and not empty' do
-        ENV['BEACON_URL'] = 'http://beacon.example.com'
-        expect(described_class.beacon_enabled?).to be true
-      end
-
-      it 'returns false when BEACON_URL is empty' do
-        ENV['BEACON_URL'] = ''
-        expect(described_class.beacon_enabled?).to be false
-      end
-
-      it 'returns false when BEACON_URL is nil' do
-        ENV['BEACON_URL'] = nil
-        expect(described_class.beacon_enabled?).to be false
-      end
-    end
   end
 
   describe 'Database Configuration' do

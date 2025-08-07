@@ -5,11 +5,11 @@ simulate_cube_movement_worker:
   description: "Simulate Glitch Cube GPS movement for testing (set SIMULATE_CUBE_MOVEMENT=true to activate)"
 # Background jobs managed by Sidekiq-cron:
 
-memory_cleanup:
+memory_consolidation:
   cron: "0 */6 * * *"  # Every 6 hours
-  class: "Jobs::MemoryCleanupJob"
+  class: "Jobs::MemoryConsolidationJob"
   queue: low
-  description: "Clean up old memory files and consolidate data"
+  description: "Consolidate and optimize memory storage"
 
 host_registration:
   cron: "*/5 * * * *"  # Every 5 minutes

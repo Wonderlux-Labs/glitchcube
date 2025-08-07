@@ -59,7 +59,6 @@ Cube::Settings.database_type            # => :sqlite/:mariadb/:postgres
 | `helicone_api_key` | `HELICONE_API_KEY` | Helicone gateway API key | `nil` |
 | `home_assistant_token` | `HOME_ASSISTANT_TOKEN` or `HA_TOKEN` | Home Assistant authentication token | `nil` |
 | `github_webhook_secret` | `GITHUB_WEBHOOK_SECRET` | GitHub webhook verification secret | `nil` |
-| `beacon_token` | `BEACON_TOKEN` | Beacon service authentication token | `nil` |
 | `master_password` | `MASTER_PASSWORD` | Master password for admin functions | `nil` |
 
 ## URLs and Endpoints
@@ -67,8 +66,6 @@ Cube::Settings.database_type            # => :sqlite/:mariadb/:postgres
 | Method | ENV Variable | Description | Default |
 |--------|--------------|-------------|---------|
 | `home_assistant_url` | `HOME_ASSISTANT_URL` or `HA_URL` | Home Assistant server URL | `nil` |
-| `beacon_url` | `BEACON_URL` | Beacon monitoring service URL | `nil` |
-| `beacon_enabled?` | `BEACON_URL` | Check if beacon monitoring is enabled | `false` |
 | `database_url` | `DATABASE_URL` | Database connection URL | `sqlite://data/glitchcube.db` |
 | `redis_url` | `REDIS_URL` | Redis server URL | `nil` |
 | `ai_gateway_url` | `AI_GATEWAY_URL` | AI gateway proxy URL | `nil` |
@@ -237,4 +234,4 @@ The following environment variables MUST be set in production:
 
 - `REDIS_URL` - For background job processing
 - `DATABASE_URL` - For persistence (defaults to SQLite)
-- `BEACON_URL` + `BEACON_TOKEN` - For external monitoring
+- `UPTIME_KUMA_PUSH_URL` - For external monitoring (optional)

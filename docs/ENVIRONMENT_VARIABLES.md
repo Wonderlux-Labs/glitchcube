@@ -56,12 +56,11 @@ This document lists all environment variables used by the Glitch Cube applicatio
 | `DEVICE_ID` | Unique identifier for this cube | `glitch_cube_001` | `cube_gallery_west` |
 | `INSTALLATION_LOCATION` | Physical location description | `gallery_main` | `MoMA_Floor_2` |
 
-### Beacon Service (Optional)
+### External Monitoring (Optional)
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
-| `BEACON_URL` | Remote tracking endpoint | - | `https://tracker.example.com/api/beacon` |
-| `BEACON_TOKEN` | Authentication for beacon service | - | `bearer_token_123` |
+| `UPTIME_KUMA_PUSH_URL` | Uptime Kuma push monitor URL | - | `https://uptime.example.com/api/push/xyz123` |
 
 ### Development Only
 
@@ -101,9 +100,8 @@ REDIS_URL=redis://redis:6379/0
 # Home Assistant
 HA_URL=http://localhost:8123
 
-# Optional beacon service
-# BEACON_URL=https://your-tracker.com/api/beacon
-# BEACON_TOKEN=your_auth_token
+# Optional Uptime Kuma push monitoring
+# UPTIME_KUMA_PUSH_URL=https://uptime.example.com/api/push/xyz123
 ```
 
 ## Environment-Specific Settings

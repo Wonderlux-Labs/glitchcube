@@ -77,10 +77,6 @@ module Cube
         ENV.fetch('GITHUB_WEBHOOK_SECRET', nil)
       end
 
-      def beacon_token
-        ENV.fetch('BEACON_TOKEN', nil)
-      end
-
       def master_password
         ENV.fetch('MASTER_PASSWORD', nil)
       end
@@ -88,10 +84,6 @@ module Cube
       # URLs and Endpoints
       def home_assistant_url
         ENV['HOME_ASSISTANT_URL'] || ENV.fetch('HA_URL', nil)
-      end
-
-      def beacon_url
-        ENV.fetch('BEACON_URL', nil)
       end
 
       def database_url
@@ -104,10 +96,6 @@ module Cube
 
       def ai_gateway_url
         ENV.fetch('AI_GATEWAY_URL', nil)
-      end
-
-      def beacon_enabled?
-        !beacon_url.nil? && !beacon_url.empty?
       end
 
       # Database Configuration
