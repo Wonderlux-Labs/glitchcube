@@ -9,6 +9,7 @@ require_relative '../services/conversation_session'
 require_relative '../services/tool_call_parser'
 require_relative '../services/tool_executor'
 require_relative '../services/conversation_tracer'
+require_relative '../services/conversation_feedback_service'
 require_relative '../home_assistant_client'
 require_relative 'conversation_responses'
 require_relative 'conversation_enhancements'
@@ -19,6 +20,14 @@ class ConversationModule
   def call(message:, context: {}, persona: nil, mood: nil)
     # Use persona from context or default, also support legacy mood parameter
     persona ||= mood || context[:persona] || context[:mood] || 'neutral'
+
+    # Set LED feedback to listening state at start of conversation
+    begin
+      Services::ConversationFeedbackService.set_listening if context[:visual_feedback] != false
+    rescue => e
+      # Don't let LED feedback failures break conversations
+      puts "⚠️  LED feedback failed: #{e.message}"
+    end
 
     # Initialize conversation tracer
     tracer = Services::ConversationTracer.new(
@@ -97,6 +106,13 @@ class ConversationModule
         persona: persona
       )
 
+      # Set LED feedback to thinking state before LLM call
+      begin
+        Services::ConversationFeedbackService.set_thinking if context[:visual_feedback] != false
+      rescue => e
+        puts "⚠️  LED feedback failed: #{e.message}"
+      end
+
       # Use new LLM service with full conversation context
       llm_start = Time.now
       llm_response = Services::LLMService.complete_with_messages(
@@ -170,6 +186,9 @@ class ConversationModule
 
       # Wrap post-response operations to prevent fallback on their errors
       begin
+        # Set LED feedback to speaking state before TTS
+        Services::ConversationFeedbackService.set_speaking if context[:visual_feedback] != false
+        
         speak_response(response_text, context, tracer)
       rescue StandardError => e
         puts "Warning: TTS failed but conversation succeeded: #{e.message}"
@@ -190,6 +209,13 @@ class ConversationModule
         # Already handled in the method but adding for clarity
       end
 
+      # Set LED feedback to completed state
+      begin
+        Services::ConversationFeedbackService.set_completed if context[:visual_feedback] != false
+      rescue => e
+        puts "⚠️  LED feedback failed: #{e.message}"
+      end
+
       # Complete tracing
       total_duration = ((Time.now - start_time) * 1000).round
       tracer.complete_conversation(
@@ -203,13 +229,37 @@ class ConversationModule
       result
     rescue Services::LLMService::RateLimitError => e
       puts "DEBUG: Hit rate limit error: #{e.message}" if GlitchCube.config.debug?
+      
+      # Set LED to error state
+      begin
+        Services::ConversationFeedbackService.set_error if context[:visual_feedback] != false
+      rescue
+        # Ignore LED feedback errors during error handling
+      end
+      
       handle_rate_limit_error(session, message, persona, e)
     rescue Services::LLMService::LLMError => e
       puts "DEBUG: Hit LLM error: #{e.message}" if GlitchCube.config.debug?
+      
+      # Set LED to error state
+      begin
+        Services::ConversationFeedbackService.set_error if context[:visual_feedback] != false
+      rescue
+        # Ignore LED feedback errors during error handling
+      end
+      
       handle_llm_error(session, message, persona, e)
     rescue StandardError => e
       puts "DEBUG: Hit general error: #{e.class} - #{e.message}" if GlitchCube.config.debug?
       puts "DEBUG: Backtrace: #{e.backtrace.first(3).join("\n")}" if GlitchCube.config.debug?
+      
+      # Set LED to error state
+      begin
+        Services::ConversationFeedbackService.set_error if context[:visual_feedback] != false
+      rescue
+        # Ignore LED feedback errors during error handling
+      end
+      
       handle_general_error(session, message, persona, e)
     end
   end

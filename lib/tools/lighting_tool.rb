@@ -23,8 +23,9 @@ class LightingTool
       'cube' => 'light.cube_light',                           # Main cube lighting (rgb + color_temp)
       'cart' => 'light.cart_light',                          # Cart/secondary lighting (rgb + color_temp)
       
-      # Conversation feedback
+      # Conversation feedback (TODO: Rename to cube_speaker_light in HA)
       'voice_ring' => 'light.home_assistant_voice_09739d_led_ring', # Voice assistant LED ring
+      'speaker_ring' => 'light.home_assistant_voice_09739d_led_ring', # Alias for voice_ring
       
       # AWTRIX display system  
       'matrix' => 'light.awtrix_b85e20_matrix',               # Main 32x8 RGB matrix
@@ -40,7 +41,8 @@ class LightingTool
       'ambient' => [lights['cube'], lights['cart'], lights['matrix']],
       'indicators' => [lights['indicator_1'], lights['indicator_2'], lights['indicator_3']],
       'awtrix' => [lights['matrix'], lights['indicator_1'], lights['indicator_2'], lights['indicator_3']],
-      'conversation' => [lights['voice_ring'], lights['matrix']]
+      'conversation' => [lights['voice_ring'], lights['matrix']],
+      'feedback' => [lights['voice_ring']]  # Just the speaker ring for conversation feedback
     }
 
     client = HomeAssistantClient.new

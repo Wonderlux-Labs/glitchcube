@@ -3,7 +3,7 @@
 class AddPostgisToLandmarks < ActiveRecord::Migration[7.1]
   def up
     # Add spatial column for geographic point data (PostGIS already enabled in migration 000)
-    add_column :landmarks, :location, :st_point, geographic: true
+    add_column :landmarks, :location, :st_point, srid: 4326
 
     # Add spatial index for fast proximity queries
     add_index :landmarks, :location, using: :gist
