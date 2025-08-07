@@ -87,8 +87,8 @@ jobs:
         psql -h localhost -U postgres -d glitchcube_test -c "CREATE EXTENSION IF NOT EXISTS postgis;"
         psql -h localhost -U postgres -d glitchcube_test -c "CREATE EXTENSION IF NOT EXISTS postgis_topology;"
         
-        # Load schema
-        bundle exec rake db:schema:load
+        # Run migrations instead of schema:load to avoid PostGIS adapter issues
+        bundle exec rake db:migrate
       env:
         PGPASSWORD: postgres
         
