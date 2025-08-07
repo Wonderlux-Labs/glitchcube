@@ -100,6 +100,7 @@ module GlitchCube
         development?: ENV['RACK_ENV'] == 'development',
         test?: ENV['RACK_ENV'] == 'test',
         production?: ENV['RACK_ENV'] == 'production',
+        debug_mode: ENV.fetch('DEBUG', 'false') == 'true',
         
         # Conversation Tracing
         conversation_tracing_enabled: ENV.fetch('CONVERSATION_TRACING', 'false') == 'true'
@@ -182,6 +183,11 @@ module GlitchCube
     # Conversation tracing helper
     def conversation_tracing_enabled?
       conversation_tracing_enabled
+    end
+
+    # Debug helper
+    def debug?
+      debug_mode
     end
 
     # Database safety checks to prevent data loss

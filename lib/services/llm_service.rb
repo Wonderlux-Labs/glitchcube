@@ -51,9 +51,9 @@ module Services
         # Parse and return response
         parse_response(response, model)
       rescue StandardError => e
-        puts "DEBUG: Original error class: #{e.class}" if ENV['DEBUG']
-        puts "DEBUG: Original error message: #{e.message}" if ENV['DEBUG']
-        puts "DEBUG: Original error backtrace: #{e.backtrace.first(3).join("\n")}" if ENV['DEBUG']
+        puts "DEBUG: Original error class: #{e.class}" if GlitchCube.config.debug?
+        puts "DEBUG: Original error message: #{e.message}" if GlitchCube.config.debug?
+        puts "DEBUG: Original error backtrace: #{e.backtrace.first(3).join("\n")}" if GlitchCube.config.debug?
         handle_error(e)
       end
 
@@ -156,8 +156,8 @@ module Services
         # Log the request
         log_api_request(params)
 
-        puts "DEBUG: Calling complete with model: #{params[:model]}" if ENV['DEBUG']
-        puts "DEBUG: Extras: #{params[:extras].inspect}" if ENV['DEBUG']
+        puts "DEBUG: Calling complete with model: #{params[:model]}" if GlitchCube.config.debug?
+        puts "DEBUG: Extras: #{params[:extras].inspect}" if GlitchCube.config.debug?
 
         # Make the actual API call using the gem's signature:
         # complete(messages, model: 'model', extras: { all other params })
@@ -167,8 +167,8 @@ module Services
           extras: params[:extras]
         )
 
-        puts "DEBUG: Response class: #{response.class}" if ENV['DEBUG']
-        puts "DEBUG: Response: #{response.inspect[0..500]}" if ENV['DEBUG']
+        puts "DEBUG: Response class: #{response.class}" if GlitchCube.config.debug?
+        puts "DEBUG: Response: #{response.inspect[0..500]}" if GlitchCube.config.debug?
 
         # Log the response
         duration = ((Time.now - start_time) * 1000).round

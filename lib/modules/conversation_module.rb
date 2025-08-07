@@ -62,9 +62,9 @@ class ConversationModule
       # Build options including structured output support
       llm_options = {
         model: GlitchCube.config.ai.default_model,
-        temperature: GlitchCube.config.conversation&.temperature || 0.8,
-        max_tokens: GlitchCube.config.conversation&.max_tokens || 200,
-        timeout: GlitchCube.config.conversation&.completion_timeout || 20
+        temperature: context[:temperature] || GlitchCube.config.conversation&.temperature || 0.8,
+        max_tokens: context[:max_tokens] || GlitchCube.config.conversation&.max_tokens || 200,
+        timeout: context[:timeout] || GlitchCube.config.conversation&.completion_timeout || 20
       }
 
       # Add structured output if schema is provided
@@ -211,7 +211,7 @@ class ConversationModule
     tool_calls = Services::ToolCallParser.parse(llm_response)
     return [] if tool_calls.empty?
 
-    puts "🔧 Executing #{tool_calls.size} tool call(s)..." if ENV['DEBUG']
+    puts "🔧 Executing #{tool_calls.size} tool call(s)..." if GlitchCube.config.debug?
 
     # Execute tools
     tool_start = Time.now
@@ -321,7 +321,7 @@ class ConversationModule
       persona: persona
     )
   rescue StandardError => e
-    puts "Failed to log tool execution: #{e.message}" if ENV['DEBUG']
+    puts "Failed to log tool execution: #{e.message}" if GlitchCube.config.debug?
   end
 
   def detect_continuation_intent(text)

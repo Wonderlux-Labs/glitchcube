@@ -6,18 +6,17 @@ require_relative 'app'
 puts "🔍 Testing Conversation Tracing..."
 puts "Environment: #{GlitchCube.config.environment}"
 puts "Tracing enabled: #{GlitchCube.config.conversation_tracing_enabled?}"
+puts "Debug mode: #{GlitchCube.config.debug?}"
 
 conversation_module = ConversationModule.new
-
-# Enable debug output
-ENV['DEBUG'] = 'true'
 
 puts "\n🚀 Starting conversation..."
 result = conversation_module.call(
   message: 'Hello, tell me about art',
   context: {
     session_id: 'manual-test-123',
-    trace_conversation: true
+    trace_conversation: true,
+    max_tokens: 500  # Increase token limit for complete response
   },
   persona: 'playful'
 )
