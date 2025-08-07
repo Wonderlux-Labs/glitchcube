@@ -16,6 +16,10 @@ module GlitchCube
           erb :admin_advanced
         end
 
+        app.get '/admin/conversation_flow' do
+          erb :conversation_flow
+        end
+
         # Admin errors page - view tracked errors and proposed fixes
         app.get '/admin/errors' do
           @mode = GlitchCube.config.self_healing_mode

@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Conversation Flow Visualization</title>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    body {
+      font-family: monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      margin: 0;
+    }
+    
+    h1 {
+      color: #00ff00;
+      text-shadow: 0 0 10px #0f0;
+      text-align: center;
+    }
+    
+    .controls {
+      background: #001100;
+      border: 1px solid #0f0;
+      padding: 15px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .controls input, .controls select, .controls button {
+      background: #000;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 8px;
+      font-family: monospace;
+      margin: 2px;
+    }
+    
+    .controls button {
+      cursor: pointer;
+      padding: 8px 15px;
+    }
+    
+    .controls button:hover {
+      background: #003300;
+      box-shadow: 0 0 5px #0f0;
+    }
+    
+    #flow-container {
+      height: 80vh;
+      border: 2px solid #0f0;
+      background: #000;
+      position: relative;
+    }
+    
+    .info-panel {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 17, 0, 0.9);
+      border: 1px solid #0f0;
+      padding: 10px;
+      max-width: 300px;
+      display: none;
+      z-index: 1000;
+    }
+    
+    .legend {
+      background: #001100;
+      border: 1px solid #0f0;
+      padding: 10px;
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+    }
+    
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid #333;
+    }
+    
+    .error {
+      color: #ff0000;
+    }
+    
+    .success {
+      color: #00ff00;
+    }
+    
+    .info {
+      color: #00ffff;
+    }
+    
+    .warning {
+      color: #ffff00;
+    }
+
+    /* Custom vis.js styling for dark theme */
+    .vis-network {
+      background: #000 !important;
+    }
+    
+    .vis-tooltip {
+      background: rgba(0, 17, 0, 0.95) !important;
+      border: 1px solid #0f0 !important;
+      color: #0f0 !important;
+      font-family: monospace !important;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌊 CONVERSATION FLOW VISUALIZATION</h1>
+  
+  <div style="margin-bottom: 20px;">
+    <a href="/admin/advanced" style="color: #0f0; text-decoration: none;">← Back to Advanced Testing</a>
+  </div>
+
+  <div class="controls">
+    <label>
+      Session/Trace ID:
+      <input type="text" id="trace-input" placeholder="Enter trace ID or session ID">
+    </label>
+    
+    <button onclick="loadTrace()">📊 Load Flow</button>
+    <button onclick="clearFlow()">🗑️ Clear</button>
+    
+    <label>
+      Layout:
+      <select id="layout-select" onchange="updateLayout()">
+        <option value="hierarchical">Hierarchical</option>
+        <option value="directed">Directed</option>
+        <option value="network">Network</option>
+      </select>
+    </label>
+    
+    <label>
+      <input type="checkbox" id="show-timings" onchange="toggleTimings()" checked>
+      Show Timings
+    </label>
+    
+    <label>
+      <input type="checkbox" id="show-details" onchange="toggleDetails()" checked>
+      Show Details
+    </label>
+  </div>
+
+  <div id="flow-container">
+    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
+      Enter a trace ID or session ID above and click "Load Flow" to visualize the conversation flow
+    </div>
+  </div>
+  
+  <div class="info-panel" id="info-panel">
+    <h4>Step Details</h4>
+    <div id="step-details">Click on a node to see details</div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #00ff00;"></div>
+      Conversation Start
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #00ffff;"></div>
+      LLM Service Call
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #ff00ff;"></div>
+      Tool Execution
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #ffff00;"></div>
+      Memory Injection
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #ff8000;"></div>
+      System Prompt
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #8000ff;"></div>
+      TTS/Audio
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #ff0080;"></div>
+      Database Operation
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #80ff00;"></div>
+      Home Assistant
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #ff4444; border: 2px solid #ff0000;"></div>
+      Failed Step
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background: #888;"></div>
+      Generic Service
+    </div>
+  </div>
+
+  <script>
+    let network = null;
+    let nodes = null;
+    let edges = null;
+    let currentTrace = null;
+    let showTimings = true;
+    let showDetails = true;
+
+    // Service color mapping
+    const serviceColors = {
+      'ConversationModule': '#00ff00',
+      'LLMService': '#00ffff', 
+      'ToolExecutor': '#ff00ff',
+      'MemoryRecallService': '#ffff00',
+      'SystemPromptService': '#ff8000',
+      'TTSService': '#8000ff',
+      'Database': '#ff0080',
+      'HomeAssistantClient': '#80ff00',
+      'ConversationSession': '#ff0080',
+      'default': '#888888'
+    };
+
+    // Initialize the network
+    function initNetwork() {
+      const container = document.getElementById('flow-container');
+      const data = {
+        nodes: new vis.DataSet([]),
+        edges: new vis.DataSet([])
+      };
+      
+      const options = {
+        layout: {
+          hierarchical: {
+            enabled: true,
+            direction: 'TB',
+            sortMethod: 'directed',
+            shakeTowards: 'roots',
+            nodeSpacing: 150,
+            levelSeparation: 100
+          }
+        },
+        nodes: {
+          shape: 'box',
+          margin: 10,
+          font: {
+            color: '#ffffff',
+            size: 11,
+            face: 'monospace'
+          },
+          borderWidth: 2,
+          shadow: {
+            enabled: true,
+            color: 'rgba(0,0,0,0.5)',
+            size: 5,
+            x: 2,
+            y: 2
+          }
+        },
+        edges: {
+          arrows: 'to',
+          color: {
+            color: '#0f0',
+            highlight: '#00ff00'
+          },
+          width: 2,
+          smooth: {
+            enabled: true,
+            type: 'dynamic',
+            roundness: 0.2
+          },
+          font: {
+            color: '#0f0',
+            size: 10,
+            face: 'monospace'
+          }
+        },
+        interaction: {
+          hover: true,
+          selectConnectedEdges: false
+        },
+        physics: {
+          enabled: false
+        }
+      };
+      
+      network = new vis.Network(container, data, options);
+      nodes = data.nodes;
+      edges = data.edges;
+      
+      // Add event listeners
+      network.on('click', function(params) {
+        if (params.nodes.length > 0) {
+          showStepDetails(params.nodes[0]);
+        } else {
+          hideStepDetails();
+        }
+      });
+      
+      network.on('hoverNode', function(params) {
+        showStepDetails(params.node, true);
+      });
+      
+      network.on('blurNode', function(params) {
+        if (!network.getSelection().nodes.length) {
+          hideStepDetails();
+        }
+      });
+    }
+
+    async function loadTrace() {
+      const traceId = document.getElementById('trace-input').value.trim();
+      if (!traceId) {
+        addMessage('⚠️ Enter a trace ID or session ID', 'warning');
+        return;
+      }
+      
+      addMessage('📊 Loading trace: ' + traceId, 'info');
+      
+      try {
+        // Try as trace ID first, then as session ID
+        let response = await fetch('/admin/conversation_traces?trace_id=' + encodeURIComponent(traceId));
+        let data = await response.json();
+        
+        if (data.error && data.error === 'Trace not found') {
+          // Try as session ID - get the most recent trace
+          response = await fetch('/admin/conversation_traces?session_id=' + encodeURIComponent(traceId));
+          data = await response.json();
+          
+          if (data.traces && data.traces.length > 0) {
+            // Use the most recent trace for the session
+            data = { trace: data.traces[0] };
+          }
+        }
+        
+        if (data.error) {
+          addMessage('❌ ' + data.error, 'error');
+          return;
+        }
+        
+        if (data.trace) {
+          currentTrace = data.trace;
+          visualizeTrace(data.trace);
+          addMessage('✅ Loaded trace successfully', 'success');
+        } else {
+          addMessage('❌ No trace data found', 'error');
+        }
+      } catch (err) {
+        addMessage('❌ Failed to load trace: ' + err.message, 'error');
+      }
+    }
+
+    function visualizeTrace(trace) {
+      const traceNodes = [];
+      const traceEdges = [];
+      
+      if (!trace.traces || trace.traces.length === 0) {
+        addMessage('⚠️ Trace contains no steps', 'warning');
+        return;
+      }
+      
+      // Create nodes for each step
+      trace.traces.forEach((step, index) => {
+        const service = step.service || 'Unknown';
+        const action = step.action || 'unknown';
+        const color = serviceColors[service] || serviceColors.default;
+        const isFailed = step.success === false;
+        
+        // Build label with timing if enabled
+        let label = `${service}\\n${action}`;
+        
+        if (showTimings && step.timing_ms) {
+          label += `\\n+${step.timing_ms}ms`;
+        }
+        
+        if (showDetails && step.data) {
+          const details = formatStepDataForLabel(step.data);
+          if (details) {
+            label += `\\n${details}`;
+          }
+        }
+        
+        traceNodes.push({
+          id: index,
+          label: label,
+          color: {
+            background: isFailed ? '#330000' : darkenColor(color, 0.8),
+            border: isFailed ? '#ff0000' : color,
+            highlight: {
+              background: isFailed ? '#550000' : lightenColor(color, 0.3),
+              border: isFailed ? '#ff4444' : lightenColor(color, 0.5)
+            }
+          },
+          step: step,
+          font: {
+            color: isFailed ? '#ff8888' : '#ffffff'
+          },
+          borderWidth: isFailed ? 3 : 2
+        });
+      });
+      
+      // Create edges between sequential steps
+      for (let i = 0; i < trace.traces.length - 1; i++) {
+        const fromStep = trace.traces[i];
+        const toStep = trace.traces[i + 1];
+        
+        let label = '';
+        if (showTimings && toStep.timing_ms) {
+          label = `${toStep.timing_ms}ms`;
+        }
+        
+        traceEdges.push({
+          from: i,
+          to: i + 1,
+          label: label,
+          color: fromStep.success === false ? '#ff4444' : '#0f0'
+        });
+      }
+      
+      // Update the network
+      nodes.clear();
+      edges.clear();
+      nodes.add(traceNodes);
+      edges.add(traceEdges);
+      
+      // Focus on the network
+      network.fit({
+        animation: {
+          duration: 500,
+          easingFunction: 'easeInOutQuad'
+        }
+      });
+      
+      addMessage(`📈 Visualized ${trace.traces.length} steps`, 'success');
+    }
+
+    function formatStepDataForLabel(data) {
+      if (!data || typeof data !== 'object') return '';
+      
+      const keyInfo = [];
+      if (data.model) keyInfo.push(data.model.split('/').pop());
+      if (data.cost) keyInfo.push(`$${(data.cost * 1000).toFixed(2)}m`);
+      if (data.memories_found !== undefined) keyInfo.push(`${data.memories_found}mem`);
+      if (data.tool_count) keyInfo.push(`${data.tool_count}tools`);
+      if (data.response_length) keyInfo.push(`${data.response_length}ch`);
+      if (data.message_count) keyInfo.push(`${data.message_count}msg`);
+      
+      return keyInfo.slice(0, 2).join(' | '); // Limit to 2 items for space
+    }
+
+    function showStepDetails(nodeId, isHover = false) {
+      const node = nodes.get(nodeId);
+      if (!node || !node.step) return;
+      
+      const step = node.step;
+      const panel = document.getElementById('info-panel');
+      const details = document.getElementById('step-details');
+      
+      let html = `
+        <div style="margin-bottom: 10px;">
+          <strong style="color: ${serviceColors[step.service] || serviceColors.default};">
+            ${step.service}.${step.action}
+          </strong>
+          ${step.success === false ? '<span style="color: #ff0000; margin-left: 10px;">❌ FAILED</span>' : ''}
+        </div>
+        
+        <div style="font-size: 11px; color: #888; margin-bottom: 10px;">
+          Step ${step.step} • ${new Date(step.timestamp).toLocaleTimeString()}
+          ${step.timing_ms ? ` • +${step.timing_ms}ms` : ''}
+        </div>
+      `;
+      
+      if (step.data && Object.keys(step.data).length > 0) {
+        html += '<div style="margin-top: 10px;"><strong>Data:</strong></div>';
+        html += '<div style="font-size: 10px; margin-top: 5px;">';
+        
+        Object.entries(step.data).forEach(([key, value]) => {
+          const displayValue = typeof value === 'object' 
+            ? JSON.stringify(value).substring(0, 50) + '...'
+            : String(value).substring(0, 50);
+          html += `<div style="margin: 2px 0;"><span style="color: #888;">${key}:</span> ${displayValue}</div>`;
+        });
+        
+        html += '</div>';
+      }
+      
+      details.innerHTML = html;
+      panel.style.display = 'block';
+      
+      if (!isHover) {
+        // For clicks, keep panel open
+        panel.setAttribute('data-pinned', 'true');
+      }
+    }
+
+    function hideStepDetails() {
+      const panel = document.getElementById('info-panel');
+      if (panel.getAttribute('data-pinned') !== 'true') {
+        panel.style.display = 'none';
+      }
+    }
+
+    function clearFlow() {
+      if (nodes && edges) {
+        nodes.clear();
+        edges.clear();
+      }
+      currentTrace = null;
+      hideStepDetails();
+      
+      const container = document.getElementById('flow-container');
+      container.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
+          Enter a trace ID or session ID above and click "Load Flow" to visualize the conversation flow
+        </div>
+      `;
+      
+      // Reinitialize network
+      setTimeout(initNetwork, 100);
+      
+      addMessage('🗑️ Flow cleared', 'info');
+    }
+
+    function updateLayout() {
+      const layoutType = document.getElementById('layout-select').value;
+      
+      let options = {};
+      
+      switch(layoutType) {
+        case 'hierarchical':
+          options = {
+            layout: {
+              hierarchical: {
+                enabled: true,
+                direction: 'TB',
+                sortMethod: 'directed'
+              }
+            },
+            physics: { enabled: false }
+          };
+          break;
+          
+        case 'directed':
+          options = {
+            layout: {
+              hierarchical: { enabled: false }
+            },
+            physics: {
+              enabled: true,
+              solver: 'hierarchicalRepulsion',
+              hierarchicalRepulsion: {
+                nodeDistance: 150,
+                centralGravity: 0.3,
+                springLength: 150
+              }
+            }
+          };
+          break;
+          
+        case 'network':
+          options = {
+            layout: {
+              hierarchical: { enabled: false }
+            },
+            physics: {
+              enabled: true,
+              solver: 'forceAtlas2Based',
+              forceAtlas2Based: {
+                gravitationalConstant: -50,
+                centralGravity: 0.01,
+                springLength: 100,
+                damping: 0.4
+              }
+            }
+          };
+          break;
+      }
+      
+      if (network) {
+        network.setOptions(options);
+        network.fit();
+      }
+      
+      addMessage(`🔄 Layout changed to ${layoutType}`, 'info');
+    }
+
+    function toggleTimings() {
+      showTimings = document.getElementById('show-timings').checked;
+      if (currentTrace) {
+        visualizeTrace(currentTrace);
+      }
+      addMessage(`⏱️ Timings ${showTimings ? 'shown' : 'hidden'}`, 'info');
+    }
+
+    function toggleDetails() {
+      showDetails = document.getElementById('show-details').checked;
+      if (currentTrace) {
+        visualizeTrace(currentTrace);
+      }
+      addMessage(`📊 Details ${showDetails ? 'shown' : 'hidden'}`, 'info');
+    }
+
+    // Utility functions for color manipulation
+    function darkenColor(color, factor) {
+      const hex = color.replace('#', '');
+      const r = Math.floor(parseInt(hex.substr(0, 2), 16) * factor);
+      const g = Math.floor(parseInt(hex.substr(2, 2), 16) * factor);
+      const b = Math.floor(parseInt(hex.substr(4, 2), 16) * factor);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    function lightenColor(color, factor) {
+      const hex = color.replace('#', '');
+      const r = Math.min(255, Math.floor(parseInt(hex.substr(0, 2), 16) * (1 + factor)));
+      const g = Math.min(255, Math.floor(parseInt(hex.substr(2, 2), 16) * (1 + factor)));
+      const b = Math.min(255, Math.floor(parseInt(hex.substr(4, 2), 16) * (1 + factor)));
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    function addMessage(message, type = 'info') {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+      
+      // Create a temporary message element
+      const msg = document.createElement('div');
+      msg.textContent = message;
+      msg.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px;
+        background: rgba(0, 17, 0, 0.95);
+        border: 1px solid #0f0;
+        color: ${type === 'error' ? '#ff0000' : type === 'warning' ? '#ffff00' : type === 'success' ? '#00ff00' : '#00ffff'};
+        font-family: monospace;
+        z-index: 2000;
+        border-radius: 3px;
+        font-size: 12px;
+        max-width: 300px;
+      `;
+      
+      document.body.appendChild(msg);
+      
+      // Remove after 3 seconds
+      setTimeout(() => {
+        if (msg.parentNode) {
+          msg.parentNode.removeChild(msg);
+        }
+      }, 3000);
+    }
+
+    // Initialize on load
+    window.onload = function() {
+      initNetwork();
+      addMessage('🌊 Conversation flow visualization ready', 'success');
+      
+      // Hide details panel initially
+      document.addEventListener('click', function(e) {
+        const panel = document.getElementById('info-panel');
+        if (!panel.contains(e.target) && !e.target.closest('.vis-network')) {
+          panel.setAttribute('data-pinned', 'false');
+          panel.style.display = 'none';
+        }
+      });
+    };
+  </script>
+</body>
+</html>

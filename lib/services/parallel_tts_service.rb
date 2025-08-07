@@ -6,7 +6,10 @@ require_relative '../home_assistant_client'
 require_relative 'logger_service'
 
 module Services
-  # Enhanced TTS service with parallel fallback and race conditions
+  # DEPRECATED: ParallelTTSService is no longer needed
+  # The Glitch Cube has a single speaker - we can't hear multiple TTS voices at once
+  # Use HomeAssistantClient.speak() directly instead
+  # This service added unnecessary complexity for racing/parallel providers
   class ParallelTTSService < TTSService
     # Speak using fastest available provider (race multiple providers)
     def speak_race(
