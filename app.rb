@@ -168,8 +168,9 @@ end
 # Initialize logger service after app is defined
 Services::LoggerService.setup_loggers
 
-# Check for missed deployments on startup
-unless test? || GlitchCube.config.home_assistant.mock_enabled
+# Check for missed deployments on startup (production only)
+# Skip in development since we run production elsewhere
+if ENV['RACK_ENV'] == 'production' && !test? && !GlitchCube.config.home_assistant.mock_enabled
   begin
     puts '🔍 Checking for missed deployments on startup...'
 

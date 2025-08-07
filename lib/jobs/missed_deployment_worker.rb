@@ -29,7 +29,7 @@ class MissedDeploymentWorker
     )
 
     # Use the same deployment execution logic as the API
-    results = GlitchCube::Routes::Api::Deployment.send(:execute_deployment, deployment_data)
+    results = GlitchCube::Routes::Api::Deployment.execute_deployment(deployment_data)
 
     overall_success = results.all? { |r| r[:success] }
 
