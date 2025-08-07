@@ -89,13 +89,12 @@ class HomeAssistantClient
     call_service('light', 'turn_off', { entity_id: entity_id })
   end
 
-  # TTS methods - Updated for new Home Assistant format
+  # TTS methods - Only use Home Assistant TTS
   def speak(message, entity_id: nil)
     target_entity = entity_id || 'media_player.square_voice'
 
-    # Try new format first (tts.speak action with tts.home_assistant_cloud)
+    # Use tts.speak service with Home Assistant cloud TTS only
     begin
-      # Use tts.speak service with proper format
       call_service('tts', 'speak', {
                      target: {
                        entity_id: 'tts.home_assistant_cloud'
@@ -105,30 +104,12 @@ class HomeAssistantClient
                        message: message
                      }
                    })
+      true
     rescue Error => e
-      # Fallback to legacy cloud_say format
-      begin
-        call_service('tts', 'cloud_say', {
-                       entity_id: target_entity,
-                       message: message
-                     })
-      rescue Error => fallback_error
-        # Final fallback to google_translate
-        begin
-          call_service('tts', 'google_translate_say', {
-                         entity_id: target_entity,
-                         message: message
-                       })
-        rescue Error => final_error
-          puts "⚠️  All TTS methods failed: #{e.message} | #{fallback_error.message} | #{final_error.message}"
-          # Don't raise error - just log and continue without TTS
-          puts '🔇 Continuing without TTS'
-          return false
-        end
-      end
+      puts "⚠️  Home Assistant TTS failed: #{e.message}"
+      puts '🔇 Continuing without TTS'
+      false
     end
-
-    true
   end
 
   # Voice assistant

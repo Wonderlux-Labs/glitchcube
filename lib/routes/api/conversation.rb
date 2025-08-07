@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../../services/conversation_session'
+
 module GlitchCube
   module Routes
     module Api
@@ -47,7 +49,7 @@ module GlitchCube
               end
 
               # Create new session
-              session = Services::ConversationSession.find_or_create(
+              session = ::Services::ConversationSession.find_or_create(
                 context: {
                   source: request_body['source'] || 'api',
                   persona: request_body['persona'] || 'neutral',
@@ -103,7 +105,7 @@ module GlitchCube
               end
 
               # Find existing session
-              session = Services::ConversationSession.find(session_id)
+              session = ::Services::ConversationSession.find(session_id)
               unless session
                 status 404
                 return json({
@@ -159,7 +161,7 @@ module GlitchCube
               end
 
               # Find and end session
-              session = Services::ConversationSession.find(session_id)
+              session = ::Services::ConversationSession.find(session_id)
               if session
                 session.end_conversation(reason: request_body['reason'])
                 summary = session.summary
@@ -255,7 +257,7 @@ module GlitchCube
 
               # Use RAG to get relevant context
               require_relative '../../services/context_retrieval_service'
-              rag = Services::SimpleRAG.new
+              rag = ::Services::SimpleRAG.new
               rag_result = rag.answer_with_context(message)
 
               # Enhance the response with context

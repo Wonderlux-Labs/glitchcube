@@ -13,8 +13,8 @@ module GlitchCube
             content_type :json
 
             json({
-                   error_summary: Services::LoggerService.error_summary,
-                   error_stats: Services::LoggerService.error_stats
+                   error_summary: ::Services::LoggerService.error_summary,
+                   error_stats: ::Services::LoggerService.error_stats
                  })
           end
 
@@ -23,7 +23,7 @@ module GlitchCube
             content_type :json
 
             json({
-                   circuit_breakers: Services::CircuitBreakerService.status,
+                   circuit_breakers: ::Services::CircuitBreakerService.status,
                    actions: {
                      reset_all: '/api/v1/logs/circuit_breakers/reset',
                      reset_single: '/api/v1/logs/circuit_breakers/:name/reset'
@@ -33,7 +33,7 @@ module GlitchCube
 
           # Reset all circuit breakers
           app.post '/api/v1/logs/circuit_breakers/reset' do
-            Services::CircuitBreakerService.reset_all
+            ::Services::CircuitBreakerService.reset_all
             json({ message: 'All circuit breakers reset', status: 'success' })
           end
 
@@ -64,7 +64,7 @@ module GlitchCube
               interaction_count: params[:count]&.to_i || 1
             }
 
-            prompt_service = Services::SystemPromptService.new(
+            prompt_service = ::Services::SystemPromptService.new(
               character: character,
               context: context
             )
@@ -95,7 +95,7 @@ module GlitchCube
             content_type :json
 
             require_relative '../../services/context_retrieval_service'
-            service = Services::ContextRetrievalService.new
+            service = ::Services::ContextRetrievalService.new
 
             json({
                    success: true,
@@ -110,7 +110,7 @@ module GlitchCube
               data = JSON.parse(request.body.read)
 
               require_relative '../../services/context_retrieval_service'
-              service = Services::ContextRetrievalService.new
+              service = ::Services::ContextRetrievalService.new
 
               success = service.add_document(
                 data['filename'],
@@ -139,7 +139,7 @@ module GlitchCube
               data = JSON.parse(request.body.read)
 
               require_relative '../../services/context_retrieval_service'
-              service = Services::ContextRetrievalService.new
+              service = ::Services::ContextRetrievalService.new
 
               results = service.retrieve_context(data['query'], k: data['k'] || 3)
 

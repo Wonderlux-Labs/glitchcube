@@ -1,0 +1,4 @@
+restart_auth_token:
+  name: "Restart Auth Token"
+  mode: password
+  icon: mdi:key

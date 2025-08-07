@@ -16,7 +16,7 @@ module GlitchCube
 
             begin
               require_relative '../../services/kiosk_service'
-              kiosk_service = Services::KioskService.new
+              kiosk_service = ::Services::KioskService.new
 
               json(kiosk_service.get_status)
             rescue StandardError => e

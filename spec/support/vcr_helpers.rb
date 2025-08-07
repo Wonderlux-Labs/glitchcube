@@ -24,7 +24,6 @@ module VCRHelpers
     cassette_name = name || VCRHelpers.cassette_name_for(RSpec.current_example)
 
     options = {
-      record: ENV['VCR_RECORD'] == 'true' ? :new_episodes : :none,
       match_requests_on: %i[method uri body],
       allow_playback_repeats: true
     }

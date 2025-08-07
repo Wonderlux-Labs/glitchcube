@@ -6,7 +6,7 @@ require 'concurrent'
 
 # Advanced integration tests for conversation service
 # Focus on circuit breakers, performance, session corruption, and error boundaries
-RSpec.describe 'Conversation Service Integration' do
+RSpec.describe 'Conversation Service Integration', :vcr do
   include Rack::Test::Methods
 
   def app
@@ -30,7 +30,7 @@ RSpec.describe 'Conversation Service Integration' do
 
       it 'opens circuit breaker after consecutive failures' do
         # Mock LLM service to fail repeatedly
-        allow_any_instance_of(Services::LLMService).to receive(:complete_with_messages)
+        allow(Services::LLMService).to receive(:complete_with_messages)
           .and_raise(Timeout::Error, 'Service timeout').exactly(5).times
 
         # Make 5 requests to trigger circuit breaker
@@ -201,7 +201,7 @@ RSpec.describe 'Conversation Service Integration' do
 
     it 'times out long-running conversations appropriately' do
       # Mock a very slow LLM response
-      allow_any_instance_of(Services::LLMService).to receive(:complete_with_messages) do
+      allow(Services::LLMService).to receive(:complete_with_messages) do
         sleep(30) # Longer than reasonable timeout
         { response: 'slow response' }
       end
@@ -314,7 +314,7 @@ RSpec.describe 'Conversation Service Integration' do
 
     it 'provides meaningful fallback responses when all AI services fail' do
       # Disable all AI services
-      allow_any_instance_of(Services::LLMService).to receive(:complete_with_messages)
+      allow(Services::LLMService).to receive(:complete_with_messages)
         .and_raise(Services::LLMService::LLMError, 'All models unavailable')
 
       post '/api/v1/conversation',

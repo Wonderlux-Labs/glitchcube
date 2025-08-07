@@ -1,4 +1,3 @@
-# Memory usage tracking
 memory_usage:
   name: Memory Usage
   initial: 0
@@ -7,7 +6,6 @@ memory_usage:
   unit_of_measurement: "%"
   icon: mdi:memory
 
-# CPU usage tracking  
 cpu_usage:
   name: CPU Usage
   initial: 0

@@ -12,7 +12,7 @@ module GlitchCube
 
           # Simple coords endpoint - just lat/lng
           app.get '/api/v1/gps/coords' do
-            location = Services::GpsCacheService.cached_location
+            location = ::Services::GpsCacheService.cached_location
 
             if location&.dig(:lat) && location[:lng]
               json({
@@ -24,7 +24,7 @@ module GlitchCube
               json({ error: 'No GPS coordinates available' })
             end
           rescue StandardError => e
-            Services::LoggerService.log_api_call(
+            ::Services::LoggerService.log_api_call(
               service: 'GPS API',
               endpoint: '/api/v1/gps/coords',
               error: e.message,
@@ -41,7 +41,7 @@ module GlitchCube
 
             begin
               # Use cached location data (1-minute TTL)
-              location = Services::GpsCacheService.cached_location
+              location = ::Services::GpsCacheService.cached_location
 
               if location.nil?
                 status 503 # Service Unavailable
@@ -53,7 +53,7 @@ module GlitchCube
               else
                 # Add cached proximity data for map reactions
                 if location[:lat] && location[:lng]
-                  proximity = Services::GpsCacheService.cached_proximity(location[:lat], location[:lng])
+                  proximity = ::Services::GpsCacheService.cached_proximity(location[:lat], location[:lng])
                   location[:proximity] = proximity
                 end
 
@@ -74,10 +74,10 @@ module GlitchCube
 
             begin
               # Use cached location data
-              current_loc = Services::GpsCacheService.cached_location
+              current_loc = ::Services::GpsCacheService.cached_location
 
               if current_loc && current_loc[:lat] && current_loc[:lng]
-                proximity = Services::GpsCacheService.cached_proximity(current_loc[:lat], current_loc[:lng])
+                proximity = ::Services::GpsCacheService.cached_proximity(current_loc[:lat], current_loc[:lng])
                 json(proximity)
               else
                 json({ landmarks: [], portos: [], map_mode: 'normal', visual_effects: [] })
@@ -114,7 +114,7 @@ module GlitchCube
 
                   # Format history for display
                   require_relative '../../services/gps_tracking_service'
-                  gps_service = Services::GpsTrackingService.new
+                  gps_service = ::Services::GpsTrackingService.new
 
                   formatted_history = history_data.map do |point|
                     address = gps_service.brc_address_from_coordinates(point['lat'], point['lng'])
@@ -153,7 +153,7 @@ module GlitchCube
                 json({ history: history, total_points: history.length, mode: 'sample' })
               end
             rescue StandardError => e
-              Services::LoggerService.log_api_call(
+              ::Services::LoggerService.log_api_call(
                 service: 'GPS History',
                 endpoint: '/api/v1/gps/history',
                 error: e.message,

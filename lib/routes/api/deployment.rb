@@ -48,7 +48,7 @@ module GlitchCube
               }
 
               # Log the deployment request
-              Services::LoggerService.log_api_call(
+              ::Services::LoggerService.log_api_call(
                 service: 'github_webhook',
                 endpoint: '/deploy/webhook',
                 method: 'POST',
@@ -80,7 +80,7 @@ module GlitchCube
                    })
             rescue StandardError => e
               status 500
-              Services::LoggerService.log_api_call(
+              ::Services::LoggerService.log_api_call(
                 service: 'github_webhook',
                 endpoint: '/deploy/webhook',
                 method: 'POST',
@@ -124,7 +124,7 @@ module GlitchCube
               }
 
               # Log the internal deployment request
-              Services::LoggerService.log_api_call(
+              ::Services::LoggerService.log_api_call(
                 service: 'internal_deployment',
                 endpoint: '/deploy/internal',
                 method: 'POST',
@@ -148,7 +148,7 @@ module GlitchCube
                    })
             rescue StandardError => e
               status 500
-              Services::LoggerService.log_api_call(
+              ::Services::LoggerService.log_api_call(
                 service: 'internal_deployment',
                 endpoint: '/deploy/internal',
                 method: 'POST',
@@ -309,7 +309,7 @@ module GlitchCube
           end
 
           # Log deployment results
-          Services::LoggerService.log_api_call(
+          ::Services::LoggerService.log_api_call(
             service: 'deployment',
             endpoint: 'execute_deployment',
             deployment_info: deployment_info,

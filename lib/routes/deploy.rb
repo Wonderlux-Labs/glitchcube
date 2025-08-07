@@ -51,7 +51,7 @@ module GlitchCube
             }
 
             # Log the deployment request
-            Services::LoggerService.log_api_call(
+            ::Services::LoggerService.log_api_call(
               service: 'mac_mini_deployment',
               endpoint: '/deploy/trigger',
               method: 'POST',

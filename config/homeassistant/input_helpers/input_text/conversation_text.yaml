@@ -1,16 +1,13 @@
-# Current conversation state (set by Sinatra API)
 conversation_state:
   name: Conversation State
   initial: idle
   max: 32
-  
-# Last error message for debugging
+
 last_error:
   name: Last Error
   initial: none
   max: 255
 
-# Current track info for music display
 current_track:
   name: Current Track
   initial: "No music playing"

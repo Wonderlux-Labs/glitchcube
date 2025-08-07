@@ -14,7 +14,7 @@ module GlitchCube
               message = request_body['message'] || 'Tell me about the battery status'
 
               # Use the conversation handler service to get tool agent
-              conversation_handler = Services::ConversationHandlerService.new
+              conversation_handler = ::Services::ConversationHandlerService.new
               result = conversation_handler.tool_agent.call(question: message)
 
               json({
@@ -41,7 +41,7 @@ module GlitchCube
               message = request_body['message'] || 'Check all sensors and set the light to blue'
 
               # Use the conversation handler service to get HA agent
-              conversation_handler = Services::ConversationHandlerService.new
+              conversation_handler = ::Services::ConversationHandlerService.new
               result = conversation_handler.home_assistant_agent.call(request: message)
 
               json({

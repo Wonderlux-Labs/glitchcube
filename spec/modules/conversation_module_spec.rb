@@ -43,7 +43,7 @@ RSpec.describe ConversationModule do
 
     # Mock HomeAssistantClient - instance level
     allow(HomeAssistantClient).to receive(:new).and_return(mock_home_assistant)
-    allow(mock_home_assistant).to receive_messages(call_service: true, state: nil)
+    allow(mock_home_assistant).to receive_messages(call_service: true, state: nil, speak: true)
 
     # Mock the system prompt service - instance level
     mock_prompt_service = instance_double(Services::SystemPromptService)

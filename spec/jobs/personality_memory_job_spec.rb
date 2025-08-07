@@ -39,7 +39,6 @@ RSpec.describe Jobs::PersonalityMemoryJob do
         # Allow any external calls within this cassette
         VCR.use_cassette('jobs/personality_memory_extraction',
                          match_requests_on: %i[method uri], # Don't match on body for LLM calls
-                         record: ENV['VCR_RECORD'] == 'true' ? :new_episodes : :none,
                          allow_playback_repeats: true) do
           allow(Memory).to receive(:where).and_return(double(exists?: false))
           expect(Memory).to receive(:create!).at_least(:once)
@@ -49,10 +48,14 @@ RSpec.describe Jobs::PersonalityMemoryJob do
       end
 
       it 'handles extraction failures gracefully' do
-        allow(Services::LLMService).to receive(:complete).and_raise(StandardError.new('API Error'))
+        VCR.use_cassette('jobs/personality_memory_extraction_failure',
+                         match_requests_on: %i[method uri],
+                         allow_playback_repeats: true) do
+          allow(Services::LLMService).to receive(:complete).and_raise(StandardError.new('API Error'))
 
-        expect(job.logger).to receive(:error).with(/Failed to extract memories/)
-        expect { job.perform }.not_to raise_error
+          expect(job.logger).to receive(:error).with(/Failed to extract memories/)
+          expect { job.perform }.not_to raise_error
+        end
       end
     end
   end
@@ -62,8 +65,7 @@ RSpec.describe Jobs::PersonalityMemoryJob do
       context 'with Home Assistant available' do
         it 'fetches location and coordinates' do
           # Use VCR to record/replay Home Assistant call
-          VCR.use_cassette('jobs/fetch_location_data',
-                           record: ENV['VCR_RECORD'] == 'true' ? :new_episodes : :none) do
+          VCR.use_cassette('jobs/fetch_location_data') do
             result = job.send(:fetch_location_data)
 
             # Assertions based on what HA returns (will vary based on cassette)

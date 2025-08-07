@@ -36,7 +36,7 @@ glitch_cube_prev_lat:
   icon: mdi:map-marker
 
 glitch_cube_prev_lng:
-  name: "Previous Longitude" 
+  name: "Previous Longitude"
   min: -180
   max: 180
   step: 0.000001

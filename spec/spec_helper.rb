@@ -187,7 +187,7 @@ VCR.configure do |config|
   # Best practice: Use automatic cassette naming
   config.default_cassette_options = {
     # Smart recording: Record once if missing, otherwise replay
-    record: ENV['VCR_RECORD'] == 'true' ? :new_episodes : :once,
+    record: :once, # Always record once - VCR will skip if cassette exists
     # Match on method, URI path, and body for deterministic matching
     match_requests_on: %i[method uri body],
     # Allow same request multiple times in a test
@@ -226,23 +226,32 @@ VCR.configure do |config|
   # Fail fast on missing cassettes with helpful error
   config.before_http_request do |request|
     unless VCR.current_cassette
-      raise VCR::Errors::UnhandledHTTPRequestError.new(request).tap do |_error|
-        puts <<~ERROR
-          ❌ NO VCR CASSETTE ACTIVE FOR REQUEST
+      host = request.uri.respond_to?(:host) ? request.uri.host : URI.parse(request.uri.to_s).host
 
-          Request: #{request.method.upcase} #{request.uri}
+      # Allow localhost requests without VCR (for app testing)
+      next if host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
 
-          To fix:
-          1. Wrap this test in VCR.use_cassette or use vcr: metadata
-          2. Record locally: VCR_RECORD=true bundle exec rspec #{RSpec.current_example.location}
-          3. Commit the cassette in spec/vcr_cassettes/
-        ERROR
-      end
+      error_msg = <<~ERROR
+        ❌ NO VCR CASSETTE ACTIVE FOR EXTERNAL REQUEST
+
+        Request: #{request.method.upcase} #{request.uri}
+        Host: #{host}
+        Test: #{RSpec.current_example&.location || 'Unknown test'}
+
+        To fix:
+        1. Wrap this test in VCR.use_cassette or use vcr: metadata
+        2. Record locally: VCR_OVERRIDE=true bundle exec rspec #{RSpec.current_example&.location || 'your_spec.rb'}
+        3. Commit the cassette in spec/vcr_cassettes/
+
+        IMPORTANT: All external HTTP requests MUST go through VCR!
+      ERROR
+
+      raise(VCR::Errors::UnhandledHTTPRequestError.new(request).tap { puts error_msg })
     end
   end
 
   # Log VCR activity only when recording and not in CI
-  if ENV['VCR_RECORD'] == 'true' && ENV['CI'] != 'true'
+  if ENV['VCR_OVERRIDE'] == 'true' && ENV['CI'] != 'true'
     # Track what we've already logged to avoid spam
     @vcr_logged_requests ||= Set.new
 
@@ -272,38 +281,28 @@ WebMock.disable_net_connect!(
 )
 
 # Fail immediately on any external request not handled by VCR
-# But allow real requests when VCR is recording or playing back
+# This is a backup safety net - VCR should catch these first
 WebMock.after_request do |request_signature, _response|
   host = request_signature.uri.host
-  # Only allow true localhost requests
+
+  # Only allow true localhost requests to bypass VCR
   unless host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
     # Skip this check if VCR is handling the request (recording or playing back)
-    if VCR.current_cassette
-      # VCR is handling this request, allow it
-      next
-    end
+    next if VCR.current_cassette
 
+    # This should rarely trigger since VCR.before_http_request should catch it first
     error_msg = <<~ERROR
-      ❌ EXTERNAL REQUEST ATTEMPTED WITHOUT VCR CASSETTE
+      ❌ EXTERNAL REQUEST BYPASSED VCR!
 
       Request: #{request_signature.method.upcase} #{request_signature.uri}
       Host: #{host}
-      Test: #{RSpec.current_example&.location}
+      Test: #{RSpec.current_example&.location || 'Unknown test'}
 
-      This request bypassed VCR! To fix:
+      This is a fallback error - the request somehow bypassed VCR's checks.
 
-      1. Use VCR.use_cassette in your test:
-         VCR.use_cassette('cassette_name') do
-           # your test code
-         end
-
-      2. Or use RSpec metadata:
-         it 'does something', vcr: { cassette_name: 'my_cassette' } do
-           # your test code
-         end
-
-      3. To record a new cassette:
-         VCR_RECORD=true bundle exec rspec #{RSpec.current_example&.location}
+      To fix:
+      1. Use VCR.use_cassette or vcr: metadata in your test
+      2. Record missing cassette: VCR_OVERRIDE=true bundle exec rspec #{RSpec.current_example&.location || 'your_spec.rb'}
 
       ALL external requests MUST go through VCR!
     ERROR
@@ -312,10 +311,12 @@ WebMock.after_request do |request_signature, _response|
   end
 end
 
-# Additional safety check for CI
+# Handle recording modes based on environment
 if ENV['CI'] == 'true'
   # In CI, we should NEVER record new cassettes
   VCR.configure do |config|
+    config.default_cassette_options = config.default_cassette_options.merge(record: :none)
+
     config.before_record do |interaction|
       raise <<~ERROR
         ❌ VCR TRIED TO RECORD IN CI!
@@ -329,10 +330,15 @@ if ENV['CI'] == 'true'
   end
 
   puts '✅ CI Mode: VCR will only replay existing cassettes'
-elsif ENV['VCR_RECORD'] == 'true'
+elsif ENV['VCR_OVERRIDE'] == 'true'
+  # Force recording of new episodes when explicitly requested
+  VCR.configure do |config|
+    config.default_cassette_options = config.default_cassette_options.merge(record: :new_episodes)
+  end
   puts '🎥 Recording Mode: VCR will record new episodes to cassettes'
   puts '   Remember to commit new/updated cassettes!'
 else
-  puts '▶️  Playback Mode: VCR will only replay existing cassettes'
-  puts '   Use VCR_RECORD=true to record new cassettes'
+  # Default: record once if missing, replay if exists
+  puts '▶️  Playback Mode: VCR will record missing cassettes once, replay existing ones'
+  puts '   Use VCR_OVERRIDE=true to force recording of new episodes'
 end

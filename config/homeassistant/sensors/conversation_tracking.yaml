@@ -2,17 +2,16 @@
 # These track real-time conversation state and activity
 
 # REST sensor to get conversation state from Sinatra API  
-- platform: rest
-  name: conversation_state
-  resource: "{{ states('input_text.glitchcube_host_url') }}/api/v1/conversation/state"
-  method: GET
-  value_template: "{{ value_json.state | default('idle') }}"
-  json_attributes:
-    - last_activity
-    - session_active
-    - user_count
-    - mood
-  scan_interval: 5
+- platform: template
+  sensors:
+    conversation_state:
+      friendly_name: "Conversation State"
+      value_template: "{{ states('input_text.conversation_state') | default('idle') }}"
+      attribute_templates:
+        last_activity: "{{ state_attr('input_text.conversation_state', 'last_activity') }}"
+        session_active: "{{ state_attr('input_text.conversation_state', 'session_active') }}"
+        user_count: "{{ state_attr('input_text.conversation_state', 'user_count') }}"
+        mood: "{{ state_attr('input_text.conversation_state', 'mood') }}"
 
 # Template sensor for last conversation time
 - platform: template
@@ -43,49 +42,45 @@
         {% endif %}
 
 # API performance sensors
-- platform: rest
-  name: api_response_time
-  resource: "{{ states('input_text.glitchcube_host_url') }}/health"
-  method: GET
-  value_template: "{{ value_json.response_time_ms | default(0) }}"
-  unit_of_measurement: "ms"
-  device_class: duration
-  scan_interval: 30
+- platform: template
+  sensors:
+    api_response_time:
+      friendly_name: "API Response Time"
+      value_template: "{{ states('sensor.api_response_time_entity') | default(0) }}"
+      unit_of_measurement: "ms"
+      device_class: duration
 
-- platform: rest  
-  name: daily_api_calls
-  resource: "{{ states('input_text.glitchcube_host_url') }}/api/v1/stats/daily"
-  method: GET
-  value_template: "{{ value_json.total_calls | default(0) }}"
-  scan_interval: 300
+- platform: template
+  sensors:
+    daily_api_calls:
+      friendly_name: "Daily API Calls"
+      value_template: "{{ states('sensor.daily_api_calls_entity') | default(0) }}"
 
 # Circuit breaker status
-- platform: rest
-  name: circuit_breaker_status
-  resource: "{{ states('input_text.glitchcube_host_url') }}/api/v1/system/circuit_breakers"
-  method: GET
-  value_template: >-
-    {% set breakers = value_json.breakers %}
-    {% set open_count = breakers | selectattr('state', 'eq', 'open') | list | length %}
-    {% if open_count == 0 %}
-      all_closed
-    {% else %}
-      {{ open_count }}_open
-    {% endif %}
-  json_attributes:
-    - home_assistant
-    - openrouter
-    - starlink
-  scan_interval: 15
+- platform: template
+  sensors:
+    circuit_breaker_status:
+      friendly_name: "Circuit Breaker Status"
+      value_template: >-
+        {% set open_count = state_attr('sensor.circuit_breaker_entity', 'open_count') | default(0) %}
+        {% if open_count == 0 %}
+          all_closed
+        {% else %}
+          {{ open_count }}_open
+        {% endif %}
+      attribute_templates:
+        home_assistant: "{{ state_attr('sensor.circuit_breaker_entity', 'home_assistant') }}"
+        openrouter: "{{ state_attr('sensor.circuit_breaker_entity', 'openrouter') }}"
+        starlink: "{{ state_attr('sensor.circuit_breaker_entity', 'starlink') }}"
 
 # OpenRouter API status
-- platform: rest
-  name: openrouter_status
-  resource: "{{ states('input_text.glitchcube_host_url') }}/api/v1/openrouter/health"
-  method: GET
-  value_template: "{{ value_json.status | default('unknown') }}"
-  json_attributes:
-    - models_available
-    - current_model
-    - rate_limit_remaining
+- platform: template
+  sensors:
+    openrouter_status:
+      friendly_name: "OpenRouter Status"
+      value_template: "{{ states('sensor.openrouter_status_entity') | default('unknown') }}"
+      attribute_templates:
+        models_available: "{{ state_attr('sensor.openrouter_status_entity', 'models_available') }}"
+        current_model: "{{ state_attr('sensor.openrouter_status_entity', 'current_model') }}"
+        rate_limit_remaining: "{{ state_attr('sensor.openrouter_status_entity', 'rate_limit_remaining') }}"
   scan_interval: 60

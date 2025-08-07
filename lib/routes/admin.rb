@@ -161,7 +161,7 @@ module GlitchCube
             entity_id = data['entity_id']
 
             # Use character service to speak
-            character_service = Services::CharacterService.new(character)
+            character_service = ::Services::CharacterService.new(character)
             success = character_service.speak(message, entity_id: entity_id)
 
             {
@@ -220,7 +220,7 @@ module GlitchCube
             message = proactive_messages[character]&.sample || 'Hello! Want to chat?'
 
             # Speak the proactive message
-            character_service = Services::CharacterService.new(character)
+            character_service = ::Services::CharacterService.new(character)
             character_service.speak(message, entity_id: entity_id)
 
             # Start a conversation session
@@ -284,7 +284,7 @@ module GlitchCube
             home_assistant: ha_status,
             openrouter: openrouter_status,
             redis: redis_status,
-            host_ip: 'localhost', # Services::HostRegistrationService.new.detect_local_ip,
+            host_ip: 'localhost', # ::Services::HostRegistrationService.new.detect_local_ip,
             ha_url: GlitchCube.config.home_assistant.url,
             ai_model: GlitchCube.config.ai.default_model
           }.to_json
@@ -432,13 +432,13 @@ module GlitchCube
           begin
             if trace_id
               # Get specific trace by ID
-              trace = Services::ConversationTracer.get_trace(trace_id)
+              trace = ::Services::ConversationTracer.get_trace(trace_id)
               return { error: 'Trace not found' }.to_json unless trace
 
               { trace: trace }.to_json
             elsif session_id
               # Get all traces for a session
-              traces = Services::ConversationTracer.get_session_traces(session_id, limit: 50)
+              traces = ::Services::ConversationTracer.get_session_traces(session_id, limit: 50)
               { traces: traces, count: traces.size, session_id: session_id }.to_json
             else
               { error: 'session_id or trace_id required' }.to_json
@@ -456,7 +456,7 @@ module GlitchCube
           trace_id = params[:trace_id]
 
           begin
-            trace = Services::ConversationTracer.get_trace(trace_id)
+            trace = ::Services::ConversationTracer.get_trace(trace_id)
             return { error: 'Trace not found' }.to_json unless trace
 
             # Enhanced trace details for debugging
