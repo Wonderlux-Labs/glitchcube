@@ -34,6 +34,14 @@ Previously incorrect references have been corrected:
 
 ## System Health Entities
 
+### Health Monitoring
+- `sensor.health_monitoring` - Compact health status string for Uptime Kuma
+  - Format: `WiFi:XXdBm | Up:XXd | HA:IP | API:status | CPU:XX°C | Mem:XX% | Disk:XX%`
+- `sensor.health_monitoring_compact` - Ultra-compact status for SMS/notifications
+  - Format: `W:wifi A:api T:temp M:mem%`
+- `sensor.health_monitoring_json` - Full JSON status with all metrics
+  - Contains: network, services, system, and activity data
+
 ### Battery & Resources
 - `input_boolean.battery_low` - Battery level is low
 - `input_boolean.resources_low` - System resources are low

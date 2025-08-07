@@ -156,67 +156,6 @@ module GlitchCube
                    })
             end
           end
-
-          # Beacon management endpoints
-          app.get '/api/v1/beacon/status' do
-            content_type :json
-
-            require_relative '../../services/beacon_service'
-            Services::BeaconService.new
-
-            # Get last heartbeat info from Redis if available
-            last_heartbeat = GlitchCube.config.redis_connection&.get('beacon:last_heartbeat')
-
-            json({
-                   success: true,
-                   beacon_enabled: GlitchCube.config.beacon&.enabled || false,
-                   beacon_url: GlitchCube.config.beacon.url&.gsub(%r{https?://([^/]+).*}, '\1'), # Show only domain
-                   last_heartbeat: last_heartbeat,
-                   device_id: GlitchCube.config.device&.id || 'glitch_cube_001',
-                   location: GlitchCube.config.device&.location || 'Black Rock City'
-                 })
-          end
-
-          app.post '/api/v1/beacon/send' do
-            content_type :json
-
-            require_relative '../../services/beacon_service'
-            beacon = Services::BeaconService.new
-
-            success = beacon.send_heartbeat
-
-            # Store timestamp in Redis
-            GlitchCube.config.redis_connection.set('beacon:last_heartbeat', Time.now.iso8601) if success && GlitchCube.config.redis_connection
-
-            json({
-                   success: success,
-                   timestamp: Time.now.iso8601
-                 })
-          end
-
-          app.post '/api/v1/beacon/alert' do
-            content_type :json
-
-            begin
-              data = JSON.parse(request.body.read)
-
-              require_relative '../../services/beacon_service'
-              beacon = Services::BeaconService.new
-
-              beacon.send_alert(data['message'], data['level'] || 'info')
-
-              json({
-                     success: true,
-                     message: 'Alert sent'
-                   })
-            rescue StandardError => e
-              status 400
-              json({
-                     success: false,
-                     error: e.message
-                   })
-            end
-          end
         end
       end
     end

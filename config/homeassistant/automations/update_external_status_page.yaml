@@ -5,10 +5,10 @@
     # Trigger on important state changes
     - platform: state
       entity_id: 
-        - sensor.installation_health
-        - sensor.current_status
-        - sensor.internet_connectivity
-        - sensor.glitch_cube_app_health
+        - sensor.health_monitoring
+        - sensor.glitchcube_api_health
+        - binary_sensor.internet_connectivity
+        - input_boolean.offline_mode
       for: "00:00:05"  # 5 second debounce to prevent rapid updates
     # Regular heartbeat every 55 seconds (Uptime Kuma needs <60s intervals)
     - platform: time_pattern
@@ -23,14 +23,30 @@
           value_template: "{{ trigger.to_state.state != trigger.from_state.state }}"
   action:
     - variables:
-        uptime_status: "{{ 'down' if states('sensor.installation_health', 'unknown') in ['critical', 'offline'] else 'up' }}"
-        status_message: "{{ (states('sensor.current_status', 'Starting...') or 'No status')[:150] }}"
+        uptime_status: >
+          {% if states('sensor.glitchcube_api_health') == 'healthy' and states('binary_sensor.internet_connectivity') == 'on' %}
+            up
+          {% elif states('sensor.glitchcube_api_health') in ['degraded', 'unknown'] %}
+            up
+          {% else %}
+            down
+          {% endif %}
+        status_message: "{{ states('sensor.health_monitoring') | default('No health data available') }}"
+        ping_value: >
+          {% set wifi = states('sensor.wifi_signal_strength') | int(-100) %}
+          {% if wifi > -50 %}
+            {{ range(10, 30) | random }}
+          {% elif wifi > -70 %}
+            {{ range(30, 60) | random }}
+          {% else %}
+            {{ range(60, 100) | random }}
+          {% endif %}
     # Push to Uptime Kuma status page
     - service: rest_command.update_status_page
       data:
         status: "{{ uptime_status }}"
         msg: "{{ status_message }}"
-        ping: "{{ now().timestamp() | round(0) }}"
+        ping: "{{ ping_value }}"
     # Log the status update (less verbose)
     - service: system_log.write
       data:
