@@ -38,7 +38,7 @@ RSpec.describe 'Conversation Service Integration' do
           post '/api/v1/conversation',
                { message: "failure test #{i}" }.to_json,
                { 'CONTENT_TYPE' => 'application/json' }
-               
+
           expect(last_response.status).to be_between(400, 500)
         end
 
@@ -58,7 +58,7 @@ RSpec.describe 'Conversation Service Integration' do
       it 'transitions to half-open state after timeout' do
         # Test circuit breaker recovery logic
         # This would require modifying circuit breaker timeout for testing
-        pending "Circuit breaker recovery testing requires timeout configuration"
+        pending 'Circuit breaker recovery testing requires timeout configuration'
       end
     end
 
@@ -68,7 +68,7 @@ RSpec.describe 'Conversation Service Integration' do
           .and_raise(HomeAssistantClient::TimeoutError, 'HA unavailable')
 
         post '/api/v1/conversation',
-             { 
+             {
                message: 'turn on the lights',
                context: { voice_interaction: true }
              }.to_json,
@@ -90,7 +90,7 @@ RSpec.describe 'Conversation Service Integration' do
       post '/api/v1/conversation/start',
            { session_id: session_id }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
-      
+
       expect(last_response).to be_ok
 
       # Make concurrent requests to the same session
@@ -102,7 +102,7 @@ RSpec.describe 'Conversation Service Integration' do
                  message: "concurrent message #{i}"
                }.to_json,
                { 'CONTENT_TYPE' => 'application/json' }
-               
+
           {
             status: last_response.status,
             success: parsed_body['success'],
@@ -120,10 +120,10 @@ RSpec.describe 'Conversation Service Integration' do
       # Verify session integrity after concurrent updates
       session = Conversation.find_by(session_id: session_id)
       expect(session).to be_present
-      
+
       # Should have user + assistant message pairs (20+ messages total)
       expect(session.messages.count).to be >= 20
-      
+
       # Session metadata should still be valid JSON
       expect(session.metadata).to be_a(Hash)
     end
@@ -165,7 +165,7 @@ RSpec.describe 'Conversation Service Integration' do
       }
 
       memory_before = GC.stat[:heap_live_slots]
-      
+
       post '/api/v1/conversation',
            {
              message: 'test with large context',
@@ -254,7 +254,7 @@ RSpec.describe 'Conversation Service Integration' do
 
       # Should handle gracefully without executing malicious SQL
       expect(last_response.status).to be_between(200, 499)
-      
+
       # Verify tables still exist
       expect(Conversation.count).to be >= 0
     end
@@ -323,7 +323,7 @@ RSpec.describe 'Conversation Service Integration' do
 
       expect(last_response).to be_ok
       expect(parsed_body['success']).to be true
-      
+
       # Should provide fallback response
       fallback_response = parsed_body.dig('data', 'response')
       expect(fallback_response).to be_present
@@ -341,7 +341,7 @@ RSpec.describe 'Conversation Service Integration' do
 
   def create_test_session_with_messages(count)
     session = create_test_session
-    
+
     count.times do |i|
       session.add_message(
         role: i.even? ? 'user' : 'assistant',
@@ -349,19 +349,17 @@ RSpec.describe 'Conversation Service Integration' do
         persona: 'neutral'
       )
     end
-    
+
     session
   end
 
-  def count_sql_queries
+  def count_sql_queries(&block)
     query_count = 0
-    counter = ->(name, start, finish, id, payload) do
-      query_count += 1 unless ['CACHE', 'SCHEMA'].include?(payload[:name])
+    counter = lambda do |_name, _start, _finish, _id, payload|
+      query_count += 1 unless %w[CACHE SCHEMA].include?(payload[:name])
     end
 
-    ActiveSupport::Notifications.subscribed(counter, 'sql.active_record') do
-      yield
-    end
+    ActiveSupport::Notifications.subscribed(counter, 'sql.active_record', &block)
 
     query_count
   end

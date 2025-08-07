@@ -1,0 +1,107 @@
+# Conversation tracking sensors for Glitch Cube dashboard
+# These track real-time conversation state and activity
+
+# REST sensor to get conversation state from Sinatra API  
+- platform: rest
+  name: conversation_state
+  resource: !env_var GLITCHCUBE_API_URL/api/v1/conversation/state
+  method: GET
+  headers:
+    Authorization: !secret glitchcube_api_key
+  value_template: "{{ value_json.state | default('idle') }}"
+  json_attributes:
+    - last_activity
+    - session_active
+    - user_count
+    - mood
+  scan_interval: 5
+
+# Template sensor for last conversation time
+- platform: template
+  sensors:
+    last_conversation_time:
+      friendly_name: "Last Conversation"
+      value_template: >-
+        {% set last_time = states.sensor.conversation_state.attributes.last_activity %}
+        {% if last_time %}
+          {{ (now() - strptime(last_time, '%Y-%m-%dT%H:%M:%S')).total_seconds() | int }}
+        {% else %}
+          0
+        {% endif %}
+      unit_of_measurement: "seconds"
+      device_class: timestamp
+      
+    # Convert seconds to human readable format
+    last_conversation_human:
+      friendly_name: "Last Activity"  
+      value_template: >-
+        {% set seconds = states('sensor.last_conversation_time') | int %}
+        {% if seconds < 60 %}
+          {{ seconds }}s ago
+        {% elif seconds < 3600 %}
+          {{ (seconds / 60) | round(0) }}m ago
+        {% else %}
+          {{ (seconds / 3600) | round(1) }}h ago
+        {% endif %}
+
+# Counter for daily conversations
+counter:
+  daily_conversations:
+    name: Daily Conversations
+    icon: mdi:comment-multiple
+    initial: 0
+    step: 1
+
+# API performance sensors
+- platform: rest
+  name: api_response_time
+  resource: !env_var GLITCHCUBE_API_URL/health
+  method: GET
+  value_template: "{{ value_json.response_time_ms | default(0) }}"
+  unit_of_measurement: "ms"
+  device_class: duration
+  scan_interval: 30
+
+- platform: rest  
+  name: daily_api_calls
+  resource: !env_var GLITCHCUBE_API_URL/api/v1/stats/daily
+  method: GET
+  headers:
+    Authorization: !secret glitchcube_api_key
+  value_template: "{{ value_json.total_calls | default(0) }}"
+  scan_interval: 300
+
+# Circuit breaker status
+- platform: rest
+  name: circuit_breaker_status
+  resource: !env_var GLITCHCUBE_API_URL/api/v1/system/circuit_breakers
+  method: GET
+  headers:
+    Authorization: !secret glitchcube_api_key
+  value_template: >-
+    {% set breakers = value_json.breakers %}
+    {% set open_count = breakers | selectattr('state', 'eq', 'open') | list | length %}
+    {% if open_count == 0 %}
+      all_closed
+    {% else %}
+      {{ open_count }}_open
+    {% endif %}
+  json_attributes:
+    - home_assistant
+    - openrouter
+    - starlink
+  scan_interval: 15
+
+# OpenRouter API status
+- platform: rest
+  name: openrouter_status
+  resource: !env_var GLITCHCUBE_API_URL/api/v1/openrouter/health
+  method: GET
+  headers:
+    Authorization: !secret glitchcube_api_key
+  value_template: "{{ value_json.status | default('unknown') }}"
+  json_attributes:
+    - models_available
+    - current_model
+    - rate_limit_remaining
+  scan_interval: 60

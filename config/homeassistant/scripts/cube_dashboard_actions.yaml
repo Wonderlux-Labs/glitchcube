@@ -1,0 +1,137 @@
+# Quick action scripts for the Glitch Cube dashboard
+
+# Reset conversation LED to idle state
+reset_conversation_led:
+  alias: "Reset Conversation LED"
+  sequence:
+    - service: light.turn_on
+      target:
+        entity_id: light.cube_voice_ring
+      data:
+        rgb_color: [64, 64, 64]  # Dim white
+        brightness: 50
+        transition: 1
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.conversation_state
+      data:
+        value: "idle"
+
+# Test voice response
+test_voice_response:
+  alias: "Test Voice Response"
+  sequence:
+    - service: light.turn_on
+      target:
+        entity_id: light.cube_voice_ring
+      data:
+        rgb_color: [0, 255, 0]  # Green for speaking
+        brightness: 180
+    - service: tts.speak
+      target:
+        entity_id: tts.home_assistant_cloud
+      data:
+        media_player_entity_id: media_player.square_voice
+        message: "Glitch Cube systems online and ready for interaction. All LED indicators operational."
+    - delay:
+        seconds: 3
+    - service: script.reset_conversation_led
+
+# Clear AWTRIX display
+clear_awtrix:
+  alias: "Clear AWTRIX Display"
+  sequence:
+    - service: script.awtrix_clear_display
+    - service: light.turn_off
+      target:
+        entity_id: 
+          - light.awtrix_b85e20_indicator_1
+          - light.awtrix_b85e20_indicator_2
+          - light.awtrix_b85e20_indicator_3
+
+# Emergency stop - turn off all cube lights
+emergency_stop:
+  alias: "Emergency Stop All Lights"
+  sequence:
+    - service: light.turn_off
+      target:
+        entity_id:
+          - light.cube_light
+          - light.cart_light
+          - light.cube_voice_ring
+          - light.awtrix_b85e20_matrix
+          - light.awtrix_b85e20_indicator_1
+          - light.awtrix_b85e20_indicator_2
+          - light.awtrix_b85e20_indicator_3
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.conversation_state
+      data:
+        value: "stopped"
+
+# Demo light sequence for testing
+demo_light_sequence:
+  alias: "Demo Light Sequence"
+  sequence:
+    # Listening state - Blue
+    - service: light.turn_on
+      target:
+        entity_id: light.cube_voice_ring
+      data:
+        rgb_color: [0, 128, 255]
+        brightness: 200
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.conversation_state
+      data:
+        value: "listening"
+    - delay:
+        seconds: 2
+    
+    # Thinking state - Orange
+    - service: light.turn_on
+      target:
+        entity_id: light.cube_voice_ring
+      data:
+        rgb_color: [255, 128, 0]
+        brightness: 150
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.conversation_state
+      data:
+        value: "thinking"
+    - delay:
+        seconds: 2
+        
+    # Speaking state - Green
+    - service: light.turn_on
+      target:
+        entity_id: light.cube_voice_ring
+      data:
+        rgb_color: [0, 255, 128]
+        brightness: 180
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.conversation_state
+      data:
+        value: "speaking"
+    - delay:
+        seconds: 2
+        
+    # Completed state - Purple
+    - service: light.turn_on
+      target:
+        entity_id: light.cube_voice_ring
+      data:
+        rgb_color: [128, 0, 255]
+        brightness: 120
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.conversation_state
+      data:
+        value: "completed"
+    - delay:
+        seconds: 2
+        
+    # Back to idle
+    - service: script.reset_conversation_led

@@ -216,6 +216,7 @@ module Services
         unless @logger
           # Prevent infinite recursion during setup
           return if @setting_up
+
           @setting_up = true
           setup!
           return if @logger.nil? # Give up if setup failed
@@ -354,7 +355,7 @@ module Services
           FileUtils.chmod(0o755, dir)
         end
       rescue StandardError => e
-        # Use puts instead of warn to avoid recursion  
+        # Use puts instead of warn to avoid recursion
         puts "Failed to create log directory: #{e.message}"
         raise e
       end

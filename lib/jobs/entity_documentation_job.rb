@@ -39,7 +39,6 @@ module GlitchCube
                    entity_count: entities.length,
                    duration_ms: duration,
                    trigger: job_data[:trigger])
-
         rescue StandardError => e
           log.error('❌ Entity documentation job failed',
                     error: e.message,
@@ -53,9 +52,9 @@ module GlitchCube
 
       def update_documentation(entities, job_data)
         # Organize entities by domain
-        entities_by_domain = entities.group_by { |entity| 
-          entity['entity_id'].split('.').first 
-        }
+        entities_by_domain = entities.group_by do |entity|
+          entity['entity_id'].split('.').first
+        end
 
         # Generate documentation content
         doc_content = generate_documentation_content(entities_by_domain, job_data)
@@ -72,104 +71,102 @@ module GlitchCube
 
       def generate_documentation_content(entities_by_domain, job_data)
         content = []
-        content << "# Home Assistant Entities"
-        content << ""
+        content << '# Home Assistant Entities'
+        content << ''
         content << "Last updated: #{Time.now.strftime('%Y-%m-%d %H:%M:%S')}"
         content << "Update triggered by: #{job_data[:trigger] || 'unknown'}"
-        
-        if job_data[:changed_entity]
-          content << "Changed entity: #{job_data[:changed_entity]}"
-        end
-        
-        content << ""
-        content << "## Summary"
-        content << ""
-        content << "| Domain | Count |"
-        content << "|--------|-------|"
-        
+
+        content << "Changed entity: #{job_data[:changed_entity]}" if job_data[:changed_entity]
+
+        content << ''
+        content << '## Summary'
+        content << ''
+        content << '| Domain | Count |'
+        content << '|--------|-------|'
+
         entities_by_domain.sort.each do |domain, domain_entities|
           content << "| #{domain} | #{domain_entities.length} |"
         end
-        
-        content << ""
+
+        content << ''
         content << "Total entities: #{entities_by_domain.values.flatten.length}"
         content << "Total domains: #{entities_by_domain.keys.length}"
-        content << ""
+        content << ''
 
         # Add detailed sections for important domains
         important_domains = %w[light binary_sensor media_player camera sensor switch]
-        
+
         important_domains.each do |domain|
           next unless entities_by_domain[domain]
-          
+
           content << "## #{domain.capitalize} Entities"
-          content << ""
-          
+          content << ''
+
           entities_by_domain[domain].sort_by { |e| e['entity_id'] }.each do |entity|
             content << "### #{entity['entity_id']}"
             content << "- **State**: #{entity['state']}"
             content << "- **Last Changed**: #{entity['last_changed']}"
-            
+
             if entity['attributes'] && !entity['attributes'].empty?
-              interesting_attrs = entity['attributes'].select { |k, v| 
+              interesting_attrs = entity['attributes'].select do |k, v|
                 !%w[last_changed last_updated].include?(k) && !v.nil?
-              }.first(3)
-              
+              end.first(3)
+
               interesting_attrs.each do |key, value|
                 content << "- **#{key.capitalize}**: #{value}"
               end
             end
-            
-            content << ""
+
+            content << ''
           end
         end
 
         # Add quick reference section
-        content << "## Quick Reference for Development"
-        content << ""
-        content << "### Available RGB Lights"
+        content << '## Quick Reference for Development'
+        content << ''
+        content << '### Available RGB Lights'
         if entities_by_domain['light']&.any?
           entities_by_domain['light'].each do |light|
             content << "- `#{light['entity_id']}` (#{light['state']})"
           end
         else
-          content << "❌ No RGB light entities found - lighting features will need configuration"
+          content << '❌ No RGB light entities found - lighting features will need configuration'
         end
-        
-        content << ""
-        content << "### Motion Sensors"
-        motion_entities = (entities_by_domain['binary_sensor'] || []).select { |e| 
-          e['entity_id'].include?('motion') 
-        }
-        
+
+        content << ''
+        content << '### Motion Sensors'
+        motion_entities = (entities_by_domain['binary_sensor'] || []).select do |e|
+          e['entity_id'].include?('motion')
+        end
+
         if motion_entities.any?
           motion_entities.each do |sensor|
             content << "- `#{sensor['entity_id']}` (#{sensor['state']})"
           end
         else
           # Check for input_boolean motion detectors
-          motion_inputs = (entities_by_domain['input_boolean'] || []).select { |e|
+          motion_inputs = (entities_by_domain['input_boolean'] || []).select do |e|
             e['entity_id'].include?('motion')
-          }
-          
+          end
+
           if motion_inputs.any?
-            content << "Using input_boolean for motion detection:"
+            content << 'Using input_boolean for motion detection:'
             motion_inputs.each do |input|
               content << "- `#{input['entity_id']}` (#{input['state']})"
             end
           else
-            content << "❌ No motion sensors found"
+            content << '❌ No motion sensors found'
           end
         end
-        
-        content << ""
-        content << "### Media Players for TTS"
+
+        content << ''
+        content << '### Media Players for TTS'
         if entities_by_domain['media_player']&.any?
           entities_by_domain['media_player'].each do |player|
             content << "- `#{player['entity_id']}` (#{player['state']})"
           end
         else
-          content << "❌ No media player entities found"
+          content << '❌ No media player entities found'
         end
 
         content.join("\n")
@@ -181,9 +178,9 @@ module GlitchCube
 
         begin
           redis = GlitchCube.redis_connection
-          entities_by_domain = entities.group_by { |entity| 
-            entity['entity_id'].split('.').first 
-          }
+          entities_by_domain = entities.group_by do |entity|
+            entity['entity_id'].split('.').first
+          end
 
           # Cache organized entities with expiration
           redis.setex('ha_entities_by_domain', 300, entities_by_domain.to_json) # 5 min expiry
@@ -197,7 +194,6 @@ module GlitchCube
           log.debug('💾 Cached entity data in Redis',
                     cache_expiry: '5 minutes',
                     entity_count: entities.length)
-
         rescue StandardError => e
           log.warn('⚠️ Failed to cache entities in Redis',
                    error: e.message)

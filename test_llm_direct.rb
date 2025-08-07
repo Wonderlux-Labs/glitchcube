@@ -3,7 +3,7 @@
 
 require_relative 'app'
 
-puts "🔍 Testing LLM Service Directly..."
+puts '🔍 Testing LLM Service Directly...'
 
 # Simple test message
 messages = [
@@ -28,17 +28,17 @@ puts "Content length: #{response1.content&.length}"
 # Test with structured output
 puts "\n=== TEST 2: Structured output (JSON schema) ==="
 schema = {
-  type: "json_schema",
+  type: 'json_schema',
   json_schema: {
-    name: "response",
+    name: 'response',
     strict: true,
     schema: {
-      type: "object",
+      type: 'object',
       properties: {
-        response: { type: "string", description: "The response text" },
-        continue_conversation: { type: "boolean", description: "Whether to continue the conversation" }
+        response: { type: 'string', description: 'The response text' },
+        continue_conversation: { type: 'boolean', description: 'Whether to continue the conversation' }
       },
-      required: ["response", "continue_conversation"],
+      required: %w[response continue_conversation],
       additionalProperties: false
     }
   }

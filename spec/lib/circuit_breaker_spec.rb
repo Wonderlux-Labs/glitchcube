@@ -7,7 +7,7 @@ RSpec.describe CircuitBreaker, vcr: false do
   before do
     allow(Cube::Settings).to receive(:disable_circuit_breakers?).and_return(false)
   end
-  
+
   let(:circuit_breaker) { described_class.new(name: 'test_service', failure_threshold: 3, recovery_timeout: 1, success_threshold: 1) }
 
   describe '#initialize' do

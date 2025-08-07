@@ -7,7 +7,7 @@ require_relative '../../lib/services/context_retrieval_service'
 RSpec.describe 'Conversation Summarizer Integration' do
   let(:summarizer) { Services::ConversationSummarizer.new }
 
-  describe 'conversation summarization', vcr: true do
+  describe 'conversation summarization', :vcr do
     let(:conversation_messages) do
       [
         {

@@ -9,6 +9,7 @@ module GlitchCube
     def self.generate_test_token
       'test-jwt-token-for-vcr-cassettes'
     end
+
     def self.instance
       @instance ||= new(
         # Core Application - Required in non-test environments
@@ -101,7 +102,7 @@ module GlitchCube
         test?: ENV['RACK_ENV'] == 'test',
         production?: ENV['RACK_ENV'] == 'production',
         debug_mode: ENV.fetch('DEBUG', 'false') == 'true',
-        
+
         # Conversation Tracing
         conversation_tracing_enabled: ENV.fetch('CONVERSATION_TRACING', 'false') == 'true'
       )

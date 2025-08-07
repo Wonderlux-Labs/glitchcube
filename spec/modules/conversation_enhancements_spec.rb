@@ -128,7 +128,7 @@ RSpec.describe ConversationEnhancements do
   describe '#attempt_connection_recovery' do
     it 'only attempts recovery in development environment' do
       allow(ENV).to receive(:[]).with('RACK_ENV').and_return('production')
-      
+
       result = test_instance.attempt_connection_recovery
       expect(result).to be false
     end
@@ -137,7 +137,7 @@ RSpec.describe ConversationEnhancements do
       allow(ENV).to receive(:[]).with('RACK_ENV').and_return('development')
       allow(test_instance).to receive(:system).with('docker-compose restart homeassistant 2>/dev/null').and_return(true)
       allow(test_instance).to receive(:sleep).with(1)
-      
+
       result = test_instance.attempt_connection_recovery
       expect(result).to be true
     end
@@ -145,7 +145,7 @@ RSpec.describe ConversationEnhancements do
     it 'handles system command failures gracefully' do
       allow(ENV).to receive(:[]).with('RACK_ENV').and_return('development')
       allow(test_instance).to receive(:system).and_raise(StandardError, 'Command failed')
-      
+
       result = test_instance.attempt_connection_recovery
       expect(result).to be false
     end
@@ -165,7 +165,7 @@ RSpec.describe ConversationEnhancements do
 
     it 'adds message to conversation with timestamp' do
       result = test_instance.add_message_to_conversation(conversation, message_data)
-      
+
       expect(conversation[:messages].length).to eq(1)
       expect(result[:timestamp]).to be_present
       expect(conversation[:total_cost]).to eq(0.001)
@@ -174,16 +174,16 @@ RSpec.describe ConversationEnhancements do
 
     it 'handles conversation without existing messages' do
       empty_conversation = {}
-      
+
       test_instance.add_message_to_conversation(empty_conversation, message_data)
-      
+
       expect(empty_conversation[:messages].length).to eq(1)
     end
 
     it 'accumulates costs and tokens' do
       test_instance.add_message_to_conversation(conversation, message_data)
       test_instance.add_message_to_conversation(conversation, { cost: 0.002, prompt_tokens: 20, completion_tokens: 10 })
-      
+
       expect(conversation[:total_cost]).to eq(0.003)
       expect(conversation[:total_tokens]).to eq(45)
     end
@@ -198,18 +198,18 @@ RSpec.describe ConversationEnhancements do
           { prompt_tokens: 5 } # Message without cost/completion_tokens
         ]
       }
-      
+
       result = test_instance.update_conversation_totals(conversation)
-      
+
       expect(result[:total_cost]).to eq(0.003)
       expect(result[:total_tokens]).to eq(43) # 10+5+15+8+5+0
     end
 
     it 'handles empty messages array' do
       conversation = { messages: [] }
-      
+
       result = test_instance.update_conversation_totals(conversation)
-      
+
       expect(result[:total_cost]).to eq(0.0)
       expect(result[:total_tokens]).to eq(0)
     end

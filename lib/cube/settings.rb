@@ -21,7 +21,7 @@ module Cube
       def disable_circuit_breakers?
         # Check for override first
         return @overrides[:disable_circuit_breakers] if overridden?(:disable_circuit_breakers)
-        
+
         # Default: disable circuit breakers in test to avoid issues with VCR cassettes
         test? || env_true?('DISABLE_CIRCUIT_BREAKERS')
       end

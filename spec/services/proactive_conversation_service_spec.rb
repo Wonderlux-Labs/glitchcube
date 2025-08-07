@@ -5,17 +5,17 @@ require_relative '../../lib/services/proactive_conversation_service'
 
 RSpec.describe Services::ProactiveConversationService do
   let(:mock_client) { instance_double(HomeAssistantClient) }
-  let(:mock_handler) { double('ConversationHandlerService') }  # Use regular double instead of instance_double
-  let(:service) { described_class.new }  # Create service AFTER mocks are set up
+  let(:mock_handler) { double('ConversationHandlerService') } # Use regular double instead of instance_double
+  let(:service) { described_class.new } # Create service AFTER mocks are set up
 
   before do
     # Mock the class instantiation to return our mock objects
     allow(HomeAssistantClient).to receive(:new).and_return(mock_client)
     allow(Services::ConversationHandlerService).to receive(:new).and_return(mock_handler)
-    
+
     # Also ensure mocks are properly set up
     allow(mock_client).to receive_messages(
-      state: { 'state' => 'off' },  # default state
+      state: { 'state' => 'off' }, # default state
       awtrix_notify: { success: true }
     )
     # Remove the conflicting mock - let individual tests set up their own expectations
@@ -100,9 +100,9 @@ RSpec.describe Services::ProactiveConversationService do
       allow(mock_client).to receive(:awtrix_notify).and_return({ success: true })
 
       result = service.initiate_proactive_conversation(trigger_result)
-      
+
       expect(result).to include(status: 'sent')
-      
+
       # Verify calls were made with correct arguments
       expect(mock_handler).to have_received(:send_conversation_to_ha).with(
         'Battery at 15%!',
@@ -111,7 +111,7 @@ RSpec.describe Services::ProactiveConversationService do
           proactive: true
         )
       )
-      
+
       expect(Services::LoggerService).to have_received(:log_interaction).with(
         hash_including(
           user_message: '[PROACTIVE: battery_low]',
@@ -120,7 +120,7 @@ RSpec.describe Services::ProactiveConversationService do
           context: { trigger: :battery_low }
         )
       )
-      
+
       expect(mock_client).to have_received(:awtrix_notify).with(
         '💬 Battery at 15%!...',
         hash_including(color: [100, 200, 255])

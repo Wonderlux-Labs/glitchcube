@@ -45,7 +45,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
     mock_prompt_service = instance_double(Services::SystemPromptService)
     allow(Services::SystemPromptService).to receive(:new).and_return(mock_prompt_service)
     allow(mock_prompt_service).to receive(:generate).and_return('System prompt')
-    
+
     # Mock HomeAssistantClient completely for integration tests
     allow(HomeAssistantClient).to receive(:new).and_return(mock_home_assistant)
     allow(mock_home_assistant).to receive_messages(

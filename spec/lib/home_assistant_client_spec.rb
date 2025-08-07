@@ -18,14 +18,14 @@ RSpec.describe HomeAssistantClient do
     it 'uses token from config' do
       # In test environment, uses a consistent test token for VCR
       expect(client.token).to be_a(String)
-      expect(client.token).to eq('test-ha-token')  # Consistent test token
+      expect(client.token).to eq('test-ha-token') # Consistent test token
     end
 
     context 'when no HA URL is configured' do
       it 'uses configured URL from environment' do
         # Test that client uses configured URL
         client = described_class.new(base_url: nil)
-        
+
         # Uses the URL configured in .env.test
         expect(client.base_url).to eq('http://glitch.local:8123')
       end

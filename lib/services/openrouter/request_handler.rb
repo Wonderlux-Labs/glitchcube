@@ -17,10 +17,10 @@ module Services
           # Extract messages and model from params
           messages = request_params.delete(:messages)
           model = request_params.delete(:model)
-          
+
           # Everything else goes in extras
           extras = request_params
-          
+
           # Use correct client.complete signature: complete(messages, model: model, extras: extras)
           response = @client.complete(messages, model: model, extras: extras)
           log_successful_call({ messages: messages, model: model }.merge(extras), response, start_time)

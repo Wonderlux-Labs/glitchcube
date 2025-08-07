@@ -126,7 +126,7 @@ RSpec.describe Services::ConversationService do
   describe '#reset_context' do
     let(:mock_response) do
       {
-        response: "Hello! Test response",
+        response: 'Hello! Test response',
         suggested_mood: 'playful',
         confidence: 0.95
       }
@@ -171,25 +171,23 @@ RSpec.describe Services::ConversationService do
     it 'passes context through to system prompt generation' do
       # Mock the LLM service to avoid real API calls
       mock_llm_response = double('LLMResponse',
-        response_text: "Hello! Test response",
-        continue_conversation?: true,
-        has_tool_calls?: false,
-        parsed_content: { 'response' => 'Hello! Test response', 'continue_conversation' => true },
-        cost: 0.001,
-        model: 'google/gemini-2.5-flash',
-        usage: { prompt_tokens: 100, completion_tokens: 50 }
-      )
-      
+                                 response_text: 'Hello! Test response',
+                                 continue_conversation?: true,
+                                 has_tool_calls?: false,
+                                 parsed_content: { 'response' => 'Hello! Test response', 'continue_conversation' => true },
+                                 cost: 0.001,
+                                 model: 'google/gemini-2.5-flash',
+                                 usage: { prompt_tokens: 100, completion_tokens: 50 })
+
       # Mock database operations to avoid foreign key issues
       mock_session = double('ConversationSession')
       allow(mock_session).to receive(:add_message)
-      allow(mock_session).to receive(:messages_for_llm).and_return([])
-      allow(mock_session).to receive(:session_id).and_return('test-session-123')
+      allow(mock_session).to receive_messages(messages_for_llm: [], session_id: 'test-session-123')
       allow(Services::ConversationSession).to receive(:find_or_create).and_return(mock_session)
-      
+
       # Mock LLM service to avoid real HTTP calls
       allow(Services::LLMService).to receive(:complete_with_messages).and_return(mock_llm_response)
-      
+
       # Spy on SystemPromptService to verify it's called with correct parameters
       allow(Services::SystemPromptService).to receive(:new).and_call_original
 

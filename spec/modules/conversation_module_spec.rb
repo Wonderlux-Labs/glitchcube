@@ -40,7 +40,7 @@ RSpec.describe ConversationModule do
     # but we should be careful about cleanup
     allow(Services::LLMService).to receive(:complete_with_messages).and_return(mock_llm_response)
     allow(Services::ConversationSession).to receive(:find_or_create).and_return(mock_session)
-    
+
     # Mock HomeAssistantClient - instance level
     allow(HomeAssistantClient).to receive(:new).and_return(mock_home_assistant)
     allow(mock_home_assistant).to receive_messages(call_service: true, state: nil)

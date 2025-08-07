@@ -8,15 +8,14 @@ RSpec.describe 'Conversation Tracing E2E', :vcr do
 
   before do
     # Enable tracing for this test
-    allow(GlitchCube.config).to receive(:environment).and_return('development')
-    allow(GlitchCube.config).to receive(:conversation_tracing_enabled?).and_return(true)
+    allow(GlitchCube.config).to receive_messages(environment: 'development', conversation_tracing_enabled?: true)
   end
 
   describe 'Full conversation trace workflow' do
     it 'creates and retrieves complete conversation traces' do
       # Step 1: Create a conversation with tracing enabled
       conversation_module = ConversationModule.new
-      
+
       result = conversation_module.call(
         message: 'Tell me about the art and culture at Burning Man',
         context: {
@@ -37,7 +36,7 @@ RSpec.describe 'Conversation Tracing E2E', :vcr do
 
       # Step 2: Retrieve the trace from Redis
       retrieved_trace = Services::ConversationTracer.get_trace(trace_id)
-      
+
       expect(retrieved_trace).to be_present
       expect(retrieved_trace[:trace_id]).to eq(trace_id)
       expect(retrieved_trace[:session_id]).to eq(session_id)
@@ -80,16 +79,14 @@ RSpec.describe 'Conversation Tracing E2E', :vcr do
       puts "Services Used: #{traces.map { |t| t[:service] }.uniq.join(', ')}"
       puts "\nStep-by-step flow:"
       traces.each_with_index do |step, i|
-        puts "  #{i+1}. #{step[:service]}.#{step[:action]} (#{step[:timing_ms]}ms)"
-        if step[:data][:model]
-          puts "     Model: #{step[:data][:model]}, Cost: $#{step[:data][:cost]}"
-        end
+        puts "  #{i + 1}. #{step[:service]}.#{step[:action]} (#{step[:timing_ms]}ms)"
+        puts "     Model: #{step[:data][:model]}, Cost: $#{step[:data][:cost]}" if step[:data][:model]
       end
     end
 
     it 'traces conversation with tool calls' do
       conversation_module = ConversationModule.new
-      
+
       result = conversation_module.call(
         message: 'What is the current weather like?',
         context: {
@@ -102,7 +99,7 @@ RSpec.describe 'Conversation Tracing E2E', :vcr do
       )
 
       expect(result[:trace_id]).to be_present
-      
+
       trace = Services::ConversationTracer.get_trace(result[:trace_id])
       traces = trace[:traces]
 
@@ -121,7 +118,7 @@ RSpec.describe 'Conversation Tracing E2E', :vcr do
     it 'traces memory injection process' do
       # First, create some conversation history
       conversation_module = ConversationModule.new
-      
+
       # First conversation to create history
       conversation_module.call(
         message: 'I love the art installations here at Center Camp',
@@ -135,7 +132,7 @@ RSpec.describe 'Conversation Tracing E2E', :vcr do
       result = conversation_module.call(
         message: 'Tell me what you remember about our previous conversations',
         context: {
-          session_id: "#{session_id}-memory", 
+          session_id: "#{session_id}-memory",
           location: 'Center Camp',
           skip_memories: false, # Explicitly enable memory injection
           trace_conversation: true
@@ -161,7 +158,7 @@ RSpec.describe 'Conversation Tracing E2E', :vcr do
   describe 'Trace data structure validation' do
     it 'ensures traces contain all required fields' do
       conversation_module = ConversationModule.new
-      
+
       result = conversation_module.call(
         message: 'Simple test message for trace validation',
         context: {
@@ -171,11 +168,11 @@ RSpec.describe 'Conversation Tracing E2E', :vcr do
       )
 
       trace = Services::ConversationTracer.get_trace(result[:trace_id])
-      
+
       # Validate top-level trace structure
       expect(trace).to include(
         :trace_id,
-        :session_id, 
+        :session_id,
         :started_at,
         :total_steps,
         :total_duration_ms,
@@ -193,7 +190,7 @@ RSpec.describe 'Conversation Tracing E2E', :vcr do
           :timing_ms,
           :success
         )
-        
+
         expect(step[:step]).to be_a(Integer)
         expect(step[:service]).to be_a(String)
         expect(step[:action]).to be_a(String)
@@ -204,7 +201,7 @@ RSpec.describe 'Conversation Tracing E2E', :vcr do
       end
 
       puts "\n✅ TRACE STRUCTURE VALIDATION PASSED"
-      puts "All traces contain required fields with correct types"
+      puts 'All traces contain required fields with correct types'
     end
   end
 end

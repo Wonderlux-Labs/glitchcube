@@ -75,7 +75,7 @@ RSpec.describe Services::GpsTrackingService do
         expect(result[:accuracy]).to be_nil
         expect(result[:battery]).to be_nil
         expect(result[:timestamp]).to be_a(Time)
-        
+
         # Should have computed BRC address and context
         expect(result[:address]).to be_a(String)
         expect(result[:brc_area]).to be_a(String)
@@ -99,7 +99,7 @@ RSpec.describe Services::GpsTrackingService do
         expect(result[:accuracy]).to be_nil
         expect(result[:battery]).to be_nil
         expect(result[:timestamp]).to be_a(Time)
-        
+
         # Should have computed BRC address and context
         expect(result[:address]).to be_a(String)
         expect(result[:brc_area]).to be_a(String)

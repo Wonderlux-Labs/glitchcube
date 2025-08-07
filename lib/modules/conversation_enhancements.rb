@@ -4,7 +4,6 @@ require 'concurrent'
 
 # Enhancements for conversation module with optimized sensor collection and utilities
 module ConversationEnhancements
-
   # Enrich context with Home Assistant sensor data (optimized for art installation)
   def enrich_context_with_sensors(context)
     return context unless context[:include_sensors]
@@ -62,7 +61,7 @@ module ConversationEnhancements
   # Simple error recovery for development environment only
   def attempt_connection_recovery
     return false unless ENV['RACK_ENV'] == 'development'
-    
+
     # Try to restart mock services in development
     system('docker-compose restart homeassistant 2>/dev/null')
     sleep(1) # Reduced from 2 seconds
@@ -104,7 +103,7 @@ module ConversationEnhancements
   # Simple retry wrapper for critical operations (art installation optimized)
   def with_retry(operation_name, max_retries: 2)
     attempts = 0
-    
+
     begin
       attempts += 1
       yield

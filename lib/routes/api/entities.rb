@@ -11,7 +11,7 @@ module GlitchCube
 
             begin
               request_body = JSON.parse(request.body.read)
-              
+
               # Log the entity change
               log.info('🏠 Entity state changed',
                        entity_id: request_body['entity_id'],
@@ -25,29 +25,28 @@ module GlitchCube
                 # Queue background job to refresh entity documentation
                 require_relative '../../jobs/entity_documentation_job'
                 Jobs::EntityDocumentationJob.perform_async({
-                  trigger: 'entity_change',
-                  changed_entity: request_body['entity_id'],
-                  timestamp: Time.now.iso8601
-                })
+                                                             trigger: 'entity_change',
+                                                             changed_entity: request_body['entity_id'],
+                                                             timestamp: Time.now.iso8601
+                                                           })
               end
 
               json({
-                success: true,
-                message: 'Entity change recorded',
-                timestamp: Time.now.iso8601
-              })
-
+                     success: true,
+                     message: 'Entity change recorded',
+                     timestamp: Time.now.iso8601
+                   })
             rescue StandardError => e
               log.error('❌ Entity change notification failed',
                         error: e.message,
                         backtrace: e.backtrace.first(3))
-              
+
               status 400
               json({
-                success: false,
-                error: e.message,
-                timestamp: Time.now.iso8601
-              })
+                     success: false,
+                     error: e.message,
+                     timestamp: Time.now.iso8601
+                   })
             end
           end
 
@@ -69,29 +68,28 @@ module GlitchCube
               # Queue background job to refresh entity documentation
               require_relative '../../jobs/entity_documentation_job'
               job_id = Jobs::EntityDocumentationJob.perform_async({
-                trigger: 'manual_refresh',
-                batch_update: request_body['batch_update'],
-                timestamp: Time.now.iso8601
-              })
+                                                                    trigger: 'manual_refresh',
+                                                                    batch_update: request_body['batch_update'],
+                                                                    timestamp: Time.now.iso8601
+                                                                  })
 
               json({
-                success: true,
-                message: 'Entity refresh queued',
-                job_id: job_id,
-                timestamp: Time.now.iso8601
-              })
-
+                     success: true,
+                     message: 'Entity refresh queued',
+                     job_id: job_id,
+                     timestamp: Time.now.iso8601
+                   })
             rescue StandardError => e
               log.error('❌ Entity refresh failed',
                         error: e.message,
                         backtrace: e.backtrace.first(3))
-              
+
               status 400
               json({
-                success: false,
-                error: e.message,
-                timestamp: Time.now.iso8601
-              })
+                     success: false,
+                     error: e.message,
+                     timestamp: Time.now.iso8601
+                   })
             end
           end
 
@@ -106,7 +104,7 @@ module GlitchCube
 
               # Organize by domain
               entities_by_domain = entities.group_by { |entity| entity['entity_id'].split('.').first }
-              
+
               # Add metadata
               entity_summary = {
                 total_entities: entities.length,
@@ -116,23 +114,22 @@ module GlitchCube
               }
 
               json({
-                success: true,
-                summary: entity_summary,
-                entities_by_domain: entities_by_domain,
-                timestamp: Time.now.iso8601
-              })
-
+                     success: true,
+                     summary: entity_summary,
+                     entities_by_domain: entities_by_domain,
+                     timestamp: Time.now.iso8601
+                   })
             rescue StandardError => e
               log.error('❌ Entity list retrieval failed',
                         error: e.message,
                         backtrace: e.backtrace.first(3))
-              
+
               status 500
               json({
-                success: false,
-                error: e.message,
-                timestamp: Time.now.iso8601
-              })
+                     success: false,
+                     error: e.message,
+                     timestamp: Time.now.iso8601
+                   })
             end
           end
 
@@ -147,30 +144,29 @@ module GlitchCube
               all_entities = home_assistant.states
 
               # Filter by domain
-              domain_entities = all_entities.select { |entity| 
+              domain_entities = all_entities.select do |entity|
                 entity['entity_id'].start_with?("#{domain}.")
-              }
+              end
 
               json({
-                success: true,
-                domain: domain,
-                entity_count: domain_entities.length,
-                entities: domain_entities,
-                timestamp: Time.now.iso8601
-              })
-
+                     success: true,
+                     domain: domain,
+                     entity_count: domain_entities.length,
+                     entities: domain_entities,
+                     timestamp: Time.now.iso8601
+                   })
             rescue StandardError => e
               log.error('❌ Domain entity retrieval failed',
                         domain: domain,
                         error: e.message)
-              
+
               status 500
               json({
-                success: false,
-                error: e.message,
-                domain: domain,
-                timestamp: Time.now.iso8601
-              })
+                     success: false,
+                     error: e.message,
+                     domain: domain,
+                     timestamp: Time.now.iso8601
+                   })
             end
           end
 
@@ -178,7 +174,7 @@ module GlitchCube
 
           # Determine if entity change should trigger documentation refresh
           def self.should_trigger_refresh?(change_data)
-            entity_id = change_data['entity_id']
+            change_data['entity_id']
             domain = change_data['domain']
 
             # Always refresh for new light entities (important for our lighting system)

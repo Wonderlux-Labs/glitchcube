@@ -5,7 +5,7 @@ require 'spec_helper'
 RSpec.describe Services::ConversationTracer do
   let(:session_id) { 'test-session-123' }
   let(:redis) { instance_double(Redis) }
-  
+
   before do
     allow(Redis).to receive(:new).and_return(redis)
     allow(redis).to receive(:setex)
@@ -16,8 +16,7 @@ RSpec.describe Services::ConversationTracer do
   describe '#initialize' do
     context 'in development environment' do
       before do
-        allow(GlitchCube.config).to receive(:environment).and_return('development')
-        allow(GlitchCube.config).to receive(:conversation_tracing_enabled?).and_return(false)
+        allow(GlitchCube.config).to receive_messages(environment: 'development', conversation_tracing_enabled?: false)
       end
 
       it 'enables tracing by default' do
@@ -28,8 +27,7 @@ RSpec.describe Services::ConversationTracer do
 
     context 'when conversation tracing is explicitly enabled' do
       before do
-        allow(GlitchCube.config).to receive(:environment).and_return('production')
-        allow(GlitchCube.config).to receive(:conversation_tracing_enabled?).and_return(true)
+        allow(GlitchCube.config).to receive_messages(environment: 'production', conversation_tracing_enabled?: true)
       end
 
       it 'enables tracing' do
@@ -40,8 +38,7 @@ RSpec.describe Services::ConversationTracer do
 
     context 'when disabled' do
       before do
-        allow(GlitchCube.config).to receive(:environment).and_return('production')
-        allow(GlitchCube.config).to receive(:conversation_tracing_enabled?).and_return(false)
+        allow(GlitchCube.config).to receive_messages(environment: 'production', conversation_tracing_enabled?: false)
       end
 
       it 'disables tracing' do
@@ -55,8 +52,7 @@ RSpec.describe Services::ConversationTracer do
     let(:tracer) { described_class.new(session_id: session_id) }
 
     before do
-      allow(GlitchCube.config).to receive(:environment).and_return('development')
-      allow(GlitchCube.config).to receive(:conversation_tracing_enabled?).and_return(false)
+      allow(GlitchCube.config).to receive_messages(environment: 'development', conversation_tracing_enabled?: false)
     end
 
     describe '#start_conversation' do
@@ -107,7 +103,7 @@ RSpec.describe Services::ConversationTracer do
       let(:options) { { model: 'gpt-4', temperature: 0.7, max_tokens: 200 } }
       let(:mock_response) do
         instance_double(
-          'LLMResponse',
+          LLMResponse,
           response_text: 'Test response',
           model: 'gpt-4',
           usage: { prompt_tokens: 10, completion_tokens: 20 },
@@ -135,7 +131,7 @@ RSpec.describe Services::ConversationTracer do
 
       it 'traces failed LLM call' do
         error = StandardError.new('API Error')
-        
+
         tracer.trace_llm_call(
           messages: messages,
           options: options,
@@ -153,7 +149,7 @@ RSpec.describe Services::ConversationTracer do
       let(:memories) do
         [
           instance_double(
-            'Memory',
+            Memory,
             id: 1,
             category: 'event',
             emotional_intensity: 0.8,
@@ -161,7 +157,7 @@ RSpec.describe Services::ConversationTracer do
             content: 'Great conversation at Center Camp'
           ),
           instance_double(
-            'Memory', 
+            Memory,
             id: 2,
             category: 'person',
             emotional_intensity: 0.6,
@@ -206,7 +202,7 @@ RSpec.describe Services::ConversationTracer do
           { function: { name: 'memory_search' } }
         ]
       end
-      
+
       let(:results) do
         [
           { tool_name: 'weather_lookup', success: true, result: 'Sunny, 75°F' },
@@ -225,7 +221,7 @@ RSpec.describe Services::ConversationTracer do
         expect(traces.size).to eq(1)
         expect(traces.first[:service]).to eq('ToolExecutor')
         expect(traces.first[:data][:tool_count]).to eq(2)
-        expect(traces.first[:data][:tools_called]).to eq(['weather_lookup', 'memory_search'])
+        expect(traces.first[:data][:tools_called]).to eq(%w[weather_lookup memory_search])
         expect(traces.first[:data][:execution_time_ms]).to eq(150)
       end
     end
@@ -295,15 +291,14 @@ RSpec.describe Services::ConversationTracer do
       end
 
       before do
-        allow(GlitchCube.config).to receive(:environment).and_return('development')
-        allow(GlitchCube.config).to receive(:conversation_tracing_enabled?).and_return(false)
+        allow(GlitchCube.config).to receive_messages(environment: 'development', conversation_tracing_enabled?: false)
       end
 
       it 'retrieves trace from Redis' do
         expect(redis).to receive(:get).with("conversation_trace:#{trace_id}").and_return(stored_trace)
 
         result = described_class.get_trace(trace_id)
-        
+
         expect(result[:trace_id]).to eq(trace_id)
         expect(result[:session_id]).to eq(session_id)
       end
@@ -325,8 +320,7 @@ RSpec.describe Services::ConversationTracer do
 
     describe '.get_session_traces' do
       before do
-        allow(GlitchCube.config).to receive(:environment).and_return('development') 
-        allow(GlitchCube.config).to receive(:conversation_tracing_enabled?).and_return(false)
+        allow(GlitchCube.config).to receive_messages(environment: 'development', conversation_tracing_enabled?: false)
       end
 
       let(:trace_keys) { ['conversation_trace:abc123', 'conversation_trace:def456'] }
@@ -343,7 +337,7 @@ RSpec.describe Services::ConversationTracer do
         expect(redis).to receive(:get).with(trace_keys[1]).and_return(trace2)
 
         result = described_class.get_session_traces(session_id, limit: 10)
-        
+
         expect(result.size).to eq(1)
         expect(result.first[:session_id]).to eq(session_id)
       end
@@ -368,7 +362,7 @@ RSpec.describe Services::ConversationTracer do
     it 'does not add traces when disabled' do
       tracer.start_conversation(message: 'Hello', context: {}, persona: 'neutral')
       tracer.trace_llm_call(messages: [], options: {})
-      
+
       expect(tracer.traces).to be_empty
     end
 

@@ -23,7 +23,6 @@ RSpec.describe 'Admin Errors Page' do
       expect(last_response.body).to include("MODE: #{mode}")
     end
 
-
     context 'UI resilience with data' do
       it 'displays no errors message when no errors exist' do
         get '/admin/errors'

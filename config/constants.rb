@@ -34,13 +34,11 @@ module GlitchCube
     # Redis connection
     def redis_connection
       return @redis if defined?(@redis) && @redis
-      
+
       redis_url = config.redis_url
       if redis_url && !redis_url.empty?
         require 'redis'
         @redis = Redis.new(url: redis_url)
-      else
-        nil
       end
     rescue StandardError => e
       logger.warn('⚠️ Failed to connect to Redis', error: e.message)

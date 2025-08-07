@@ -5,7 +5,7 @@ require_relative '../../lib/services/conversation_session'
 
 RSpec.describe Services::ConversationSession do
   let(:session_id) { 'test-session-123' }
-  let(:conversation) do 
+  let(:conversation) do
     double(
       'Conversation',
       session_id: session_id,
@@ -43,7 +43,7 @@ RSpec.describe Services::ConversationSession do
 
     context 'when session does not exist' do
       let(:new_conversation) { double('Conversation', session_id: session_id, source: 'api', persona: 'neutral') }
-      
+
       before do
         allow(Conversation).to receive(:find_or_create_by).and_yield(new_conversation).and_return(new_conversation)
         allow(new_conversation).to receive_messages(
@@ -57,7 +57,7 @@ RSpec.describe Services::ConversationSession do
       it 'creates new session with generated ID' do
         allow(SecureRandom).to receive(:uuid).and_return('generated-uuid-123')
         allow(new_conversation).to receive(:session_id).and_return('generated-uuid-123')
-        
+
         session = described_class.find_or_create
 
         expect(session.session_id).to eq('generated-uuid-123')
@@ -67,7 +67,7 @@ RSpec.describe Services::ConversationSession do
         context = { source: 'webhook', persona: 'playful' }
         expect(new_conversation).to receive('source=').with('webhook')
         expect(new_conversation).to receive('persona=').with('playful')
-        
+
         described_class.find_or_create(context: context)
       end
 
@@ -134,7 +134,7 @@ RSpec.describe Services::ConversationSession do
 
     context 'adding assistant message' do
       let(:assistant_message) { double('Message', role: 'assistant', content: 'Hello there!') }
-      
+
       before do
         allow(conversation).to receive(:add_message).and_return(assistant_message)
         allow(conversation).to receive_messages(
@@ -183,13 +183,12 @@ RSpec.describe Services::ConversationSession do
     before do
       allow(conversation).to receive(:messages).and_return(messages_relation)
       allow(messages_relation).to receive(:order).with(created_at: :desc).and_return(messages_relation)
-      allow(messages_relation).to receive(:limit).and_return(messages_relation)
-      allow(messages_relation).to receive(:reverse).and_return([message1, message2])
+      allow(messages_relation).to receive_messages(limit: messages_relation, reverse: [message1, message2])
     end
 
     it 'returns messages formatted for LLM' do
       allow(messages_relation).to receive(:limit).with(20).and_return(messages_relation)
-      
+
       messages = session.messages_for_llm
 
       expect(messages).to eq([
@@ -215,9 +214,7 @@ RSpec.describe Services::ConversationSession do
       allow(conversation).to receive(:end!)
       allow(conversation).to receive(:update!)
       # Mock ConversationSummaryJob if it exists
-      if defined?(ConversationSummaryJob)
-        allow(ConversationSummaryJob).to receive(:perform_async)
-      end
+      allow(ConversationSummaryJob).to receive(:perform_async) if defined?(ConversationSummaryJob)
     end
 
     it 'marks conversation as ended' do
@@ -267,7 +264,7 @@ RSpec.describe Services::ConversationSession do
   describe '#exists?' do
     context 'with valid conversation' do
       let(:session) { described_class.new(conversation) }
-      
+
       it 'returns true when conversation exists' do
         expect(session.exists?).to be true
       end
@@ -275,12 +272,12 @@ RSpec.describe Services::ConversationSession do
 
     context 'with nil conversation stored internally' do
       let(:session) { described_class.new(conversation) }
-      
+
       before do
         # Simulate nil conversation by setting instance variable directly
         session.instance_variable_set(:@conversation, nil)
       end
-      
+
       it 'returns false when conversation is nil' do
         expect(session.exists?).to be false
       end
@@ -289,7 +286,7 @@ RSpec.describe Services::ConversationSession do
 
   describe '#save' do
     let(:session) { described_class.new(conversation) }
-    
+
     it 'delegates save to conversation model' do
       expect(conversation).to receive(:save).and_return(true)
 
@@ -306,7 +303,7 @@ RSpec.describe Services::ConversationSession do
   describe '#metadata (compatibility)' do
     let(:session) { described_class.new(conversation) }
     let(:start_time) { Time.current }
-    
+
     before do
       allow(conversation).to receive_messages(
         source: 'api',

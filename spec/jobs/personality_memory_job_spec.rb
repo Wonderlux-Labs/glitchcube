@@ -38,9 +38,9 @@ RSpec.describe Jobs::PersonalityMemoryJob do
         # Use VCR to record/replay both HA and LLM calls
         # Allow any external calls within this cassette
         VCR.use_cassette('jobs/personality_memory_extraction',
-                        match_requests_on: [:method, :uri], # Don't match on body for LLM calls
-                        record: ENV['VCR_RECORD'] == 'true' ? :new_episodes : :none,
-                        allow_playback_repeats: true) do
+                         match_requests_on: %i[method uri], # Don't match on body for LLM calls
+                         record: ENV['VCR_RECORD'] == 'true' ? :new_episodes : :none,
+                         allow_playback_repeats: true) do
           allow(Memory).to receive(:where).and_return(double(exists?: false))
           expect(Memory).to receive(:create!).at_least(:once)
 
@@ -63,9 +63,9 @@ RSpec.describe Jobs::PersonalityMemoryJob do
         it 'fetches location and coordinates' do
           # Use VCR to record/replay Home Assistant call
           VCR.use_cassette('jobs/fetch_location_data',
-                          record: ENV['VCR_RECORD'] == 'true' ? :new_episodes : :none) do
+                           record: ENV['VCR_RECORD'] == 'true' ? :new_episodes : :none) do
             result = job.send(:fetch_location_data)
-            
+
             # Assertions based on what HA returns (will vary based on cassette)
             expect(result).to have_key(:display)
             expect(result).to have_key(:coordinates)

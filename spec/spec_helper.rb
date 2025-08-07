@@ -51,11 +51,11 @@ RSpec.configure do |config|
   end
 
   # Global timeout for all examples - tests should be fast!
-  config.around(:each) do |example|
-    timeout_seconds = ENV['TEST_TIMEOUT']&.to_i || 10  # 10 second default
-    
+  config.around do |example|
+    timeout_seconds = ENV['TEST_TIMEOUT']&.to_i || 10 # 10 second default
+
     begin
-      Timeout::timeout(timeout_seconds) do
+      Timeout.timeout(timeout_seconds) do
         example.run
       end
     rescue Timeout::Error
@@ -84,7 +84,7 @@ RSpec.configure do |config|
   end
 
   # Configure test environment settings
-  config.before do |example|
+  config.before do |_example|
     # No TTS mocking needed - HomeAssistantClient.speak() calls are recorded by VCR
     # All TTS now goes through Home Assistant service calls which VCR captures
 
@@ -107,7 +107,7 @@ RSpec.configure do |config|
 
     # Reset circuit breakers if they exist (but don't disable them globally)
     Services::CircuitBreakerService.reset_all_breakers if defined?(Services::CircuitBreakerService) && Services::CircuitBreakerService.respond_to?(:reset_all_breakers)
-    
+
     # Clear any Cube::Settings overrides
     Cube::Settings.clear_overrides! if defined?(Cube::Settings)
 
@@ -156,12 +156,12 @@ VCR.configure do |config|
   config.cassette_library_dir = 'spec/vcr_cassettes'
   config.hook_into :webmock
   config.configure_rspec_metadata!
-  
+
   # Allow HTTP connections when recording new cassettes
   config.allow_http_connections_when_no_cassette = false # Still strict by default
   config.ignore_localhost = false # Record localhost calls too
   config.default_cassette_options = { record: :once } # Record ONCE by default
-  
+
   # Automatic cassette naming from test description
   # NOTE: VCR doesn't have a naming_hook method - this was causing errors
   # config.naming_hook = lambda do |request|
@@ -173,17 +173,17 @@ VCR.configure do |config|
   #                   .gsub(/\s+/, '_')
   #                   .squeeze('_')
   #                   .slice(0, 100)
-  #     
+  #
   #     spec_file = example.file_path.gsub(%r{^.*/spec/}, '')
   #                        .gsub(/_spec\.rb$/, '')
   #                        .gsub('/', '_')
-  #     
+  #
   #     "#{spec_file}/#{name}"
   #   else
   #     'default_cassette'
   #   end
   # end
-  
+
   # Best practice: Use automatic cassette naming
   config.default_cassette_options = {
     # Smart recording: Record once if missing, otherwise replay
@@ -203,7 +203,7 @@ VCR.configure do |config|
   config.filter_sensitive_data('<OPENROUTER_API_KEY>') { ENV.fetch('OPENROUTER_API_KEY', nil) }
   config.filter_sensitive_data('<HOME_ASSISTANT_TOKEN>') { ENV.fetch('HOME_ASSISTANT_TOKEN', nil) }
   config.filter_sensitive_data('<GITHUB_TOKEN>') { ENV.fetch('GITHUB_TOKEN', nil) }
-  
+
   # Also filter in headers
   config.before_record do |interaction|
     # Handle both string and array Authorization headers
@@ -213,11 +213,11 @@ VCR.configure do |config|
     elsif auth_header.is_a?(String)
       interaction.request.headers['Authorization'] = auth_header.gsub(/Bearer .+/, 'Bearer <TOKEN>')
     end
-    
+
     # Handle API key headers
     api_key = interaction.request.headers['X-Api-Key']
     if api_key.is_a?(Array)
-      interaction.request.headers['X-Api-Key'] = api_key.map { |k| '<API_KEY>' }
+      interaction.request.headers['X-Api-Key'] = api_key.map { |_k| '<API_KEY>' }
     elsif api_key.is_a?(String)
       interaction.request.headers['X-Api-Key'] = '<API_KEY>'
     end
@@ -226,12 +226,12 @@ VCR.configure do |config|
   # Fail fast on missing cassettes with helpful error
   config.before_http_request do |request|
     unless VCR.current_cassette
-      raise VCR::Errors::UnhandledHTTPRequestError.new(request).tap do |error|
+      raise VCR::Errors::UnhandledHTTPRequestError.new(request).tap do |_error|
         puts <<~ERROR
           ❌ NO VCR CASSETTE ACTIVE FOR REQUEST
-          
+
           Request: #{request.method.upcase} #{request.uri}
-          
+
           To fix:
           1. Wrap this test in VCR.use_cassette or use vcr: metadata
           2. Record locally: VCR_RECORD=true bundle exec rspec #{RSpec.current_example.location}
@@ -245,7 +245,7 @@ VCR.configure do |config|
   if ENV['VCR_RECORD'] == 'true' && ENV['CI'] != 'true'
     # Track what we've already logged to avoid spam
     @vcr_logged_requests ||= Set.new
-    
+
     config.before_record do |interaction|
       # interaction.request.uri might be a string or URI object
       uri = interaction.request.uri
@@ -282,32 +282,32 @@ WebMock.after_request do |request_signature, _response|
       # VCR is handling this request, allow it
       next
     end
-    
+
     error_msg = <<~ERROR
       ❌ EXTERNAL REQUEST ATTEMPTED WITHOUT VCR CASSETTE
-      
+
       Request: #{request_signature.method.upcase} #{request_signature.uri}
       Host: #{host}
       Test: #{RSpec.current_example&.location}
-      
+
       This request bypassed VCR! To fix:
-      
+
       1. Use VCR.use_cassette in your test:
          VCR.use_cassette('cassette_name') do
            # your test code
          end
-      
+
       2. Or use RSpec metadata:
          it 'does something', vcr: { cassette_name: 'my_cassette' } do
            # your test code
          end
-      
+
       3. To record a new cassette:
          VCR_RECORD=true bundle exec rspec #{RSpec.current_example&.location}
-      
+
       ALL external requests MUST go through VCR!
     ERROR
-    
+
     raise error_msg
   end
 end
@@ -319,20 +319,20 @@ if ENV['CI'] == 'true'
     config.before_record do |interaction|
       raise <<~ERROR
         ❌ VCR TRIED TO RECORD IN CI!
-        
+
         Request: #{interaction.request.method.upcase} #{interaction.request.uri}
-        
+
         This should never happen in CI. Cassettes must be recorded locally and committed.
         The test is missing a cassette or the cassette doesn't match the request.
       ERROR
     end
   end
-  
-  puts "✅ CI Mode: VCR will only replay existing cassettes"
+
+  puts '✅ CI Mode: VCR will only replay existing cassettes'
 elsif ENV['VCR_RECORD'] == 'true'
-  puts "🎥 Recording Mode: VCR will record new episodes to cassettes"
-  puts "   Remember to commit new/updated cassettes!"
+  puts '🎥 Recording Mode: VCR will record new episodes to cassettes'
+  puts '   Remember to commit new/updated cassettes!'
 else
-  puts "▶️  Playback Mode: VCR will only replay existing cassettes"
-  puts "   Use VCR_RECORD=true to record new cassettes"
+  puts '▶️  Playback Mode: VCR will only replay existing cassettes'
+  puts '   Use VCR_RECORD=true to record new cassettes'
 end

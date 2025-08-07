@@ -153,8 +153,8 @@ module Services
       if agent_result[:success] && agent_result[:fix]
         fix_data = agent_result[:fix]
         changes = fix_data[:changes] || fix_data['changes'] || []
-        description = fix_data[:description] || fix_data['description'] || "No description provided"
-        
+        description = fix_data[:description] || fix_data['description'] || 'No description provided'
+
         {
           success: true,
           description: description,
@@ -163,7 +163,7 @@ module Services
           commit_message: generate_commit_message(error, fix_data)
         }
       else
-        error_message = agent_result[:error] || "No fix agent result or missing fix data"
+        error_message = agent_result[:error] || 'No fix agent result or missing fix data'
         { success: false, error: error_message }
       end
     end

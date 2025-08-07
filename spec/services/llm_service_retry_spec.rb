@@ -36,14 +36,14 @@ RSpec.describe Services::LLMService do
           expect(attempt_count).to eq(1)
         end
       end
-      
+
       context 'with retries enabled' do
         around do |example|
           ENV['ENABLE_RETRIES'] = 'true'
           example.run
           ENV.delete('ENABLE_RETRIES')
         end
-        
+
         it 'retries on rate limit errors' do
           attempt_count = 0
 
@@ -54,6 +54,7 @@ RSpec.describe Services::LLMService do
             described_class.send(:with_retry_logic, model: 'test-model', max_attempts: 3) do
               attempt_count += 1
               raise Services::LLMService::RateLimitError, 'Rate limited' if attempt_count < 3
+
               'success'
             end
           end.not_to raise_error

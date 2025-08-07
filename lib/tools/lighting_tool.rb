@@ -16,21 +16,21 @@ class LightingTool
 
   def self.call(action:, params: '{}')
     params = JSON.parse(params) if params.is_a?(String)
-    
+
     # Entity mapping - all RGB-capable lights based on our hardware scan
     lights = {
       # Primary ambient lighting
-      'cube' => 'light.cube_light',                           # Main cube lighting (rgb + color_temp)
-      'cart' => 'light.cart_light',                          # Cart/secondary lighting (rgb + color_temp)
-      
+      'cube' => 'light.cube_light', # Main cube lighting (rgb + color_temp)
+      'cart' => 'light.cart_light', # Cart/secondary lighting (rgb + color_temp)
+
       # Conversation feedback (TODO: Rename to cube_speaker_light in HA)
       'voice_ring' => 'light.home_assistant_voice_09739d_led_ring', # Voice assistant LED ring
       'speaker_ring' => 'light.home_assistant_voice_09739d_led_ring', # Alias for voice_ring
-      
-      # AWTRIX display system  
+
+      # AWTRIX display system
       'matrix' => 'light.awtrix_b85e20_matrix',               # Main 32x8 RGB matrix
       'indicator_1' => 'light.awtrix_b85e20_indicator_1',     # Status indicator 1
-      'indicator_2' => 'light.awtrix_b85e20_indicator_2',     # Status indicator 2  
+      'indicator_2' => 'light.awtrix_b85e20_indicator_2',     # Status indicator 2
       'indicator_3' => 'light.awtrix_b85e20_indicator_3'      # Status indicator 3
     }
 
@@ -42,7 +42,7 @@ class LightingTool
       'indicators' => [lights['indicator_1'], lights['indicator_2'], lights['indicator_3']],
       'awtrix' => [lights['matrix'], lights['indicator_1'], lights['indicator_2'], lights['indicator_3']],
       'conversation' => [lights['voice_ring'], lights['matrix']],
-      'feedback' => [lights['voice_ring']]  # Just the speaker ring for conversation feedback
+      'feedback' => [lights['voice_ring']] # Just the speaker ring for conversation feedback
     }
 
     client = HomeAssistantClient.new
@@ -69,97 +69,87 @@ class LightingTool
     "Lighting control error: #{e.message}"
   end
 
-  private
-
   # List all available lights with their current status and capabilities
   def self.list_available_lights(client, lights, groups, params)
     verbose = params['verbose'] != false # Default to verbose unless explicitly false
-    
+
     result = []
-    
+
     # Show available individual lights
-    result << "=== AVAILABLE LIGHTS ==="
-    
+    result << '=== AVAILABLE LIGHTS ==='
+
     if verbose
       lights.each do |key, entity_id|
-        begin
-          state = client.state(entity_id)
-          
-          if state && state['state'] != 'unavailable'
-            # Get detailed info about the light's capabilities
-            supported_modes = state.dig('attributes', 'supported_color_modes') || []
-            current_brightness = state.dig('attributes', 'brightness')
-            current_rgb = state.dig('attributes', 'rgb_color')
-            friendly_name = state.dig('attributes', 'friendly_name')
-            
-            light_info = "#{key} (#{entity_id}): #{state['state']}"
-            light_info += " - #{friendly_name}" if friendly_name != entity_id
-            light_info += " | Modes: #{supported_modes.join(', ')}" if supported_modes.any?
-            light_info += " | Brightness: #{current_brightness}" if current_brightness
-            light_info += " | Color: #{current_rgb}" if current_rgb
-            
-            result << "  ✅ #{light_info}"
-          else
-            result << "  ❌ #{key} (#{entity_id}): unavailable"
-          end
-        rescue => e
-          result << "  ❌ #{key} (#{entity_id}): error - #{e.message}"
+        state = client.state(entity_id)
+
+        if state && state['state'] != 'unavailable'
+          # Get detailed info about the light's capabilities
+          supported_modes = state.dig('attributes', 'supported_color_modes') || []
+          current_brightness = state.dig('attributes', 'brightness')
+          current_rgb = state.dig('attributes', 'rgb_color')
+          friendly_name = state.dig('attributes', 'friendly_name')
+
+          light_info = "#{key} (#{entity_id}): #{state['state']}"
+          light_info += " - #{friendly_name}" if friendly_name != entity_id
+          light_info += " | Modes: #{supported_modes.join(', ')}" if supported_modes.any?
+          light_info += " | Brightness: #{current_brightness}" if current_brightness
+          light_info += " | Color: #{current_rgb}" if current_rgb
+
+          result << "  ✅ #{light_info}"
+        else
+          result << "  ❌ #{key} (#{entity_id}): unavailable"
         end
+      rescue StandardError => e
+        result << "  ❌ #{key} (#{entity_id}): error - #{e.message}"
       end
-      
+
       # Show available groups in verbose mode
-      result << ""
-      result << "=== AVAILABLE GROUPS ==="
+      result << ''
+      result << '=== AVAILABLE GROUPS ==='
       groups.each do |group_name, entity_list|
         available_count = 0
         entity_list.each do |entity_id|
-          begin
-            state = client.state(entity_id)
-            available_count += 1 if state && state['state'] != 'unavailable'
-          rescue
-            # Skip unavailable lights
-          end
+          state = client.state(entity_id)
+          available_count += 1 if state && state['state'] != 'unavailable'
+        rescue StandardError
+          # Skip unavailable lights
         end
-        
+
         result << "  #{group_name}: #{available_count}/#{entity_list.size} lights available"
-        if available_count < entity_list.size
-          result << "    (some lights offline or unavailable)"
-        end
+        result << '    (some lights offline or unavailable)' if available_count < entity_list.size
       end
-      
+
       # Usage examples
-      result << ""
-      result << "=== USAGE EXAMPLES ==="
+      result << ''
+      result << '=== USAGE EXAMPLES ==='
       result << 'Set cube to red: {"action": "set_color", "params": {"light": "cube", "color": "#FF0000", "brightness": 200}}'
       result << 'Mood lighting: {"action": "mood_lighting", "params": {"group": "ambient", "color": "#00FF80", "brightness": 150}}'
       result << 'Breathing effect: {"action": "breathing_effect", "params": {"light": "voice_ring", "color": "#FF00FF", "cycles": 3}}'
-      
+
     else
       # Simple list
       available_lights = []
       lights.each do |key, entity_id|
-        begin
-          state = client.state(entity_id)
-          available_lights << key if state && state['state'] != 'unavailable'
-        rescue
-          # Skip errors in simple mode
-        end
+        state = client.state(entity_id)
+        available_lights << key if state && state['state'] != 'unavailable'
+      rescue StandardError
+        # Skip errors in simple mode
       end
-      
+
       result << "Available: #{available_lights.join(', ')}"
       result << "Groups: #{groups.keys.join(', ')}"
       result << 'Use verbose: true for detailed capabilities'
     end
-    
+
     Services::LoggerService.log_api_call(
       service: 'lighting_tool',
       endpoint: 'list_lights',
       verbose: verbose,
       available_count: lights.size
     )
-    
+
     result.join("\n")
-  rescue => e
+  rescue StandardError => e
     "Error listing lights: #{e.message}"
   end
 
@@ -182,10 +172,10 @@ class LightingTool
     service_data[:brightness] = brightness if brightness
 
     begin
-      response = client.call_service('light', 'turn_on', service_data)
+      client.call_service('light', 'turn_on', service_data)
       color_desc = color.is_a?(String) ? color : rgb_color.to_s
-      brightness_desc = brightness ? " at #{brightness} brightness" : ""
-      
+      brightness_desc = brightness ? " at #{brightness} brightness" : ''
+
       Services::LoggerService.log_api_call(
         service: 'lighting_tool',
         endpoint: 'set_color',
@@ -195,7 +185,7 @@ class LightingTool
       )
 
       "Set #{light_key} to #{color_desc}#{brightness_desc}"
-    rescue => e
+    rescue StandardError => e
       "Failed to set #{light_key} color: #{e.message}"
     end
   end
@@ -211,11 +201,11 @@ class LightingTool
     return "Error: Unknown light '#{light_key}'. Available: #{lights.keys.join(', ')}" unless entity_id
 
     begin
-      response = client.call_service('light', 'turn_on', { 
-        entity_id: entity_id, 
-        brightness: brightness,
-        transition: params['transition'] || 1
-      })
+      client.call_service('light', 'turn_on', {
+                            entity_id: entity_id,
+                            brightness: brightness,
+                            transition: params['transition'] || 1
+                          })
 
       Services::LoggerService.log_api_call(
         service: 'lighting_tool',
@@ -225,7 +215,7 @@ class LightingTool
       )
 
       "Set #{light_key} brightness to #{brightness}"
-    rescue => e
+    rescue StandardError => e
       "Failed to set #{light_key} brightness: #{e.message}"
     end
   end
@@ -239,9 +229,9 @@ class LightingTool
     return "Error: Unknown light '#{light_key}'. Available: #{lights.keys.join(', ')}" unless entity_id
 
     begin
-      response = client.call_service('light', 'turn_off', { entity_id: entity_id })
+      client.call_service('light', 'turn_off', { entity_id: entity_id })
       "Turned off #{light_key}"
-    rescue => e
+    rescue StandardError => e
       "Failed to turn off #{light_key}: #{e.message}"
     end
   end
@@ -262,12 +252,12 @@ class LightingTool
 
     begin
       # Set all lights in group simultaneously
-      response = client.call_service('light', 'turn_on', {
-        entity_id: entity_ids,
-        rgb_color: rgb_color,
-        brightness: brightness,
-        transition: params['transition'] || 2
-      })
+      client.call_service('light', 'turn_on', {
+                            entity_id: entity_ids,
+                            rgb_color: rgb_color,
+                            brightness: brightness,
+                            transition: params['transition'] || 2
+                          })
 
       color_desc = color.is_a?(String) ? color : rgb_color.to_s
 
@@ -281,7 +271,7 @@ class LightingTool
       )
 
       "Set #{group_key} group (#{entity_ids.size} lights) to #{color_desc} mood lighting"
-    rescue => e
+    rescue StandardError => e
       "Failed to set #{group_key} mood lighting: #{e.message}"
     end
   end
@@ -299,32 +289,32 @@ class LightingTool
     return "Error: Unknown light '#{light_key}'. Available: #{lights.keys.join(', ')}" unless entity_id
 
     rgb_color = parse_color(color)
-    return "Error: Invalid color format" unless rgb_color
+    return 'Error: Invalid color format' unless rgb_color
 
     begin
-      cycles.times do |cycle|
+      cycles.times do |_cycle|
         # Fade in
         client.call_service('light', 'turn_on', {
-          entity_id: entity_id,
-          rgb_color: rgb_color,
-          brightness: 255,
-          transition: duration / 2
-        })
-        
+                              entity_id: entity_id,
+                              rgb_color: rgb_color,
+                              brightness: 255,
+                              transition: duration / 2
+                            })
+
         sleep(duration / 2)
-        
+
         # Fade out
         client.call_service('light', 'turn_on', {
-          entity_id: entity_id,
-          brightness: 30,
-          transition: duration / 2
-        })
-        
+                              entity_id: entity_id,
+                              brightness: 30,
+                              transition: duration / 2
+                            })
+
         sleep(duration / 2)
       end
 
       color_desc = color.is_a?(String) ? color : rgb_color.to_s
-      
+
       Services::LoggerService.log_api_call(
         service: 'lighting_tool',
         endpoint: 'breathing_effect',
@@ -334,7 +324,7 @@ class LightingTool
       )
 
       "Completed #{cycles} breathing cycles on #{light_key}"
-    rescue => e
+    rescue StandardError => e
       "Failed breathing effect on #{light_key}: #{e.message}"
     end
   end
@@ -342,7 +332,7 @@ class LightingTool
   # Get current status of a light
   def self.get_light_status(client, lights, params)
     light_key = params['light']
-    
+
     if light_key
       # Get status of specific light
       entity_id = lights[light_key.to_s]
@@ -351,19 +341,17 @@ class LightingTool
       begin
         state = client.state(entity_id)
         format_light_status(light_key, state)
-      rescue => e
+      rescue StandardError => e
         "Error getting #{light_key} status: #{e.message}"
       end
     else
       # Get status of all lights
       statuses = []
       lights.each do |key, entity_id|
-        begin
-          state = client.state(entity_id)
-          statuses << format_light_status(key, state)
-        rescue => e
-          statuses << "#{key}: Error - #{e.message}"
-        end
+        state = client.state(entity_id)
+        statuses << format_light_status(key, state)
+      rescue StandardError => e
+        statuses << "#{key}: Error - #{e.message}"
       end
       statuses.join(', ')
     end
@@ -376,17 +364,17 @@ class LightingTool
       # Hex color like '#FF0000' or 'FF0000'
       hex = color.gsub('#', '')
       return nil unless hex.match?(/^[0-9A-Fa-f]{6}$/)
-      
+
       [
         hex[0..1].to_i(16),  # Red
-        hex[2..3].to_i(16),  # Green  
+        hex[2..3].to_i(16),  # Green
         hex[4..5].to_i(16)   # Blue
       ]
     when Array
       # RGB array like [255, 0, 0]
       return color if color.length == 3 && color.all? { |c| c.is_a?(Integer) && c.between?(0, 255) }
     end
-    
+
     nil
   end
 
@@ -395,11 +383,11 @@ class LightingTool
     return "#{light_key}: unavailable" unless state && state['state'] != 'unavailable'
 
     status_parts = ["#{light_key}: #{state['state']}"]
-    
+
     if state['state'] == 'on'
       brightness = state.dig('attributes', 'brightness')
       rgb_color = state.dig('attributes', 'rgb_color')
-      
+
       status_parts << "brightness #{brightness}" if brightness
       status_parts << "rgb #{rgb_color}" if rgb_color
     end

@@ -14,7 +14,7 @@ RSpec.describe 'Admin Conversation Traces API', type: :request do
 
   before do
     # Clear any existing traces
-    redis.keys('conversation_trace:*').each { |key| redis.del(key) } if redis
+    redis&.keys('conversation_trace:*')&.each { |key| redis.del(key) }
   rescue Redis::CannotConnectError
     skip 'Redis not available for integration tests'
   end
@@ -46,11 +46,11 @@ RSpec.describe 'Admin Conversation Traces API', type: :request do
 
         # Make actual conversation request to generate trace
         post '/api/v1/conversation', conversation_request.to_json, 'CONTENT_TYPE' => 'application/json'
-        
+
         expect(last_response).to be_ok
         conversation_data = JSON.parse(last_response.body)
         expect(conversation_data['trace_id']).to be_present
-        
+
         # Now request the traces for this session
         get '/admin/conversation_traces', session_id: session_id
 
@@ -87,11 +87,11 @@ RSpec.describe 'Admin Conversation Traces API', type: :request do
         }
 
         post '/api/v1/conversation', conversation_request.to_json, 'CONTENT_TYPE' => 'application/json'
-        
+
         expect(last_response).to be_ok
         conversation_data = JSON.parse(last_response.body)
         generated_trace_id = conversation_data['trace_id']
-        
+
         # Now request the specific trace
         get '/admin/conversation_traces', trace_id: generated_trace_id
 
@@ -125,7 +125,7 @@ RSpec.describe 'Admin Conversation Traces API', type: :request do
           context: {
             session_id: "#{session_id}-detailed",
             location: 'Deep Playa',
-            tools: ['weather', 'memory_search'],
+            tools: %w[weather memory_search],
             enable_tts: false, # Disable TTS to avoid external service calls
             trace_conversation: true
           },
@@ -133,21 +133,21 @@ RSpec.describe 'Admin Conversation Traces API', type: :request do
         }
 
         post '/api/v1/conversation', conversation_request.to_json, 'CONTENT_TYPE' => 'application/json'
-        
+
         expect(last_response).to be_ok
         conversation_data = JSON.parse(last_response.body)
         trace_id = conversation_data['trace_id']
         expect(trace_id).to be_present
-        
+
         # Request detailed trace analysis
         get "/admin/trace_details/#{trace_id}"
 
         expect(last_response).to be_ok
         data = JSON.parse(last_response.body)
-        
+
         expect(data['trace']).to be_present
         expect(data['summary']).to be_present
-        
+
         # Verify summary contains expected analysis
         summary = data['summary']
         expect(summary['total_steps']).to be > 0
@@ -156,7 +156,7 @@ RSpec.describe 'Admin Conversation Traces API', type: :request do
         expect(summary['services_used']).to be_an(Array)
         expect(summary['llm_calls']).to be >= 1
         expect(summary['has_errors']).to be_in([true, false])
-        
+
         # Verify trace structure
         trace = data['trace']
         expect(trace['trace_id']).to eq(trace_id)
@@ -181,28 +181,28 @@ RSpec.describe 'Admin Conversation Traces API', type: :request do
         }
 
         post '/api/v1/conversation', conversation_request.to_json, 'CONTENT_TYPE' => 'application/json'
-        
+
         conversation_data = JSON.parse(last_response.body)
         trace_id = conversation_data['trace_id']
-        
+
         get "/admin/trace_details/#{trace_id}"
-        
+
         data = JSON.parse(last_response.body)
         services_used = data['summary']['services_used']
-        
+
         # Verify we see the expected services in the flow
         expect(services_used).to include('ConversationModule')
         expect(services_used).to include('LLMService')
-        
+
         # Check that we have detailed step information
         traces = data['trace']['traces']
         expect(traces).not_to be_empty
-        
+
         # Verify we have a start step
         start_step = traces.find { |t| t['action'] == 'start_conversation' }
         expect(start_step).to be_present
         expect(start_step['service']).to eq('ConversationModule')
-        
+
         # Verify we have an LLM call
         llm_step = traces.find { |t| t['service'] == 'LLMService' }
         expect(llm_step).to be_present
@@ -241,60 +241,60 @@ RSpec.describe 'Admin Conversation Traces API', type: :request do
 
       # Make the conversation request
       post '/api/v1/conversation', conversation_request.to_json, 'CONTENT_TYPE' => 'application/json'
-      
+
       expect(last_response).to be_ok
       conversation_response = JSON.parse(last_response.body)
-      
+
       # Verify conversation worked
       expect(conversation_response['response']).to be_present
       expect(conversation_response['trace_id']).to be_present
       expect(conversation_response['session_id']).to eq("#{session_id}-e2e")
-      
+
       trace_id = conversation_response['trace_id']
 
       # Step 2: Retrieve the full trace
       get "/admin/trace_details/#{trace_id}"
-      
+
       expect(last_response).to be_ok
       trace_data = JSON.parse(last_response.body)
-      
+
       # Step 3: Verify comprehensive trace capture
       trace = trace_data['trace']
       summary = trace_data['summary']
-      
+
       expect(trace['trace_id']).to eq(trace_id)
       expect(trace['session_id']).to eq("#{session_id}-e2e")
       expect(trace['total_steps']).to be >= 3 # At minimum: start, system prompt, LLM call, complete
-      
+
       # Verify timing information
       expect(trace['total_duration_ms']).to be > 0
       expect(trace['started_at']).to be_present
-      
+
       # Verify service summary
       expect(summary['services_used']).to include('ConversationModule')
       expect(summary['services_used']).to include('LLMService')
       expect(summary['llm_calls']).to be >= 1
-      
+
       # Step 4: Verify detailed step information
       steps = trace['traces']
-      
+
       # Check conversation start
       start_step = steps.find { |s| s['action'] == 'start_conversation' }
       expect(start_step).to be_present
       expect(start_step['data']['message']).to include('intersection of technology and art')
       expect(start_step['data']['persona']).to eq('contemplative')
-      
-      # Check system prompt generation  
+
+      # Check system prompt generation
       system_prompt_step = steps.find { |s| s['service'] == 'SystemPromptService' }
       expect(system_prompt_step).to be_present if system_prompt_step
-      
+
       # Check LLM call
       llm_step = steps.find { |s| s['service'] == 'LLMService' }
       expect(llm_step).to be_present
       expect(llm_step['data']['model']).to be_present
       expect(llm_step['data']['temperature']).to be_present
       expect(llm_step['success']).to be true
-      
+
       # Check conversation completion
       complete_step = steps.find { |s| s['action'] == 'complete_conversation' }
       expect(complete_step).to be_present
@@ -303,7 +303,7 @@ RSpec.describe 'Admin Conversation Traces API', type: :request do
 
       # Step 5: Verify we can retrieve by session ID
       get '/admin/conversation_traces', session_id: "#{session_id}-e2e"
-      
+
       expect(last_response).to be_ok
       session_traces = JSON.parse(last_response.body)
       expect(session_traces['traces']).to have(1).item

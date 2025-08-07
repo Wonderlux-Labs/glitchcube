@@ -5,8 +5,8 @@
 # Demonstrates all conversation states with LED feedback
 # Run with: bundle exec rake run_script[scripts/test_conversation_feedback.rb]
 
-puts "🎭 Testing Conversation Feedback LED States"
-puts "=" * 50
+puts '🎭 Testing Conversation Feedback LED States'
+puts '=' * 50
 
 feedback_service = Services::ConversationFeedbackService.new
 
@@ -26,15 +26,15 @@ conversation_states.each_with_index do |state_config, index|
   state = state_config[:state]
   description = state_config[:description]
   duration = state_config[:duration]
-  
+
   puts "\n#{index + 1}. #{state.to_s.upcase} - #{description}"
-  
+
   begin
     # Set the LED state
     case state
     when :idle
       Services::ConversationFeedbackService.set_idle
-    when :listening  
+    when :listening
       Services::ConversationFeedbackService.set_listening
     when :thinking
       Services::ConversationFeedbackService.set_thinking
@@ -43,23 +43,22 @@ conversation_states.each_with_index do |state_config, index|
     when :completed
       Services::ConversationFeedbackService.set_completed
     end
-    
-    puts "   ✅ LED state set successfully"
-    
+
+    puts '   ✅ LED state set successfully'
+
     # Show current status
     status = feedback_service.get_status
-    if status[:state] != 'unavailable'
+    if status[:state] == 'unavailable'
+      puts '   ⚠️  LED ring unavailable'
+    else
       color = status[:rgb_color] || 'unknown'
       brightness = status[:brightness] || 'unknown'
       puts "   📊 Current: #{color} at #{brightness} brightness"
-    else
-      puts "   ⚠️  LED ring unavailable"
     end
-    
-  rescue => e
+  rescue StandardError => e
     puts "   ❌ Error: #{e.message}"
   end
-  
+
   puts "   ⏱️  Waiting #{duration} seconds..."
   sleep(duration)
 end
@@ -74,17 +73,17 @@ mood_colors = [
 
 mood_colors.each do |mood|
   puts "\n🎨 #{mood[:description]}"
-  
+
   begin
     Services::ConversationFeedbackService.set_mood_color(
-      mood[:color], 
+      mood[:color],
       brightness: mood[:brightness]
     )
     puts "   ✅ Mood color set: #{mood[:color]}"
-  rescue => e
+  rescue StandardError => e
     puts "   ❌ Error: #{e.message}"
   end
-  
+
   sleep(2)
 end
 
@@ -92,24 +91,24 @@ puts "\n🧪 Testing error state..."
 
 begin
   Services::ConversationFeedbackService.set_error
-  puts "   ✅ Error state set (flashing red)"
+  puts '   ✅ Error state set (flashing red)'
   sleep(3)
-rescue => e
+rescue StandardError => e
   puts "   ❌ Error setting error state: #{e.message}"
 end
 
 puts "\n🔄 Returning to idle state..."
 begin
   Services::ConversationFeedbackService.set_idle
-  puts "   ✅ Back to idle (dim ready state)"
-rescue => e
+  puts '   ✅ Back to idle (dim ready state)'
+rescue StandardError => e
   puts "   ❌ Error: #{e.message}"
 end
 
-puts "\n" + "=" * 50
-puts "🎭 Conversation Feedback Test Complete!"
-puts ""
-puts "💡 Next steps:"
+puts "\n#{'=' * 50}"
+puts '🎭 Conversation Feedback Test Complete!'
+puts ''
+puts '💡 Next steps:'
 puts "   1. Rename LED entity in Home Assistant to 'cube_speaker_light'"
-puts "   2. Test with actual conversation flow"
-puts "   3. Adjust colors/timing based on user experience"
+puts '   2. Test with actual conversation flow'
+puts '   3. Adjust colors/timing based on user experience'

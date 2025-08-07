@@ -107,7 +107,7 @@ module Services
       return unless @enabled
 
       step_start = Time.now
-      
+
       trace_data = {
         message_count: messages&.size || 0,
         model: options[:model],
@@ -211,7 +211,7 @@ module Services
     end
 
     # Trace Home Assistant integration
-    def trace_ha_integration(action:, entity_id: nil, success:, response: nil, error: nil)
+    def trace_ha_integration(action:, success:, entity_id: nil, response: nil, error: nil)
       return unless @enabled
 
       add_trace(
@@ -286,8 +286,8 @@ module Services
       return [] unless GlitchCube.config.environment == 'development' || GlitchCube.config.conversation_tracing_enabled?
 
       redis = Redis.new(url: GlitchCube.config.redis_url)
-      trace_keys = redis.keys("conversation_trace:*")
-      
+      trace_keys = redis.keys('conversation_trace:*')
+
       traces = []
       trace_keys.each do |key|
         data = redis.get(key)
@@ -314,7 +314,7 @@ module Services
           action: action,
           timestamp: timestamp.iso8601(3),
           data: data,
-          timing_ms: timing || timing_since_start,  # Default to timing since start if not provided
+          timing_ms: timing || timing_since_start, # Default to timing since start if not provided
           success: success,
           metadata: metadata
         }
@@ -333,7 +333,7 @@ module Services
       return nil unless text
       return text if text.length <= limit
 
-      "#{text[0..limit-4]}..."
+      "#{text[0..(limit - 4)]}..."
     end
 
     def sanitize_context(context)

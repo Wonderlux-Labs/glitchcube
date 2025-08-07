@@ -13,7 +13,7 @@ RSpec.describe 'Self-Healing Error Handler Integration' do
 
     # Clean up any existing proposed fixes
     FileUtils.rm_rf('log/proposed_fixes')
-    
+
     # Clear all OpenRouter service state to prevent mock leaking
     OpenRouterService.instance_variable_set(:@client, nil) if defined?(OpenRouterService)
   end
@@ -31,7 +31,7 @@ RSpec.describe 'Self-Healing Error Handler Integration' do
     it 'analyzes a real error and proposes a fix', vcr: { cassette_name: 'self_healing/dry_run_flow' } do
       # Ensure Redis is available for the service
       expect(redis.ping).to eq('PONG')
-      
+
       # Simulate an error that occurs multiple times
       error = NoMethodError.new("undefined method `speak' for nil:NilClass")
       context = {
@@ -53,8 +53,8 @@ RSpec.describe 'Self-Healing Error Handler Integration' do
       puts "Result2: #{result2.inspect}"
 
       # Check that it was processed (might be monitored, fix_proposed, or fix_failed)
-      expect(result2[:action]).to be_in(['fix_proposed', 'monitored', 'fix_failed'])
-      
+      expect(result2[:action]).to be_in(%w[fix_proposed monitored fix_failed])
+
       if result2[:action] == 'fix_proposed'
         expect(result2[:mode]).to eq('DRY_RUN')
         expect(result2[:fix_proposed]).to be_present
@@ -63,10 +63,10 @@ RSpec.describe 'Self-Healing Error Handler Integration' do
         # In DRY_RUN mode, fixes may be saved to a file or just returned
         # The directory might not exist in test environment
         proposed_fixes_dir = File.join(Cube::Settings.app_root, 'log', 'proposed_fixes')
-        
+
         if Dir.exist?(proposed_fixes_dir)
           jsonl_files = Dir.glob(File.join(proposed_fixes_dir, '*.jsonl'))
-          
+
           if jsonl_files&.any?
             # Read and verify the proposed fix if file exists
             fix_content = File.read(jsonl_files.first)
@@ -77,7 +77,7 @@ RSpec.describe 'Self-Healing Error Handler Integration' do
             expect(fix_data['proposed_fix']).to be_present
           end
         end
-        
+
         # The important part is that the fix was proposed
         expect(result2[:fix_proposed]).to be_present
 

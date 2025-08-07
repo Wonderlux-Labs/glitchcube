@@ -38,126 +38,120 @@ class ErrorHandlingTool
     "Error handling tool error: #{e.message}"
   end
 
-  private
-
   # Get comprehensive system health status
   def self.get_system_health(params)
     verbose = params['verbose'] != false
     result = []
-    
-    result << "=== SYSTEM HEALTH STATUS ==="
-    
+
+    result << '=== SYSTEM HEALTH STATUS ==='
+
     begin
       # Circuit breaker status
       circuit_status = Services::CircuitBreakerService.status
-      result << ""
-      result << "🔌 CIRCUIT BREAKERS:"
-      
+      result << ''
+      result << '🔌 CIRCUIT BREAKERS:'
+
       overall_healthy = true
       circuit_status.each do |breaker|
         status_icon = case breaker[:state]
-                     when :closed then "✅"
-                     when :half_open then "⚠️ "
-                     when :open then "❌"
-                     else "❓"
-                     end
-        
+                      when :closed then '✅'
+                      when :half_open then '⚠️ '
+                      when :open then '❌'
+                      else '❓'
+                      end
+
         result << "  #{status_icon} #{breaker[:name]}: #{breaker[:state]}"
-        
-        if verbose && breaker[:failure_count] > 0
-          result << "    └─ Failures: #{breaker[:failure_count]}, Last failure: #{breaker[:last_failure_time]}"
-        end
-        
+
+        result << "    └─ Failures: #{breaker[:failure_count]}, Last failure: #{breaker[:last_failure_time]}" if verbose && breaker[:failure_count].positive?
+
         overall_healthy = false unless breaker[:state] == :closed
       end
-      
+
       # System uptime
-      result << ""
-      result << "⏱️  SYSTEM STATUS:"
+      result << ''
+      result << '⏱️  SYSTEM STATUS:'
       uptime_hours = get_system_uptime
       result << "  Uptime: #{uptime_hours} hours"
       result << "  Overall Health: #{overall_healthy ? '✅ Healthy' : '⚠️  Degraded'}"
-      
+
       # Memory and basic stats if verbose
       if verbose
-        result << ""
-        result << "📊 SYSTEM RESOURCES:"
-        
+        result << ''
+        result << '📊 SYSTEM RESOURCES:'
+
         # Ruby memory usage
         if defined?(GC)
           gc_stat = GC.stat
           result << "  Ruby Memory: #{(gc_stat[:heap_live_slots] * 40 / 1024 / 1024).round(1)} MB allocated"
           result << "  GC Collections: #{gc_stat[:count]}"
         end
-        
+
         # Process info
         result << "  Process ID: #{Process.pid}"
         result << "  Ruby Version: #{RUBY_VERSION}"
       end
-      
+
       Services::LoggerService.log_api_call(
         service: 'error_handling_tool',
         endpoint: 'system_health',
         overall_healthy: overall_healthy,
         circuit_breaker_count: circuit_status.size
       )
-      
-    rescue => e
+    rescue StandardError => e
       result << "❌ Error checking system health: #{e.message}"
     end
-    
+
     result.join("\n")
   end
 
   # Reset circuit breakers to allow retry of failed services
   def self.reset_circuit_breakers(params)
     service_name = params['service'] # Optional: reset specific service
-    
+
     result = []
-    result << "=== RESETTING CIRCUIT BREAKERS ==="
-    
+    result << '=== RESETTING CIRCUIT BREAKERS ==='
+
     begin
       if service_name
         # Reset specific service if implemented
-        result << "⚠️  Specific service reset not yet implemented"
-        result << "Resetting all circuit breakers instead..."
+        result << '⚠️  Specific service reset not yet implemented'
+        result << 'Resetting all circuit breakers instead...'
       end
-      
+
       # Reset all circuit breakers
       Services::CircuitBreakerService.reset_all
-      
-      result << "✅ All circuit breakers have been reset"
-      result << "Services will attempt to reconnect on next call"
-      
+
+      result << '✅ All circuit breakers have been reset'
+      result << 'Services will attempt to reconnect on next call'
+
       Services::LoggerService.log_api_call(
         service: 'error_handling_tool',
         endpoint: 'reset_circuit_breakers',
         service_name: service_name
       )
-      
-    rescue => e
+    rescue StandardError => e
       result << "❌ Error resetting circuit breakers: #{e.message}"
     end
-    
+
     result.join("\n")
   end
 
   # Test connections to external services
-  def self.test_system_connections(params)
+  def self.test_system_connections(_params)
     result = []
-    result << "=== CONNECTION TESTS ==="
-    
+    result << '=== CONNECTION TESTS ==='
+
     # Test Home Assistant connection
-    result << ""
-    result << "🏠 HOME ASSISTANT:"
+    result << ''
+    result << '🏠 HOME ASSISTANT:'
     begin
       client = HomeAssistantClient.new
       states = client.states
-      
+
       if states.is_a?(Array)
-        result << "  ✅ Connection successful"
+        result << '  ✅ Connection successful'
         result << "  📊 #{states.size} entities available"
-        
+
         # Check for key entities
         key_entities = %w[light.cube_light media_player.tablet light.awtrix_b85e20_matrix]
         key_entities.each do |entity|
@@ -170,48 +164,48 @@ class ErrorHandlingTool
           end
         end
       else
-        result << "  ⚠️  Unexpected response format"
+        result << '  ⚠️  Unexpected response format'
       end
-    rescue => e
+    rescue StandardError => e
       result << "  ❌ Connection failed: #{e.message}"
     end
-    
+
     # Test OpenRouter connection (if configured)
-    result << ""
-    result << "🤖 OPENROUTER:"
+    result << ''
+    result << '🤖 OPENROUTER:'
     begin
       if GlitchCube.config.openrouter_api_key
         # Simple test - just check if we can initialize the service
         require_relative '../services/openrouter_service'
-        service = Services::OpenRouterService.new
-        result << "  ✅ Service initialized"
-        result << "  🔑 API key configured"
+        Services::OpenRouterService.new
+        result << '  ✅ Service initialized'
+        result << '  🔑 API key configured'
       else
-        result << "  ⚠️  API key not configured"
+        result << '  ⚠️  API key not configured'
       end
-    rescue => e
+    rescue StandardError => e
       result << "  ❌ Service error: #{e.message}"
     end
-    
+
     # Test Redis connection (if used)
-    result << ""
-    result << "📦 REDIS (Sidekiq):"
+    result << ''
+    result << '📦 REDIS (Sidekiq):'
     begin
       if defined?(Sidekiq)
-        redis_info = Sidekiq.redis { |conn| conn.ping }
+        redis_info = Sidekiq.redis(&:ping)
         result << "  ✅ Connection successful (#{redis_info})"
       else
-        result << "  ⚠️  Sidekiq not loaded"
+        result << '  ⚠️  Sidekiq not loaded'
       end
-    rescue => e
+    rescue StandardError => e
       result << "  ❌ Connection failed: #{e.message}"
     end
-    
+
     Services::LoggerService.log_api_call(
       service: 'error_handling_tool',
       endpoint: 'test_connections'
     )
-    
+
     result.join("\n")
   end
 
@@ -219,179 +213,169 @@ class ErrorHandlingTool
   def self.get_recent_errors(params)
     limit = params['limit'] || 10
     service_filter = params['service']
-    
+
     result = []
-    result << "=== RECENT ERRORS ==="
+    result << '=== RECENT ERRORS ==='
     result << "(Showing last #{limit} errors)"
-    
+
     # This would integrate with our logging system
     # For now, provide basic circuit breaker error info
     begin
       circuit_status = Services::CircuitBreakerService.status
-      
+
       error_count = 0
       circuit_status.each do |breaker|
-        if breaker[:failure_count] > 0
-          next if service_filter && !breaker[:name].include?(service_filter)
-          
-          result << ""
-          result << "❌ #{breaker[:name]}:"
-          result << "   Failures: #{breaker[:failure_count]}"
-          result << "   Last failure: #{breaker[:last_failure_time]}" if breaker[:last_failure_time]
-          result << "   Current state: #{breaker[:state]}"
-          
-          error_count += 1
-          break if error_count >= limit
-        end
+        next unless breaker[:failure_count].positive?
+        next if service_filter && !breaker[:name].include?(service_filter)
+
+        result << ''
+        result << "❌ #{breaker[:name]}:"
+        result << "   Failures: #{breaker[:failure_count]}"
+        result << "   Last failure: #{breaker[:last_failure_time]}" if breaker[:last_failure_time]
+        result << "   Current state: #{breaker[:state]}"
+
+        error_count += 1
+        break if error_count >= limit
       end
-      
-      if error_count == 0
-        result << ""
-        result << "✅ No recent errors found"
+
+      if error_count.zero?
+        result << ''
+        result << '✅ No recent errors found'
       end
-      
-    rescue => e
+    rescue StandardError => e
       result << "❌ Error retrieving error logs: #{e.message}"
     end
-    
+
     result.join("\n")
   end
 
   # Perform comprehensive self-diagnosis
-  def self.perform_self_diagnosis(params)
+  def self.perform_self_diagnosis(_params)
     result = []
-    result << "=== COMPREHENSIVE SYSTEM DIAGNOSIS ==="
-    
+    result << '=== COMPREHENSIVE SYSTEM DIAGNOSIS ==='
+
     # Check system health
     health_result = get_system_health('verbose' => false)
     result << health_result
-    
-    result << ""
-    result << "=== DIAGNOSTIC TESTS ==="
-    
+
+    result << ''
+    result << '=== DIAGNOSTIC TESTS ==='
+
     # Test key system functions
     tests = [
-      { name: "Circuit breaker functionality", test: -> { Services::CircuitBreakerService.status.any? } },
-      { name: "Configuration loading", test: -> { GlitchCube.config.present? } },
-      { name: "Logger service", test: -> { Services::LoggerService.respond_to?(:log_api_call) } }
+      { name: 'Circuit breaker functionality', test: -> { Services::CircuitBreakerService.status.any? } },
+      { name: 'Configuration loading', test: -> { GlitchCube.config.present? } },
+      { name: 'Logger service', test: -> { Services::LoggerService.respond_to?(:log_api_call) } }
     ]
-    
+
     tests.each do |test_case|
-      begin
-        test_result = test_case[:test].call
-        status = test_result ? "✅" : "❌"
-        result << "#{status} #{test_case[:name]}: #{test_result ? 'PASS' : 'FAIL'}"
-      rescue => e
-        result << "❌ #{test_case[:name]}: ERROR - #{e.message}"
-      end
+      test_result = test_case[:test].call
+      status = test_result ? '✅' : '❌'
+      result << "#{status} #{test_case[:name]}: #{test_result ? 'PASS' : 'FAIL'}"
+    rescue StandardError => e
+      result << "❌ #{test_case[:name]}: ERROR - #{e.message}"
     end
-    
+
     # Check for common issues
-    result << ""
-    result << "=== COMMON ISSUES CHECK ==="
-    
+    result << ''
+    result << '=== COMMON ISSUES CHECK ==='
+
     issues_found = 0
-    
+
     # Check if all circuit breakers are open (major system failure)
     circuit_status = Services::CircuitBreakerService.status
     open_breakers = circuit_status.select { |b| b[:state] == :open }
-    if open_breakers.size == circuit_status.size && circuit_status.size > 0
-      result << "🚨 CRITICAL: All circuit breakers are open - system isolation mode"
+    if open_breakers.size == circuit_status.size && !circuit_status.empty?
+      result << '🚨 CRITICAL: All circuit breakers are open - system isolation mode'
       issues_found += 1
     end
-    
+
     # Check for excessive failures
     high_failure_breakers = circuit_status.select { |b| b[:failure_count] > 10 }
     if high_failure_breakers.any?
       result << "⚠️  WARNING: High failure count on: #{high_failure_breakers.map { |b| b[:name] }.join(', ')}"
       issues_found += 1
     end
-    
-    if issues_found == 0
-      result << "✅ No common issues detected"
-    end
-    
+
+    result << '✅ No common issues detected' if issues_found.zero?
+
     Services::LoggerService.log_api_call(
       service: 'error_handling_tool',
       endpoint: 'self_diagnose',
       issues_found: issues_found
     )
-    
+
     result.join("\n")
   end
 
   # Attempt automatic recovery procedures
   def self.attempt_recovery(params)
     dry_run = params['dry_run'] != false # Default to dry run for safety
-    
+
     result = []
     result << "=== AUTOMATIC RECOVERY #{dry_run ? '(DRY RUN)' : '(LIVE MODE)'} ==="
-    
-    if dry_run
-      result << "⚠️  Running in dry-run mode. Use dry_run: false to execute recovery actions."
-    end
-    
+
+    result << '⚠️  Running in dry-run mode. Use dry_run: false to execute recovery actions.' if dry_run
+
     recovery_actions = []
-    
+
     # Check circuit breaker status
     circuit_status = Services::CircuitBreakerService.status
     open_breakers = circuit_status.select { |b| b[:state] == :open }
-    
+
     if open_breakers.any?
       recovery_actions << {
-        action: "Reset circuit breakers",
+        action: 'Reset circuit breakers',
         reason: "#{open_breakers.size} circuit breakers are open",
         execute: -> { Services::CircuitBreakerService.reset_all }
       }
     end
-    
+
     # Check for stale connections (mock - would be real logic)
     recovery_actions << {
-      action: "Clear connection pool",
-      reason: "Preventive maintenance",
-      execute: -> { "Connection pool cleared" }
+      action: 'Clear connection pool',
+      reason: 'Preventive maintenance',
+      execute: -> { 'Connection pool cleared' }
     }
-    
+
     # Execute recovery actions
-    result << ""
-    result << "🔧 RECOVERY ACTIONS:"
-    
+    result << ''
+    result << '🔧 RECOVERY ACTIONS:'
+
     if recovery_actions.empty?
-      result << "✅ No recovery actions needed - system is healthy"
+      result << '✅ No recovery actions needed - system is healthy'
     else
       recovery_actions.each do |action|
-        result << ""
+        result << ''
         result << "#{dry_run ? '📋' : '🔧'} #{action[:action]}"
         result << "   Reason: #{action[:reason]}"
-        
-        unless dry_run
-          begin
-            action_result = action[:execute].call
-            result << "   ✅ Success: #{action_result}"
-          rescue => e
-            result << "   ❌ Failed: #{e.message}"
-          end
+
+        next if dry_run
+
+        begin
+          action_result = action[:execute].call
+          result << "   ✅ Success: #{action_result}"
+        rescue StandardError => e
+          result << "   ❌ Failed: #{e.message}"
         end
       end
     end
-    
+
     Services::LoggerService.log_api_call(
       service: 'error_handling_tool',
       endpoint: 'recovery_mode',
       dry_run: dry_run,
       actions_planned: recovery_actions.size
     )
-    
+
     result.join("\n")
   end
 
   # Get system uptime in hours
   def self.get_system_uptime
-    begin
-      start_time = File.mtime('/Users/estiens/code/glitchcube/app.rb')
-      ((Time.now - start_time) / 3600).round(1)
-    rescue
-      0.0
-    end
+    start_time = File.mtime('/Users/estiens/code/glitchcube/app.rb')
+    ((Time.now - start_time) / 3600).round(1)
+  rescue StandardError
+    0.0
   end
 end

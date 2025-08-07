@@ -24,7 +24,7 @@ class ConversationModule
     # Set LED feedback to listening state at start of conversation
     begin
       Services::ConversationFeedbackService.set_listening if context[:visual_feedback] != false
-    rescue => e
+    rescue StandardError => e
       # Don't let LED feedback failures break conversations
       puts "⚠️  LED feedback failed: #{e.message}"
     end
@@ -34,7 +34,7 @@ class ConversationModule
       session_id: context[:session_id],
       enabled: context[:trace_conversation] != false
     )
-    
+
     tracer.start_conversation(
       message: message,
       context: context,
@@ -47,7 +47,7 @@ class ConversationModule
       session_id: context[:session_id],
       context: context.merge(persona: persona)
     )
-    
+
     tracer.trace_session_lookup(
       session_data: {
         session_id: session.session_id,
@@ -109,17 +109,17 @@ class ConversationModule
       # Set LED feedback to thinking state before LLM call
       begin
         Services::ConversationFeedbackService.set_thinking if context[:visual_feedback] != false
-      rescue => e
+      rescue StandardError => e
         puts "⚠️  LED feedback failed: #{e.message}"
       end
 
       # Use new LLM service with full conversation context
-      llm_start = Time.now
+      Time.now
       llm_response = Services::LLMService.complete_with_messages(
         messages: messages,
         **llm_options
       )
-      
+
       tracer.trace_llm_call(
         messages: messages,
         options: llm_options,
@@ -145,10 +145,10 @@ class ConversationModule
       # Extract data from response object
       response_text = llm_response.response_text
       continue_conversation = llm_response.continue_conversation?
-      
+
       # Debug trace: Check if response_text is nil
       if GlitchCube.config.debug? && response_text.nil?
-        puts "DEBUG: response_text is nil!"
+        puts 'DEBUG: response_text is nil!'
         puts "DEBUG: llm_response.content = #{llm_response.content.inspect}"
         puts "DEBUG: llm_response.parsed_content = #{llm_response.parsed_content.inspect}"
       end
@@ -188,7 +188,7 @@ class ConversationModule
       begin
         # Set LED feedback to speaking state before TTS
         Services::ConversationFeedbackService.set_speaking if context[:visual_feedback] != false
-        
+
         speak_response(response_text, context, tracer)
       rescue StandardError => e
         puts "Warning: TTS failed but conversation succeeded: #{e.message}"
@@ -212,7 +212,7 @@ class ConversationModule
       # Set LED feedback to completed state
       begin
         Services::ConversationFeedbackService.set_completed if context[:visual_feedback] != false
-      rescue => e
+      rescue StandardError => e
         puts "⚠️  LED feedback failed: #{e.message}"
       end
 
@@ -225,41 +225,41 @@ class ConversationModule
 
       # Add trace info to result for debugging
       result[:trace_id] = tracer.trace_id if tracer.traces.any?
-      
+
       result
     rescue Services::LLMService::RateLimitError => e
       puts "DEBUG: Hit rate limit error: #{e.message}" if GlitchCube.config.debug?
-      
+
       # Set LED to error state
       begin
         Services::ConversationFeedbackService.set_error if context[:visual_feedback] != false
-      rescue
+      rescue StandardError
         # Ignore LED feedback errors during error handling
       end
-      
+
       handle_rate_limit_error(session, message, persona, e)
     rescue Services::LLMService::LLMError => e
       puts "DEBUG: Hit LLM error: #{e.message}" if GlitchCube.config.debug?
-      
+
       # Set LED to error state
       begin
         Services::ConversationFeedbackService.set_error if context[:visual_feedback] != false
-      rescue
+      rescue StandardError
         # Ignore LED feedback errors during error handling
       end
-      
+
       handle_llm_error(session, message, persona, e)
     rescue StandardError => e
       puts "DEBUG: Hit general error: #{e.class} - #{e.message}" if GlitchCube.config.debug?
       puts "DEBUG: Backtrace: #{e.backtrace.first(3).join("\n")}" if GlitchCube.config.debug?
-      
+
       # Set LED to error state
       begin
         Services::ConversationFeedbackService.set_error if context[:visual_feedback] != false
-      rescue
+      rescue StandardError
         # Ignore LED feedback errors during error handling
       end
-      
+
       handle_general_error(session, message, persona, e)
     end
   end
@@ -334,25 +334,25 @@ class ConversationModule
       messages: messages,
       **llm_options.except(:tools, :tool_choice) # Don't allow recursive tool calls for now
     )
-    
+
     # Trace the follow-up LLM call
     tracer&.trace_llm_call(
       messages: messages,
       options: llm_options.except(:tools, :tool_choice),
       response: follow_up_response
     )
-    
+
     follow_up_response
   rescue StandardError => e
     puts "⚠️ Failed to continue after tool execution: #{e.message}"
-    
+
     # Trace the error
     tracer&.trace_llm_call(
       messages: messages,
       options: llm_options.except(:tools, :tool_choice),
       error: e
     )
-    
+
     # Return original response if continuation fails
     initial_response
   end
@@ -442,15 +442,15 @@ class ConversationModule
 
     # Add relevant memories if available
     final_prompt = inject_memories_into_prompt(base_prompt, context, tracer)
-    
+
     # Trace system prompt building
     tracer&.trace_system_prompt(
       persona: persona,
       context: context,
       prompt_length: final_prompt.length,
-      memories_injected: final_prompt.length - base_prompt.length > 0 ? 1 : 0
+      memories_injected: (final_prompt.length - base_prompt.length).positive? ? 1 : 0
     )
-    
+
     final_prompt
   end
 
@@ -472,14 +472,14 @@ class ConversationModule
     if memories.any?
       memory_context = Services::MemoryRecallService.format_for_context(memories)
       final_prompt = "#{base_prompt}#{memory_context}"
-      
+
       # Trace memory injection
       tracer&.trace_memory_injection(
         location: location,
         memories: memories,
         formatted_context: memory_context
       )
-      
+
       final_prompt
     else
       # Trace empty memory injection
@@ -488,7 +488,7 @@ class ConversationModule
         memories: [],
         formatted_context: nil
       )
-      
+
       base_prompt
     end
   rescue StandardError => e
@@ -576,13 +576,11 @@ class ConversationModule
     return if response_text.nil? || response_text.strip.empty?
 
     start_time = Time.now
-    success = false
-    error = nil
-    
+
     begin
       # Use Home Assistant client directly for all TTS
       home_assistant = HomeAssistantClient.new
-      
+
       # Get entity from context or use default
       entity_id = context[:entity_id] || 'media_player.square_voice'
 
@@ -596,7 +594,7 @@ class ConversationModule
         duration: duration,
         entity_id: entity_id
       )
-      
+
       # Trace TTS call
       tracer&.trace_tts_call(
         text: response_text,
@@ -606,9 +604,8 @@ class ConversationModule
       )
     rescue StandardError => e
       error = e.message
-      success = false
       duration = ((Time.now - start_time) * 1000).round
-      
+
       Services::LoggerService.log_tts(
         message: response_text,
         success: false,
@@ -616,7 +613,7 @@ class ConversationModule
         error: "Unexpected Error: #{e.message}",
         entity_id: context[:entity_id] || 'media_player.square_voice'
       )
-      
+
       # Trace TTS error
       tracer&.trace_tts_call(
         text: response_text,

@@ -82,7 +82,7 @@ class CircuitBreaker
 
   private
 
-  def execute_closed(&block)
+  def execute_closed
     result = yield
     reset_failure_count
     result
@@ -92,7 +92,7 @@ class CircuitBreaker
     raise e
   end
 
-  def execute_half_open(&block)
+  def execute_half_open
     result = yield
     record_success
     close! if @success_count >= @success_threshold

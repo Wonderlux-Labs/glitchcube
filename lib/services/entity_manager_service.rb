@@ -24,14 +24,14 @@ module GlitchCube
         # Get available RGB light entities
         def get_rgb_lights(use_cache: true)
           light_entities = get_domain_entities('light', use_cache: use_cache)
-          
+
           # Filter for RGB-capable lights based on attributes
           light_entities.select do |light|
             attrs = light['attributes'] || {}
             attrs['supported_color_modes']&.include?('rgb') ||
-            attrs['supported_color_modes']&.include?('rgbw') ||
-            attrs['color_mode'] == 'rgb' ||
-            attrs['color_mode'] == 'rgbw'
+              attrs['supported_color_modes']&.include?('rgbw') ||
+              attrs['color_mode'] == 'rgb' ||
+              attrs['color_mode'] == 'rgbw'
           end
         end
 
@@ -39,20 +39,20 @@ module GlitchCube
         def get_motion_sensors(use_cache: true)
           binary_sensors = get_domain_entities('binary_sensor', use_cache: use_cache)
           input_booleans = get_domain_entities('input_boolean', use_cache: use_cache)
-          
+
           motion_sensors = []
-          
+
           # Check binary sensors for motion
-          motion_sensors += binary_sensors.select { |sensor|
+          motion_sensors += binary_sensors.select do |sensor|
             sensor['entity_id'].include?('motion') ||
-            sensor['attributes']&.dig('device_class') == 'motion'
-          }
-          
+              sensor['attributes']&.dig('device_class') == 'motion'
+          end
+
           # Check input_booleans for motion (like our current setup)
-          motion_sensors += input_booleans.select { |input|
+          motion_sensors += input_booleans.select do |input|
             input['entity_id'].include?('motion')
-          }
-          
+          end
+
           motion_sensors
         end
 
@@ -106,12 +106,12 @@ module GlitchCube
         def fetch_fresh_entities_by_domain
           home_assistant = HomeAssistantClient.new
           entities = home_assistant.states
-          
+
           return {} if entities.nil? || entities.empty?
 
-          entities_by_domain = entities.group_by { |entity| 
-            entity['entity_id'].split('.').first 
-          }
+          entities_by_domain = entities.group_by do |entity|
+            entity['entity_id'].split('.').first
+          end
 
           # Update cache if available
           update_entity_cache(entities_by_domain) if GlitchCube.persistence_enabled?
@@ -124,10 +124,10 @@ module GlitchCube
 
           begin
             redis = GlitchCube.redis_connection
-            
+
             # Cache organized entities with 5-minute expiration
             redis.setex('ha_entities_by_domain', 300, entities_by_domain.to_json)
-            
+
             # Cache summary data
             summary = {
               total_entities: entities_by_domain.values.flatten.length,
@@ -140,7 +140,6 @@ module GlitchCube
             GlitchCube.logger.debug('💾 Updated entity cache',
                                     entity_count: summary[:total_entities],
                                     domain_count: summary[:total_domains])
-
           rescue StandardError => e
             GlitchCube.logger.warn('⚠️ Failed to update entity cache',
                                    error: e.message)

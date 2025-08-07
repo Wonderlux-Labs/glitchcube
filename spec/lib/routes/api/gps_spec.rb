@@ -39,8 +39,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
     end
 
     before do
-      allow(Services::GpsCacheService).to receive(:cached_location).and_return(mock_location)
-      allow(Services::GpsCacheService).to receive(:cached_proximity).and_return(mock_proximity)
+      allow(Services::GpsCacheService).to receive_messages(cached_location: mock_location, cached_proximity: mock_proximity)
     end
 
     it 'returns current location with proximity data' do
@@ -69,8 +68,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
       end
 
       before do
-        allow(Services::GpsCacheService).to receive(:cached_location).and_return(mock_location)
-        allow(Services::GpsCacheService).to receive(:cached_proximity).and_return(mock_proximity)
+        allow(Services::GpsCacheService).to receive_messages(cached_location: mock_location, cached_proximity: mock_proximity)
       end
 
       it 'returns proximity data' do

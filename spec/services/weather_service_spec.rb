@@ -71,7 +71,7 @@ RSpec.describe WeatherService, :vcr do
       it 'handles API errors gracefully', :vcr do
         # This will use VCR to record whatever happens with HA
         result = service.update_weather_summary
-        expect(result).to be_a(String) 
+        expect(result).to be_a(String)
         expect(result.length).to be <= 255
       end
     end
@@ -79,7 +79,7 @@ RSpec.describe WeatherService, :vcr do
     context 'when updating Home Assistant weather sensor' do
       it 'calls set_state with correct entity and weather summary', :vcr do
         result = service.update_weather_summary
-        
+
         # Just verify it returns a valid response
         expect(result).to be_a(String)
         expect(result.length).to be <= 255
@@ -87,7 +87,7 @@ RSpec.describe WeatherService, :vcr do
 
       it 'handles HA client errors gracefully', :vcr do
         result = service.update_weather_summary
-        
+
         # Should always return something, even on errors
         expect(result).to be_a(String)
         expect(result.length).to be <= 255

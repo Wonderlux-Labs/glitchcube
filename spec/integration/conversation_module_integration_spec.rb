@@ -21,7 +21,7 @@ RSpec.describe 'ConversationModule Integration', :vcr do
           expect(result[:response].length).to be > 10
           expect(result[:conversation_id]).to eq('test-integration-123')
           expect(result[:persona]).to eq('playful')
-          
+
           # Model, cost, and tokens may be nil in error responses
           if result[:error].nil?
             expect(result[:model]).to be_a(String)

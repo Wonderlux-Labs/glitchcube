@@ -113,7 +113,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
 
       expect(last_response).to be_ok
       expect(parsed_body['success']).to be true
-      
+
       # System may create new session ID or preserve existing one
       if parsed_body['data']
         session_id = parsed_body['data']['session_id']
@@ -160,7 +160,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
     end
 
     it 'limits context payload size' do
-      large_context = (1..1000).map { |i| ["key_#{i}", 'x' * 1000] }.to_h
+      large_context = (1..1000).to_h { |i| ["key_#{i}", 'x' * 1000] }
 
       post '/api/v1/conversation',
            {
@@ -185,10 +185,10 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       # System provides graceful error handling
       expect(last_response.status).to be_between(200, 500)
       expect(parsed_body).to be_present
-      
+
       # Should provide meaningful response or error
       expect(parsed_body['data'] || parsed_body['error'] || parsed_body['response']).to be_present
-      
+
       # Should not expose sensitive debugging information
       expect(parsed_body['backtrace']).to be_nil
     end
@@ -225,7 +225,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
 
       body = JSON.parse(last_response.body)
       expect(body['success']).to be true
-      
+
       # System provides fallback response when LLM unavailable
       if body['data']
         expect(body['data']['response']).to be_present
@@ -264,7 +264,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(parsed_body['success']).to be true
       expect(parsed_body['session_id']).to be_present
       expect(parsed_body['greeting']).to be_present if parsed_body.key?('greeting')
-      
+
       # Verify session was actually created in database
       session = Conversation.find_by(session_id: parsed_body['session_id'])
       expect(session).to be_present
@@ -277,7 +277,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       post '/api/v1/conversation/start',
            session_params.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
-      
+
       session_id = parsed_body['session_id']
       expect(session_id).to be_present
 
@@ -293,7 +293,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(last_response).to be_ok
       expect(parsed_body['success']).to be true
       expect(parsed_body['data']['response']).to be_present
-      
+
       # Verify session has message history
       session = Conversation.find_by(session_id: session_id)
       expect(session.messages.count).to be >= 2 # user + assistant messages
@@ -310,7 +310,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       # System handles missing sessions robustly
       expect(last_response.status).to be_between(200, 500)
       expect(parsed_body).to be_present
-      
+
       # Should provide either success response or error details
       expect(parsed_body['success'] || parsed_body['error']).to be_present
       expect(parsed_body['data'] || parsed_body['response'] || parsed_body['error']).to be_present
@@ -321,7 +321,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       post '/api/v1/conversation/start',
            session_params.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
-      
+
       session_id = parsed_body['session_id']
 
       # End session
@@ -335,11 +335,11 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       # System handles session ending (may return various statuses)
       expect(last_response.status).to be_between(200, 500)
       expect(parsed_body).to be_present
-      
+
       # Should provide response indicating session handling
       if last_response.ok?
         expect(parsed_body['success']).to be true
-        
+
         # Verify session cleanup if successful
         session = Conversation.find_by(session_id: session_id)
         if session
@@ -380,7 +380,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
 
       # System is highly robust - may handle malformed JSON gracefully
       expect(last_response.status).to be_between(200, 500)
-      
+
       if last_response.status == 200
         # System handled malformed JSON gracefully
         expect(parsed_body['success']).to be_in([true, false])

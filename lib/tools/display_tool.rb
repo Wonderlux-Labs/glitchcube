@@ -16,10 +16,10 @@ class DisplayTool
 
   def self.call(action:, params: '{}')
     params = JSON.parse(params) if params.is_a?(String)
-    
+
     # AWTRIX entities based on our hardware scan
     display_entities = {
-      'matrix' => 'light.awtrix_b85e20_matrix',          # Main 32x8 RGB LED matrix
+      'matrix' => 'light.awtrix_b85e20_matrix', # Main 32x8 RGB LED matrix
       'indicator_1' => 'light.awtrix_b85e20_indicator_1', # Status indicator 1
       'indicator_2' => 'light.awtrix_b85e20_indicator_2', # Status indicator 2
       'indicator_3' => 'light.awtrix_b85e20_indicator_3'  # Status indicator 3
@@ -47,92 +47,86 @@ class DisplayTool
     "Display control error: #{e.message}"
   end
 
-  private
-
   # List all available display entities and their capabilities
   def self.list_available_displays(client, display_entities, params)
     verbose = params['verbose'] != false # Default to verbose unless explicitly false
-    
+
     result = []
-    result << "=== AVAILABLE DISPLAYS ==="
-    
+    result << '=== AVAILABLE DISPLAYS ==='
+
     if verbose
       display_entities.each do |key, entity_id|
-        begin
-          state = client.state(entity_id)
-          
-          if state && state['state'] != 'unavailable'
-            supported_modes = state.dig('attributes', 'supported_color_modes') || []
-            current_brightness = state.dig('attributes', 'brightness') 
-            current_rgb = state.dig('attributes', 'rgb_color')
-            friendly_name = state.dig('attributes', 'friendly_name')
-            
-            display_info = "#{key} (#{entity_id}): #{state['state']}"
-            display_info += " - #{friendly_name}" if friendly_name && friendly_name != entity_id
-            
-            if key == 'matrix'
-              display_info += " | 32x8 RGB matrix"
-              display_info += " | Text display, notifications, mood lighting"
-            else
-              display_info += " | Status indicator"
-            end
-            
-            display_info += " | Modes: #{supported_modes.join(', ')}" if supported_modes.any?
-            display_info += " | Brightness: #{current_brightness}" if current_brightness
-            display_info += " | Color: #{current_rgb}" if current_rgb
-            
-            result << "  ✅ #{display_info}"
+        state = client.state(entity_id)
+
+        if state && state['state'] != 'unavailable'
+          supported_modes = state.dig('attributes', 'supported_color_modes') || []
+          current_brightness = state.dig('attributes', 'brightness')
+          current_rgb = state.dig('attributes', 'rgb_color')
+          friendly_name = state.dig('attributes', 'friendly_name')
+
+          display_info = "#{key} (#{entity_id}): #{state['state']}"
+          display_info += " - #{friendly_name}" if friendly_name && friendly_name != entity_id
+
+          if key == 'matrix'
+            display_info += ' | 32x8 RGB matrix'
+            display_info += ' | Text display, notifications, mood lighting'
           else
-            result << "  ❌ #{key} (#{entity_id}): unavailable"
+            display_info += ' | Status indicator'
           end
-        rescue => e
-          result << "  ❌ #{key} (#{entity_id}): error - #{e.message}"
+
+          display_info += " | Modes: #{supported_modes.join(', ')}" if supported_modes.any?
+          display_info += " | Brightness: #{current_brightness}" if current_brightness
+          display_info += " | Color: #{current_rgb}" if current_rgb
+
+          result << "  ✅ #{display_info}"
+        else
+          result << "  ❌ #{key} (#{entity_id}): unavailable"
         end
+      rescue StandardError => e
+        result << "  ❌ #{key} (#{entity_id}): error - #{e.message}"
       end
-      
+
       # Show AWTRIX capabilities
-      result << ""
-      result << "=== AWTRIX CAPABILITIES ==="
-      result << "  📝 Text Display: Custom apps with colors, icons, rainbow effects"
-      result << "  🔔 Notifications: Alerts with sounds, icons, auto-dismiss timers"  
-      result << "  💡 Mood Lighting: Background lighting effects"
-      result << "  🎵 Sound Effects: RTTTL ringtones or MP3 files"
-      result << "  🎨 Icons: Numeric IDs (1-9999) or base64 8x8 pixel art"
-      
+      result << ''
+      result << '=== AWTRIX CAPABILITIES ==='
+      result << '  📝 Text Display: Custom apps with colors, icons, rainbow effects'
+      result << '  🔔 Notifications: Alerts with sounds, icons, auto-dismiss timers'
+      result << '  💡 Mood Lighting: Background lighting effects'
+      result << '  🎵 Sound Effects: RTTTL ringtones or MP3 files'
+      result << '  🎨 Icons: Numeric IDs (1-9999) or base64 8x8 pixel art'
+
       # Usage examples
-      result << ""
-      result << "=== USAGE EXAMPLES ==="
+      result << ''
+      result << '=== USAGE EXAMPLES ==='
       result << 'Show text: {"action": "show_text", "params": {"text": "Hello!", "color": "#00FF00", "duration": 10}}'
-      result << 'Notification: {"action": "notify", "params": {"text": "Alert!", "color": "#FF0000", "sound": "alarm"}}'  
+      result << 'Notification: {"action": "notify", "params": {"text": "Alert!", "color": "#FF0000", "sound": "alarm"}}'
       result << 'Mood light: {"action": "mood_light", "params": {"color": "#FF00FF", "brightness": 150}}'
-      
+
     else
       # Simple list
       available_displays = []
       display_entities.each do |key, entity_id|
-        begin
-          state = client.state(entity_id)
-          available_displays << key if state && state['state'] != 'unavailable'
-        rescue
-          # Skip errors in simple mode
-        end
+        state = client.state(entity_id)
+        available_displays << key if state && state['state'] != 'unavailable'
+      rescue StandardError
+        # Skip errors in simple mode
       end
-      
+
       result << "Available: #{available_displays.join(', ')}"
-      result << "Matrix: 32x8 RGB display for text/notifications"
-      result << "Indicators: 3x RGB status lights"
+      result << 'Matrix: 32x8 RGB display for text/notifications'
+      result << 'Indicators: 3x RGB status lights'
       result << 'Use verbose: true for detailed capabilities'
     end
-    
+
     Services::LoggerService.log_api_call(
       service: 'display_tool',
       endpoint: 'list_displays',
       verbose: verbose,
       available_count: display_entities.size
     )
-    
+
     result.join("\n")
-  rescue => e
+  rescue StandardError => e
     "Error listing displays: #{e.message}"
   end
 
@@ -149,7 +143,7 @@ class DisplayTool
       duration: params['duration'] || 5,
       rainbow: params['rainbow'] || false
     }
-    
+
     # Add icon if provided
     display_params[:icon] = params['icon'] if params['icon']
 
@@ -175,14 +169,14 @@ class DisplayTool
       if success
         duration_desc = "for #{display_params[:duration]}s"
         color_desc = display_params[:color]
-        rainbow_desc = display_params[:rainbow] ? " (rainbow effect)" : ""
-        icon_desc = display_params[:icon] ? " with icon #{display_params[:icon]}" : ""
-        
+        rainbow_desc = display_params[:rainbow] ? ' (rainbow effect)' : ''
+        icon_desc = display_params[:icon] ? " with icon #{display_params[:icon]}" : ''
+
         "Displayed '#{text}' in #{color_desc}#{rainbow_desc} #{duration_desc}#{icon_desc}"
       else
-        "Failed to display text on matrix"
+        'Failed to display text on matrix'
       end
-    rescue => e
+    rescue StandardError => e
       "Failed to show display text: #{e.message}"
     end
   end
@@ -224,14 +218,14 @@ class DisplayTool
       )
 
       if success
-        sound_desc = notify_params[:sound] ? " with sound '#{notify_params[:sound]}'" : ""
-        icon_desc = notify_params[:icon] ? " and icon #{notify_params[:icon]}" : ""
-        
+        sound_desc = notify_params[:sound] ? " with sound '#{notify_params[:sound]}'" : ''
+        icon_desc = notify_params[:icon] ? " and icon #{notify_params[:icon]}" : ''
+
         "Sent notification: '#{text}'#{sound_desc}#{icon_desc}"
       else
-        "Failed to send notification"
+        'Failed to send notification'
       end
-    rescue => e
+    rescue StandardError => e
       "Failed to send notification: #{e.message}"
     end
   end
@@ -244,9 +238,7 @@ class DisplayTool
     brightness = params['brightness'] || 100
 
     # Validate color format
-    unless color.match?(/^#[0-9A-Fa-f]{6}$/)
-      return 'Error: color must be hex format like #FF0000'
-    end
+    return 'Error: color must be hex format like #FF0000' unless color.match?(/^#[0-9A-Fa-f]{6}$/)
 
     begin
       success = client.awtrix_mood_light(color, brightness: brightness)
@@ -261,31 +253,29 @@ class DisplayTool
       if success
         "Set AWTRIX mood light to #{color} at #{brightness} brightness"
       else
-        "Failed to set mood lighting"
+        'Failed to set mood lighting'
       end
-    rescue => e
+    rescue StandardError => e
       "Failed to set mood lighting: #{e.message}"
     end
   end
 
   # Clear all custom apps from display
   def self.clear_display(client)
-    begin
-      success = client.awtrix_clear_display
+    success = client.awtrix_clear_display
 
-      Services::LoggerService.log_api_call(
-        service: 'display_tool',
-        endpoint: 'clear_display'
-      )
+    Services::LoggerService.log_api_call(
+      service: 'display_tool',
+      endpoint: 'clear_display'
+    )
 
-      if success
-        "Cleared AWTRIX display"
-      else
-        "Failed to clear display"
-      end
-    rescue => e
-      "Failed to clear display: #{e.message}"
+    if success
+      'Cleared AWTRIX display'
+    else
+      'Failed to clear display'
     end
+  rescue StandardError => e
+    "Failed to clear display: #{e.message}"
   end
 
   # Get status of display entities
@@ -293,27 +283,25 @@ class DisplayTool
     statuses = []
 
     display_entities.each do |key, entity_id|
-      begin
-        state = client.state(entity_id)
-        
-        if state && state['state'] != 'unavailable'
-          status = "#{key}: #{state['state']}"
-          
-          if state['state'] == 'on'
-            brightness = state.dig('attributes', 'brightness')
-            rgb_color = state.dig('attributes', 'rgb_color')
-            
-            status += ", brightness #{brightness}" if brightness
-            status += ", rgb #{rgb_color}" if rgb_color
-          end
-          
-          statuses << status
-        else
-          statuses << "#{key}: unavailable"
+      state = client.state(entity_id)
+
+      if state && state['state'] != 'unavailable'
+        status = "#{key}: #{state['state']}"
+
+        if state['state'] == 'on'
+          brightness = state.dig('attributes', 'brightness')
+          rgb_color = state.dig('attributes', 'rgb_color')
+
+          status += ", brightness #{brightness}" if brightness
+          status += ", rgb #{rgb_color}" if rgb_color
         end
-      rescue => e
-        statuses << "#{key}: error - #{e.message}"
+
+        statuses << status
+      else
+        statuses << "#{key}: unavailable"
       end
+    rescue StandardError => e
+      statuses << "#{key}: error - #{e.message}"
     end
 
     # Also try to get any active AWTRIX apps (this would require additional HA integration)
