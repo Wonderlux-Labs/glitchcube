@@ -82,12 +82,10 @@ jobs:
     
     - name: Set up database
       run: |
-        # Create database and enable PostGIS extensions
+        # Create database only - let migrations handle PostGIS extensions
         createdb -h localhost -U postgres glitchcube_test
-        psql -h localhost -U postgres -d glitchcube_test -c "CREATE EXTENSION IF NOT EXISTS postgis;"
-        psql -h localhost -U postgres -d glitchcube_test -c "CREATE EXTENSION IF NOT EXISTS postgis_topology;"
         
-        # Run migrations instead of schema:load to avoid PostGIS adapter issues
+        # Run migrations - first migration will enable PostGIS
         bundle exec rake db:migrate
       env:
         PGPASSWORD: postgres
