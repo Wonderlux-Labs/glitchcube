@@ -9,6 +9,9 @@ Dir[File.join(__dir__, 'lib/tasks/*.rake')].each { |f| load f }
 # Load the app for database tasks
 namespace :db do
   task :load_config do
+    # Load database config first for consistent configuration
+    require_relative 'config/database_config'
+    configure_database!
     require './app'
   end
 end

@@ -21,7 +21,7 @@ template:
           people_detected: >
             {% set analysis = states('input_text.camera_vision_analysis').lower() %}
             {{ 'people' in analysis or 'person' in analysis }}
-          motion_active: "{{ is_state('binary_sensor.camera_motion', 'on') }}"
+          motion_active: "{{ is_state('input_boolean.motion_detected', 'on') }}"
           
       - name: "Camera People Count"
         unique_id: camera_people_count

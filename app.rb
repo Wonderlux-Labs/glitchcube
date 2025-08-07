@@ -38,11 +38,15 @@ require_relative 'lib/services/logger_service'
 # Load application constants and config first
 require_relative 'config/constants'
 
+# Load database configuration first
+require_relative 'config/database_config'
+
 # Load initializers (including config.rb)
 Dir[File.join(__dir__, 'config', 'initializers', '*.rb')].each { |file| require file }
 
-# Set up database connection
-# Always use database.yml for consistency across all environments
+# Set up database connection using centralized config
+# This ensures consistent database configuration across all environments
+configure_database!
 set :database_file, 'config/database.yml'
 
 # Load models

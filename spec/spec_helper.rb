@@ -26,6 +26,10 @@ Dotenv.load('.env.test', '.env')
 ENV['OPENROUTER_API_KEY'] ||= 'test-api-key'
 ENV['HOME_ASSISTANT_TOKEN'] ||= 'test-ha-token'
 
+# Configure database using centralized config
+require_relative '../config/database_config'
+configure_database!
+
 # Disable AI Gateway in tests - use direct OpenRouter calls
 ENV.delete('AI_GATEWAY_URL')
 ENV.delete('HELICONE_API_KEY')

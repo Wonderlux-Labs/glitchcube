@@ -38,6 +38,12 @@ docker-compose --version
 
 ### Deploy Glitch Cube
 
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for comprehensive deployment instructions including:
+- Manual deployment via rake tasks
+- Automated GitHub Actions deployment
+- Mac Mini + VMware setup
+- Troubleshooting guide
+
 1. **Clone the repository**
 ```bash
 git clone https://github.com/yourusername/glitchcube.git

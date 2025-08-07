@@ -8,7 +8,7 @@
   mode: single  # Only run one instance at a time
   trigger:
     - platform: state
-      entity_id: switch.motion_detected # Update this to your actual motion sensor entity
+      entity_id: input_boolean.motion_detected
       to: 'on'
   condition:
     # Optional: Add conditions to prevent excessive API calls
@@ -79,7 +79,7 @@
   description: "Clear the vision analysis text after no motion for 5 minutes"
   trigger:
     - platform: state
-      entity_id: binary_sensor.camera_motion  # Update this to your actual motion sensor entity
+      entity_id: input_boolean.motion_detected
       to: 'off'
       for:
         minutes: 5

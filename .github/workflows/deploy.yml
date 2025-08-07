@@ -34,15 +34,16 @@ jobs:
       
       - name: Setup database
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost/glitchcube_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/glitchcube_test
           RACK_ENV: test
+          CI: true
         run: |
           bundle exec rake db:create
           bundle exec rake db:migrate
       
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost/glitchcube_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/glitchcube_test
           RACK_ENV: test
           CI: true
           VCR_RECORD_MODE: none  # Fail if any test tries to make real network calls
