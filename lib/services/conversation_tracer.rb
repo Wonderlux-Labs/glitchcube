@@ -314,7 +314,7 @@ module Services
           action: action,
           timestamp: timestamp.iso8601(3),
           data: data,
-          timing_ms: timing,
+          timing_ms: timing || timing_since_start,  # Default to timing since start if not provided
           success: success,
           metadata: metadata
         }

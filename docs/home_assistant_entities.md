@@ -1,185 +1,701 @@
 # Home Assistant Entities
 
-⚠️ **Status**: Home Assistant not currently accessible
-Generated on: 2025-08-07 09:30:00
-Last known configuration
+✅ **Status**: Connected to Home Assistant at http://glitch.local:8123
+Generated on: 2025-08-07 14:48:32
+Total entities: 517
 
 ## Entity Summary by Domain
 
-### Core Entities Required:
-- **automation**: Movement tracking, weather updates, camera vision
-- **binary_sensor**: Motion detection, camera motion
-- **camera**: Tablet camera for vision analysis
-- **input_text**: Weather summary, camera analysis, persona, environment
-- **input_number**: GPS coordinates (lat/lng/prev_lat/prev_lng)
-- **sensor**: Weather data, vision status, people count
-- **weather**: OpenWeatherMap integration
+- **assist_satellite**: 2 entities
+- **automation**: 15 entities
+- **binary_sensor**: 7 entities
+- **button**: 9 entities
+- **calendar**: 1 entities
+- **camera**: 1 entities
+- **conversation**: 3 entities
+- **event**: 3 entities
+- **input_boolean**: 10 entities
+- **input_datetime**: 2 entities
+- **input_number**: 5 entities
+- **input_text**: 5 entities
+- **light**: 11 entities
+- **media_player**: 2 entities
+- **number**: 1 entities
+- **person**: 2 entities
+- **scene**: 5 entities
+- **script**: 13 entities
+- **select**: 15 entities
+- **sensor**: 355 entities
+- **siren**: 1 entities
+- **stt**: 2 entities
+- **sun**: 1 entities
+- **switch**: 18 entities
+- **todo**: 1 entities
+- **tts**: 3 entities
+- **update**: 21 entities
+- **weather**: 2 entities
+- **zone**: 1 entities
 
 ## Glitch Cube Integration Status
 
-### Weather System Entities:
-- ✅ **weather.openweathermap** - Primary weather data source
-- ✅ **sensor.playa_weather_api** - Template sensor with aggregated weather data
-- ✅ **input_text.current_weather** - Stores LLM-summarized weather (255 char max)
-- ✅ **sensor.openweathermap_temperature** - Current temperature
-- ✅ **sensor.openweathermap_feels_like_temperature** - Feels like temperature
-- ✅ **sensor.openweathermap_condition** - Current conditions
-- ✅ **sensor.openweathermap_humidity** - Humidity percentage
-- ✅ **sensor.openweathermap_wind_speed** - Wind speed
-- ✅ **sensor.openweathermap_wind_bearing** - Wind direction
-- ✅ **sensor.openweathermap_uv_index** - UV index
-- ✅ **sensor.openweathermap_cloud_coverage** - Cloud coverage percentage
+### Entities Used in Code:
+- ✅ **input_text.current_weather** - Current Weather Summary (State: Weather data unavailable)
+- ✅ **input_text.current_persona** - Current AI Persona (State: Default)
+- ✅ **input_text.current_environment** - Current Environment (State: Unknown location)
+- ✅ **input_text.camera_vision_analysis** - Camera Vision Analysis (State: No analysis available)
+- ❌ **sensor.battery_level** - (Missing - needs configuration)
+- ❌ **sensor.temperature** - (Missing - needs configuration)
+- ❌ **sensor.outdoor_temperature** - (Missing - needs configuration)
+- ❌ **sensor.outdoor_humidity** - (Missing - needs configuration)
+- ✅ **sensor.playa_weather_api** - Playa Weather API (State: unknown)
+- ❌ **binary_sensor.motion** - (Missing - needs configuration)
+- ❌ **binary_sensor.camera_motion** - (Missing - needs configuration)
+- ❌ **camera.glitch_cube** - (Missing - needs configuration)
+- ✅ **camera.camera** - Camera (State: idle)
+- ❌ **camera.tablet** - (Missing - needs configuration)
+- ❌ **media_player.glitch_cube_speaker** - (Missing - needs configuration)
+- ❌ **device_tracker.glitch_cube** - (Missing - needs configuration)
+- ❌ **input_number.glitch_cube_lat** - (Missing - needs configuration)
+- ❌ **input_number.glitch_cube_lng** - (Missing - needs configuration)
+- ✅ **input_number.glitch_cube_prev_lat** - Previous Latitude (State: -90.0)
+- ✅ **input_number.glitch_cube_prev_lng** - Previous Longitude (State: -180.0)
+- ❌ **sensor.camera_vision_status** - (Missing - needs configuration)
+- ❌ **sensor.camera_people_count** - (Missing - needs configuration)
+- ❌ **weather.openweathermap** - (Missing - needs configuration)
 
-### Camera Vision System Entities:
-- ✅ **camera.tablet** - Physical camera entity
-- ✅ **binary_sensor.camera_motion** - Motion detection trigger
-- ✅ **input_text.camera_vision_analysis** - Stores vision analysis (255 char max)
-- ✅ **sensor.camera_vision_status** - Status (idle/people_detected/activity_detected)
-- ✅ **sensor.camera_people_count** - Extracted people count
+### Key Available Entities:
+- **Weather entities**: 2 weather.forecast_blackrock, weather.playaweather
+- **Camera entities**: 1 camera.camera
+- **Media players**: 2 media_player.esp32_s3_box_3_52b3dc, media_player.square_voice
+- **Weather-related sensors**: 23
+  - sensor.awtrix_b85e20_humidity: 28 %
+  - sensor.awtrix_b85e20_temperature: 107.6 °F
+  - sensor.esp32_s3_box_3_52b3dc_boxs3_humidity: unavailable %
+  - sensor.esp32_s3_box_3_52b3dc_boxs3_temperature: unavailable °F
+  - sensor.macmini_composite_temperature: 21196.4 °F
 
-### GPS/Location System Entities:
-- ⚠️ **device_tracker.glitch_cube** - GPS device tracker (needs configuration)
-- ✅ **input_number.glitch_cube_lat** - Current latitude
-- ✅ **input_number.glitch_cube_lng** - Current longitude  
-- ✅ **input_number.glitch_cube_prev_lat** - Previous latitude for movement detection
-- ✅ **input_number.glitch_cube_prev_lng** - Previous longitude for movement detection
+## All Entities by Domain
 
-### Conversation System Entities:
-- ✅ **input_text.current_persona** - Active AI persona
-- ✅ **input_text.current_environment** - Environment description
-- ✅ **input_text.glitchcube_host** - Glitch Cube host IP
+### Assist_satellite (2 entities)
 
-### Automations:
-- ✅ **automation.camera_motion_vision_analysis** - Triggers vision on motion
-- ✅ **automation.clear_camera_vision_analysis** - Clears after 5min inactivity
-- ✅ **automation.update_weather_summary** - Periodic weather updates
-- ✅ **automation.update_previous_coordinates** - GPS movement tracking
+- assist_satellite.esp32_s3_box_3_52b3dc_assist_satellite - Assist satellite (unavailable)
+- assist_satellite.home_assistant_voice_09739d_assist_satellite - Square Voice Assist satellite (idle)
 
-### Scripts:
-- ✅ **script.analyze_camera_now** - Manual camera analysis trigger
-- ✅ **script.analyze_camera_with_prompt** - Custom prompt analysis
+### Automation (15 entities)
 
-## Weather Data Structure
+- automation.alert_on_app_health_issues - Alert on App Health Issues (on)
+- automation.alert_on_high_temperature - Alert on High Temperature (on)
+- automation.alert_on_internet_connectivity_loss - Alert on Internet Connectivity Loss (on)
+- **automation.camera_motion_vision_analysis** - Camera Motion Vision Analysis (on)
+- **automation.clear_camera_vision_analysis** - Clear Camera Vision Analysis (on)
+- automation.daily_health_summary - Daily Health Summary (on)
+- automation.github_deployment_webhook - GitHub Deployment Webhook (on)
+- automation.glitch_cube_text_to_speech - Glitch Cube Text-to-Speech (on)
+- automation.manage_offline_mode - Manage Offline Mode (on)
+- automation.update_binary_sensors - Update Binary Sensors (on)
+- automation.update_current_persona - Update Current Persona (on)
+- automation.update_external_status_page - Update External Status Page (on)
+- automation.update_last_interaction_time - Update Last Interaction Time (on)
+- automation.update_previous_coordinates - Update Previous Coordinates (on)
+- automation.webhook_value_updates - Webhook Value Updates (on)
 
-The `sensor.playa_weather_api` template sensor aggregates weather data in JSON format:
+### Binary_sensor (7 entities)
 
-```json
-{
-  "timestamp": "ISO8601 timestamp",
-  "location": "Black Rock City",
-  "current": {
-    "temperature": 85.0,
-    "feels_like": 88.0,
-    "condition": "sunny",
-    "weather_code": 800,
-    "humidity": 15.0,
-    "pressure": 1013.0,
-    "dew_point": 35.0,
-    "visibility": 10.0,
-    "uv_index": 9.0,
-    "cloud_coverage": 5.0,
-    "wind_speed": 12.0,
-    "wind_bearing": 270.0,
-    "precipitation": {
-      "rain": 0.0,
-      "snow": 0.0,
-      "kind": "none"
-    }
-  },
-  "daily_forecast": [...],
-  "hourly_forecast": [...]
-}
-```
+- binary_sensor.awtrix_b85e20_button_left - awtrix_b85e20 Button left (off)
+- binary_sensor.awtrix_b85e20_button_right - awtrix_b85e20 Button right (off)
+- binary_sensor.awtrix_b85e20_button_select - awtrix_b85e20 Button select (off)
+- binary_sensor.esp32_s3_box_3_52b3dc_boxs3_presence - boxy-wakey boxs3 Presence (unavailable)
+- binary_sensor.glitch_cube_moving - Glitch Cube Moving (unavailable)
+- binary_sensor.glitchcube_update_available - Glitch Cube Update Available (off)
+- binary_sensor.remote_ui - Remote UI (on)
 
-## Integration with Ruby Application
+### Button (9 entities)
 
-### Weather Service (`lib/services/weather_service.rb`)
-```ruby
-# Fetches weather data from sensor.playa_weather_api
-weather_data = @ha_client.states.find { |s| s['entity_id'] == 'sensor.playa_weather_api' }
-attributes = weather_data['attributes']
-weather_json = JSON.parse(attributes['weather_data'])
+- button.awtrix_b85e20_dismiss_notification - awtrix_b85e20 Dismiss notification (unknown)
+- button.awtrix_b85e20_next_app - awtrix_b85e20 Next app (unknown)
+- button.awtrix_b85e20_previous_app - awtrix_b85e20 Previous app (unknown)
+- button.awtrix_b85e20_start_update - awtrix_b85e20 Start Update (unknown)
+- button.esp32_s3_box_3_52b3dc_boxs3_test_ir_blast - boxy-wakey boxs3 Test IR Blast (unavailable)
+- button.homeassistant_reload - Home Assistant Reload (2025-08-06T13:04:14.267004+00:00)
+- button.homeassistant_restart - Home Assistant Restart (unknown)
+- button.ignore_all_issues - Repairs Ignore all (unknown)
+- button.unignore_all_issues - Repairs Unignore all (unknown)
 
-# Summarizes with LLM
-summary = generate_weather_summary(weather_json)
+### Calendar (1 entities)
 
-# Stores in input_text.current_weather
-@ha_client.set_state('input_text.current_weather', summary)
-```
+- **calendar.llm_vision_timeline** - LLM Vision Timeline (off)
 
-### Camera Vision Access
-```ruby
-# Get current analysis
-analysis = @ha_client.get_state('input_text.camera_vision_analysis')
-people_count = @ha_client.get_state('sensor.camera_people_count')
+### Camera (1 entities)
 
-# Trigger manual analysis
-@ha_client.call_service('script', 'analyze_camera_now')
-```
+- **camera.camera** - Camera (idle)
 
-### GPS Tracking
-```ruby
-# Get current position
-lat = @ha_client.get_state('input_number.glitch_cube_lat')
-lng = @ha_client.get_state('input_number.glitch_cube_lng')
+### Conversation (3 entities)
 
-# Update position
-@ha_client.set_state('input_number.glitch_cube_lat', new_lat)
-@ha_client.set_state('input_number.glitch_cube_lng', new_lng)
-```
+- conversation.claude_conversation - Claude conversation (unknown)
+- conversation.glitch_cube_localhost_4567 - Glitch Cube (localhost:4567) (2025-08-07T20:41:41.999139+00:00)
+- conversation.home_assistant - Home Assistant (2025-08-06T09:31:51.347635+00:00)
 
-## Configuration Files
+### Event (3 entities)
 
-### Weather Template Sensor
-`config/homeassistant/template/playa_weather_api.yaml`
-- Updates every 15 minutes
-- Aggregates OpenWeatherMap data
-- Includes forecasts
+- event.backup_automatic_backup - Backup Automatic backup (unknown)
+- event.home_assistant_voice_09739d_button_press - Square Voice Button press (unknown)
+- event.repair - Repairs (2025-08-07T17:43:17.062+00:00)
 
-### Camera Vision Automation
-`config/homeassistant/automations/camera_vision_analysis.yaml`
-- Triggers on motion detection
-- 60-second cooldown
-- Stores in input_text
+### Input_boolean (10 entities)
 
-### Input Helpers
-`config/homeassistant/input_helpers/input_text.yaml`
-- current_weather (255 chars)
-- camera_vision_analysis (255 chars)
-- current_persona (100 chars)
-- current_environment (255 chars)
+- input_boolean.battery_low - Battery Low (off)
+- input_boolean.cube_is_moving - Cube Is Moving (off)
+- input_boolean.cube_stable - Cube Stable (on)
+- input_boolean.cube_stopped_moving - Cube Stopped Moving (off)
+- input_boolean.cube_tilted - Cube Tilted (off)
+- input_boolean.human_detected - Human Detected (off)
+- input_boolean.motion_detected - Motion Detected (off)
+- input_boolean.offline_mode - Offline Mode (off)
+- input_boolean.resources_low - Resources Low (off)
+- input_boolean.temp_critical - Temperature Critical (off)
 
-## Required Home Assistant Integrations
+### Input_datetime (2 entities)
 
-1. **OpenWeatherMap** - Weather data provider
-2. **LLM Vision** - Camera analysis (provider: 01K21T5563YK72553SX49G9WK3)
-3. **Fully Kiosk Browser** - Tablet camera access
-4. **RESTful** - API endpoints for Glitch Cube
+- input_datetime.last_interaction - Last Interaction Timestamp (2025-08-04 00:00:00)
+- input_datetime.last_repeating_jobs_run - Last Repeating Jobs Run (2025-08-07 18:20:12)
 
-## Troubleshooting
+### Input_number (5 entities)
 
-### Weather Not Updating
-1. Check OpenWeatherMap API key is valid
-2. Verify weather.openweathermap entity exists
-3. Check template sensor automation is enabled
-4. Review logs for template errors
+- input_number.avg_sound_db - Average Sound Level (40.0)
+- input_number.glitch_cube_daily_distance_storage - Daily Distance Storage (0.0)
+- input_number.glitch_cube_prev_lat - Previous Latitude (-90.0)
+- input_number.glitch_cube_prev_lng - Previous Longitude (-180.0)
+- input_number.glitch_cube_total_distance_storage - Total Distance Storage (0.0)
 
-### Camera Vision Not Working
-1. Verify camera.tablet is accessible
-2. Check LLM Vision integration is configured
-3. Ensure motion sensor is triggering
-4. Check automation cooldown period
+### Input_text (5 entities)
 
-### GPS Not Tracking
-1. Create device_tracker.glitch_cube entity
-2. Configure input_number helpers for coordinates
-3. Enable movement tracking automation
-4. Verify GPS data source
+- **input_text.camera_vision_analysis** - Camera Vision Analysis (No analysis available)
+- input_text.current_environment - Current Environment (Unknown location)
+- input_text.current_persona - Current AI Persona (Default)
+- **input_text.current_weather** - Current Weather Summary (Weather data unavailable)
+- input_text.glitchcube_host - Glitch Cube Host IP (192.168.0.99)
 
-## Next Steps
+### Light (11 entities)
 
-1. **Configure device_tracker.glitch_cube** for real GPS tracking
-2. **Set up OpenWeatherMap** with API key for weather data
-3. **Test camera motion detection** with binary_sensor.camera_motion
-4. **Verify LLM Vision provider** configuration
-5. **Test weather summarization** with manual trigger
+- light.awtrix_b85e20_indicator_1 - awtrix_b85e20 Indicator 1 (off)
+- light.awtrix_b85e20_indicator_2 - awtrix_b85e20 Indicator 2 (off)
+- light.awtrix_b85e20_indicator_3 - awtrix_b85e20 Indicator 3 (off)
+- light.awtrix_b85e20_matrix - awtrix_b85e20 Matrix (on)
+- **light.camera_indicator_light** - Camera Indicator light (on)
+- light.esp32_s3_box_3_52b3dc_screen - boxy-wakey Screen (unavailable)
+- light.h6022 - H6022 (on)
+- light.h6056 - H6056 (on)
+- light.home_assistant_voice_09739d_led_ring - Square Voice LED Ring (on)
+- light.parrot_left - Parrot Left (unavailable)
+- light.parrot_right - Parrot Right (unavailable)
+
+### Media_player (2 entities)
+
+- media_player.esp32_s3_box_3_52b3dc - boxy-wakey (unavailable)
+- media_player.square_voice - Square Voice Media Player (idle)
+
+### Number (1 entities)
+
+- **number.camera_volume** - Camera Volume (8.0)
+
+### Person (2 entities)
+
+- person.glitchadmin - glitchadmin (unknown)
+- person.mqtt - mqtt (unknown)
+
+### Scene (5 entities)
+
+- scene.alert_mode - Alert Mode (unknown)
+- scene.demo_mode - Demo Mode (unknown)
+- scene.installation_active - Installation Active (unknown)
+- scene.maintenance_mode - Maintenance Mode (unknown)
+- scene.sleep_mode - Sleep Mode (unknown)
+
+### Script (13 entities)
+
+- **script.analyze_camera_now** - Analyze Camera Now (off)
+- **script.analyze_camera_with_prompt** - Analyze Camera with Custom Prompt (off)
+- script.awtrix_clear_display - AWTRIX Clear Display (off)
+- script.awtrix_send_custom_app - AWTRIX Send Custom App (off)
+- script.awtrix_send_notification - AWTRIX Send Notification (off)
+- script.awtrix_set_mood_light - AWTRIX Set Mood Light (off)
+- script.emergency_shutdown - Emergency Shutdown Sequence (off)
+- script.generate_health_report - Generate Health Report (off)
+- script.glitchcube_tts - GlitchCube TTS (off)
+- script.manual_glitchcube_deployment - Manual Glitch Cube Deployment (off)
+- script.reset_all_sensors - Reset All Sensors to Default (off)
+- script.speak_with_persona - Speak with Current Persona (off)
+- script.toggle_offline_mode - Toggle Offline Mode (off)
+
+### Select (15 entities)
+
+- select.awtrix_b85e20_brightness_mode - awtrix_b85e20 Brightness mode (Manual)
+- select.awtrix_b85e20_transition_effect - awtrix_b85e20 Transition effect (unknown)
+- **select.camera_anti_flicker** - Camera Anti-flicker (0)
+- **select.camera_motion_detection_sensitivity** - Camera Motion detection sensitivity (0)
+- **select.camera_night_vision** - Camera Night vision (0)
+- **select.camera_record_mode** - Camera Record mode (2)
+- **select.camera_sound_detection_sensitivity** - Camera Sound detection sensitivity (0)
+- select.esp32_s3_box_3_52b3dc_assistant - boxy-wakey Assistant (Home Assistant Cloud)
+- select.esp32_s3_box_3_52b3dc_finished_speaking_detection - boxy-wakey Finished speaking detection (default)
+- select.esp32_s3_box_3_52b3dc_wake_word - boxy-wakey Wake word (unavailable)
+- select.esp32_s3_box_3_52b3dc_wake_word_engine_location - boxy-wakey Wake word engine location (unavailable)
+- select.home_assistant_voice_09739d_assistant - Square Voice Assistant (CUBEY)
+- select.home_assistant_voice_09739d_finished_speaking_detection - Square Voice Finished speaking detection (default)
+- select.home_assistant_voice_09739d_wake_word - Square Voice Wake word (yo kess)
+- select.home_assistant_voice_09739d_wake_word_sensitivity - Square Voice Wake word sensitivity (Slightly sensitive)
+
+### Sensor (355 entities)
+
+- sensor.active_issues - Repairs Active (0)
+- sensor.air_quality - Home Assistant Air quality (0)
+- sensor.alarm_control_panels - Home Assistant Alarm control panels (0)
+- sensor.areas - Home Assistant Areas (13)
+- sensor.automations - Home Assistant Automations (15)
+- sensor.awtrix_b85e20_battery - awtrix_b85e20 Battery (42)
+- sensor.awtrix_b85e20_current_app - awtrix_b85e20 Current app (Notification)
+- sensor.awtrix_b85e20_device_topic - awtrix_b85e20 Device topic (marquee)
+- sensor.awtrix_b85e20_free_ram - awtrix_b85e20 Free ram (122124)
+- sensor.awtrix_b85e20_humidity - awtrix_b85e20 Humidity (28)
+- sensor.awtrix_b85e20_illuminance - awtrix_b85e20 Illuminance (0)
+- sensor.awtrix_b85e20_ip_address - awtrix_b85e20 IP Address (192.168.0.54)
+- sensor.awtrix_b85e20_temperature - awtrix_b85e20 Temperature (107.6)
+- sensor.awtrix_b85e20_uptime - awtrix_b85e20 Uptime (23418)
+- sensor.awtrix_b85e20_version - awtrix_b85e20 Version (0.98)
+- sensor.awtrix_b85e20_wifi_strength - awtrix_b85e20 WiFi strength (-47)
+- sensor.backup_backup_manager_state - Backup Backup Manager state (idle)
+- sensor.backup_last_attempted_automatic_backup - Backup Last attempted automatic backup (unknown)
+- sensor.backup_last_successful_automatic_backup - Backup Last successful automatic backup (unknown)
+- sensor.backup_next_scheduled_automatic_backup - Backup Next scheduled automatic backup (unknown)
+- sensor.binary_sensors - Home Assistant Binary sensors (7)
+- sensor.buttons - Home Assistant Buttons (9)
+- sensor.calendars - Home Assistant Calendars (1)
+- **sensor.cameras** - Home Assistant Cameras (1)
+- sensor.climate - Home Assistant Climate (0)
+- sensor.covers - Home Assistant Covers (0)
+- sensor.cube_veth0319977_rx - veth0319977 RX (unavailable)
+- sensor.cube_veth0319977_tx - veth0319977 TX (unavailable)
+- sensor.cube_veth0336abe_rx - veth0336abe RX (unavailable)
+- sensor.cube_veth0336abe_tx - veth0336abe TX (unavailable)
+- sensor.cube_veth061954c_rx - veth061954c RX (unavailable)
+- sensor.cube_veth061954c_tx - veth061954c TX (unavailable)
+- sensor.cube_veth0ce376b_rx - veth0ce376b RX (unavailable)
+- sensor.cube_veth0ce376b_tx - veth0ce376b TX (unavailable)
+- sensor.cube_veth0e7cd3f_rx - veth0e7cd3f RX (unavailable)
+- sensor.cube_veth0e7cd3f_tx - veth0e7cd3f TX (unavailable)
+- sensor.cube_veth0f3e55d_rx - veth0f3e55d RX (unavailable)
+- sensor.cube_veth0f3e55d_tx - veth0f3e55d TX (unavailable)
+- sensor.cube_veth120e638_rx - veth120e638 RX (unavailable)
+- sensor.cube_veth120e638_tx - veth120e638 TX (unavailable)
+- sensor.cube_veth12c4eb9_rx - cube veth12c4eb9 RX (0.0)
+- sensor.cube_veth12c4eb9_tx - cube veth12c4eb9 TX (0.0)
+- sensor.cube_veth15fddcf_rx - cube veth15fddcf RX (0.000192)
+- sensor.cube_veth15fddcf_tx - cube veth15fddcf TX (0.00016)
+- sensor.cube_veth1807562_rx - veth1807562 RX (unavailable)
+- sensor.cube_veth1807562_tx - veth1807562 TX (unavailable)
+- sensor.cube_veth1b75eae_rx - veth1b75eae RX (unavailable)
+- sensor.cube_veth1b75eae_tx - veth1b75eae TX (unavailable)
+- sensor.cube_veth1c2168e_rx - cube veth1c2168e RX (0.10164)
+- sensor.cube_veth1c2168e_tx - cube veth1c2168e TX (0.018896)
+- sensor.cube_veth1cdb3f7_rx - veth1cdb3f7 RX (unavailable)
+- sensor.cube_veth1cdb3f7_tx - veth1cdb3f7 TX (unavailable)
+- sensor.cube_veth203e992_rx - veth203e992 RX (unavailable)
+- sensor.cube_veth203e992_tx - veth203e992 TX (unavailable)
+- sensor.cube_veth251e437_rx - veth251e437 RX (unavailable)
+- sensor.cube_veth251e437_tx - veth251e437 TX (unavailable)
+- sensor.cube_veth2e8b8ae_rx - cube veth2e8b8ae RX (0.0)
+- sensor.cube_veth2e8b8ae_tx - cube veth2e8b8ae TX (0.0)
+- sensor.cube_veth2ea6db2_rx - veth2ea6db2 RX (unavailable)
+- sensor.cube_veth2ea6db2_tx - veth2ea6db2 TX (unavailable)
+- sensor.cube_veth31492f6_rx - veth31492f6 RX (unavailable)
+- sensor.cube_veth31492f6_tx - veth31492f6 TX (unavailable)
+- sensor.cube_veth32dc492_rx - veth32dc492 RX (unavailable)
+- sensor.cube_veth32dc492_tx - veth32dc492 TX (unavailable)
+- sensor.cube_veth33b2a39_rx - veth33b2a39 RX (unavailable)
+- sensor.cube_veth33b2a39_tx - veth33b2a39 TX (unavailable)
+- sensor.cube_veth3696c1e_rx - veth3696c1e RX (unavailable)
+- sensor.cube_veth3696c1e_tx - veth3696c1e TX (unavailable)
+- sensor.cube_veth3ce374c_rx - veth3ce374c RX (unavailable)
+- sensor.cube_veth3ce374c_tx - veth3ce374c TX (unavailable)
+- sensor.cube_veth4190695_rx - veth4190695 RX (unavailable)
+- sensor.cube_veth4190695_tx - veth4190695 TX (unavailable)
+- sensor.cube_veth4311a95_rx - veth4311a95 RX (unavailable)
+- sensor.cube_veth4311a95_tx - veth4311a95 TX (unavailable)
+- sensor.cube_veth4311ea9_rx - cube veth4311ea9 RX (4.8e-05)
+- sensor.cube_veth4311ea9_tx - cube veth4311ea9 TX (7.2e-05)
+- sensor.cube_veth43bb8a1_rx - veth43bb8a1 RX (unavailable)
+- sensor.cube_veth43bb8a1_tx - veth43bb8a1 TX (unavailable)
+- sensor.cube_veth476861c_rx - veth476861c RX (unavailable)
+- sensor.cube_veth476861c_tx - veth476861c TX (unavailable)
+- sensor.cube_veth4c95be8_rx - veth4c95be8 RX (unavailable)
+- sensor.cube_veth4c95be8_tx - veth4c95be8 TX (unavailable)
+- sensor.cube_veth4f9122c_rx - veth4f9122c RX (unavailable)
+- sensor.cube_veth4f9122c_tx - veth4f9122c TX (unavailable)
+- sensor.cube_veth56116ce_rx - veth56116ce RX (unavailable)
+- sensor.cube_veth56116ce_tx - veth56116ce TX (unavailable)
+- sensor.cube_veth5c6a9b6_rx - cube veth5c6a9b6 RX (2.4e-05)
+- sensor.cube_veth5c6a9b6_tx - cube veth5c6a9b6 TX (3.2e-05)
+- sensor.cube_veth5d0a8f4_rx - veth5d0a8f4 RX (unavailable)
+- sensor.cube_veth5d0a8f4_tx - veth5d0a8f4 TX (unavailable)
+- sensor.cube_veth60d40c4_rx - veth60d40c4 RX (unavailable)
+- sensor.cube_veth60d40c4_tx - veth60d40c4 TX (unavailable)
+- sensor.cube_veth618a09c_rx - veth618a09c RX (unavailable)
+- sensor.cube_veth618a09c_tx - veth618a09c TX (unavailable)
+- sensor.cube_veth61c7b67_rx - veth61c7b67 RX (unavailable)
+- sensor.cube_veth61c7b67_tx - veth61c7b67 TX (unavailable)
+- sensor.cube_veth6f72f1f_rx - veth6f72f1f RX (unavailable)
+- sensor.cube_veth6f72f1f_tx - veth6f72f1f TX (unavailable)
+- sensor.cube_veth7715ef1_rx - veth7715ef1 RX (unavailable)
+- sensor.cube_veth7715ef1_tx - veth7715ef1 TX (unavailable)
+- sensor.cube_veth776b6e5_rx - veth776b6e5 RX (unavailable)
+- sensor.cube_veth776b6e5_tx - veth776b6e5 TX (unavailable)
+- sensor.cube_veth77b7e32_rx - veth77b7e32 RX (unavailable)
+- sensor.cube_veth77b7e32_tx - veth77b7e32 TX (unavailable)
+- sensor.cube_veth8673c24_rx - veth8673c24 RX (unavailable)
+- sensor.cube_veth8673c24_tx - veth8673c24 TX (unavailable)
+- sensor.cube_veth882994f_rx - veth882994f RX (unavailable)
+- sensor.cube_veth882994f_tx - veth882994f TX (unavailable)
+- sensor.cube_veth88f2382_rx - veth88f2382 RX (unavailable)
+- sensor.cube_veth88f2382_tx - veth88f2382 TX (unavailable)
+- sensor.cube_veth894bf1a_rx - veth894bf1a RX (unavailable)
+- sensor.cube_veth894bf1a_tx - veth894bf1a TX (unavailable)
+- sensor.cube_veth8aad3a0_rx - veth8aad3a0 RX (unavailable)
+- sensor.cube_veth8aad3a0_tx - veth8aad3a0 TX (unavailable)
+- sensor.cube_veth9501fe4_rx - veth9501fe4 RX (unavailable)
+- sensor.cube_veth9501fe4_tx - veth9501fe4 TX (unavailable)
+- sensor.cube_veth9684f5c_rx - veth9684f5c RX (unavailable)
+- sensor.cube_veth9684f5c_tx - veth9684f5c TX (unavailable)
+- sensor.cube_veth9b85b7f_rx - cube veth9b85b7f RX (0.001104)
+- sensor.cube_veth9b85b7f_tx - cube veth9b85b7f TX (0.002384)
+- sensor.cube_veth9e8cca4_rx - veth9e8cca4 RX (unavailable)
+- sensor.cube_veth9e8cca4_tx - veth9e8cca4 TX (unavailable)
+- sensor.cube_vetha0ce09b_rx - vetha0ce09b RX (unavailable)
+- sensor.cube_vetha0ce09b_tx - vetha0ce09b TX (unavailable)
+- sensor.cube_vetha1e8a73_rx - vetha1e8a73 RX (unavailable)
+- sensor.cube_vetha1e8a73_tx - vetha1e8a73 TX (unavailable)
+- sensor.cube_vetha4659dc_rx - vetha4659dc RX (unavailable)
+- sensor.cube_vetha4659dc_tx - vetha4659dc TX (unavailable)
+- sensor.cube_vethadcadf4_rx - vethadcadf4 RX (unavailable)
+- sensor.cube_vethadcadf4_tx - vethadcadf4 TX (unavailable)
+- sensor.cube_vethae5ef87_rx - vethae5ef87 RX (unavailable)
+- sensor.cube_vethae5ef87_tx - vethae5ef87 TX (unavailable)
+- sensor.cube_vethaf2b2d4_rx - vethaf2b2d4 RX (unavailable)
+- sensor.cube_vethaf2b2d4_tx - vethaf2b2d4 TX (unavailable)
+- sensor.cube_vethb13850c_rx - vethb13850c RX (unavailable)
+- sensor.cube_vethb13850c_tx - vethb13850c TX (unavailable)
+- sensor.cube_vethb5fd69c_rx - vethb5fd69c RX (unavailable)
+- sensor.cube_vethb5fd69c_tx - vethb5fd69c TX (unavailable)
+- sensor.cube_vethb7c0c28_rx - vethb7c0c28 RX (unavailable)
+- sensor.cube_vethb7c0c28_tx - vethb7c0c28 TX (unavailable)
+- sensor.cube_vethc15aa10_rx - cube vethc15aa10 RX (0.0)
+- sensor.cube_vethc15aa10_tx - cube vethc15aa10 TX (0.0)
+- sensor.cube_vethc1fb5db_rx - vethc1fb5db RX (unavailable)
+- sensor.cube_vethc1fb5db_tx - vethc1fb5db TX (unavailable)
+- sensor.cube_vethc58bd8e_rx - vethc58bd8e RX (unavailable)
+- sensor.cube_vethc58bd8e_tx - vethc58bd8e TX (unavailable)
+- sensor.cube_vethc74e889_rx - vethc74e889 RX (unavailable)
+- sensor.cube_vethc74e889_tx - vethc74e889 TX (unavailable)
+- sensor.cube_vethc7e74a2_rx - vethc7e74a2 RX (unavailable)
+- sensor.cube_vethc7e74a2_tx - vethc7e74a2 TX (unavailable)
+- sensor.cube_vethd3383a3_rx - vethd3383a3 RX (unavailable)
+- sensor.cube_vethd3383a3_tx - vethd3383a3 TX (unavailable)
+- sensor.cube_vethdaeb832_rx - vethdaeb832 RX (unavailable)
+- sensor.cube_vethdaeb832_tx - vethdaeb832 TX (unavailable)
+- sensor.cube_vethdb625eb_rx - vethdb625eb RX (unavailable)
+- sensor.cube_vethdb625eb_tx - vethdb625eb TX (unavailable)
+- sensor.cube_vethdd6ef32_rx - vethdd6ef32 RX (unavailable)
+- sensor.cube_vethdd6ef32_tx - vethdd6ef32 TX (unavailable)
+- sensor.cube_vethdeb3335_rx - vethdeb3335 RX (unavailable)
+- sensor.cube_vethdeb3335_tx - vethdeb3335 TX (unavailable)
+- sensor.cube_vethe1799e8_rx - vethe1799e8 RX (unavailable)
+- sensor.cube_vethe1799e8_tx - vethe1799e8 TX (unavailable)
+- sensor.cube_vethe806a7b_rx - vethe806a7b RX (unavailable)
+- sensor.cube_vethe806a7b_tx - vethe806a7b TX (unavailable)
+- sensor.cube_vetheb5b309_rx - vetheb5b309 RX (unavailable)
+- sensor.cube_vetheb5b309_tx - vetheb5b309 TX (unavailable)
+- sensor.cube_vethed5bc39_rx - vethed5bc39 RX (unavailable)
+- sensor.cube_vethed5bc39_tx - vethed5bc39 TX (unavailable)
+- sensor.cube_vethee3049d_rx - vethee3049d RX (unavailable)
+- sensor.cube_vethee3049d_tx - vethee3049d TX (unavailable)
+- sensor.cube_vethf6a28d1_rx - vethf6a28d1 RX (unavailable)
+- sensor.cube_vethf6a28d1_tx - vethf6a28d1 TX (unavailable)
+- sensor.cube_vethf908c6a_rx - vethf908c6a RX (unavailable)
+- sensor.cube_vethf908c6a_tx - vethf908c6a TX (unavailable)
+- sensor.cube_vethf9fe0e1_rx - vethf9fe0e1 RX (unavailable)
+- sensor.cube_vethf9fe0e1_tx - vethf9fe0e1 TX (unavailable)
+- sensor.cube_vethfa61330_rx - vethfa61330 RX (unavailable)
+- sensor.cube_vethfa61330_tx - vethfa61330 TX (unavailable)
+- sensor.custom_integrations - Home Assistant Custom integrations (7)
+- sensor.dates - Home Assistant Dates (0)
+- sensor.datetimes - Home Assistant Date/times (0)
+- sensor.device_trackers - Home Assistant Device trackers (0)
+- sensor.devices - Home Assistant Devices (47)
+- sensor.entities - Home Assistant Entities (517)
+- sensor.esp32_s3_box_3_52b3dc_boxs3_battery_percentage - boxy-wakey boxs3 Battery Percentage (unavailable)
+- sensor.esp32_s3_box_3_52b3dc_boxs3_battery_voltage - boxy-wakey boxs3 Battery Voltage (unavailable)
+- sensor.esp32_s3_box_3_52b3dc_boxs3_humidity - boxy-wakey boxs3 Humidity (unavailable)
+- sensor.esp32_s3_box_3_52b3dc_boxs3_ir_status - boxy-wakey boxs3 IR Status (unavailable)
+- sensor.esp32_s3_box_3_52b3dc_boxs3_radar_detection_count - boxy-wakey boxs3 Radar Detection Count (unavailable)
+- sensor.esp32_s3_box_3_52b3dc_boxs3_radar_status - boxy-wakey boxs3 Radar Status (unavailable)
+- sensor.esp32_s3_box_3_52b3dc_boxs3_temperature - boxy-wakey boxs3 Temperature (unavailable)
+- sensor.esp32_s3_box_3_52b3dc_boxs3_time_since_last_detection - boxy-wakey boxs3 Time Since Last Detection (unavailable)
+- sensor.fans - Home Assistant Fans (0)
+- sensor.glitch_cube_movement_duration - Glitch Cube Movement Duration (4.3h stopped)
+- sensor.glitchcube_deployment_status - Deployment Status (up-to-date)
+- sensor.glitchcube_update_needed - Glitch Cube Update Needed (unknown)
+- sensor.humidifiers - Home Assistant Humidifiers (0)
+- sensor.ignored_issues - Repairs Ignored (5)
+- sensor.images - Home Assistant Images (0)
+- sensor.input_booleans - Home Assistant Input booleans (10)
+- sensor.input_buttons - Home Assistant Input buttons (0)
+- sensor.input_datetimes - Home Assistant Input date/times (2)
+- sensor.input_numbers - Home Assistant Input numbers (5)
+- sensor.input_selects - Home Assistant Input selects (0)
+- sensor.input_texts - Home Assistant Input texts (5)
+- sensor.integrations - Home Assistant Integrations (69)
+- sensor.internet_connectivity - Internet Connectivity (connected)
+- sensor.issues - Repairs Total (5)
+- sensor.lights - Home Assistant Lights (11)
+- sensor.locks - Home Assistant Locks (0)
+- sensor.macmini_addons_disk_free - cube /addons disk free (26.0)
+- sensor.macmini_addons_disk_usage - cube /addons disk usage (29.9)
+- sensor.macmini_addons_disk_used - cube /addons disk used (11.1)
+- sensor.macmini_backup_disk_free - cube /backup disk free (26.0)
+- sensor.macmini_backup_disk_usage - cube /backup disk usage (29.9)
+- sensor.macmini_backup_disk_used - cube /backup disk used (11.1)
+- sensor.macmini_composite_temperature - cube Composite temperature (21196.4)
+- sensor.macmini_config_disk_free - cube /config disk free (26.0)
+- sensor.macmini_config_disk_usage - cube /config disk usage (29.9)
+- sensor.macmini_config_disk_used - cube /config disk used (11.1)
+- sensor.macmini_containers_active - cube Containers active (19)
+- sensor.macmini_containers_cpu_usage - cube Containers CPU usage (3.3)
+- sensor.macmini_containers_memory_used - cube Containers memory used (1406.0)
+- sensor.macmini_cpu_load - cube CPU load (0.15576171875)
+- sensor.macmini_cpu_usage - cube CPU usage (2.4)
+- sensor.macmini_data_disk_free - cube /data disk free (26.0)
+- sensor.macmini_data_disk_usage - cube /data disk usage (29.9)
+- sensor.macmini_data_disk_used - cube /data disk used (11.1)
+- sensor.macmini_docker0_rx - cube docker0 RX (0.0)
+- sensor.macmini_docker0_tx - cube docker0 TX (0.0)
+- sensor.macmini_enp2s0_rx - cube enp2s0 RX (0.01412)
+- sensor.macmini_enp2s0_tx - cube enp2s0 TX (0.010536)
+- sensor.macmini_etc_hostname_disk_free - cube /etc/hostname disk free (26.0)
+- sensor.macmini_etc_hostname_disk_usage - cube /etc/hostname disk usage (29.9)
+- sensor.macmini_etc_hostname_disk_used - cube /etc/hostname disk used (11.1)
+- sensor.macmini_etc_hosts_disk_free - cube /etc/hosts disk free (26.0)
+- sensor.macmini_etc_hosts_disk_usage - cube /etc/hosts disk usage (29.9)
+- sensor.macmini_etc_hosts_disk_used - cube /etc/hosts disk used (11.1)
+- sensor.macmini_etc_resolv_conf_disk_free - cube /etc/resolv.conf disk free (26.0)
+- sensor.macmini_etc_resolv_conf_disk_usage - cube /etc/resolv.conf disk usage (29.9)
+- sensor.macmini_etc_resolv_conf_disk_used - cube /etc/resolv.conf disk used (11.1)
+- sensor.macmini_hassio_rx - cube hassio RX (0.002432)
+- sensor.macmini_hassio_tx - cube hassio TX (0.02068)
+- sensor.macmini_lo_rx - cube lo RX (0.009032)
+- sensor.macmini_lo_tx - cube lo TX (0.009032)
+- sensor.macmini_media_disk_free - cube /media disk free (26.0)
+- sensor.macmini_media_disk_usage - cube /media disk usage (29.9)
+- sensor.macmini_media_disk_used - cube /media disk used (11.1)
+- sensor.macmini_memory_free - cube Memory free (494.0)
+- sensor.macmini_memory_usage - cube Memory usage (74.8)
+- sensor.macmini_memory_use - cube Memory use (1469.8)
+- sensor.macmini_nvme0n1_disk_read - cube nvme0n1 disk read (0.0)
+- sensor.macmini_nvme0n1_disk_write - cube nvme0n1 disk write (0.029439)
+- sensor.macmini_nvme0n1p1_disk_read - cube nvme0n1p1 disk read (0.0)
+- sensor.macmini_nvme0n1p1_disk_write - cube nvme0n1p1 disk write (0.0)
+- sensor.macmini_nvme0n1p2_disk_read - cube nvme0n1p2 disk read (0.0)
+- sensor.macmini_nvme0n1p2_disk_write - cube nvme0n1p2 disk write (0.0)
+- sensor.macmini_nvme0n1p3_disk_read - cube nvme0n1p3 disk read (0.0)
+- sensor.macmini_nvme0n1p3_disk_write - cube nvme0n1p3 disk write (0.0)
+- sensor.macmini_nvme0n1p4_disk_read - cube nvme0n1p4 disk read (0.0)
+- sensor.macmini_nvme0n1p4_disk_write - cube nvme0n1p4 disk write (0.0)
+- sensor.macmini_nvme0n1p5_disk_read - cube nvme0n1p5 disk read (0.0)
+- sensor.macmini_nvme0n1p5_disk_write - cube nvme0n1p5 disk write (0.0)
+- sensor.macmini_nvme0n1p6_disk_read - cube nvme0n1p6 disk read (0.0)
+- sensor.macmini_nvme0n1p6_disk_write - cube nvme0n1p6 disk write (0.0)
+- sensor.macmini_nvme0n1p7_disk_read - cube nvme0n1p7 disk read (0.0)
+- sensor.macmini_nvme0n1p7_disk_write - cube nvme0n1p7 disk write (6.8e-05)
+- sensor.macmini_nvme0n1p8_disk_read - cube nvme0n1p8 disk read (0.0)
+- sensor.macmini_nvme0n1p8_disk_write - cube nvme0n1p8 disk write (0.029371)
+- sensor.macmini_running - cube Running (2)
+- sensor.macmini_share_disk_free - cube /share disk free (26.0)
+- sensor.macmini_share_disk_usage - cube /share disk usage (29.9)
+- sensor.macmini_share_disk_used - cube /share disk used (11.1)
+- sensor.macmini_sleeping - cube Sleeping (303)
+- sensor.macmini_ssl_disk_free - cube /ssl disk free (26.0)
+- sensor.macmini_ssl_disk_usage - cube /ssl disk usage (29.9)
+- sensor.macmini_ssl_disk_used - cube /ssl disk used (11.1)
+- sensor.macmini_swap_free - cube Swap free (0.1)
+- sensor.macmini_swap_usage - cube Swap usage (89.6)
+- sensor.macmini_swap_use - cube Swap use (0.6)
+- sensor.macmini_threads - cube Threads (1173)
+- sensor.macmini_total - cube Total (414)
+- sensor.macmini_uptime - cube Uptime (2025-08-07T17:30:45+00:00)
+- sensor.macmini_veth04f0457_rx - veth04f0457 RX (unavailable)
+- sensor.macmini_veth04f0457_tx - veth04f0457 TX (unavailable)
+- sensor.macmini_veth4323a96_rx - veth4323a96 RX (unavailable)
+- sensor.macmini_veth4323a96_tx - veth4323a96 TX (unavailable)
+- sensor.macmini_veth5661a5b_rx - veth5661a5b RX (unavailable)
+- sensor.macmini_veth5661a5b_tx - veth5661a5b TX (unavailable)
+- sensor.macmini_veth7ae36c5_rx - veth7ae36c5 RX (unavailable)
+- sensor.macmini_veth7ae36c5_tx - veth7ae36c5 TX (unavailable)
+- sensor.macmini_veth7ebd451_rx - veth7ebd451 RX (unavailable)
+- sensor.macmini_veth7ebd451_tx - veth7ebd451 TX (unavailable)
+- sensor.macmini_vetha058f0c_rx - vetha058f0c RX (unavailable)
+- sensor.macmini_vetha058f0c_tx - vetha058f0c TX (unavailable)
+- sensor.macmini_vethc641d9b_rx - vethc641d9b RX (unavailable)
+- sensor.macmini_vethc641d9b_tx - vethc641d9b TX (unavailable)
+- sensor.macmini_vethd549a08_rx - vethd549a08 RX (unavailable)
+- sensor.macmini_vethd549a08_tx - vethd549a08 TX (unavailable)
+- sensor.macmini_vethe8ce122_rx - vethe8ce122 RX (unavailable)
+- sensor.macmini_vethe8ce122_tx - vethe8ce122 TX (unavailable)
+- sensor.macmini_vetheadbf06_rx - vetheadbf06 RX (unavailable)
+- sensor.macmini_vetheadbf06_tx - vetheadbf06 TX (unavailable)
+- sensor.macmini_vethf2e55ba_rx - vethf2e55ba RX (unavailable)
+- sensor.macmini_vethf2e55ba_tx - vethf2e55ba TX (unavailable)
+- sensor.macmini_zram0_disk_read - cube zram0 disk read (0.0)
+- sensor.macmini_zram0_disk_write - cube zram0 disk write (0.0)
+- sensor.macmini_zram1_disk_read - cube zram1 disk read (0.0)
+- sensor.macmini_zram1_disk_write - cube zram1 disk write (0.0)
+- sensor.macmini_zram2_disk_read - cube zram2 disk read (0.0)
+- sensor.macmini_zram2_disk_write - cube zram2 disk write (0.002662)
+- sensor.media_players - Home Assistant Media players (2)
+- sensor.numbers - Home Assistant Numbers (1)
+- sensor.persistent_notifications - Home Assistant Persistent notifications (1)
+- sensor.persons - Home Assistant Persons (2)
+- **sensor.playa_weather_api** - Playa Weather API (unknown)
+- **sensor.playaweather_cloud_coverage** - playaweather Cloud coverage (50)
+- **sensor.playaweather_condition** - playaweather Condition (partlycloudy)
+- **sensor.playaweather_dew_point** - playaweather Dew Point (38.228)
+- **sensor.playaweather_feels_like_temperature** - playaweather Feels like temperature (84.812)
+- **sensor.playaweather_humidity** - playaweather Humidity (17)
+- **sensor.playaweather_precipitation_kind** - playaweather Precipitation kind (None)
+- **sensor.playaweather_pressure** - playaweather Pressure (14.6778196824051)
+- **sensor.playaweather_rain** - playaweather Rain (0.0)
+- **sensor.playaweather_snow** - playaweather Snow (0.0)
+- **sensor.playaweather_temperature** - playaweather Temperature (88.556)
+- **sensor.playaweather_uv_index** - playaweather UV Index (7.08)
+- **sensor.playaweather_visibility** - playaweather Visibility (32808.3989501312)
+- **sensor.playaweather_weather** - playaweather Weather (scattered clouds)
+- **sensor.playaweather_weather_code** - playaweather Weather Code (802)
+- **sensor.playaweather_wind_bearing** - playaweather Wind bearing (239)
+- **sensor.playaweather_wind_speed** - playaweather Wind speed (14.2492841803865)
+- sensor.remotes - Home Assistant Remotes (0)
+- sensor.scenes - Home Assistant Scenes (5)
+- sensor.scripts - Home Assistant Scripts (13)
+- sensor.selects - Home Assistant Selects (15)
+- sensor.sensors - Home Assistant Sensors (355)
+- sensor.sirens - Home Assistant Sirens (1)
+- sensor.stt - Home Assistant Speech-to-text (2)
+- sensor.sun_next_dawn - Sun Next dawn (2025-08-08T12:18:23+00:00)
+- sensor.sun_next_dusk - Sun Next dusk (2025-08-08T03:47:06+00:00)
+- sensor.sun_next_midnight - Sun Next midnight (2025-08-08T08:02:27+00:00)
+- sensor.sun_next_noon - Sun Next noon (2025-08-08T20:02:34+00:00)
+- sensor.sun_next_rising - Sun Next rising (2025-08-08T12:51:37+00:00)
+- sensor.sun_next_setting - Sun Next setting (2025-08-08T03:13:54+00:00)
+- sensor.suns - Home Assistant Suns (1)
+- sensor.switches - Home Assistant Switches (18)
+- sensor.texts - Home Assistant Texts (0)
+- sensor.times - Home Assistant Times (0)
+- sensor.tts - Home Assistant Text-to-speech (3)
+- sensor.update - Home Assistant Update (21)
+- sensor.vacuums - Home Assistant Vacuums (0)
+- sensor.water_heaters - Home Assistant Water heaters (0)
+- **sensor.weather** - Home Assistant Weather (2)
+- sensor.zones - Home Assistant Zones (1)
+
+### Siren (1 entities)
+
+- **siren.camera** - Camera (off)
+
+### Stt (2 entities)
+
+- stt.faster_whisper - faster-whisper (unknown)
+- stt.home_assistant_cloud - Home Assistant Cloud (unknown)
+
+### Sun (1 entities)
+
+- sun.sun - Sun (above_horizon)
+
+### Switch (18 entities)
+
+- switch.awtrix_b85e20_transition - awtrix_b85e20 Transition (on)
+- **switch.camera_flip** - Camera Flip (off)
+- **switch.camera_motion_alarm** - Camera Motion alarm (on)
+- **switch.camera_privacy_mode** - Camera Privacy mode (off)
+- **switch.camera_sound_detection** - Camera Sound detection (off)
+- **switch.camera_time_watermark** - Camera Time watermark (on)
+- **switch.camera_video_recording** - Camera Video recording (off)
+- switch.cloud_alexa - Home Assistant Cloud Alexa (on)
+- switch.cloud_alexa_report_state - Home Assistant Cloud Alexa state reporting (on)
+- switch.cloud_google - Home Assistant Cloud Google Assistant (on)
+- switch.cloud_google_report_state - Home Assistant Cloud Google Assistant state reporting (on)
+- switch.cloud_remote - Home Assistant Cloud Remote (on)
+- switch.esp32_s3_box_3_52b3dc_boxs3_ir_learning_mode - boxy-wakey boxs3 IR Learning Mode (unavailable)
+- switch.esp32_s3_box_3_52b3dc_boxs3_reset_radar_counter - boxy-wakey boxs3 Reset Radar Counter (unavailable)
+- switch.esp32_s3_box_3_52b3dc_mute - boxy-wakey Mute (unavailable)
+- switch.home_assistant_voice_09739d_mute - Square Voice Mute (off)
+- switch.home_assistant_voice_09739d_wake_sound - Square Voice Wake sound (on)
+- switch.seedling_light_socket_1 - Seedling Light Socket 1 (unavailable)
+
+### Todo (1 entities)
+
+- todo.shopping_list - Shopping List (0)
+
+### Tts (3 entities)
+
+- tts.google_translate_en_com - Google Translate en com (unknown)
+- tts.home_assistant_cloud - Home Assistant Cloud (2025-08-07T20:41:42.004461+00:00)
+- tts.piper - piper (unknown)
+
+### Update (21 entities)
+
+- update.advanced_ssh_web_terminal_update - Advanced SSH & Web Terminal Update (off)
+- update.awtrix_update - Awtrix update (off)
+- update.esphome_device_builder_update - ESPHome Device Builder Update (off)
+- update.file_editor_update - File editor Update (off)
+- update.frigate_update - Frigate Update (off)
+- update.get_hacs_update - Get HACS Update (off)
+- update.glances_update - Glances Update (off)
+- update.hacs_update - HACS update (off)
+- update.home_assistant_core_update - Home Assistant Core Update (off)
+- update.home_assistant_operating_system_update - Home Assistant Operating System Update (off)
+- update.home_assistant_supervisor_update - Home Assistant Supervisor Update (off)
+- **update.llm_vision_update** - LLM Vision update (off)
+- update.log_viewer_update - Log Viewer Update (off)
+- update.mariadb_update - MariaDB Update (off)
+- update.mosquitto_broker_update - Mosquitto broker Update (off)
+- update.music_assistant_server_update - Music Assistant Server Update (off)
+- update.passive_ble_monitor_integration_update - Passive BLE monitor integration update (off)
+- update.piper_update - Piper Update (off)
+- update.samba_share_update - Samba share Update (off)
+- update.spook_your_homie_update - Spook 👻 Your homie update (off)
+- update.whisper_update - Whisper Update (off)
+
+### Weather (2 entities)
+
+- **weather.forecast_blackrock** - Forecast blackrock (partlycloudy)
+- **weather.playaweather** - playaweather (partlycloudy)
+
+### Zone (1 entities)
+
+- zone.home - Glitch Cube (0)
+
+## Integration Notes
+
+### Weather Integration
+- Primary weather entity: weather.openweathermap
+- Weather sensor: sensor.playa_weather_api (template sensor with weather_data)
+- Weather summary storage: input_text.current_weather
+
+### Camera Integration
+- Available camera: camera.tablet
+- Vision analysis storage: input_text.camera_vision_analysis
+- Vision status sensor: sensor.camera_vision_status
+- People count sensor: sensor.camera_people_count
+
+### GPS/Location Integration
+- Device tracker: device_tracker.glitch_cube (needs creation)
+- Current lat: input_number.glitch_cube_lat
+- Current lng: input_number.glitch_cube_lng
+- Previous lat: input_number.glitch_cube_prev_lat
+- Previous lng: input_number.glitch_cube_prev_lng

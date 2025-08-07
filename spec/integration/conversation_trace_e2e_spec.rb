@@ -69,7 +69,7 @@ RSpec.describe 'Conversation Tracing E2E', :vcr do
 
       # Step 4: Test session trace retrieval
       session_traces = Services::ConversationTracer.get_session_traces(session_id)
-      expect(session_traces).to have(1).item
+      expect(session_traces.size).to eq(1)
       expect(session_traces.first[:trace_id]).to eq(trace_id)
 
       puts "\n🔍 TRACE ANALYSIS:"

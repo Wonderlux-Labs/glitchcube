@@ -1,0 +1,62 @@
+# Entity Change Monitor Automation
+# Triggers when any entity state changes and updates Glitch Cube documentation
+
+- id: glitchcube_entity_monitor
+  alias: "Glitch Cube: Entity Change Monitor"
+  description: "Monitor entity changes and update Glitch Cube entity documentation"
+  
+  trigger:
+    # Trigger on any entity state change
+    - platform: event
+      event_type: state_changed
+      
+  condition:
+    # Only trigger for actual state changes, not attribute updates
+    - condition: template
+      value_template: >
+        {{
+          trigger.event.data.old_state is defined and
+          trigger.event.data.new_state is defined and
+          trigger.event.data.old_state.state != trigger.event.data.new_state.state
+        }}
+    
+    # Exclude frequently changing entities to prevent spam
+    - condition: template
+      value_template: >
+        {{
+          not trigger.event.data.entity_id.startswith(('sensor.uptime', 'sensor.time', 'sensor.date')) and
+          not 'last_changed' in trigger.event.data.entity_id and
+          not 'last_updated' in trigger.event.data.entity_id
+        }}
+        
+  action:
+    # Method 1: Webhook to trigger entity list update
+    - service: rest_command.update_glitchcube_entities
+      data:
+        entity_id: "{{ trigger.event.data.entity_id }}"
+        old_state: "{{ trigger.event.data.old_state.state }}"
+        new_state: "{{ trigger.event.data.new_state.state }}"
+        domain: "{{ trigger.event.data.entity_id.split('.')[0] }}"
+        timestamp: "{{ now().isoformat() }}"
+
+  mode: queued
+  max: 50  # Allow up to 50 queued updates to prevent blocking
+
+---
+
+# Alternative version that batches updates (runs every 5 minutes)
+- id: glitchcube_entity_batch_update
+  alias: "Glitch Cube: Batch Entity Update"
+  description: "Periodically update entity list in batches to reduce API calls"
+  
+  trigger:
+    - platform: time_pattern
+      minutes: "/5"  # Every 5 minutes
+      
+  action:
+    - service: rest_command.refresh_glitchcube_entities
+      data:
+        batch_update: true
+        timestamp: "{{ now().isoformat() }}"
+
+  mode: single

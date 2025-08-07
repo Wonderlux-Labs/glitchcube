@@ -80,3 +80,33 @@ clear_glitchcube_queues:
       "auth_token": "{{ states('input_text.restart_auth_token') }}"
     }
   timeout: 10
+
+# Entity monitoring REST commands
+update_glitchcube_entities:
+  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/entities/change_notification"
+  method: POST
+  headers:
+    Content-Type: "application/json"
+  payload: >
+    {
+      "entity_id": "{{ entity_id }}",
+      "old_state": "{{ old_state }}",
+      "new_state": "{{ new_state }}",
+      "domain": "{{ domain }}",
+      "timestamp": "{{ timestamp }}",
+      "source": "home_assistant_automation"
+    }
+  timeout: 5
+
+refresh_glitchcube_entities:
+  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/entities/refresh"
+  method: POST
+  headers:
+    Content-Type: "application/json"
+  payload: >
+    {
+      "batch_update": "{{ batch_update }}",
+      "timestamp": "{{ timestamp }}",
+      "source": "home_assistant_batch"
+    }
+  timeout: 10

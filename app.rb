@@ -39,6 +39,9 @@ require_relative 'lib/services/logger_service'
 require_relative 'lib/services/health_push_service'
 require_relative 'lib/services/home_assistant_webhook_service'
 
+# Load entity management services
+require_relative 'lib/services/entity_manager_service'
+
 # Load application constants and config first
 require_relative 'config/constants'
 
@@ -98,6 +101,7 @@ class GlitchCubeApp < Sinatra::Base
   register GlitchCube::Routes::Api::Tools
   register GlitchCube::Routes::Api::Deployment
   register GlitchCube::Routes::Api::System
+  register GlitchCube::Routes::Api::Entities
 
   # Admin routes
   register GlitchCube::Routes::Admin

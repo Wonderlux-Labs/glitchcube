@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'tts_service'
+require_relative '../home_assistant_client'
 
 module Services
   class CharacterService
@@ -127,44 +127,34 @@ module Services
       }
     }.freeze
 
-    attr_reader :character, :tts_service
+    attr_reader :character, :home_assistant
 
-    def initialize(character: :default, tts_service: nil)
+    def initialize(character: :default, home_assistant: nil)
       @character = character.to_sym
       @character_config = CHARACTERS[@character] || CHARACTERS[:default]
-      @tts_service = tts_service || Services::TTSService.new(
-        default_provider: @character_config[:tts_provider],
-        default_voice: @character_config[:voice_name],
-        default_entity: 'media_player.square_voice'
-      )
+      @home_assistant = home_assistant || HomeAssistantClient.new
     end
 
     # Speak as the character with optional context
     def speak(message, context: nil, **options)
-      config = build_voice_config(context, options)
-
+      # Apply character-specific text processing
+      message = process_message_for_character(message)
+      
       # Apply glitch effects for LOMI
       message = apply_glitch_effects(message) if @character == :lomi && @character_config[:glitch_effects]
 
-      @tts_service.speak(
-        message,
-        **config
-      )
+      # Get entity from options or use default
+      entity_id = options[:entity_id] || 'media_player.square_voice'
+
+      # Use Home Assistant client directly - character configuration is preserved in message processing
+      @home_assistant.speak(message, entity_id: entity_id)
     end
 
     # Generate an audio file for the message (for Sinatra endpoints)
+    # NOTE: This method is deprecated since we moved to unified HomeAssistant TTS
+    # Home Assistant handles audio generation internally via service calls
     def speak_file(message, context: nil, format: :mp3, **options)
-      config = build_voice_config(context, options)
-
-      # Apply character-specific text modifications
-      message = process_message_for_character(message)
-
-      # Use the TTS service to generate the audio file
-      @tts_service.speak_file(
-        message,
-        format: format,
-        **config
-      )
+      raise NotImplementedError, "speak_file is no longer supported - use speak() method which goes through Home Assistant TTS services"
     end
 
     # Get character configuration

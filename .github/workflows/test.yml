@@ -30,9 +30,7 @@ jobs:
       postgres:
         image: postgis/postgis:15-3.3
         env:
-          POSTGRES_USER: glitchcube
-          POSTGRES_PASSWORD: glitchcube_test
-          POSTGRES_DB: glitchcube_test
+          POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
@@ -55,6 +53,9 @@ jobs:
       RACK_ENV: test
       OPENROUTER_API_KEY: dummy-key-for-ci
       HOME_ASSISTANT_TOKEN: dummy-token-for-ci
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_HOST: localhost
 
     steps:
     - uses: actions/checkout@v4
@@ -71,22 +72,25 @@ jobs:
         sudo apt-get update && sudo apt-get install -y postgresql-client
         # Wait for PostgreSQL to be ready
         for i in $(seq 1 10); do
-          pg_isready -h localhost -p 5432 -U glitchcube && break
+          pg_isready -h localhost -p 5432 -U postgres && break
           echo "Waiting for PostgreSQL... ($i/10)"
           sleep 5
         done
-        pg_isready -h localhost -p 5432 -U glitchcube || (echo "PostgreSQL not ready after multiple attempts." && exit 1)
+        pg_isready -h localhost -p 5432 -U postgres || (echo "PostgreSQL not ready after multiple attempts." && exit 1)
       env:
-        PGPASSWORD: glitchcube_test
+        PGPASSWORD: postgres
     
     - name: Set up database
       run: |
-        # Enable PostGIS extensions
-        PGPASSWORD=glitchcube_test psql -h localhost -U glitchcube -d glitchcube_test -c "CREATE EXTENSION IF NOT EXISTS postgis;"
-        PGPASSWORD=glitchcube_test psql -h localhost -U glitchcube -d glitchcube_test -c "CREATE EXTENSION IF NOT EXISTS postgis_topology;"
+        # Create database and enable PostGIS extensions
+        createdb -h localhost -U postgres glitchcube_test
+        psql -h localhost -U postgres -d glitchcube_test -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+        psql -h localhost -U postgres -d glitchcube_test -c "CREATE EXTENSION IF NOT EXISTS postgis_topology;"
         
-        bundle exec rake db:create
+        # Load schema
         bundle exec rake db:schema:load
+      env:
+        PGPASSWORD: postgres
         
 
     - name: Run RSpec tests

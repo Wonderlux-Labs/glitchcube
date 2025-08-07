@@ -5,7 +5,6 @@ require 'concurrent'
 require_relative '../services/system_prompt_service'
 require_relative '../services/logger_service'
 require_relative '../services/llm_service'
-require_relative '../services/tts_service'
 require_relative '../services/conversation_session'
 require_relative '../services/tool_call_parser'
 require_relative '../services/tool_executor'
@@ -130,6 +129,13 @@ class ConversationModule
       # Extract data from response object
       response_text = llm_response.response_text
       continue_conversation = llm_response.continue_conversation?
+      
+      # Debug trace: Check if response_text is nil
+      if GlitchCube.config.debug? && response_text.nil?
+        puts "DEBUG: response_text is nil!"
+        puts "DEBUG: llm_response.content = #{llm_response.content.inspect}"
+        puts "DEBUG: llm_response.parsed_content = #{llm_response.parsed_content.inspect}"
+      end
 
       # Calculate cost
       cost = llm_response.cost
@@ -139,12 +145,12 @@ class ConversationModule
         role: 'assistant',
         content: response_text,
         persona: persona,
-        model: llm_response.model,
+        model_used: llm_response.model,
         prompt_tokens: llm_response.usage[:prompt_tokens],
         completion_tokens: llm_response.usage[:completion_tokens],
         cost: cost,
         response_time_ms: response_time_ms,
-        continue_conversation: continue_conversation
+        metadata: { continue_conversation: continue_conversation }
       )
 
       # Only use fallback if response_text is nil or empty
@@ -156,7 +162,7 @@ class ConversationModule
         session_id: session.session_id,
         persona: persona,
         suggested_mood: persona, # Backward compatibility
-        model: llm_response.model,
+        model_used: llm_response.model,
         cost: cost,
         tokens: llm_response.usage,
         continue_conversation: continue_conversation
@@ -196,10 +202,14 @@ class ConversationModule
       
       result
     rescue Services::LLMService::RateLimitError => e
+      puts "DEBUG: Hit rate limit error: #{e.message}" if GlitchCube.config.debug?
       handle_rate_limit_error(session, message, persona, e)
     rescue Services::LLMService::LLMError => e
+      puts "DEBUG: Hit LLM error: #{e.message}" if GlitchCube.config.debug?
       handle_llm_error(session, message, persona, e)
     rescue StandardError => e
+      puts "DEBUG: Hit general error: #{e.class} - #{e.message}" if GlitchCube.config.debug?
+      puts "DEBUG: Backtrace: #{e.backtrace.first(3).join("\n")}" if GlitchCube.config.debug?
       handle_general_error(session, message, persona, e)
     end
   end
@@ -520,30 +530,27 @@ class ConversationModule
     error = nil
     
     begin
-      # Use the new TTS service with character support
-      tts_service = Services::TTSService.new
+      # Use Home Assistant client directly for all TTS
+      home_assistant = HomeAssistantClient.new
+      
+      # Get entity from context or use default
+      entity_id = context[:entity_id] || 'media_player.square_voice'
 
-      # Get mood/persona from context for character voice
-      mood = context[:mood] || context[:persona] || 'neutral'
-
-      # Use the TTS service with mood support
-      success = tts_service.speak(
-        response_text,
-        mood: mood,
-        cache: true
-      )
+      # Direct Home Assistant TTS call
+      success = home_assistant.speak(response_text, entity_id: entity_id)
 
       duration = ((Time.now - start_time) * 1000).round
       Services::LoggerService.log_tts(
         message: response_text,
         success: success,
-        duration: duration
+        duration: duration,
+        entity_id: entity_id
       )
       
       # Trace TTS call
       tracer&.trace_tts_call(
         text: response_text,
-        persona: mood,
+        persona: context[:mood] || context[:persona] || 'neutral',
         success: success,
         duration_ms: duration
       )
@@ -556,7 +563,8 @@ class ConversationModule
         message: response_text,
         success: false,
         duration: duration,
-        error: "Unexpected Error: #{e.message}"
+        error: "Unexpected Error: #{e.message}",
+        entity_id: context[:entity_id] || 'media_player.square_voice'
       )
       
       # Trace TTS error

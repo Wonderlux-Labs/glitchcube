@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+# Load required classes
+require_relative 'initializers/config' unless defined?(GlitchCube::Config)
+
 module GlitchCube
   # Version
   VERSION = '1.0.0'
@@ -7,6 +10,42 @@ module GlitchCube
   # Runtime attributes
   class << self
     attr_accessor :start_time
+
+    # Configuration
+    def config
+      @config ||= Config.instance
+    end
+
+    # Logger
+    def logger
+      @logger ||= Services::UnifiedLoggerService
+    end
+
+    # Root directory
+    def root
+      @root ||= File.expand_path('..', __dir__)
+    end
+
+    # Persistence availability check
+    def persistence_enabled?
+      config.persistence_enabled?
+    end
+
+    # Redis connection
+    def redis_connection
+      return @redis if defined?(@redis) && @redis
+      
+      redis_url = config.redis_url
+      if redis_url && !redis_url.empty?
+        require 'redis'
+        @redis = Redis.new(url: redis_url)
+      else
+        nil
+      end
+    rescue StandardError => e
+      logger.warn('⚠️ Failed to connect to Redis', error: e.message)
+      nil
+    end
   end
 
   module Constants

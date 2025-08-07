@@ -130,13 +130,10 @@ class HomeAssistantTool
     message = params['message'] || 'Hello from Glitch Cube!'
     entity_id = params['entity_id'] || 'media_player.square_voice'
 
-    response = client.call_service('tts', 'google_translate_say', {
-                                     entity_id: entity_id,
-                                     message: message,
-                                     language: 'en'
-                                   })
+    # Use the unified HomeAssistantClient.speak method
+    success = client.speak(message, entity_id: entity_id)
 
-    response ? "Speaking: \"#{message}\"" : 'Failed to speak message'
+    success ? "Speaking: \"#{message}\"" : 'Failed to speak message'
   end
 
   def self.run_ha_script(client, params)

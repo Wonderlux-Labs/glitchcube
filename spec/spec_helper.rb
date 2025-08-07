@@ -85,15 +85,8 @@ RSpec.configure do |config|
 
   # Configure test environment settings
   config.before do |example|
-    # CRITICAL: Mock TTS calls EXCEPT in TTS service specs themselves
-    # This prevents real Home Assistant from speaking during tests
-    unless example.file_path&.include?('tts_service') || example.file_path&.include?('parallel_tts')
-      tts_double = instance_double(Services::TTSService, speak: true)
-      allow(Services::TTSService).to receive(:new).and_return(tts_double)
-
-      parallel_tts_double = instance_double(Services::ParallelTTSService, speak: true)
-      allow(Services::ParallelTTSService).to receive(:new).and_return(parallel_tts_double)
-    end
+    # No TTS mocking needed - HomeAssistantClient.speak() calls are recorded by VCR
+    # All TTS now goes through Home Assistant service calls which VCR captures
 
     # No mocking of HomeAssistantClient - VCR handles all external calls
 
@@ -167,6 +160,7 @@ VCR.configure do |config|
   # Allow HTTP connections when recording new cassettes
   config.allow_http_connections_when_no_cassette = false # Still strict by default
   config.ignore_localhost = false # Record localhost calls too
+  config.default_cassette_options = { record: :once } # Record ONCE by default
   
   # Automatic cassette naming from test description
   # NOTE: VCR doesn't have a naming_hook method - this was causing errors
