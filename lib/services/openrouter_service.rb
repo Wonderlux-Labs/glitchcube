@@ -20,7 +20,7 @@ class OpenRouterService
       request_params = {
         model: model,
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 500,
+        max_tokens: 1000,
         temperature: 0.7
       }.merge(options)
 
@@ -38,7 +38,7 @@ class OpenRouterService
       request_params = {
         model: model,
         messages: formatted_messages,
-        max_tokens: 500,
+        max_tokens: 1000,
         temperature: 0.7
       }.merge(options)
 
@@ -54,7 +54,7 @@ class OpenRouterService
         model: model,
         messages: [{ role: 'user', content: prompt }],
         stream: true,
-        max_tokens: 500,
+        max_tokens: 1000,
         temperature: 0.7
       }.merge(options)
 

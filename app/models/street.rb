@@ -24,16 +24,19 @@ class Street < ActiveRecord::Base
 
   def start_coordinates
     return nil if coordinates.empty?
+
     coordinates.first
   end
 
   def end_coordinates
     return nil if coordinates.empty?
+
     coordinates.last
   end
 
   def center_point
     return nil if coordinates.empty?
+
     lat_sum = coordinates.sum { |coord| coord[1] }
     lng_sum = coordinates.sum { |coord| coord[0] }
     count = coordinates.length
@@ -50,7 +53,7 @@ class Street < ActiveRecord::Base
         name: feature['properties']['name'],
         street_type: feature['properties']['type']
       )
-      
+
       street.assign_attributes(
         coordinates: feature['geometry']['coordinates'],
         width: feature['properties']['width']&.to_i || 30,
@@ -60,7 +63,7 @@ class Street < ActiveRecord::Base
         }.compact,
         active: true
       )
-      
+
       street.save! if street.changed?
     end
   end

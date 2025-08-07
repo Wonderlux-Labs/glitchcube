@@ -17,8 +17,8 @@ gem 'pg', '~> 1.5'
 gem 'sinatra-activerecord', '~> 2.0'
 
 # Spatial & Geocoding
-gem 'geocoder', '~> 1.8'
 gem 'activerecord-postgis-adapter', '~> 9.0'
+gem 'geocoder', '~> 1.8'
 
 # API Support
 gem 'grape', '~> 2.4'
@@ -46,6 +46,7 @@ gem 'json', '~> 2.13'
 
 # Development and Test
 group :development, :test do
+  gem 'foreman', '~> 0.88', require: false # Process management for Procfile
   gem 'pry', '~> 0.15'
   gem 'rack-test', '~> 2.2'
   gem 'rspec', '~> 3.13'

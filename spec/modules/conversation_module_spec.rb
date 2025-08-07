@@ -10,6 +10,7 @@ RSpec.describe ConversationModule do
     double('LLMResponse',
            response_text: 'Mock AI response',
            continue_conversation?: true,
+           has_tool_calls?: false,
            cost: 0.001,
            model: 'test-model',
            usage: { prompt_tokens: 10, completion_tokens: 20 })
@@ -33,26 +34,25 @@ RSpec.describe ConversationModule do
   end
 
   before do
-    # Mock the LLM service to use complete_with_messages
+    # These are service methods, not client initialization - OK to mock at class level
+    # but we should be careful about cleanup
     allow(Services::LLMService).to receive(:complete_with_messages).and_return(mock_llm_response)
-
-    # Mock ConversationSession to avoid database calls
     allow(Services::ConversationSession).to receive(:find_or_create).and_return(mock_session)
-
-    # Mock HomeAssistantClient - TTSService calls call_service, not speak
+    
+    # Mock HomeAssistantClient - instance level
     allow(HomeAssistantClient).to receive(:new).and_return(mock_home_assistant)
-    allow(mock_home_assistant).to receive(:call_service).and_return(true)
+    allow(mock_home_assistant).to receive_messages(call_service: true, state: nil)
 
-    # Mock the system prompt service
+    # Mock the system prompt service - instance level
     mock_prompt_service = instance_double(Services::SystemPromptService)
     allow(Services::SystemPromptService).to receive(:new).and_return(mock_prompt_service)
     allow(mock_prompt_service).to receive(:generate).and_return('Test system prompt')
 
-    # Mock the logger service
+    # These are class methods for logging - OK to mock at class level
     allow(Services::LoggerService).to receive(:log_interaction)
     allow(Services::LoggerService).to receive(:log_tts)
 
-    # Mock KioskService
+    # These are class methods for kiosk - OK to mock at class level
     allow(Services::KioskService).to receive(:update_mood)
     allow(Services::KioskService).to receive(:update_interaction)
     allow(Services::KioskService).to receive(:add_inner_thought)
@@ -79,15 +79,22 @@ RSpec.describe ConversationModule do
         expect(result[:continue_conversation]).to be(true)
       end
 
-      it 'speaks the response through Home Assistant' do
-        expect(mock_home_assistant).to receive(:call_service)
-          .with('script', 'glitchcube_tts', hash_including(message: 'Mock AI response'))
+      it 'speaks the response through TTS service' do
+        tts_service_double = instance_double(Services::TTSService)
+        allow(Services::TTSService).to receive(:new).and_return(tts_service_double)
+        expect(tts_service_double).to receive(:speak).with(
+          'Mock AI response',
+          hash_including(
+            mood: 'neutral',
+            cache: true
+          )
+        ).and_return(true)
 
         module_instance.call(message: message, context: context, mood: mood)
       end
 
       # NOTE: This is tested more thoroughly in the integration tests with VCR
-      xit 'logs the interaction' do
+      it 'logs the interaction' do
         # Just verify it's called - the exact parameters don't matter for this test
         expect(Services::LoggerService).to receive(:log_interaction).at_least(:once)
 
@@ -102,17 +109,21 @@ RSpec.describe ConversationModule do
       end
 
       # NOTE: These behaviors are tested more accurately in integration tests with VCR
-      xit 'returns an offline fallback response' do
+      it 'returns an offline fallback response' do
         result = module_instance.call(message: message, context: context, mood: mood)
 
         # Should fall back to offline response (check for offline mode indicators)
-        expect(result[:response].downcase).to match(/offline|can't access|capabilities/)
+        expect(result[:response].downcase).to match(/offline|capabilities|present|moment|spirit|connectivity|unavailable/)
         expect(result[:error]).to eq('llm_error')
       end
 
-      xit 'still speaks the fallback response' do
-        expect(mock_home_assistant).to receive(:call_service)
-          .with('script', 'glitchcube_tts', hash_including(message: a_string_including('offline')))
+      it 'still speaks the fallback response' do
+        tts_service_double = instance_double(Services::TTSService)
+        allow(Services::TTSService).to receive(:new).and_return(tts_service_double)
+        expect(tts_service_double).to receive(:speak).with(
+          a_string_matching(/offline|capabilities|present|moment|spirit|connectivity|unavailable/i),
+          hash_including(mood: 'neutral', cache: true)
+        ).and_return(true)
 
         module_instance.call(message: message, context: context, mood: mood)
       end

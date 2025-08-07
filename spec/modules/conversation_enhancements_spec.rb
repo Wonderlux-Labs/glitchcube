@@ -22,7 +22,7 @@ RSpec.describe ConversationEnhancements do
         {
           function: {
             name: 'test_tool',
-            arguments: '{"message": "test"}'
+            arguments: '{"info_type": "battery"}'
           }
         }
       ]
@@ -202,7 +202,7 @@ RSpec.describe ConversationEnhancements do
       attempt_count = 0
 
       expect(test_instance).to receive(:attempt_error_recovery).and_return(false)
-      expect(test_instance).to receive(:sleep).with(2).once # 2^(2-1) = 2
+      expect(test_instance).to receive(:sleep).with(1).once # 2^(1-1) = 1
 
       result = test_instance.with_self_healing('test_operation', max_retries: 2) do
         attempt_count += 1

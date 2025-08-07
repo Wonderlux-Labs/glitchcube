@@ -1,0 +1,171 @@
+# frozen_string_literal: true
+
+module GlitchCube
+  module Routes
+    module Api
+      class System < Grape::API
+        format :json
+        prefix :api
+        version 'v1', using: :path
+
+        namespace :system do
+          desc 'Get system health status'
+          get :health do
+            begin
+              # Check Redis
+              redis_ok = begin
+                Redis.new.ping == 'PONG'
+              rescue StandardError
+                false
+              end
+
+              # Check database
+              db_ok = begin
+                ActiveRecord::Base.connection.active?
+              rescue StandardError
+                false
+              end
+
+              # Check Sidekiq
+              sidekiq_ok = begin
+                stats = Sidekiq::Stats.new
+                {
+                  processed: stats.processed,
+                  failed: stats.failed,
+                  queues: stats.queues,
+                  workers: Sidekiq::Workers.new.size
+                }
+              rescue StandardError
+                false
+              end
+
+              # Memory usage
+              memory = `ps -o rss= -p #{Process.pid}`.to_i / 1024 # MB
+
+              status = if redis_ok && db_ok && sidekiq_ok
+                         'healthy'
+                       elsif redis_ok || db_ok
+                         'degraded'
+                       else
+                         'critical'
+                       end
+
+              {
+                status: status,
+                timestamp: Time.now.iso8601,
+                services: {
+                  redis: redis_ok ? 'up' : 'down',
+                  database: db_ok ? 'up' : 'down',
+                  sidekiq: sidekiq_ok || 'down'
+                },
+                metrics: {
+                  memory_mb: memory,
+                  uptime_seconds: Time.now - $START_TIME
+                }
+              }
+            rescue StandardError => e
+              error!({ error: e.message }, 500)
+            end
+          end
+
+          desc 'Trigger system restart'
+          params do
+            requires :level, type: String, values: %w[soft hard nuclear],
+                             desc: 'Restart level: soft (app only), hard (all services), nuclear (including VMs)'
+            optional :reason, type: String, default: 'api-triggered',
+                              desc: 'Reason for restart'
+            optional :auth_token, type: String,
+                                  desc: 'Authentication token for restart'
+          end
+          post :restart do
+            # Simple auth check (you should use a proper auth system)
+            expected_token = ENV['RESTART_AUTH_TOKEN'] || 'change-me-in-production'
+            if params[:auth_token] != expected_token
+              error!({ error: 'Unauthorized' }, 401)
+            end
+
+            # Log the restart request
+            Services::LoggerService.log_api_call(
+              service: 'system',
+              endpoint: 'restart',
+              level: params[:level],
+              reason: params[:reason]
+            )
+
+            # Execute restart in background to return response immediately
+            Thread.new do
+              sleep 2 # Give time for response to be sent
+              system("#{File.expand_path('../../../../scripts/glitchcube_restart.sh', __dir__)} '#{params[:reason]}' '#{params[:level]}'")
+            end
+
+            {
+              status: 'restart_initiated',
+              level: params[:level],
+              reason: params[:reason],
+              timestamp: Time.now.iso8601,
+              message: "System restart initiated. Services will be unavailable briefly."
+            }
+          end
+
+          desc 'Get restart history'
+          get :restart_history do
+            log_file = '/Users/eristmini/glitch/restart.log'
+            
+            if File.exist?(log_file)
+              # Get last 50 restart entries
+              restarts = []
+              File.readlines(log_file).reverse.each do |line|
+                if line.include?('Restart Initiated')
+                  match = line.match(/\[(.*?)\] \[(.*?)\] .* Level: (\w+)/)
+                  if match
+                    restarts << {
+                      timestamp: match[1],
+                      reason: match[2],
+                      level: match[3]
+                    }
+                  end
+                end
+                break if restarts.size >= 50
+              end
+              
+              {
+                restart_count: restarts.size,
+                recent_restarts: restarts.first(10),
+                last_restart: restarts.first
+              }
+            else
+              {
+                restart_count: 0,
+                recent_restarts: [],
+                last_restart: nil
+              }
+            end
+          end
+
+          desc 'Clear stuck queues'
+          post :clear_queues do
+            # Simple auth check
+            expected_token = ENV['RESTART_AUTH_TOKEN'] || 'change-me-in-production'
+            if params[:auth_token] != expected_token
+              error!({ error: 'Unauthorized' }, 401)
+            end
+
+            redis = Redis.new
+            cleared = {
+              critical: redis.del('glitchcube:queue:critical'),
+              default: redis.del('glitchcube:queue:default'),
+              low: redis.del('glitchcube:queue:low'),
+              dead: redis.del('glitchcube:dead')
+            }
+
+            {
+              status: 'queues_cleared',
+              cleared: cleared,
+              timestamp: Time.now.iso8601
+            }
+          end
+        end
+      end
+    end
+  end
+end

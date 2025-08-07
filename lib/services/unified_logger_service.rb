@@ -19,14 +19,17 @@ module Services
       def setup!
         return self if @logger # Prevent recursive setup
 
+        @setting_up = true # Set flag before any operations
         @context_store = Thread.current[:logger_context] = {}
         @logger = create_unified_logger
         @start_time = Time.now
+        @setting_up = false # Clear setup flag
 
         # Log service startup if logger creation succeeded
+        # Use a direct logger call to avoid recursion
         if @logger
-          info('🎲 Glitch Cube Unified Logger initialized')
-          info("📂 Logging to: #{log_file_path}")
+          log_direct(:info, '🎲 Glitch Cube Unified Logger initialized')
+          log_direct(:info, "📂 Logging to: #{log_file_path}")
         end
 
         self
@@ -35,6 +38,7 @@ module Services
       def reset!
         @logger = nil
         @context_store = nil
+        @setting_up = false
         Thread.current[:logger_context] = nil
       end
 
@@ -198,7 +202,8 @@ module Services
         logger
       rescue StandardError => e
         # Fallback to STDOUT if file logging fails
-        warn "Failed to setup file logger: #{e.message}. Using STDOUT."
+        # Use puts instead of warn to avoid recursion
+        puts "Failed to setup file logger: #{e.message}. Using STDOUT."
         logger = Logger.new($stdout)
         logger.level = Cube::Settings.log_level
         logger.formatter = method(:format_log_entry)
@@ -208,9 +213,18 @@ module Services
       def log(level, message, **metadata)
         # If logger isn't set up, initialize it
         unless @logger
+          # Prevent infinite recursion during setup
+          return if @setting_up
+          @setting_up = true
           setup!
           return if @logger.nil? # Give up if setup failed
         end
+
+        log_direct(level, message, **metadata)
+      end
+
+      def log_direct(level, message, **metadata)
+        return unless @logger
 
         # Build complete log data with context
         log_data = {
@@ -334,11 +348,13 @@ module Services
         FileUtils.mkdir_p(dir) unless File.directory?(dir)
 
         unless File.writable?(dir)
-          warn "Log directory #{dir} is not writable. Attempting to fix permissions..."
+          # Use puts instead of warn to avoid recursion
+          puts "Log directory #{dir} is not writable. Attempting to fix permissions..."
           FileUtils.chmod(0o755, dir)
         end
       rescue StandardError => e
-        warn "Failed to create log directory: #{e.message}"
+        # Use puts instead of warn to avoid recursion  
+        puts "Failed to create log directory: #{e.message}"
         raise e
       end
 

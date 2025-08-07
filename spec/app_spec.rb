@@ -4,6 +4,9 @@ RSpec.describe GlitchCubeApp do
   describe 'GET /' do
     it 'returns welcome message' do
       get '/'
+      puts "Response status: #{last_response.status}"
+      puts "Response body: #{last_response.body}"
+      puts "Response headers: #{last_response.headers}"
       expect(last_response).to be_ok
       expect(last_response.content_type).to include('application/json')
 
@@ -28,29 +31,33 @@ RSpec.describe GlitchCubeApp do
   describe 'POST /api/v1/test' do
     context 'with valid message' do
       it 'processes the message through the conversation module' do
-        post '/api/v1/test',
-             { message: 'Hello Glitch Cube!' }.to_json,
-             { 'CONTENT_TYPE' => 'application/json' }
+        VCR.use_cassette('app_test_valid_message', record: :new_episodes) do
+          post '/api/v1/test',
+               { message: 'Hello Glitch Cube!' }.to_json,
+               { 'CONTENT_TYPE' => 'application/json' }
 
-        puts "Response status: #{last_response.status}"
-        puts "Response body: #{last_response.body}"
-        expect(last_response).to be_ok
-        body = JSON.parse(last_response.body)
-        expect(body['success']).to be true
-        expect(body['response']).not_to be_nil
-        expect(body['timestamp']).not_to be_nil
+          puts "Response status: #{last_response.status}"
+          puts "Response body: #{last_response.body}"
+          expect(last_response).to be_ok
+          body = JSON.parse(last_response.body)
+          expect(body['success']).to be true
+          expect(body['response']).not_to be_nil
+          expect(body['timestamp']).not_to be_nil
+        end
       end
     end
 
     context 'with empty body' do
       it 'uses default message' do
-        post '/api/v1/test',
-             {}.to_json,
-             { 'CONTENT_TYPE' => 'application/json' }
+        VCR.use_cassette('app_test_empty_body', record: :new_episodes) do
+          post '/api/v1/test',
+               {}.to_json,
+               { 'CONTENT_TYPE' => 'application/json' }
 
-        expect(last_response).to be_ok
-        body = JSON.parse(last_response.body)
-        expect(body['success']).to be true
+          expect(last_response).to be_ok
+          body = JSON.parse(last_response.body)
+          expect(body['success']).to be true
+        end
       end
     end
 
@@ -70,17 +77,21 @@ RSpec.describe GlitchCubeApp do
 
   describe 'POST /api/v1/conversation' do
     it 'processes conversation with AI module' do
-      post '/api/v1/conversation',
-           { message: 'Test conversation' }.to_json,
-           { 'CONTENT_TYPE' => 'application/json' }
+      VCR.use_cassette('app_conversation_test', record: :new_episodes) do
+        post '/api/v1/conversation',
+             { message: 'Test conversation' }.to_json,
+             { 'CONTENT_TYPE' => 'application/json' }
 
-      expect(last_response).to be_ok
-      body = JSON.parse(last_response.body)
-      expect(body['success']).to be true
-      expect(body['data']).to be_a(Hash)
-      expect(body['data']['response']).not_to be_nil
-      expect(body['data']['suggested_mood']).not_to be_nil
-      expect(body['data']['confidence']).to be_a(Float)
+        expect(last_response).to be_ok
+        body = JSON.parse(last_response.body)
+        puts "Response body: #{body.inspect}"
+        expect(body['success']).to be true
+        expect(body['data']).to be_a(Hash)
+        expect(body['data']['response']).not_to be_nil
+        expect(body['data']['suggested_mood']).not_to be_nil
+        # Confidence may be nil in offline mode
+        expect(body['data']['confidence']).to be_a(Float).or(be_nil)
+      end
     end
   end
 

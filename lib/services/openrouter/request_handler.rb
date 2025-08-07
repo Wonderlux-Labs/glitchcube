@@ -14,11 +14,19 @@ module Services
         start_time = Time.now
 
         begin
-          response = @client.complete(request_params)
-          log_successful_call(request_params, response, start_time)
+          # Extract messages and model from params
+          messages = request_params.delete(:messages)
+          model = request_params.delete(:model)
+          
+          # Everything else goes in extras
+          extras = request_params
+          
+          # Use correct client.complete signature: complete(messages, model: model, extras: extras)
+          response = @client.complete(messages, model: model, extras: extras)
+          log_successful_call({ messages: messages, model: model }.merge(extras), response, start_time)
           response
         rescue StandardError => e
-          log_failed_call(request_params, e, start_time)
+          log_failed_call({ messages: messages, model: model }.merge(extras), e, start_time)
           raise e
         end
       end

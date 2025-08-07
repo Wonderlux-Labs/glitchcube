@@ -5,9 +5,9 @@
 require 'bundler/setup'
 require_relative '../app'
 
-puts "Testing Home Assistant connection..."
+puts 'Testing Home Assistant connection...'
 puts "URL: #{GlitchCube.config.home_assistant.url || 'Not configured'}"
-puts "Token: #{GlitchCube.config.home_assistant.token ? '***' + GlitchCube.config.home_assistant.token[-8..] : 'Not configured'}"
+puts "Token: #{GlitchCube.config.home_assistant.token ? "***#{GlitchCube.config.home_assistant.token[-8..]}" : 'Not configured'}"
 puts "Mock enabled: #{GlitchCube.config.home_assistant.mock_enabled}"
 
 if GlitchCube.config.home_assistant.mock_enabled
@@ -20,15 +20,15 @@ client = HomeAssistantClient.new
 begin
   puts "\n📡 Attempting to connect..."
   states = client.states
-  
+
   if states.nil?
-    puts "❌ Failed to get states - response was nil"
+    puts '❌ Failed to get states - response was nil'
   elsif states.empty?
-    puts "⚠️  Connected but no entities found"
+    puts '⚠️  Connected but no entities found'
   else
-    puts "✅ Connected successfully!"
+    puts '✅ Connected successfully!'
     puts "Found #{states.count} entities"
-    
+
     # Group by domain
     domains = {}
     states.each do |state|
@@ -36,12 +36,12 @@ begin
       domains[domain] ||= 0
       domains[domain] += 1
     end
-    
+
     puts "\nEntity domains:"
     domains.sort.each do |domain, count|
       puts "  #{domain}: #{count}"
     end
-    
+
     # Look for weather entities
     weather_entities = states.select { |s| s['entity_id'].include?('weather') }
     if weather_entities.any?
@@ -50,7 +50,7 @@ begin
         puts "  - #{entity['entity_id']}: #{entity['state']}"
       end
     end
-    
+
     # Look for camera entities
     camera_entities = states.select { |s| s['entity_id'].start_with?('camera.') }
     if camera_entities.any?
@@ -63,8 +63,8 @@ begin
 rescue StandardError => e
   puts "❌ Error: #{e.message}"
   puts "\nTroubleshooting:"
-  puts "1. Check if Home Assistant is running"
+  puts '1. Check if Home Assistant is running'
   puts "2. Verify the URL is correct (current: #{GlitchCube.config.home_assistant.url})"
-  puts "3. Check if the token is valid"
+  puts '3. Check if the token is valid'
   puts "4. Try accessing: #{GlitchCube.config.home_assistant.url}/api/"
 end

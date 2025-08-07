@@ -12,6 +12,7 @@ module Services
     ERROR_TRACKING_TTL = 3600 # 1 hour
 
     def initialize
+      @logger = Services::LoggerService
       @redis = begin
         Redis.new(url: GlitchCube.config.redis_url)
       rescue Redis::CannotConnectError => e
@@ -22,7 +23,6 @@ module Services
         )
         nil
       end
-      @logger = Services::LoggerService
       @rate_limit_cache = {}
     end
 
@@ -88,11 +88,17 @@ module Services
 
       response = OpenRouterService.complete(
         prompt,
-        model: 'anthropic/claude-3.5-haiku-20241022',
+        model: 'openai/gpt-4o-mini',
         response_format: { type: 'json_object' }
       )
 
-      parse_criticality_response(response)
+      # Extract content from OpenRouter response
+      content = if response.is_a?(Hash)
+                  response.dig('choices', 0, 'message', 'content') || '{}'
+                else
+                  response.to_s
+                end
+      parse_criticality_response(content)
     rescue StandardError => e
       {
         critical: false,
@@ -144,16 +150,21 @@ module Services
     def analyze_and_fix_code(error, context)
       agent_result = spawn_fix_agent(error, context)
 
-      if agent_result[:success]
+      if agent_result[:success] && agent_result[:fix]
+        fix_data = agent_result[:fix]
+        changes = fix_data[:changes] || fix_data['changes'] || []
+        description = fix_data[:description] || fix_data['description'] || "No description provided"
+        
         {
           success: true,
-          description: agent_result[:fix][:description],
-          changes: agent_result[:fix][:changes],
-          files_modified: agent_result[:fix][:changes].map { |c| c[:file] }.uniq,
-          commit_message: generate_commit_message(error, agent_result[:fix])
+          description: description,
+          changes: changes,
+          files_modified: changes.map { |c| c[:file] || c['file'] }.uniq.compact,
+          commit_message: generate_commit_message(error, fix_data)
         }
       else
-        { success: false, error: agent_result[:error] }
+        error_message = agent_result[:error] || "No fix agent result or missing fix data"
+        { success: false, error: error_message }
       end
     end
 
@@ -382,10 +393,15 @@ module Services
                  # Fallback to direct LLM call if Task agent not available
                  response = OpenRouterService.complete(
                    prompt,
-                   model: 'anthropic/claude-3.5-sonnet-20241022',
+                   model: 'openai/gpt-4o-mini',
                    response_format: { type: 'json_object' }
                  )
-                 response
+                 # Extract content from OpenRouter response
+                 if response.is_a?(Hash)
+                   response.dig('choices', 0, 'message', 'content') || '{}'
+                 else
+                   response.to_s
+                 end
                end
 
       parse_agent_response(result)
@@ -411,10 +427,16 @@ module Services
     end
 
     def generate_commit_message(error, fix)
-      "[AUTO-FIX] #{fix[:description]}\n\n" \
+      changes = fix[:changes] || fix['changes'] || []
+      files_list = changes.map { |c| c[:file] || c['file'] }.compact.join(', ')
+      files_list = 'No files specified' if files_list.empty?
+      description = fix[:description] || fix['description'] || 'Automated fix'
+      confidence = fix[:confidence] || fix['confidence'] || 'high'
+
+      "[AUTO-FIX] #{description}\n\n" \
         "Error: #{error.class.name}: #{error.message.split("\n").first}\n" \
-        "Confidence: #{fix[:confidence] || 'high'}\n" \
-        "Files: #{fix[:changes].map { |c| c[:file] }.join(', ')}"
+        "Confidence: #{confidence}\n" \
+        "Files: #{files_list}"
     end
 
     def store_rollback_sha(sha)
@@ -480,7 +502,7 @@ module Services
       @redis&.set("glitchcube:fixed_errors:#{error_key}", 'proposed', ex: 86_400 * 7)
 
       # Save to database if available
-      if defined?(ProposedFix)
+      if defined?(ProposedFix) && ProposedFix.respond_to?(:create!)
         ProposedFix.create!(
           error_class: error.class.name,
           error_message: error.message,
@@ -527,7 +549,7 @@ module Services
         confidence: analysis[:confidence]
       }
 
-      log_dir = 'log/proposed_fixes'
+      log_dir = File.join(Cube::Settings.app_root, 'log', 'proposed_fixes')
       FileUtils.mkdir_p(log_dir)
 
       filename = "#{log_dir}/#{Time.now.strftime('%Y%m%d')}_proposed_fixes.jsonl"

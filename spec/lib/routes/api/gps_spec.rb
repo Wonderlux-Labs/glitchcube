@@ -3,7 +3,7 @@
 require 'spec_helper'
 require 'rack/test'
 
-RSpec.describe GlitchCube::Routes::Api::Gps do
+RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
   include Rack::Test::Methods
 
   def app
@@ -39,8 +39,8 @@ RSpec.describe GlitchCube::Routes::Api::Gps do
     end
 
     before do
-      allow_any_instance_of(Services::GpsTrackingService).to receive(:current_location).and_return(mock_location)
-      allow_any_instance_of(Services::GpsTrackingService).to receive(:proximity_data).and_return(mock_proximity)
+      allow(Services::GpsCacheService).to receive(:cached_location).and_return(mock_location)
+      allow(Services::GpsCacheService).to receive(:cached_proximity).and_return(mock_proximity)
     end
 
     it 'returns current location with proximity data' do
@@ -69,8 +69,8 @@ RSpec.describe GlitchCube::Routes::Api::Gps do
       end
 
       before do
-        allow_any_instance_of(Services::GpsTrackingService).to receive(:current_location).and_return(mock_location)
-        allow_any_instance_of(Services::GpsTrackingService).to receive(:proximity_data).and_return(mock_proximity)
+        allow(Services::GpsCacheService).to receive(:cached_location).and_return(mock_location)
+        allow(Services::GpsCacheService).to receive(:cached_proximity).and_return(mock_proximity)
       end
 
       it 'returns proximity data' do
@@ -85,7 +85,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps do
 
     context 'without valid location' do
       before do
-        allow_any_instance_of(Services::GpsTrackingService).to receive(:current_location).and_return({})
+        allow(Services::GpsCacheService).to receive(:cached_location).and_return({})
       end
 
       it 'returns empty proximity data' do

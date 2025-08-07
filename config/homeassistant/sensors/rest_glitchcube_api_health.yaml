@@ -1,0 +1,29 @@
+# REST Health Sensor: Glitch Cube API Health
+# Monitors the Sinatra application health endpoint
+- platform: rest
+  resource: "http://localhost:4567/health"
+  name: "Glitch Cube API Health"
+  unique_id: "glitchcube_api_health"
+  scan_interval: 30  # Check every 30 seconds
+  timeout: 10
+  headers:
+    User-Agent: "Home Assistant Health Check"
+  value_template: >
+    {% if value_json is defined and value_json.status is defined %}
+      {{ value_json.status }}
+    {% else %}
+      unknown
+    {% endif %}
+  json_attributes_path: "$.circuit_breakers"
+  json_attributes:
+    - state
+    - failure_count
+    - last_failure
+  icon: >
+    {% if value == 'healthy' %}
+      mdi:cube
+    {% elif value == 'degraded' %}
+      mdi:cube-outline
+    {% else %}
+      mdi:cube-off
+    {% endif %}

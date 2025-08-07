@@ -5,7 +5,7 @@ require_relative 'llm_service'
 module Services
   class ConversationSummarizer
     def initialize
-      @llm_service = Services::LLMService.new
+      @llm_service = Services::LLMService
     end
 
     def summarize_conversation(messages, _context = {})
@@ -28,15 +28,19 @@ module Services
       PROMPT
 
       # Generate summary
-      response = @llm_service.complete(
-        system_prompt: system_prompt,
-        user_message: user_prompt,
+      messages = [
+        { role: 'system', content: system_prompt },
+        { role: 'user', content: user_prompt }
+      ]
+
+      response = @llm_service.complete_with_messages(
+        messages: messages,
         model: GlitchCube.config.ai.default_model,
         temperature: 0.3,
         max_tokens: 200
       )
 
-      parse_summary(response[:content])
+      parse_summary(response.response_text)
     rescue StandardError => e
       puts "Failed to summarize conversation: #{e.message}"
       nil

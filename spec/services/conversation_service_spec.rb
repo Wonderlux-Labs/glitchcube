@@ -124,7 +124,17 @@ RSpec.describe Services::ConversationService do
   end
 
   describe '#reset_context' do
+    let(:mock_response) do
+      {
+        response: "Hello! Test response",
+        suggested_mood: 'playful',
+        confidence: 0.95
+      }
+    end
+
     before do
+      # Add mock to avoid leaking between tests
+      allow(service.conversation_module).to receive(:call).and_return(mock_response)
       service.process_message('Hello', mood: 'playful')
       service.add_context(:custom_field, 'value')
     end
@@ -158,21 +168,39 @@ RSpec.describe Services::ConversationService do
   end
 
   describe 'integration with system prompt' do
-    it 'passes context through to system prompt generation', :vcr do
-      # This is tested more thoroughly in integration specs
-      # but we verify the flow is connected
+    it 'passes context through to system prompt generation' do
+      # Mock the LLM service to avoid real API calls
+      mock_llm_response = double('LLMResponse',
+        response_text: "Hello! Test response",
+        continue_conversation?: true,
+        has_tool_calls?: false,
+        parsed_content: { 'response' => 'Hello! Test response', 'continue_conversation' => true },
+        cost: 0.001,
+        model: 'google/gemini-2.5-flash',
+        usage: { prompt_tokens: 100, completion_tokens: 50 }
+      )
+      
+      # Mock database operations to avoid foreign key issues
+      mock_session = double('ConversationSession')
+      allow(mock_session).to receive(:add_message)
+      allow(mock_session).to receive(:messages_for_llm).and_return([])
+      allow(mock_session).to receive(:session_id).and_return('test-session-123')
+      allow(Services::ConversationSession).to receive(:find_or_create).and_return(mock_session)
+      
+      # Mock LLM service to avoid real HTTP calls
+      allow(Services::LLMService).to receive(:complete_with_messages).and_return(mock_llm_response)
+      
+      # Spy on SystemPromptService to verify it's called with correct parameters
       allow(Services::SystemPromptService).to receive(:new).and_call_original
 
-      VCR.use_cassette('conversation_service/system_prompt_integration') do
-        service.process_message('Hello', mood: 'playful')
-      end
+      service.process_message('Hello', mood: 'playful')
 
       expect(Services::SystemPromptService).to have_received(:new).with(
         character: 'playful',
         context: hash_including(
           location: 'Test Gallery',
           event_name: 'RSpec Test',
-          current_mood: 'playful',
+          current_persona: 'playful',
           interaction_count: 1
         )
       )

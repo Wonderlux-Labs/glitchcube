@@ -153,7 +153,7 @@ RSpec.describe Services::ErrorHandlingLLM, 'dry-run mode' do
       end
 
       it 'logs to file' do
-        expect(FileUtils).to receive(:mkdir_p).with('log/proposed_fixes')
+        expect(FileUtils).to receive(:mkdir_p).with(end_with('log/proposed_fixes'))
         expect(File).to receive(:open).with(/proposed_fixes\.jsonl/, 'a')
 
         service.send(:save_proposed_fix, error, context, analysis, fix_result)

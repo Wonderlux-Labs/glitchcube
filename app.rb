@@ -5,15 +5,15 @@ require 'sinatra/json'
 require 'sinatra/reloader' if development?
 
 # Load environment variables BEFORE ActiveRecord
+# Priority (lowest to highest): .env.defaults < .env.{environment} < .env < ENV vars
+# Dotenv.load uses reverse order - first file wins, so list from most to least specific
 if development? || test?
   require 'dotenv'
   if test?
-    # Load defaults, test-specific, then local overrides
-    Dotenv.load('.env.defaults', '.env.test', '.env')
+    Dotenv.load('.env', '.env.test', '.env.defaults')
   else
-    # Load defaults first, then environment-specific, then override with .env
     env_file = ".env.#{ENV['RACK_ENV'] || 'development'}"
-    Dotenv.load('.env.defaults', env_file, '.env')
+    Dotenv.load('.env', env_file, '.env.defaults')
   end
 end
 
@@ -34,6 +34,10 @@ require_relative 'lib/services/circuit_breaker_service'
 
 # Load logger service
 require_relative 'lib/services/logger_service'
+
+# Load health monitoring services
+require_relative 'lib/services/health_push_service'
+require_relative 'lib/services/home_assistant_webhook_service'
 
 # Load application constants and config first
 require_relative 'config/constants'
@@ -70,6 +74,14 @@ class GlitchCubeApp < Sinatra::Base
     # Let Puma handle binding via BIND_ALL environment variable
     enable :sessions
     set :session_secret, GlitchCube.config.session_secret
+
+    # Track start time for uptime calculations
+    GlitchCube.start_time = Time.now
+  end
+
+  configure :test do
+    # Disable all protection in tests
+    disable :protection
   end
 
   configure :development do
@@ -85,6 +97,7 @@ class GlitchCubeApp < Sinatra::Base
   register GlitchCube::Routes::Api::Conversation
   register GlitchCube::Routes::Api::Tools
   register GlitchCube::Routes::Api::Deployment
+  register GlitchCube::Routes::Api::System
 
   # Admin routes
   register GlitchCube::Routes::Admin
@@ -182,7 +195,7 @@ Services::LoggerService.setup_loggers
 
 # Check for missed deployments on startup (production only)
 # Skip in development since we run production elsewhere
-if ENV['RACK_ENV'] == 'production' && !test? && !GlitchCube.config.home_assistant.mock_enabled
+if ENV['RACK_ENV'] == 'production' && !test?
   begin
     puts '🔍 Checking for missed deployments on startup...'
 
@@ -243,7 +256,7 @@ if ENV['RACK_ENV'] == 'production' && !test? && !GlitchCube.config.home_assistan
 end
 
 # Register with Home Assistant on startup (Sidekiq job)
-unless GlitchCube.config.home_assistant.mock_enabled
+if ENV['RACK_ENV'] == 'production'
   InitialHostRegistrationWorker.perform_in(5) # 5 seconds
 end
 

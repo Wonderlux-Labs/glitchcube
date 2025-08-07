@@ -144,21 +144,20 @@ module Utils
         hour = 12 if hour.zero?
 
         # Format time string
-        time_str = if minutes == 0
+        time_str = if minutes.zero?
                      "#{hour}:00"
                    else
                      "#{hour}:30"
                    end
 
         # Only return valid BRC times (2:00 to 10:00)
-        if hour >= 2 && hour <= 10
+        if hour.between?(2, 10)
           time_str
         elsif [1, 11].include?(hour)
           # Outside main street grid
           hour <= 6 ? '2:00' : '10:00'
-        else
-          nil # Deep playa
         end
+        # Returns nil for deep playa (hours outside 1-11)
       end
     end
   end

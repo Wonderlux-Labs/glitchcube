@@ -6,35 +6,29 @@ require_relative '../../lib/home_assistant_client'
 RSpec.describe HomeAssistantClient do
   let(:client) { described_class.new }
 
-  describe 'with mock enabled' do
-    before do
-      allow(GlitchCube.config.home_assistant).to receive(:mock_enabled).and_return(true)
-    end
+  describe 'initialization and configuration' do
+    # In test environment, VCR handles all external calls
+    # Uses the URL and token configured in .env.test
 
-    it 'uses HA URL from config' do
-      client = described_class.new
-      expect(client.base_url).to eq('http://localhost:4567/mock_ha')
+    it 'uses configured HA URL' do
+      # Uses configured glitch.local URL from .env.test
+      expect(client.base_url).to eq('http://glitch.local:8123')
     end
 
     it 'uses token from config' do
-      client = described_class.new
-      expect(client.token).to eq('test-ha-token')
-    end
-  end
-
-  describe 'with mock disabled' do
-    before do
-      allow(GlitchCube.config.home_assistant).to receive_messages(mock_enabled: false, url: 'http://real-ha:8123', token: 'real-token')
+      # In test environment, uses a consistent test token for VCR
+      expect(client.token).to be_a(String)
+      expect(client.token).to eq('test-ha-token')  # Consistent test token
     end
 
-    it 'uses real HA URL' do
-      client = described_class.new
-      expect(client.base_url).to eq('http://real-ha:8123')
-    end
-
-    it 'uses real token' do
-      client = described_class.new
-      expect(client.token).to eq('real-token')
+    context 'when no HA URL is configured' do
+      it 'uses configured URL from environment' do
+        # Test that client uses configured URL
+        client = described_class.new(base_url: nil)
+        
+        # Uses the URL configured in .env.test
+        expect(client.base_url).to eq('http://glitch.local:8123')
+      end
     end
   end
 

@@ -3,7 +3,7 @@ inherit_from: .rubocop_todo.yml
 # RuboCop configuration for Glitch Cube
 # Art installation Ruby/Sinatra application
 
-require:
+plugins:
   - rubocop-rspec
 
 AllCops:
@@ -61,6 +61,14 @@ Metrics/BlockLength:
 
 Metrics/ModuleLength:
   Max: 150
+  Exclude:
+    - 'lib/routes/api/gps.rb'                # GPS tracking endpoints - legitimate complexity
+    - 'lib/routes/api/system.rb'             # System monitoring endpoints - legitimate complexity
+    - 'lib/cube/settings.rb'                 # Configuration settings module
+    - 'lib/modules/conversation_enhancements.rb' # Conversation enhancement features
+    - 'lib/routes/admin.rb'                  # Admin interface endpoints
+    - 'lib/routes/api/conversation.rb'       # Main conversation endpoints
+    - 'lib/routes/api/deployment.rb'         # Deployment management endpoints
 
 # Security
 Security/Eval:

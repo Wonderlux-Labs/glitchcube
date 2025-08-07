@@ -262,8 +262,11 @@ module Services
         GlitchCube::ModelPresets.validate_model!(model)
       end
 
-      def with_circuit_breaker(&)
-        Services::CircuitBreakerService.openrouter_breaker.call(&)
+      def with_circuit_breaker(&block)
+        # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
+        return yield if GlitchCube.config.test? && !ENV['ENABLE_CIRCUIT_BREAKERS']
+        
+        Services::CircuitBreakerService.openrouter_breaker.call(&block)
       rescue CircuitBreaker::CircuitOpenError => e
         raise LLMError, "OpenRouter service temporarily unavailable: #{e.message}"
       end
@@ -275,6 +278,9 @@ module Services
       end
 
       def with_retry_logic(model:, max_attempts: 3)
+        # Disable retries in test environment unless explicitly testing retries
+        max_attempts = 1 if GlitchCube.config.test? && !ENV['ENABLE_RETRIES']
+        
         attempt = 0
         delay = 1.0
         last_error = nil

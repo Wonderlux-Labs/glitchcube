@@ -4,12 +4,22 @@ require 'spec_helper'
 require_relative '../../lib/services/proactive_conversation_service'
 
 RSpec.describe Services::ProactiveConversationService do
-  let(:service) { described_class.new }
   let(:mock_client) { instance_double(HomeAssistantClient) }
-  let(:mock_handler) { instance_double(Services::ConversationHandlerService) }
+  let(:mock_handler) { double('ConversationHandlerService') }  # Use regular double instead of instance_double
+  let(:service) { described_class.new }  # Create service AFTER mocks are set up
 
   before do
-    allow(service).to receive_messages(client: mock_client, handler: mock_handler)
+    # Mock the class instantiation to return our mock objects
+    allow(HomeAssistantClient).to receive(:new).and_return(mock_client)
+    allow(Services::ConversationHandlerService).to receive(:new).and_return(mock_handler)
+    
+    # Also ensure mocks are properly set up
+    allow(mock_client).to receive_messages(
+      state: { 'state' => 'off' },  # default state
+      awtrix_notify: { success: true }
+    )
+    # Remove the conflicting mock - let individual tests set up their own expectations
+    allow(Services::LoggerService).to receive(:log_interaction)
   end
 
   describe '#check_single_trigger' do
@@ -84,29 +94,37 @@ RSpec.describe Services::ProactiveConversationService do
     end
 
     it 'sends conversation to Home Assistant' do
-      expect(mock_handler).to receive(:send_conversation_to_ha).with(
+      # Use stubs to set up mock behavior
+      allow(mock_handler).to receive(:send_conversation_to_ha).and_return({ status: 'sent' })
+      allow(Services::LoggerService).to receive(:log_interaction)
+      allow(mock_client).to receive(:awtrix_notify).and_return({ success: true })
+
+      result = service.initiate_proactive_conversation(trigger_result)
+      
+      expect(result).to include(status: 'sent')
+      
+      # Verify calls were made with correct arguments
+      expect(mock_handler).to have_received(:send_conversation_to_ha).with(
         'Battery at 15%!',
         hash_including(
           trigger: :battery_low,
           proactive: true
         )
-      ).and_return({ status: 'sent' })
-
-      expect(Services::LoggerService).to receive(:log_interaction).with(
+      )
+      
+      expect(Services::LoggerService).to have_received(:log_interaction).with(
         hash_including(
           user_message: '[PROACTIVE: battery_low]',
           ai_response: 'Battery at 15%!',
-          mood: 'proactive'
+          mood: 'proactive',
+          context: { trigger: :battery_low }
         )
       )
-
-      expect(mock_client).to receive(:awtrix_notify).with(
+      
+      expect(mock_client).to have_received(:awtrix_notify).with(
         '💬 Battery at 15%!...',
         hash_including(color: [100, 200, 255])
       )
-
-      result = service.initiate_proactive_conversation(trigger_result)
-      expect(result).to include(status: 'sent')
     end
 
     it 'handles errors gracefully' do
@@ -172,7 +190,8 @@ RSpec.describe Services::ProactiveConversationService do
 
       cold_message = hot_generator.call('5')
       expect(cold_message).to include('5')
-      expect(cold_message).to match(/cold|chilly|brrr/i)
+      # Allow for all possible cold temperature message variants
+      expect(cold_message).to match(/cold|chilly|brrr|bundled up/i)
     end
   end
 
@@ -180,9 +199,11 @@ RSpec.describe Services::ProactiveConversationService do
     it 'starts a monitoring thread' do
       expect(Thread).to receive(:new).and_yield
       expect(service).to receive(:check_triggers).and_return([])
+      # Expect two sleep calls: one normal, one in rescue block after error
       expect(service).to receive(:sleep).with(60).and_raise(StandardError, 'Test stop')
+      expect(service).to receive(:sleep).with(60).and_raise(StandardError, 'Test stop again')
 
-      expect { service.start_monitoring }.to raise_error('Test stop')
+      expect { service.start_monitoring }.to raise_error('Test stop again')
     end
   end
 

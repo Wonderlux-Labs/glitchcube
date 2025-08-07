@@ -1,0 +1,198 @@
+# Automatic Recovery System for Glitch Cube
+# Monitors health and triggers restarts when needed
+
+- id: glitchcube_auto_recovery
+  alias: "Glitch Cube Auto Recovery"
+  description: "Automatically restart Glitch Cube when health degrades"
+  
+  trigger:
+    # Trigger 1: API health sensor shows unhealthy
+    - platform: state
+      entity_id: sensor.glitchcube_api_health
+      to: 'unhealthy'
+      for:
+        minutes: 5
+      id: api_unhealthy
+    
+    # Trigger 2: API not responding (timeout)
+    - platform: state
+      entity_id: sensor.glitchcube_api_health
+      to: 'unavailable'
+      for:
+        minutes: 3
+      id: api_unavailable
+    
+    # Trigger 3: High error rate detected
+    - platform: numeric_state
+      entity_id: sensor.glitchcube_error_rate
+      above: 50
+      for:
+        minutes: 10
+      id: high_errors
+    
+    # Trigger 4: Memory usage too high
+    - platform: numeric_state
+      entity_id: sensor.memory_use_percent
+      above: 90
+      for:
+        minutes: 5
+      id: high_memory
+    
+    # Trigger 5: Queue buildup
+    - platform: numeric_state
+      entity_id: sensor.sidekiq_queue_size
+      above: 100
+      for:
+        minutes: 15
+      id: queue_buildup
+    
+    # Trigger 6: Manual trigger from dashboard
+    - platform: state
+      entity_id: input_boolean.trigger_restart
+      to: 'on'
+      id: manual_trigger
+
+  condition:
+    # Don't restart if we've restarted recently
+    - condition: template
+      value_template: >
+        {% set last_restart = states('input_datetime.last_restart_time') %}
+        {% if last_restart != 'unknown' %}
+          {{ (now() - strptime(last_restart, '%Y-%m-%d %H:%M:%S')).total_seconds() > 600 }}
+        {% else %}
+          true
+        {% endif %}
+    
+    # Don't restart if in maintenance mode
+    - condition: state
+      entity_id: input_boolean.maintenance_mode
+      state: 'off'
+
+  action:
+    # Determine restart level based on trigger
+    - variables:
+        restart_level: >
+          {% if trigger.id == 'api_unavailable' %}
+            hard
+          {% elif trigger.id == 'high_memory' %}
+            hard
+          {% elif trigger.id == 'manual_trigger' %}
+            {{ states('input_select.restart_level') | default('soft') }}
+          {% else %}
+            soft
+          {% endif %}
+        restart_reason: >
+          {% if trigger.id == 'api_unhealthy' %}
+            API health degraded for 5 minutes
+          {% elif trigger.id == 'api_unavailable' %}
+            API not responding for 3 minutes
+          {% elif trigger.id == 'high_errors' %}
+            High error rate detected
+          {% elif trigger.id == 'high_memory' %}
+            Memory usage above 90%
+          {% elif trigger.id == 'queue_buildup' %}
+            Sidekiq queue buildup detected
+          {% elif trigger.id == 'manual_trigger' %}
+            Manual restart triggered from dashboard
+          {% else %}
+            Unknown trigger
+          {% endif %}
+    
+    # Log the restart attempt
+    - service: system_log.write
+      data:
+        message: "🔄 Auto-recovery triggered: {{ restart_reason }} (Level: {{ restart_level }})"
+        level: warning
+    
+    # Send notification
+    - service: notify.notify
+      data:
+        title: "Glitch Cube Auto-Recovery"
+        message: "Initiating {{ restart_level }} restart: {{ restart_reason }}"
+    
+    # Call the restart API
+    - service: rest_command.trigger_glitchcube_restart
+      data:
+        level: "{{ restart_level }}"
+        reason: "{{ restart_reason }}"
+    
+    # Update last restart time
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.last_restart_time
+      data:
+        datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+    
+    # Reset manual trigger if it was used
+    - condition: template
+      value_template: "{{ trigger.id == 'manual_trigger' }}"
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.trigger_restart
+
+# Monitor restart success
+- id: glitchcube_restart_monitor
+  alias: "Monitor Glitch Cube Restart"
+  description: "Check if restart was successful"
+  
+  trigger:
+    - platform: state
+      entity_id: input_datetime.last_restart_time
+  
+  action:
+    # Wait for services to come back up
+    - delay:
+        seconds: 30
+    
+    # Check if API is responding
+    - service: rest_command.check_glitchcube_health
+    
+    - delay:
+        seconds: 10
+    
+    # Check health status
+    - condition: state
+      entity_id: sensor.glitchcube_api_health
+      state: 'healthy'
+    
+    # Success notification
+    - service: notify.notify
+      data:
+        title: "Recovery Successful"
+        message: "✅ Glitch Cube has recovered and is running normally"
+    
+    # If still unhealthy, escalate
+    - condition: state
+      entity_id: sensor.glitchcube_api_health
+      state: 'unhealthy'
+    
+    - service: notify.notify
+      data:
+        title: "Recovery Failed"
+        message: "⚠️ Glitch Cube restart failed - manual intervention required"
+        data:
+          priority: high
+
+# Daily health report
+- id: glitchcube_daily_health_report
+  alias: "Glitch Cube Daily Health Report"
+  description: "Send daily health and restart statistics"
+  
+  trigger:
+    - platform: time
+      at: "09:00:00"
+  
+  action:
+    - service: rest_command.get_restart_history
+    
+    - service: notify.notify
+      data:
+        title: "Glitch Cube Daily Report"
+        message: >
+          📊 Daily Health Report:
+          Status: {{ states('sensor.glitchcube_api_health') }}
+          Uptime: {{ states('sensor.glitchcube_uptime_hours') }} hours
+          Restarts (24h): {{ state_attr('sensor.restart_history', 'count_24h') | default(0) }}
+          Queue sizes: {{ states('sensor.sidekiq_queue_size') }}
+          Memory: {{ states('sensor.memory_use_percent') }}%
+          Disk: {{ states('sensor.disk_use_percent') }}%

@@ -69,14 +69,12 @@ module Services
 
         # Find and validate tool
         tool_class = find_tool_class(tool_name)
-        
-        if tool_class.nil?
-          return error_result(tool_id, tool_name, "Tool not found: #{tool_name}")
-        end
+
+        return error_result(tool_id, tool_name, "Tool not found: #{tool_name}") if tool_class.nil?
 
         # Execute with timeout
         timeout_seconds = options[:timeout] || DEFAULT_TIMEOUT
-        
+
         result = Timeout.timeout(timeout_seconds) do
           execute_tool_safely(tool_class, tool_args)
         end
@@ -89,7 +87,6 @@ module Services
           result: result,
           executed_at: Time.now.iso8601
         }
-
       rescue Timeout::Error
         error_result(tool_id, tool_name, "Tool execution timed out after #{timeout_seconds} seconds")
       rescue StandardError => e
@@ -103,9 +100,7 @@ module Services
       # @return [String] Tool result
       def execute_tool_safely(tool_class, arguments)
         # Validate tool has required method
-        unless tool_class.respond_to?(:call)
-          raise ExecutionError, "Tool #{tool_class} does not implement .call method"
-        end
+        raise ExecutionError, "Tool #{tool_class} does not implement .call method" unless tool_class.respond_to?(:call)
 
         # Convert arguments to symbols if needed
         args = normalize_arguments(arguments)
@@ -138,33 +133,23 @@ module Services
       # @return [Class, nil] Tool class or nil
       def find_tool_class(tool_name)
         # Standard naming convention: tool_name -> ToolNameTool
-        class_name = tool_name.split('_').map(&:capitalize).join + 'Tool'
-        
+        class_name = "#{tool_name.split('_').map(&:capitalize).join}Tool"
+
         # Try root namespace first
-        if Object.const_defined?(class_name)
-          return Object.const_get(class_name)
-        end
+        return Object.const_get(class_name) if Object.const_defined?(class_name)
 
         # Try Tools namespace
         namespaced = "Tools::#{class_name}"
-        if Object.const_defined?(namespaced)
-          return Object.const_get(namespaced)
-        end
+        return Object.const_get(namespaced) if Object.const_defined?(namespaced)
 
         # Try exact match (if already properly formatted)
-        if Object.const_defined?(tool_name)
-          return Object.const_get(tool_name)
-        end
+        return Object.const_get(tool_name) if Object.const_defined?(tool_name)
 
         # Load tool file if not loaded
         load_tool_file(tool_name)
 
         # Try again after loading
-        if Object.const_defined?(class_name)
-          Object.const_get(class_name)
-        else
-          nil
-        end
+        Object.const_get(class_name) if Object.const_defined?(class_name)
       rescue NameError => e
         Rails.logger.warn "Failed to find tool class for #{tool_name}: #{e.message}" if defined?(Rails)
         nil
@@ -175,22 +160,22 @@ module Services
       # @param tool_name [String] Name of the tool
       def load_tool_file(tool_name)
         # Look for tool file
-        if defined?(Rails)
-          tool_file = Rails.root.join('lib', 'tools', "#{tool_name}_tool.rb")
-        else
-          # In test environment, use relative path
-          tool_file = File.expand_path("../../tools/#{tool_name}_tool.rb", __FILE__)
-        end
-        
+        tool_file = if defined?(Rails)
+                      Rails.root.join('lib', 'tools', "#{tool_name}_tool.rb")
+                    else
+                      # In test environment, use relative path
+                      File.expand_path("../../tools/#{tool_name}_tool.rb", __FILE__)
+                    end
+
         if File.exist?(tool_file)
           require tool_file
         else
           # Try alternate path
-          if defined?(Rails)
-            alt_file = Rails.root.join('lib', 'tools', "#{tool_name}.rb")
-          else
-            alt_file = File.expand_path("../../tools/#{tool_name}.rb", __FILE__)
-          end
+          alt_file = if defined?(Rails)
+                       Rails.root.join('lib', 'tools', "#{tool_name}.rb")
+                     else
+                       File.expand_path("../../tools/#{tool_name}.rb", __FILE__)
+                     end
           require alt_file if File.exist?(alt_file)
         end
       rescue LoadError => e
@@ -218,7 +203,7 @@ module Services
       # @param results [Array<Hash>] Tool execution results
       # @return [String] Formatted results for LLM
       def format_for_conversation(results)
-        return "No tool results" if results.empty?
+        return 'No tool results' if results.empty?
 
         formatted = results.map do |result|
           if result[:success]

@@ -74,7 +74,7 @@ module Utils
     def trash_fence_coordinates
       [
         [-119.23273810046265, 40.783393446219854],
-        [-119.20773209353101, 40.764368446672798], 
+        [-119.20773209353101, 40.764368446672798],
         [-119.17619408998932, 40.776562450337401],
         [-119.18168009473258, 40.80310545215228],
         [-119.21663410121434, 40.80735944960616],
@@ -91,18 +91,18 @@ module Utils
     def point_in_polygon?(lat, lng, polygon_coords)
       inside = false
       j = polygon_coords.length - 1
-      
+
       (0...polygon_coords.length).each do |i|
         coord_i = polygon_coords[i]
         coord_j = polygon_coords[j]
-        
+
         if ((coord_i[1] > lng) != (coord_j[1] > lng)) &&
-           (lat < (coord_j[0] - coord_i[0]) * (lng - coord_i[1]) / (coord_j[1] - coord_i[1]) + coord_i[0])
+           (lat < ((coord_j[0] - coord_i[0]) * (lng - coord_i[1]) / (coord_j[1] - coord_i[1])) + coord_i[0])
           inside = !inside
         end
         j = i
       end
-      
+
       inside
     end
   end

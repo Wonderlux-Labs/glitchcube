@@ -10,38 +10,35 @@ module GlitchCube
             erb :gps_map, views: File.expand_path('../../../views', __dir__)
           end
 
-
           # Simple coords endpoint - just lat/lng
           app.get '/api/v1/gps/coords' do
-            begin
-              location = Services::GpsCacheService.cached_location
-              
-              if location&.dig(:lat) && location&.dig(:lng)
-                json({
-                  lat: location[:lat],
-                  lng: location[:lng]
-                })
-              else
-                status 503
-                json({ error: 'No GPS coordinates available' })
-              end
-            rescue StandardError => e
-              Services::LoggerService.log_api_call(
-                service: 'GPS API',
-                endpoint: '/api/v1/gps/coords',
-                error: e.message,
-                success: false
-              )
-              status 500
-              json({ error: 'GPS coords error', details: e.message })
+            location = Services::GpsCacheService.cached_location
+
+            if location&.dig(:lat) && location[:lng]
+              json({
+                     lat: location[:lat],
+                     lng: location[:lng]
+                   })
+            else
+              status 503
+              json({ error: 'No GPS coordinates available' })
             end
+          rescue StandardError => e
+            Services::LoggerService.log_api_call(
+              service: 'GPS API',
+              endpoint: '/api/v1/gps/coords',
+              error: e.message,
+              success: false
+            )
+            status 500
+            json({ error: 'GPS coords error', details: e.message })
           end
 
           app.get '/api/v1/gps/location' do
             content_type :json
 
             require_relative '../../services/gps_cache_service'
-            
+
             begin
               # Use cached location data (1-minute TTL)
               location = Services::GpsCacheService.cached_location
@@ -65,10 +62,10 @@ module GlitchCube
             rescue StandardError => e
               status 500
               json({
-                error: 'GPS service error',
-                message: e.message,
-                timestamp: Time.now.utc.iso8601
-              })
+                     error: 'GPS service error',
+                     message: e.message,
+                     timestamp: Time.now.utc.iso8601
+                   })
             end
           end
 
@@ -86,13 +83,13 @@ module GlitchCube
                 json({ landmarks: [], portos: [], map_mode: 'normal', visual_effects: [] })
               end
             rescue StandardError => e
-              json({ 
-                landmarks: [], 
-                portos: [], 
-                map_mode: 'normal', 
-                visual_effects: [],
-                error: e.message 
-              })
+              json({
+                     landmarks: [],
+                     portos: [],
+                     map_mode: 'normal',
+                     visual_effects: [],
+                     error: e.message
+                   })
             end
           end
 
@@ -186,7 +183,7 @@ module GlitchCube
             content_type :json
             send_file File.join(settings.root, 'data/gis/plazas.geojson')
           end
-          
+
           app.get '/api/v1/gis/trash_fence' do
             content_type :json
             send_file File.join(settings.root, 'data/gis/trash_fence.geojson')
@@ -194,10 +191,10 @@ module GlitchCube
 
           app.get '/api/v1/gps/landmarks' do
             content_type :json
-            
+
             # Cache landmarks forever - they don't move
             headers 'Cache-Control' => 'public, max-age=31536000' # 1 year
-            headers 'Expires' => (Time.now + 31536000).httpdate
+            headers 'Expires' => (Time.now + 31_536_000).httpdate
 
             begin
               # Load all landmarks from database (cacheable since they don't move)
@@ -208,36 +205,35 @@ module GlitchCube
                   lng: landmark.longitude.to_f,
                   type: landmark.landmark_type,
                   priority: case landmark.landmark_type
-                  when 'center', 'sacred' then 1  # Highest priority for Man, Temple
-                  when 'medical', 'ranger' then 2  # High priority for emergency services
-                  when 'service', 'toilet' then 3  # Medium priority for utilities
-                  when 'art' then 4               # Lower priority for art
-                  else 5                          # Lowest priority for other landmarks
-                  end,
+                            when 'center', 'sacred' then 1 # Highest priority for Man, Temple
+                            when 'medical', 'ranger' then 2  # High priority for emergency services
+                            when 'service', 'toilet' then 3  # Medium priority for utilities
+                            when 'art' then 4 # Lower priority for art
+                            else 5 # Lowest priority for other landmarks
+                            end,
                   description: landmark.description || landmark.name
                 }
               end
 
               json({
-                landmarks: landmarks,
-                count: landmarks.length,
-                source: 'Database (Burning Man Innovate GIS Data 2025)',
-                cache_hint: 'forever' # Landmarks don't move, safe to cache indefinitely
-              })
+                     landmarks: landmarks,
+                     count: landmarks.length,
+                     source: 'Database (Burning Man Innovate GIS Data 2025)',
+                     cache_hint: 'forever' # Landmarks don't move, safe to cache indefinitely
+                   })
             rescue StandardError => e
               # Fallback to hardcoded landmarks if database unavailable
               require_relative '../../utils/burning_man_landmarks'
               landmarks = Utils::BurningManLandmarks.all_landmarks
 
               json({
-                landmarks: landmarks,
-                count: landmarks.length,
-                source: 'Fallback (hardcoded)',
-                error: "Database unavailable: #{e.message}"
-              })
+                     landmarks: landmarks,
+                     count: landmarks.length,
+                     source: 'Fallback (hardcoded)',
+                     error: "Database unavailable: #{e.message}"
+                   })
             end
           end
-
         end
       end
     end

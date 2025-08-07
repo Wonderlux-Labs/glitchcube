@@ -3,7 +3,7 @@
 class Landmark < ActiveRecord::Base
   # Callbacks
   before_save :update_spatial_location
-  
+
   # Validations
   validates :name, presence: true
   validates :latitude, presence: true, numericality: true
@@ -14,33 +14,35 @@ class Landmark < ActiveRecord::Base
   scope :active, -> { where(active: true) }
   scope :by_type, ->(type) { where(landmark_type: type) }
   # PostGIS spatial queries for high-performance proximity detection
-  scope :within_radius, ->(lat, lng, radius_km) do
-    # Sanitize inputs
-    lat = connection.quote(lat.to_f)
-    lng = connection.quote(lng.to_f)
-    point = "ST_SetSRID(ST_MakePoint(#{lng}, #{lat}), 4326)"
-    radius_meters = radius_km * 1000
-    
-    if connection.adapter_name.downcase.include?('postgis') || 
-       connection.execute("SELECT PostGIS_version()").present?
-      # Use PostGIS spatial functions for precise geographic distance
-      where("ST_DWithin(location::geography, (#{point})::geography, ?)", radius_meters)
-    else
-      # Fallback to approximate calculation for non-PostGIS environments
+  scope :within_radius, lambda { |lat, lng, radius_km|
+    begin
+      # Sanitize inputs
+      lat = connection.quote(lat.to_f)
+      lng = connection.quote(lng.to_f)
+      point = "ST_SetSRID(ST_MakePoint(#{lng}, #{lat}), 4326)"
+      radius_meters = radius_km * 1000
+
+      if connection.adapter_name.downcase.include?('postgis') ||
+         connection.execute('SELECT PostGIS_version()').present?
+        # Use PostGIS spatial functions for precise geographic distance
+        where("ST_DWithin(location::geography, (#{point})::geography, ?)", radius_meters)
+      else
+        # Fallback to approximate calculation for non-PostGIS environments
+        radius_miles = radius_km * 0.621371
+        where(
+          '((latitude - ?) * (latitude - ?) + (longitude - ?) * (longitude - ?)) <= ?',
+          lat, lat, lng, lng, (radius_miles / 69.0)**2
+        )
+      end
+    rescue PG::UndefinedFunction, ActiveRecord::StatementInvalid
+      # Fallback if PostGIS not available
       radius_miles = radius_km * 0.621371
       where(
-        "((latitude - ?) * (latitude - ?) + (longitude - ?) * (longitude - ?)) <= ?",
-        lat, lat, lng, lng, (radius_miles / 69.0) ** 2
+        '((latitude - ?) * (latitude - ?) + (longitude - ?) * (longitude - ?)) <= ?',
+        lat, lat, lng, lng, (radius_miles / 69.0)**2
       )
     end
-  rescue PG::UndefinedFunction, ActiveRecord::StatementInvalid
-    # Fallback if PostGIS not available
-    radius_miles = radius_km * 0.621371
-    where(
-      "((latitude - ?) * (latitude - ?) + (longitude - ?) * (longitude - ?)) <= ?",
-      lat, lat, lng, lng, (radius_miles / 69.0) ** 2
-    )
-  end
+  }
 
   # Instance methods
   def coordinates
@@ -85,9 +87,9 @@ class Landmark < ActiveRecord::Base
     distance_from(lat, lng) <= radius_miles
   end
 
-  def has_spatial_data?
-    respond_to?(:location) && location.present? && 
-    self.class.connection.adapter_name.downcase.include?('postgis')
+  def spatial_data?
+    respond_to?(:location) && location.present? &&
+      self.class.connection.adapter_name.downcase.include?('postgis')
   rescue StandardError
     false
   end
@@ -115,7 +117,7 @@ class Landmark < ActiveRecord::Base
 
   def self.postgis_available?
     @postgis_available ||= begin
-      connection.execute("SELECT PostGIS_version()").present?
+      connection.execute('SELECT PostGIS_version()').present?
     rescue StandardError
       false
     end
@@ -127,16 +129,14 @@ class Landmark < ActiveRecord::Base
     import_from_toilets_geojson(File.join(gis_data_path, 'toilets.geojson'))
     import_from_plazas_geojson(File.join(gis_data_path, 'plazas.geojson'))
     import_from_cpns_geojson(File.join(gis_data_path, 'cpns.geojson'))
-    
+
     # Also import streets if Street model exists
-    if defined?(Street)
-      Street.import_from_geojson(File.join(gis_data_path, 'street_lines.geojson'))
-    end
-    
+    Street.import_from_geojson(File.join(gis_data_path, 'street_lines.geojson')) if defined?(Street)
+
     # Import city blocks if Boundary model exists
-    if defined?(Boundary)
-      Boundary.import_from_city_blocks(File.join(gis_data_path, 'city_blocks.geojson'))
-    end
+    return unless defined?(Boundary)
+
+    Boundary.import_from_city_blocks(File.join(gis_data_path, 'city_blocks.geojson'))
   end
 
   private
@@ -150,7 +150,7 @@ class Landmark < ActiveRecord::Base
         name: landmark_data['name'],
         landmark_type: landmark_data['type']
       )
-      
+
       landmark.assign_attributes(
         latitude: landmark_data['lat'],
         longitude: landmark_data['lng'],
@@ -163,7 +163,7 @@ class Landmark < ActiveRecord::Base
         }.compact,
         active: true
       )
-      
+
       landmark.save! if landmark.changed?
     end
   end
@@ -176,12 +176,12 @@ class Landmark < ActiveRecord::Base
       # Extract centroid from polygon coordinates
       coordinates = feature['geometry']['coordinates'][0]
       centroid = calculate_polygon_centroid(coordinates)
-      
+
       landmark = find_or_initialize_by(
         name: "Toilet #{index + 1}",
         landmark_type: 'toilet'
       )
-      
+
       landmark.assign_attributes(
         latitude: centroid[1],
         longitude: centroid[0],
@@ -194,7 +194,7 @@ class Landmark < ActiveRecord::Base
         },
         active: true
       )
-      
+
       landmark.save! if landmark.changed?
     end
   end
@@ -207,12 +207,12 @@ class Landmark < ActiveRecord::Base
       # Extract centroid from polygon coordinates
       coordinates = feature['geometry']['coordinates'][0]
       centroid = calculate_polygon_centroid(coordinates)
-      
+
       landmark = find_or_initialize_by(
         name: feature['properties']['Name'],
         landmark_type: 'plaza'
       )
-      
+
       landmark.assign_attributes(
         latitude: centroid[1],
         longitude: centroid[0],
@@ -224,7 +224,7 @@ class Landmark < ActiveRecord::Base
         },
         active: true
       )
-      
+
       landmark.save! if landmark.changed?
     end
   end
@@ -237,12 +237,12 @@ class Landmark < ActiveRecord::Base
       # CPNs are points of interest (Center Placement Names)
       name = feature['properties']['NAME']
       cpn_type = feature['properties']['TYPE'] || 'CPN'
-      
+
       landmark = find_or_initialize_by(
         name: name,
         landmark_type: 'cpn'
       )
-      
+
       landmark.assign_attributes(
         latitude: feature['geometry']['coordinates'][1],
         longitude: feature['geometry']['coordinates'][0],
@@ -256,7 +256,7 @@ class Landmark < ActiveRecord::Base
         }.compact,
         active: true
       )
-      
+
       landmark.save! if landmark.changed?
     end
   end
@@ -266,16 +266,18 @@ class Landmark < ActiveRecord::Base
     lat_sum = coordinates.sum { |coord| coord[1] }
     lng_sum = coordinates.sum { |coord| coord[0] }
     count = coordinates.length
-    
+
     [lng_sum / count, lat_sum / count]
   end
 
-  private
+  private_class_method :import_from_landmarks_json, :import_from_toilets_geojson,
+                       :import_from_plazas_geojson, :import_from_cpns_geojson,
+                       :calculate_polygon_centroid
 
   def update_spatial_location
     return unless latitude.present? && longitude.present?
     return unless respond_to?(:location=)
-    
+
     begin
       if self.class.postgis_available?
         # Update PostGIS spatial column when lat/lng changes

@@ -123,7 +123,7 @@ RSpec.describe MissedDeploymentWorker do
   describe 'Sidekiq configuration' do
     it 'has correct queue and retry settings' do
       expect(described_class.sidekiq_options_hash).to include(
-        'queue' => 'default',
+        'queue' => :default,  # Sidekiq uses symbols for queue names
         'retry' => 2
       )
     end

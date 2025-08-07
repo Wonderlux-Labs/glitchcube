@@ -26,6 +26,9 @@ class ConversationModule
       context: context.merge(persona: persona)
     )
 
+    # Enrich context with sensor data if requested
+    context = enrich_context_with_sensors(context) if context[:include_sensors]
+
     system_prompt = build_system_prompt(persona, context)
 
     # Prepare structured output schema based on context
@@ -85,7 +88,7 @@ class ConversationModule
       tool_results = nil
       if llm_response.has_tool_calls?
         tool_results = handle_tool_calls(llm_response, session, persona)
-        
+
         # If we have tool results, we need to continue the conversation with them
         if tool_results && !tool_results.empty?
           # Add tool results to conversation and get final response
@@ -219,12 +222,10 @@ class ConversationModule
     )
 
     # Get final response after tool execution
-    final_response = Services::LLMService.complete_with_messages(
+    Services::LLMService.complete_with_messages(
       messages: messages,
       **llm_options.except(:tools, :tool_choice) # Don't allow recursive tool calls for now
     )
-
-    final_response
   rescue StandardError => e
     puts "⚠️ Failed to continue after tool execution: #{e.message}"
     # Return original response if continuation fails
@@ -232,7 +233,7 @@ class ConversationModule
   end
 
   def format_tool_results_message(tool_results)
-    return "No tool results available." if tool_results.empty?
+    return 'No tool results available.' if tool_results.empty?
 
     formatted = tool_results.map do |result|
       if result[:success]
@@ -348,7 +349,7 @@ class ConversationModule
     return nil unless GlitchCube.config.home_assistant.url
 
     client = HomeAssistantClient.new
-    location = client.get_state('sensor.glitchcube_location')
+    location = client.state('sensor.glitchcube_location')
     location&.dig('state')
   rescue StandardError
     nil

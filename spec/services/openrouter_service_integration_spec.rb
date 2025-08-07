@@ -21,14 +21,15 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
     described_class.instance_variable_set(:@client, nil)
     described_class.instance_variable_set(:@request_handler, nil)
     described_class.clear_cache!
-
-    # Create a fresh mock for each test to avoid RSpec double leakage
-    @mock_client = instance_double(OpenRouter::Client)
-    allow(OpenRouter::Client).to receive(:new).and_return(@mock_client)
   end
 
-  # Use @mock_client instead of mock_client method
-  attr_reader :mock_client
+  # Helper method to stub the client for specific tests
+  def stub_openrouter_client
+    mock_client = instance_double(OpenRouter::Client)
+    # Instead of stubbing the class, stub the instance variable
+    described_class.instance_variable_set(:@client, mock_client)
+    mock_client
+  end
 
   describe 'blacklist validation' do
     it 'prevents using expensive models' do
@@ -38,6 +39,7 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
     end
 
     it 'allows safe models' do
+      mock_client = stub_openrouter_client
       expect(mock_client).to receive(:complete).and_return(mock_response)
 
       result = described_class.complete('Test', model: 'meta-llama/llama-3.2-3b-instruct')
@@ -47,24 +49,42 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
 
   describe 'convenience methods' do
     it 'complete_cheap uses small_cheapest preset' do
+      mock_client = stub_openrouter_client
       expect(mock_client).to receive(:complete).with(
-        hash_including(model: 'meta-llama/llama-3.2-3b-instruct')
+        [{ role: 'user', content: 'Test prompt' }],
+        model: 'meta-llama/llama-3.2-3b-instruct',
+        extras: {
+          max_tokens: 1000,
+          temperature: 0.7
+        }
       ).and_return(mock_response)
 
       described_class.complete_cheap('Test prompt')
     end
 
     it 'complete_conversation uses conversation_small preset' do
+      mock_client = stub_openrouter_client
       expect(mock_client).to receive(:complete).with(
-        hash_including(model: 'qwen/qwen3-235b-a22b-thinking-2507')
+        [{ role: 'user', content: 'Test prompt' }],
+        model: 'qwen/qwen3-235b-a22b-thinking-2507',
+        extras: {
+          max_tokens: 1000,
+          temperature: 0.7
+        }
       ).and_return(mock_response)
 
       described_class.complete_conversation('Test prompt')
     end
 
     it 'analyze_image uses image_classification preset' do
+      mock_client = stub_openrouter_client
       expect(mock_client).to receive(:complete).with(
-        hash_including(model: 'qwen/qwen2.5-vl-72b-instruct:free')
+        [{ role: 'user', content: 'Analyze this image' }],
+        model: 'qwen/qwen2.5-vl-72b-instruct:free',
+        extras: {
+          max_tokens: 1000,
+          temperature: 0.7
+        }
       ).and_return(mock_response)
 
       described_class.analyze_image('Analyze this image')

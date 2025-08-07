@@ -19,7 +19,11 @@ module Cube
       end
 
       def disable_circuit_breakers?
-        env_true?('DISABLE_CIRCUIT_BREAKERS')
+        # Check for override first
+        return @overrides[:disable_circuit_breakers] if overridden?(:disable_circuit_breakers)
+        
+        # Default: disable circuit breakers in test to avoid issues with VCR cassettes
+        test? || env_true?('DISABLE_CIRCUIT_BREAKERS')
       end
 
       def mac_mini_deployment?

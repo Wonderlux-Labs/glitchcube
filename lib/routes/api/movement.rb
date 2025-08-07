@@ -31,7 +31,6 @@ module Routes
           else
             halt 500, { status: 'error', message: result[:error] }.to_json
           end
-
         rescue JSON::ParserError
           halt 400, { status: 'error', message: 'Invalid JSON' }.to_json
         rescue StandardError => e
@@ -71,7 +70,6 @@ module Routes
           else
             halt 500, { status: 'error', message: result[:error] }.to_json
           end
-
         rescue JSON::ParserError
           halt 400, { status: 'error', message: 'Invalid JSON' }.to_json
         rescue StandardError => e
@@ -99,7 +97,6 @@ module Routes
             trails: trails,
             total_days: trails.keys.length
           }.to_json
-
         rescue StandardError => e
           Services::LoggerService.log_api_call(
             service: 'Movement API',
@@ -123,7 +120,6 @@ module Routes
             status: 'success',
             stats: stats
           }.to_json
-
         rescue StandardError => e
           Services::LoggerService.log_api_call(
             service: 'Movement API',

@@ -1,13 +1,18 @@
 # frozen_string_literal: true
 
 require 'ostruct'
+require 'securerandom'
 
 module GlitchCube
   class Config < OpenStruct
+    # Generate a test token for VCR cassettes
+    def self.generate_test_token
+      'test-jwt-token-for-vcr-cassettes'
+    end
     def self.instance
       @instance ||= new(
-        # Core Application
-        openrouter_api_key: ENV.fetch('OPENROUTER_API_KEY', nil),
+        # Core Application - Required in non-test environments
+        openrouter_api_key: ENV.fetch('OPENROUTER_API_KEY'),
         openai_api_key: ENV.fetch('OPENAI_API_KEY', nil),
         anthropic_api_key: ENV.fetch('ANTHROPIC_API_KEY', nil),
         helicone_api_key: (ENV['RACK_ENV'] == 'test' ? nil : ENV.fetch('HELICONE_API_KEY', nil)),
@@ -31,8 +36,16 @@ module GlitchCube
         # Home Assistant Integration
         home_assistant: OpenStruct.new(
           url: ENV['HOME_ASSISTANT_URL'] || ENV.fetch('HA_URL', nil),
-          token: ENV['HOME_ASSISTANT_TOKEN'] || ENV.fetch('HA_TOKEN', nil),
-          mock_enabled: ENV['MOCK_HOME_ASSISTANT'] == 'true'
+          token: if ENV['RACK_ENV'] == 'test'
+                   'test-ha-token' # Use consistent token for tests
+                 else
+                   ENV['HOME_ASSISTANT_TOKEN'] || ENV.fetch('HA_TOKEN', nil)
+                 end
+        ),
+
+        # Monitoring
+        monitoring: OpenStruct.new(
+          uptime_kuma_push_url: ENV.fetch('UPTIME_KUMA_PUSH_URL', nil)
         ),
 
         # Device/Installation Info
@@ -45,6 +58,8 @@ module GlitchCube
         # System
         timezone: ENV.fetch('TZ', 'America/Los_Angeles'),
         master_password: ENV.fetch('MASTER_PASSWORD', nil),
+        restart_auth_token: ENV.fetch('RESTART_AUTH_TOKEN', nil),
+        restart_log_file: ENV.fetch('RESTART_LOG_FILE', '/tmp/glitchcube_restart.log'),
 
         # AI Configuration
         ai: OpenStruct.new(
@@ -71,7 +86,9 @@ module GlitchCube
           mac_mini: ENV.fetch('MAC_MINI_DEPLOYMENT', 'true') == 'true',
           github_webhook_secret: ENV.fetch('GITHUB_WEBHOOK_SECRET', nil),
           api_key: ENV.fetch('DEPLOYMENT_API_KEY', nil),
-          internal_token: ENV.fetch('INTERNAL_DEPLOYMENT_TOKEN', nil)
+          internal_token: ENV.fetch('INTERNAL_DEPLOYMENT_TOKEN', nil),
+          hass_vm_host: ENV.fetch('HASS_VM_HOST', 'localhost'),
+          hass_vm_user: ENV.fetch('HASS_VM_USER', 'homeassistant')
         ),
 
         # Self-Healing Error Handler (EXPERIMENTAL)
@@ -100,7 +117,7 @@ module GlitchCube
       if production?
         errors << 'SESSION_SECRET should be explicitly set in production' if ENV['SESSION_SECRET'].nil?
 
-        errors << 'HOME_ASSISTANT_TOKEN is required when not using mock' if home_assistant.url && !home_assistant.mock_enabled && home_assistant.token.nil?
+        errors << 'HOME_ASSISTANT_TOKEN is required' if home_assistant.url && home_assistant.token.nil?
 
       end
 

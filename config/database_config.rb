@@ -54,17 +54,19 @@ module DatabaseConfig
     end
 
     def load_from_yaml
-      config_file = File.expand_path('../database.yml', __FILE__)
-      
+      config_file = File.expand_path('database.yml', __dir__)
+
       if File.exist?(config_file)
         # Load and parse the YAML with ERB support
         yaml_content = File.read(config_file)
         erb_result = ERB.new(yaml_content).result
         config = YAML.safe_load(erb_result, aliases: true)
-        
-        # Get config for current environment
-        env_config = config[environment] || config['default']
-        
+
+        # Get config for current environment - must exist in database.yml
+        env_config = config[environment]
+
+        raise "No database configuration found for environment: #{environment}. Check database.yml" if env_config.nil?
+
         # Apply defaults if not in CI
         apply_defaults(env_config)
       else
@@ -75,20 +77,21 @@ module DatabaseConfig
 
     def apply_defaults(config)
       config ||= {}
-      
+
       # Set sensible defaults for local development/test
       config['adapter'] ||= 'postgresql'
       config['host'] ||= ENV.fetch('DATABASE_HOST', 'localhost')
       config['port'] ||= ENV.fetch('DATABASE_PORT', 5432).to_i
       config['username'] ||= ENV.fetch('DATABASE_USER', 'postgres')
       config['password'] ||= ENV.fetch('DATABASE_PASSWORD', 'postgres')
-      config['database'] ||= "glitchcube_#{environment}"
+      # Use DATABASE_NAME env var if set, otherwise use from yml or default
+      config['database'] ||= ENV['DATABASE_NAME'] || "glitchcube_#{environment}"
       config['encoding'] ||= 'unicode'
       config['pool'] ||= ENV.fetch('DB_POOL_SIZE', 5).to_i
-      
+
       # Handle PostGIS adapter
       config['adapter'] = 'postgresql' if config['adapter'] == 'postgis'
-      
+
       config
     end
 
@@ -107,33 +110,33 @@ module DatabaseConfig
 
     def parse_database_url(url)
       uri = URI.parse(url)
-      
+
       # Extract components from URL
       config = {
         'adapter' => uri.scheme == 'postgres' ? 'postgresql' : uri.scheme,
         'host' => uri.host || 'localhost',
         'port' => uri.port || 5432,
-        'database' => uri.path[1..-1], # Remove leading slash
+        'database' => uri.path[1..], # Remove leading slash
         'username' => uri.user || 'postgres',
         'password' => uri.password || 'postgres'
       }
-      
+
       # Add query parameters if present
       if uri.query
         params = URI.decode_www_form(uri.query).to_h
         config['pool'] = params['pool'].to_i if params['pool']
         config['encoding'] = params['encoding'] if params['encoding']
       end
-      
+
       config['pool'] ||= 5
       config['encoding'] ||= 'unicode'
-      
+
       config
     end
 
     def build_database_url
       config = configuration
-      
+
       # Build URL from configuration
       adapter = config['adapter'] == 'postgresql' ? 'postgres' : config['adapter']
       username = config['username']
@@ -141,24 +144,24 @@ module DatabaseConfig
       host = config['host']
       port = config['port']
       database = config['database']
-      
+
       url = "#{adapter}://"
-      
+
       if username && !username.empty?
         url += username
         url += ":#{password}" if password && !password.empty?
-        url += "@"
+        url += '@'
       end
-      
+
       url += "#{host}:#{port}/#{database}"
-      
+
       # Add query parameters
       params = []
       params << "pool=#{config['pool']}" if config['pool']
       params << "encoding=#{config['encoding']}" if config['encoding']
-      
+
       url += "?#{params.join('&')}" unless params.empty?
-      
+
       url
     end
   end
@@ -170,19 +173,17 @@ ENV['DATABASE_URL'] ||= DatabaseConfig.database_url
 # Provide a method to configure ActiveRecord
 def configure_database!
   require 'active_record'
-  
+
   config = DatabaseConfig.configuration
-  
+
   # Special handling for PostGIS
-  if config['adapter'] == 'postgis'
-    require 'activerecord-postgis-adapter'
-  end
-  
+  require 'activerecord-postgis-adapter' if config['adapter'] == 'postgis'
+
   ActiveRecord::Base.establish_connection(config)
-  
+
   # Enable query logging in development
-  if DatabaseConfig.environment == 'development'
-    ActiveRecord::Base.logger = Logger.new(STDOUT)
-    ActiveRecord::Base.logger.level = Logger::INFO
-  end
+  return unless DatabaseConfig.environment == 'development'
+
+  ActiveRecord::Base.logger = Logger.new($stdout)
+  ActiveRecord::Base.logger.level = Logger::INFO
 end

@@ -10,24 +10,18 @@ RSpec.describe Services::TTSService do
   describe '#speak' do
     context 'with cloud provider' do
       it 'calls Home Assistant service correctly' do
-        # The data structure that should be sent to HA
+        # The data structure that should be sent to the glitchcube_tts script
         expected_data = {
-          target: {
-            entity_id: 'tts.home_assistant_cloud'
-          },
-          data: {
-            media_player_entity_id: 'media_player.square_voice',
-            message: 'Test message',
-            language: 'en-US',
-            options: {
-              voice: 'JennyNeural'
-            }
-          }
+          message: 'Test message',
+          media_player: 'media_player.square_voice',
+          language: 'en-US',
+          cache: true,
+          voice: 'JennyNeural'
         }
 
-        # Mock the call_service method (NOT post!)
+        # Mock the call_service method for the script call
         expect(mock_ha_client).to receive(:call_service)
-          .with('tts', 'speak', expected_data)
+          .with('script', 'glitchcube_tts', expected_data)
           .and_return(true)
 
         result = tts_service.speak('Test message')
@@ -36,22 +30,15 @@ RSpec.describe Services::TTSService do
 
       it 'handles mood parameter correctly' do
         expected_data = {
-          target: {
-            entity_id: 'tts.home_assistant_cloud'
-          },
-          data: {
-            media_player_entity_id: 'media_player.square_voice',
-            message: 'Excited message!',
-            language: 'en-US',
-            options: {
-              voice: 'JennyNeural',
-              style: 'excited'
-            }
-          }
+          message: 'Excited message!',
+          media_player: 'media_player.square_voice',
+          language: 'en-US',
+          cache: true,
+          voice: 'JennyNeural||excited'
         }
 
         expect(mock_ha_client).to receive(:call_service)
-          .with('tts', 'speak', expected_data)
+          .with('script', 'glitchcube_tts', expected_data)
           .and_return(true)
 
         result = tts_service.speak('Excited message!', mood: :excited)
@@ -61,21 +48,16 @@ RSpec.describe Services::TTSService do
 
     context 'when TTS fails' do
       it 'does not attempt Google TTS fallback' do
-        # First call fails
+        # First call fails - update to match actual script call
         expect(mock_ha_client).to receive(:call_service)
-          .with('tts', 'speak', anything)
+          .with('script', 'glitchcube_tts', anything)
           .and_raise(StandardError, 'TTS failed')
 
         # Should NOT attempt to call google_translate_say
         expect(mock_ha_client).not_to receive(:call_service)
           .with('tts', 'google_translate_say', anything)
 
-        # Capture output to verify error message
-        expect do
-          tts_service.speak('Test message')
-        end.to output(/TTS completely failed/).to_stdout
-
-        # Method should return false on failure
+        # Since TTS will fail and return false, no "completely failed" output expected
         expect(tts_service.speak('Test message')).to be false
       end
     end

@@ -16,7 +16,7 @@ class CreateLandmarks < ActiveRecord::Migration[7.1]
       t.timestamps
     end
 
-    add_index :landmarks, [:latitude, :longitude]
+    add_index :landmarks, %i[latitude longitude]
     # add_index :landmarks, :location, using: :gist  # Add after PostGIS column is created
     add_index :landmarks, :landmark_type
     add_index :landmarks, :active

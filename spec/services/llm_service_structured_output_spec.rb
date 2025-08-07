@@ -5,19 +5,24 @@ require_relative '../../lib/services/llm_service'
 require_relative '../../lib/schemas/conversation_response_schema'
 
 RSpec.describe Services::LLMService, 'structured output support' do
+  before do
+    # Clear any cached client to ensure fresh state
+    described_class.instance_variable_set(:@client, nil)
+  end
+
   describe '.complete with structured outputs' do
     context 'with simple structured response' do
       it 'returns JSON matching the schema' do
         schema = GlitchCube::Schemas::ConversationResponseSchema.simple_response
         formatted_schema = GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(schema)
 
-        VCR.use_cassette('llm_service_structured_simple', record: :new_episodes) do
+        VCR.use_cassette('llm_service_structured_simple', record: :new_episodes, match_requests_on: [:method, :uri]) do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Respond in JSON format.',
             user_message: 'Hello, how are you?',
-            model: 'google/gemini-2.5-flash',
+            model: 'openai/o3-mini',
             temperature: 0.7,
-            max_tokens: 150,
+            max_tokens: 300,
             response_format: formatted_schema
           )
 
@@ -55,13 +60,13 @@ RSpec.describe Services::LLMService, 'structured output support' do
       end
 
       it 'calls tools when appropriate' do
-        VCR.use_cassette('llm_service_tool_calling', record: :new_episodes) do
+        VCR.use_cassette('llm_service_tool_calling', record: :new_episodes, match_requests_on: [:method, :uri]) do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Use tools when appropriate.',
             user_message: "What's the weather in San Francisco?",
-            model: 'google/gemini-2.5-flash',
+            model: 'openai/o3-mini',
             temperature: 0.7,
-            max_tokens: 150,
+            max_tokens: 300,
             tools: tools,
             tool_choice: 'auto'
           )
@@ -87,13 +92,13 @@ RSpec.describe Services::LLMService, 'structured output support' do
       end
 
       it 'does not call tools when not needed' do
-        VCR.use_cassette('llm_service_no_tool_calling', record: :new_episodes) do
+        VCR.use_cassette('llm_service_no_tool_calling', record: :new_episodes, match_requests_on: [:method, :uri]) do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Use tools when appropriate.',
             user_message: 'Tell me a joke',
-            model: 'google/gemini-2.5-flash',
+            model: 'openai/o3-mini',
             temperature: 0.7,
-            max_tokens: 150,
+            max_tokens: 300,
             tools: tools,
             tool_choice: 'auto'
           )
@@ -113,13 +118,13 @@ RSpec.describe Services::LLMService, 'structured output support' do
       end
 
       it 'indicates continuation correctly' do
-        VCR.use_cassette('llm_service_continue_true', record: :new_episodes) do
+        VCR.use_cassette('llm_service_continue_true', record: :new_episodes, match_requests_on: [:method, :uri]) do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Respond in JSON format.',
             user_message: 'Tell me about art',
-            model: 'google/gemini-2.5-flash',
+            model: 'openai/o3-mini',
             temperature: 0.8,
-            max_tokens: 100,
+            max_tokens: 400,
             response_format: schema
           )
 
@@ -129,13 +134,13 @@ RSpec.describe Services::LLMService, 'structured output support' do
       end
 
       it 'indicates no continuation correctly' do
-        VCR.use_cassette('llm_service_continue_false', record: :new_episodes) do
+        VCR.use_cassette('llm_service_continue_false', record: :new_episodes, match_requests_on: [:method, :uri]) do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Respond in JSON format.',
             user_message: 'Goodbye!',
-            model: 'google/gemini-2.5-flash',
+            model: 'openai/o3-mini',
             temperature: 0.8,
-            max_tokens: 100,
+            max_tokens: 400,
             response_format: schema
           )
 
@@ -152,13 +157,13 @@ RSpec.describe Services::LLMService, 'structured output support' do
         ]
 
         messages.each do |msg|
-          VCR.use_cassette("llm_service_edge_case_#{msg.gsub(/[^a-z0-9]/i, '_')}", record: :new_episodes) do
+          VCR.use_cassette("llm_service_edge_case_#{msg.gsub(/[^a-z0-9]/i, '_')}", record: :new_episodes, match_requests_on: [:method, :uri]) do
             response = described_class.complete(
               system_prompt: 'You are a helpful assistant. Respond in JSON format.',
               user_message: msg,
-              model: 'google/gemini-2.5-flash',
+              model: 'openai/o3-mini',
               temperature: 0.8,
-              max_tokens: 100,
+              max_tokens: 400,
               response_format: schema
             )
 

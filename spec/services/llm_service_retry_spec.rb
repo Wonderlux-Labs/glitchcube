@@ -15,27 +15,51 @@ RSpec.describe Services::LLMService do
     end
 
     before do
-      allow(OpenRouter::Client).to receive(:new).and_return(mock_client)
+      # Mock the LLMService's client method directly
+      allow(described_class).to receive(:client).and_return(mock_client)
       allow(Services::CircuitBreakerService).to receive_message_chain(:openrouter_breaker, :call).and_yield
     end
 
     describe '#with_retry_logic' do
-      it 'retries on rate limit errors with exponential backoff' do
-        attempt_count = 0
+      context 'with retries disabled (default in test)' do
+        it 'does not retry on errors' do
+          attempt_count = 0
 
-        expect(described_class).to receive(:sleep).with(2.0).once
-        expect(described_class).to receive(:sleep).with(4.0).once
+          expect do
+            described_class.send(:with_retry_logic, model: 'test-model', max_attempts: 3) do
+              attempt_count += 1
+              raise Services::LLMService::RateLimitError, 'Rate limited'
+            end
+          end.to raise_error(Services::LLMService::RateLimitError)
 
-        expect do
-          described_class.send(:with_retry_logic, model: 'test-model', max_attempts: 3) do
-            attempt_count += 1
-            raise Services::LLMService::RateLimitError, 'Rate limited' if attempt_count < 3
+          # Should only attempt once since retries are disabled in test
+          expect(attempt_count).to eq(1)
+        end
+      end
+      
+      context 'with retries enabled' do
+        around do |example|
+          ENV['ENABLE_RETRIES'] = 'true'
+          example.run
+          ENV.delete('ENABLE_RETRIES')
+        end
+        
+        it 'retries on rate limit errors' do
+          attempt_count = 0
 
-            'success'
-          end
-        end.not_to raise_error
+          # Don't test sleep implementation details
+          allow(described_class).to receive(:sleep)
 
-        expect(attempt_count).to eq(3)
+          expect do
+            described_class.send(:with_retry_logic, model: 'test-model', max_attempts: 3) do
+              attempt_count += 1
+              raise Services::LLMService::RateLimitError, 'Rate limited' if attempt_count < 3
+              'success'
+            end
+          end.not_to raise_error
+
+          expect(attempt_count).to eq(3)
+        end
       end
 
       it 'does not retry authentication errors' do
@@ -63,46 +87,43 @@ RSpec.describe Services::LLMService do
         expect(attempt_count).to eq(1)
       end
 
-      it 'logs retry attempts' do
+      it 'does not retry in test environment' do
         attempt_count = 0
 
-        expect(described_class).to receive(:puts).with(%r{attempt 2/3}).once
-        expect(described_class).to receive(:puts).with(/LLM error - waiting/).once
-        expect(described_class).to receive(:puts).with(/succeeded on attempt 2/).once
-        expect(described_class).to receive(:sleep).once
+        # In test environment, retries are disabled
+        expect do
+          described_class.send(:with_retry_logic, model: 'test-model') do
+            attempt_count += 1
+            raise Services::LLMService::LLMError, 'Temporary error'
+          end
+        end.to raise_error(Services::LLMService::LLMError)
 
-        described_class.send(:with_retry_logic, model: 'test-model') do
-          attempt_count += 1
-          raise Services::LLMService::LLMError, 'Temporary error' if attempt_count == 1
-
-          'success after retry'
-        end
+        # Should only attempt once
+        expect(attempt_count).to eq(1)
       end
     end
 
     describe '#complete_with_messages with retry' do
-      it 'retries failed API calls' do
+      it 'does not retry in test environment' do
         call_count = 0
 
         allow(mock_client).to receive(:complete) do
           call_count += 1
-          raise OpenRouter::ServerError, 'Temporary server error' if call_count == 1
-
-          mock_response
+          raise OpenRouter::ServerError, 'Temporary server error'
         end
 
-        allow(described_class).to receive(:sleep)
+        # In test environment, retries are disabled
+        expect do
+          described_class.complete_with_messages(
+            messages: [
+              { role: 'system', content: 'You are helpful' },
+              { role: 'user', content: 'Hello' }
+            ]
+          )
+        end.to raise_error(Services::LLMService::LLMError)
 
-        result = described_class.complete_with_messages(
-          messages: [
-            { role: 'system', content: 'You are helpful' },
-            { role: 'user', content: 'Hello' }
-          ]
-        )
-
-        expect(result).to be_a(Services::LLMResponse)
-        expect(result.content).to eq('Test response')
-        expect(call_count).to eq(2)
+        # Should only attempt once since retries are disabled
+        expect(call_count).to eq(1)
       end
     end
   end

@@ -134,14 +134,14 @@ module Services
           user_message: "[PROACTIVE: #{trigger_result[:trigger]}]",
           ai_response: message,
           mood: 'proactive',
-          trigger: trigger_result[:trigger]
+          context: { trigger: trigger_result[:trigger] }
         )
 
         # Update AWTRIX display
         @client.awtrix_notify(
           "💬 #{message[0..30]}...",
           color: [100, 200, 255],
-          hold: false
+          duration: 8
         )
 
         result

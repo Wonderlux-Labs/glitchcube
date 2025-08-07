@@ -1,0 +1,40 @@
+# Sensor to monitor Glitch Cube API health status
+# This polls the health endpoint periodically
+
+rest:
+  - resource_template: "{{ states('input_text.glitchcube_host_url') }}/api/v1/system/health"
+    scan_interval: 60  # Check every minute
+    sensor:
+      - name: "Glitch Cube API Health"
+        value_template: "{{ value_json.status | default('unavailable') }}"
+        json_attributes:
+          - services
+          - queues
+          - uptime
+          - version
+          - timestamp
+        icon: >
+          {% if value_json.status == 'healthy' %}
+            mdi:check-circle
+          {% elif value_json.status == 'degraded' %}
+            mdi:alert-circle
+          {% else %}
+            mdi:close-circle
+          {% endif %}
+      
+      - name: "Glitch Cube Uptime Hours"
+        value_template: "{{ (value_json.uptime.seconds | default(0) / 3600) | round(1) }}"
+        unit_of_measurement: "hours"
+        icon: mdi:clock-outline
+        
+      - name: "Sidekiq Queue Size"
+        value_template: "{{ value_json.queues.total | default(0) }}"
+        unit_of_measurement: "jobs"
+        icon: mdi:queue-first-in-last-out
+        
+      - name: "Glitch Cube Error Rate"
+        # This would need to be calculated from logs/metrics
+        # Placeholder for now
+        value_template: "0"
+        unit_of_measurement: "%"
+        icon: mdi:alert

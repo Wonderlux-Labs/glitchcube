@@ -179,15 +179,50 @@ docker-compose -f docker-compose.yml -f docker-compose.production.yml up -d
 
 ### Local Development (without Docker)
 
+#### Prerequisites for Local Development
+
+- **Ruby 3.3+** with Bundler
+- **PostgreSQL** (for database)
+- **Redis** (for background jobs and caching)
+
+#### Setup Redis locally
+
+```bash
+# macOS with Homebrew
+brew install redis
+brew services start redis
+
+# Ubuntu/Debian
+sudo apt-get install redis-server
+sudo systemctl start redis
+sudo systemctl enable redis
+
+# Verify Redis is running
+redis-cli ping  # Should return "PONG"
+```
+
+#### Development Commands
+
 ```bash
 # Install dependencies
 bundle install
 
+# Setup database (first time only)
+bundle exec rake db:create
+bundle exec rake db:migrate
+
 # Run with mock Home Assistant
 MOCK_HOME_ASSISTANT=true DEVELOPMENT_MODE=true bundle exec ruby app.rb
 
-# Run tests
+# Run tests (requires Redis to be running)
+# Default: Records ALL external calls (including Home Assistant) to VCR cassettes
 bundle exec rspec
+
+# Run tests and record new VCR cassettes (local development only)
+VCR_RECORD=true bundle exec rspec
+
+# Run specific test and record its cassette
+VCR_RECORD=true bundle exec rspec spec/path/to/spec.rb
 
 # Run linter
 bundle exec rubocop

@@ -106,7 +106,7 @@ RSpec.describe Services::ToolExecutor do
       context 'with parallel execution' do
         it 'executes tools in parallel' do
           start_time = Time.now
-          
+
           # Mock tools to sleep briefly
           allow(TestTool).to receive(:call) do |info_type:|
             sleep 0.1

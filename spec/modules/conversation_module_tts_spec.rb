@@ -24,9 +24,9 @@ RSpec.describe ConversationModule do
 
       # Should log the TTS call
       expect(Services::LoggerService).to receive(:log_tts)
-        .with(hash_including(message: 'Hello world', success: true))
+        .with(hash_including(message: 'Hello world', success: true, duration: anything))
 
-      conversation_module.speak_response('Hello world', mood: 'playful')
+      conversation_module.send(:speak_response, 'Hello world', { mood: 'playful' })
     end
 
     it 'handles different moods/personas' do
@@ -35,9 +35,9 @@ RSpec.describe ConversationModule do
         .and_return(true)
 
       expect(Services::LoggerService).to receive(:log_tts)
-        .with(hash_including(message: 'Excited message', success: true))
+        .with(hash_including(message: 'Excited message', success: true, duration: anything))
 
-      conversation_module.speak_response('Excited message', persona: 'excited')
+      conversation_module.send(:speak_response, 'Excited message', { persona: 'excited' })
     end
 
     it 'handles TTS failures gracefully' do
@@ -45,20 +45,20 @@ RSpec.describe ConversationModule do
         .and_raise(StandardError, 'TTS error')
 
       expect(Services::LoggerService).to receive(:log_tts)
-        .with(hash_including(success: false, error: /TTS error/))
+        .with(hash_including(success: false, error: /TTS error/, duration: anything))
 
       # Should not raise error, just log it
       expect do
-        conversation_module.speak_response('Test message', {})
+        conversation_module.send(:speak_response, 'Test message', {})
       end.not_to raise_error
     end
 
     it 'skips empty messages' do
       expect(mock_tts_service).not_to receive(:speak)
 
-      conversation_module.speak_response('', {})
-      conversation_module.speak_response(nil, {})
-      conversation_module.speak_response('   ', {})
+      conversation_module.send(:speak_response, '', {})
+      conversation_module.send(:speak_response, nil, {})
+      conversation_module.send(:speak_response, '   ', {})
     end
   end
 end

@@ -4,58 +4,61 @@ namespace :gis do
   desc 'Import GIS data from data/gis directory into ActiveRecord models'
   task :import do
     puts '🗺️  Starting GIS data import...'
-    
+
     # Get the root directory
-    root_dir = Rails.root rescue File.expand_path('../../..', __dir__)
+    root_dir = begin
+      Rails.root
+    rescue StandardError
+      File.expand_path('../../..', __dir__)
+    end
     gis_data_path = File.join(root_dir, 'data', 'gis')
-    
+
     unless Dir.exist?(gis_data_path)
       puts "❌ GIS data directory not found: #{gis_data_path}"
       exit 1
     end
-    
+
     puts "📁 Importing from: #{gis_data_path}"
-    
+
     begin
       # Clear existing landmarks (optional - comment out to preserve existing data)
       puts '🧹 Clearing existing landmarks...'
       Landmark.delete_all
-      
+
       # Import all GIS data
       Landmark.import_from_gis_data(gis_data_path)
-      
+
       # Display results
       puts "\n✅ Import completed successfully!"
-      puts "📊 Summary:"
-      
+      puts '📊 Summary:'
+
       Landmark.group(:landmark_type).count.each do |type, count|
         icon = case type
                when 'center' then '🔥'
                when 'sacred' then '🏛️'
                when 'toilet' then '🚻'
-               when 'plaza' then '🏛️'
+               when 'plaza' then '🎪' # Different icon to avoid duplicate branch
                else '📍'
                end
         puts "   #{icon} #{type.capitalize}: #{count}"
       end
-      
+
       puts "   📍 Total landmarks: #{Landmark.count}"
-      
-    rescue => e
+    rescue StandardError => e
       puts "❌ Import failed: #{e.message}"
       puts e.backtrace.first(5)
       exit 1
     end
   end
-  
+
   desc 'Export landmarks to seeds.rb format'
-  task :export_seeds => :environment do
+  task export_seeds: :environment do
     puts '📦 Generating seeds.rb from landmark data...'
-    
+
     seeds_content = "# frozen_string_literal: true\n\n"
     seeds_content += "# Auto-generated from GIS data on #{Time.now.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     seeds_content += "puts '🗺️  Creating landmarks from GIS data...'\n\n"
-    
+
     Landmark.order(:landmark_type, :name).each do |landmark|
       seeds_content += "Landmark.find_or_create_by!(\n"
       seeds_content += "  name: #{landmark.name.inspect},\n"
@@ -70,20 +73,24 @@ namespace :gis do
       seeds_content += "  l.active = #{landmark.active}\n"
       seeds_content += "end\n\n"
     end
-    
+
     seeds_content += "puts \"✅ Created #{Landmark.count} landmarks\"\n"
-    
+
     # Write to seeds file
-    root_dir = Rails.root rescue File.expand_path('../../..', __dir__)
+    root_dir = begin
+      Rails.root
+    rescue StandardError
+      File.expand_path('../../..', __dir__)
+    end
     seeds_file = File.join(root_dir, 'db', 'seeds.rb')
-    
+
     File.write(seeds_file, seeds_content)
     puts "✅ Seeds exported to: #{seeds_file}"
-    puts "💡 Run with: bundle exec rake db:seed"
+    puts '💡 Run with: bundle exec rake db:seed'
   end
-  
+
   desc 'Show landmark statistics'
-  task :stats => :environment do
+  task stats: :environment do
     puts '📊 Landmark Statistics:'
     puts "   Total landmarks: #{Landmark.count}"
     puts "   Active landmarks: #{Landmark.active.count}"
@@ -94,7 +101,7 @@ namespace :gis do
              when 'center' then '🔥'
              when 'sacred' then '🏛️'
              when 'toilet' then '🚻'
-             when 'plaza' then '🏛️'
+             when 'plaza' then '🎪' # Different icon to avoid duplicate branch
              else '📍'
              end
       puts "   #{icon} #{type.capitalize}: #{count}"

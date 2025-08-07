@@ -37,7 +37,7 @@ RSpec.describe Jobs::SimulateCubeMovementWorker do
     end
 
     context 'when simulation is enabled' do
-      it 'creates coordinate file with proper movement data' do
+      it 'stores coordinate data in Redis with proper movement data' do
         # Mock the should_continue? method to limit execution
         call_count = 0
         allow(worker).to receive(:should_continue?) do
@@ -50,9 +50,12 @@ RSpec.describe Jobs::SimulateCubeMovementWorker do
 
         worker.perform
 
-        expect(File.exist?(sim_file)).to be true
+        # Check Redis for stored coordinates
+        redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+        coords_json = redis.get('current_cube_location')
+        expect(coords_json).not_to be_nil
 
-        coords = JSON.parse(File.read(sim_file))
+        coords = JSON.parse(coords_json)
         expect(coords).to have_key('lat')
         expect(coords).to have_key('lng')
         expect(coords).to have_key('timestamp')
@@ -95,8 +98,10 @@ RSpec.describe Jobs::SimulateCubeMovementWorker do
 
         worker.perform
 
-        # Should use default destinations
-        expect(File.exist?(sim_file)).to be true
+        # Should store data in Redis using default destinations
+        redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+        coords_json = redis.get('current_cube_location')
+        expect(coords_json).not_to be_nil
       end
     end
   end

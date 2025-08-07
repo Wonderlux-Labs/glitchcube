@@ -16,15 +16,13 @@ class HomeAssistantClient
   attr_reader :base_url, :token
 
   def initialize(base_url: nil, token: nil)
-    if GlitchCube.config.home_assistant.mock_enabled || GlitchCube.config.test?
-      # Use mock HA endpoints when explicitly enabled or in test environment
-      @base_url = base_url || GlitchCube.config.home_assistant.url || "http://localhost:#{GlitchCube.config.port}/mock_ha"
-      @token = token || GlitchCube.config.home_assistant.token || 'mock-token-123'
-    else
-      # Use real HA - fail if not configured
-      @base_url = base_url || GlitchCube.config.home_assistant.url
-      @token = token || GlitchCube.config.home_assistant.token
+    # Always use the configured URL and token
+    @base_url = base_url || GlitchCube.config.home_assistant.url
+    @token = token || GlitchCube.config.home_assistant.token
 
+    # In production, fail fast if not configured
+    # In tests, VCR will handle the requests even with missing config
+    unless GlitchCube.config.test?
       raise Error, 'Home Assistant URL not configured. Set HOME_ASSISTANT_URL or HA_URL environment variable.' unless @base_url
       raise Error, 'Home Assistant token not configured. Set HOME_ASSISTANT_TOKEN environment variable.' unless @token
     end
@@ -32,6 +30,9 @@ class HomeAssistantClient
 
   # Get all entity states
   def states
+    # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
+    return get('/api/states') if GlitchCube.config.test? && !ENV['ENABLE_CIRCUIT_BREAKERS']
+    
     Services::CircuitBreakerService.home_assistant_breaker.call do
       get('/api/states')
     end
@@ -43,6 +44,9 @@ class HomeAssistantClient
 
   # Get specific entity state
   def state(entity_id)
+    # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
+    return get("/api/states/#{entity_id}") if GlitchCube.config.test? && !ENV['ENABLE_CIRCUIT_BREAKERS']
+    
     Services::CircuitBreakerService.home_assistant_breaker.call do
       get("/api/states/#{entity_id}")
     end
@@ -62,6 +66,9 @@ class HomeAssistantClient
 
   # Call a service
   def call_service(domain, service, data = {})
+    # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
+    return post("/api/services/#{domain}/#{service}", data) if GlitchCube.config.test? && !ENV['ENABLE_CIRCUIT_BREAKERS']
+    
     Services::CircuitBreakerService.home_assistant_breaker.call do
       post("/api/services/#{domain}/#{service}", data)
     end

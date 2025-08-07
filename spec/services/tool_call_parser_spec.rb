@@ -35,7 +35,7 @@ RSpec.describe Services::ToolCallParser do
 
         expect(tool_calls).to be_an(Array)
         expect(tool_calls.size).to eq(1)
-        
+
         call = tool_calls.first
         expect(call[:id]).to eq('call_abc123')
         expect(call[:type]).to eq('function')

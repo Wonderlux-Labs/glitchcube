@@ -10,16 +10,14 @@ RSpec.describe Services::TTSService do
   describe '#speak' do
     context 'with basic message' do
       it 'sends TTS request to Home Assistant' do
-        expect(home_assistant).to receive(:post).with(
-          '/api/services/tts/speak',
+        expect(home_assistant).to receive(:call_service).with(
+          'script',
+          'glitchcube_tts',
           hash_including(
-            target: { entity_id: 'tts.home_assistant_cloud' },
-            data: hash_including(
-              media_player_entity_id: 'media_player.square_voice',
-              message: 'Hello world',
-              language: 'en-US',
-              cache: true
-            )
+            message: 'Hello world',
+            media_player: 'media_player.square_voice',
+            language: 'en-US',
+            cache: true
           )
         ).and_return(true)
 
@@ -38,12 +36,15 @@ RSpec.describe Services::TTSService do
 
     context 'with voice selection' do
       it 'includes voice in options' do
-        expect(home_assistant).to receive(:post).with(
-          '/api/services/tts/speak',
+        expect(home_assistant).to receive(:call_service).with(
+          'script',
+          'glitchcube_tts',
           hash_including(
-            data: hash_including(
-              options: { voice: 'AriaNeural' }
-            )
+            message: 'Test message',
+            media_player: 'media_player.square_voice',
+            language: 'en-US',
+            cache: true,
+            voice: 'AriaNeural'
           )
         ).and_return(true)
 
@@ -53,12 +54,15 @@ RSpec.describe Services::TTSService do
       end
 
       it 'accepts custom voice string' do
-        expect(home_assistant).to receive(:post).with(
-          '/api/services/tts/speak',
+        expect(home_assistant).to receive(:call_service).with(
+          'script',
+          'glitchcube_tts',
           hash_including(
-            data: hash_including(
-              options: { voice: 'CustomVoiceNeural' }
-            )
+            message: 'Test message',
+            media_player: 'media_player.square_voice',
+            language: 'en-US',
+            cache: true,
+            voice: 'CustomVoiceNeural'
           )
         ).and_return(true)
 
@@ -70,15 +74,15 @@ RSpec.describe Services::TTSService do
 
     context 'with mood' do
       it 'applies style and speed for friendly mood' do
-        expect(home_assistant).to receive(:post).with(
-          '/api/services/tts/speak',
+        expect(home_assistant).to receive(:call_service).with(
+          'script',
+          'glitchcube_tts',
           hash_including(
-            data: hash_including(
-              options: {
-                voice: 'JennyNeural',
-                style: 'friendly'
-              }
-            )
+            message: 'Hello friend',
+            media_player: 'media_player.square_voice',
+            language: 'en-US',
+            cache: true,
+            voice: 'JennyNeural||friendly'
           )
         ).and_return(true)
 
@@ -90,16 +94,15 @@ RSpec.describe Services::TTSService do
       end
 
       it 'adjusts speed for sad mood' do
-        expect(home_assistant).to receive(:post).with(
-          '/api/services/tts/speak',
+        expect(home_assistant).to receive(:call_service).with(
+          'script',
+          'glitchcube_tts',
           hash_including(
-            data: hash_including(
-              options: hash_including(
-                voice: 'JennyNeural',
-                style: 'sad',
-                speed: 90
-              )
-            )
+            message: 'Sad message',
+            media_player: 'media_player.square_voice',
+            language: 'en-US',
+            cache: true,
+            voice: 'JennyNeural||sad'
           )
         ).and_return(true)
 
@@ -145,7 +148,17 @@ RSpec.describe Services::TTSService do
 
     context 'with volume control' do
       it 'sets volume after TTS' do
-        expect(home_assistant).to receive(:post).and_return(true)
+        expect(home_assistant).to receive(:call_service).with(
+          'script',
+          'glitchcube_tts',
+          hash_including(
+            message: 'Test',
+            media_player: 'media_player.square_voice',
+            language: 'en-US',
+            cache: true,
+            voice: 'JennyNeural'
+          )
+        ).and_return(true)
         expect(home_assistant).to receive(:call_service).with(
           'media_player',
           'volume_set',
@@ -177,17 +190,18 @@ RSpec.describe Services::TTSService do
     end
 
     context 'error handling' do
-      it 'falls back to Google TTS on error' do
-        expect(home_assistant).to receive(:post).and_raise(
-          HomeAssistantClient::Error, 'Cloud TTS failed'
-        )
-
+      it 'returns false and logs error when TTS fails' do
         expect(home_assistant).to receive(:call_service).with(
-          'tts',
-          'google_translate_say',
-          entity_id: 'media_player.square_voice',
-          message: 'Test message'
-        ).and_return(true)
+          'script',
+          'glitchcube_tts',
+          hash_including(
+            message: 'Test message',
+            media_player: 'media_player.square_voice',
+            language: 'en-US',
+            cache: true,
+            voice: 'JennyNeural'
+          )
+        ).and_raise(HomeAssistantClient::Error, 'Cloud TTS failed')
 
         expect(Services::LoggerService).to receive(:log_tts).with(
           hash_including(
@@ -197,21 +211,24 @@ RSpec.describe Services::TTSService do
         )
 
         result = service.speak('Test message')
-        expect(result).to be true
+        expect(result).to be false
       end
 
-      it 'returns false when all TTS methods fail' do
-        expect(home_assistant).to receive(:post).and_raise(
-          HomeAssistantClient::Error, 'Cloud TTS failed'
+      it 'handles network errors gracefully' do
+        expect(home_assistant).to receive(:call_service).with(
+          'script',
+          'glitchcube_tts',
+          hash_including(message: 'Network test')
+        ).and_raise(StandardError, 'Network timeout')
+
+        expect(Services::LoggerService).to receive(:log_tts).with(
+          hash_including(
+            success: false,
+            error: 'Network timeout'
+          )
         )
 
-        expect(home_assistant).to receive(:call_service).and_raise(
-          HomeAssistantClient::Error, 'Google TTS also failed'
-        )
-
-        expect(Services::LoggerService).to receive(:log_tts)
-
-        result = service.speak('Test message')
+        result = service.speak('Network test')
         expect(result).to be false
       end
     end

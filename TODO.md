@@ -1,5 +1,34 @@
 # Glitch Cube TODO
 
+## 🚨 CRITICAL: 67 FAILING TESTS (from 655 total) 🚨 - SIGNIFICANT PROGRESS! ⚡
+
+### MAJOR FIXES COMPLETED:
+✅ Fixed ConversationModule tests - added `has_tool_calls?` and `state` method mocks
+✅ Fixed app_spec tests - disabled Rack protection in test mode  
+✅ Fixed TTS real calls - prevented Home Assistant from speaking during tests
+✅ **FIXED TTS API DRIFT** - Updated all TTS tests to use new script-based API instead of direct service calls
+✅ Fixed Redis state cleanup between tests
+✅ Fixed TTS service mocking strategy
+
+### Current Status (MAJOR IMPROVEMENT):
+- **Total Tests**: 655 examples
+- **Failures**: 67 (10.2% failure rate) - REDUCED from 88 failures (21 tests fixed!)
+- **Pending**: 41 
+- **Line Coverage**: 41.38% (2195 / 5305) - Test coverage improving as we fix tests
+
+### CRITICAL FIX COMPLETED:
+✅ **TTS Mocking Fixed** - Tests were actually calling production Home Assistant and making it speak!
+   - Added global TTS service mocks in spec_helper
+   - Prevents any real Home Assistant calls during test runs
+
+### Critical Test Fix Categories:
+1. **Redis Connection Issues** - Many tests failing due to Redis unavailability
+2. **Module Initialization** - ConversationModule not initializing correctly
+3. **Route Registration** - Admin and API routes not properly registered
+4. **Service Dependencies** - Services not finding required dependencies
+
+---
+
 ## CODE REVIEW RESULTS (January 2025) - OVERALL GRADE: A- (90/100) ⭐
 
 ### Architecture Assessment: **EXCELLENT**
@@ -15,8 +44,8 @@ Professional-grade autonomous art installation with thoughtful design decisions 
 
 ### CRITICAL ISSUES REQUIRING IMMEDIATE ATTENTION 🚨
 
-#### HIGH PRIORITY - Required Before Production:
-1. **BeaconService Test Coverage (CRITICAL)** - Zero test coverage for 24/7 gallery operation monitoring
+#### HIGH PRIORITY - After Tests Fixed:
+1. **BeaconService Deprecation** - ✅ COMPLETED: Replaced with HealthPushService
 2. **Configuration Validation Tests** - Missing tests for production config validation in GlitchCube::Config
 3. **Session Management Technical Debt** - ConversationModule uses instance variables instead of Redis
 

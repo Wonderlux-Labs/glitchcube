@@ -2,7 +2,12 @@
 
 require 'spec_helper'
 
-RSpec.describe CircuitBreaker do
+RSpec.describe CircuitBreaker, vcr: false do
+  # Enable circuit breakers for this spec since they're disabled by default in test
+  before do
+    allow(Cube::Settings).to receive(:disable_circuit_breakers?).and_return(false)
+  end
+  
   let(:circuit_breaker) { described_class.new(name: 'test_service', failure_threshold: 3, recovery_timeout: 1, success_threshold: 1) }
 
   describe '#initialize' do
@@ -130,7 +135,7 @@ RSpec.describe CircuitBreaker do
 
     context 'when disabled' do
       before do
-        allow(ENV).to receive(:[]).with('DISABLE_CIRCUIT_BREAKERS').and_return('true')
+        allow(Cube::Settings).to receive(:disable_circuit_breakers?).and_return(true)
       end
 
       it 'always executes block regardless of state' do

@@ -10,7 +10,8 @@ class WeatherService
 
   # Main method to get and summarize weather
   def update_weather_summary
-    return 'HA unavailable' if GlitchCube.config.home_assistant.mock_enabled
+    # Check if HA is configured
+    return 'HA unavailable' unless GlitchCube.config.home_assistant.url && GlitchCube.config.home_assistant.token
 
     weather_data = fetch_weather_sensors
     return 'No weather data' if weather_data.empty?

@@ -17,11 +17,11 @@ SimpleCov.at_exit do
 end
 
 ENV['RACK_ENV'] = 'test'
-# NOTE: Using real Home Assistant instance for tests - no mock needed
 
 # Load environment variables - CI can override by setting before .env load
+# Priority: .env > .env.test > .env.defaults (Dotenv.load uses first-wins)
 require 'dotenv'
-Dotenv.load('.env.test', '.env')
+Dotenv.load('.env', '.env.test', '.env.defaults')
 # Fallback defaults if not set anywhere
 ENV['OPENROUTER_API_KEY'] ||= 'test-api-key'
 ENV['HOME_ASSISTANT_TOKEN'] ||= 'test-ha-token'
@@ -50,6 +50,19 @@ RSpec.configure do |config|
     GlitchCubeApp
   end
 
+  # Global timeout for all examples - tests should be fast!
+  config.around(:each) do |example|
+    timeout_seconds = ENV['TEST_TIMEOUT']&.to_i || 10  # 10 second default
+    
+    begin
+      Timeout::timeout(timeout_seconds) do
+        example.run
+      end
+    rescue Timeout::Error
+      raise "Test '#{example.full_description}' exceeded #{timeout_seconds} second timeout! Check for hanging network calls or infinite loops."
+    end
+  end
+
   # Disable background jobs during tests
   config.before(:suite) do
     require 'sidekiq/testing'
@@ -71,14 +84,39 @@ RSpec.configure do |config|
   end
 
   # Configure test environment settings
-  config.before do
+  config.before do |example|
+    # CRITICAL: Mock TTS calls EXCEPT in TTS service specs themselves
+    # This prevents real Home Assistant from speaking during tests
+    unless example.file_path&.include?('tts_service') || example.file_path&.include?('parallel_tts')
+      tts_double = instance_double(Services::TTSService, speak: true)
+      allow(Services::TTSService).to receive(:new).and_return(tts_double)
+
+      parallel_tts_double = instance_double(Services::ParallelTTSService, speak: true)
+      allow(Services::ParallelTTSService).to receive(:new).and_return(parallel_tts_double)
+    end
+
+    # No mocking of HomeAssistantClient - VCR handles all external calls
+
+    # Clean Redis state between tests if available
+    begin
+      redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379')
+      redis.flushdb
+      redis.quit
+    rescue StandardError
+      # Redis might not be available for some tests, that's perfectly fine
+      # Tests should be designed to work with or without Redis
+    end
+
     # Clean database between tests
     Memory.destroy_all if defined?(Memory)
     Message.destroy_all if defined?(Message)
     Conversation.destroy_all if defined?(Conversation)
 
-    # Disable circuit breakers in tests via ENV variable (works in both local and CI)
-    ENV['DISABLE_CIRCUIT_BREAKERS'] = 'true'
+    # Reset circuit breakers if they exist (but don't disable them globally)
+    Services::CircuitBreakerService.reset_all_breakers if defined?(Services::CircuitBreakerService) && Services::CircuitBreakerService.respond_to?(:reset_all_breakers)
+    
+    # Clear any Cube::Settings overrides
+    Cube::Settings.clear_overrides! if defined?(Cube::Settings)
 
     # Override GlitchCube config for tests
     # Ensure AI config is available
@@ -125,72 +163,182 @@ VCR.configure do |config|
   config.cassette_library_dir = 'spec/vcr_cassettes'
   config.hook_into :webmock
   config.configure_rspec_metadata!
+  
+  # Allow HTTP connections when recording new cassettes
+  config.allow_http_connections_when_no_cassette = false # Still strict by default
+  config.ignore_localhost = false # Record localhost calls too
+  
+  # Automatic cassette naming from test description
+  # NOTE: VCR doesn't have a naming_hook method - this was causing errors
+  # config.naming_hook = lambda do |request|
+  #   # Generate cassette name from current RSpec example if available
+  #   if defined?(RSpec) && RSpec.respond_to?(:current_example) && RSpec.current_example
+  #     example = RSpec.current_example
+  #     name = example.full_description.downcase
+  #                   .gsub(/[^a-z0-9\s_-]/, '')
+  #                   .gsub(/\s+/, '_')
+  #                   .squeeze('_')
+  #                   .slice(0, 100)
+  #     
+  #     spec_file = example.file_path.gsub(%r{^.*/spec/}, '')
+  #                        .gsub(/_spec\.rb$/, '')
+  #                        .gsub('/', '_')
+  #     
+  #     "#{spec_file}/#{name}"
+  #   else
+  #     'default_cassette'
+  #   end
+  # end
+  
+  # Best practice: Use automatic cassette naming
+  config.default_cassette_options = {
+    # Smart recording: Record once if missing, otherwise replay
+    record: ENV['VCR_RECORD'] == 'true' ? :new_episodes : :once,
+    # Match on method, URI path, and body for deterministic matching
+    match_requests_on: %i[method uri body],
+    # Allow same request multiple times in a test
+    allow_playback_repeats: true,
+    # Serialize with UTF-8 encoding for consistency
+    serialize_with: :yaml,
+    preserve_exact_body_bytes: true,
+    # Decode compressed responses for readability
+    decode_compressed_response: true
+  }
 
+  # Filter sensitive data consistently
   config.filter_sensitive_data('<OPENROUTER_API_KEY>') { ENV.fetch('OPENROUTER_API_KEY', nil) }
   config.filter_sensitive_data('<HOME_ASSISTANT_TOKEN>') { ENV.fetch('HOME_ASSISTANT_TOKEN', nil) }
-
-  # In CI, never allow new recordings - only use existing cassettes
-  if ENV['CI'] == 'true'
-    config.default_cassette_options = {
-      record: :none,  # Fail if cassette doesn't exist
-      match_requests_on: %i[method uri body]
-    }
-  else
-    config.default_cassette_options = {
-      record: :new_episodes,  # Allow recording locally
-      match_requests_on: %i[method uri body]
-    }
-  end
-
-  # Allow Home Assistant calls without cassettes during tests (local only)
-  unless ENV['CI'] == 'true'
-    config.ignore_request do |request|
-      URI(request.uri).host&.match?(/\.local$/)
+  config.filter_sensitive_data('<GITHUB_TOKEN>') { ENV.fetch('GITHUB_TOKEN', nil) }
+  
+  # Also filter in headers
+  config.before_record do |interaction|
+    # Handle both string and array Authorization headers
+    auth_header = interaction.request.headers['Authorization']
+    if auth_header.is_a?(Array)
+      interaction.request.headers['Authorization'] = auth_header.map { |h| h.gsub(/Bearer .+/, 'Bearer <TOKEN>') }
+    elsif auth_header.is_a?(String)
+      interaction.request.headers['Authorization'] = auth_header.gsub(/Bearer .+/, 'Bearer <TOKEN>')
+    end
+    
+    # Handle API key headers
+    api_key = interaction.request.headers['X-Api-Key']
+    if api_key.is_a?(Array)
+      interaction.request.headers['X-Api-Key'] = api_key.map { |k| '<API_KEY>' }
+    elsif api_key.is_a?(String)
+      interaction.request.headers['X-Api-Key'] = '<API_KEY>'
     end
   end
 
-  # Add logging for VCR interactions (only in non-CI)
-  unless ENV['CI'] == 'true'
+  # Fail fast on missing cassettes with helpful error
+  config.before_http_request do |request|
+    unless VCR.current_cassette
+      raise VCR::Errors::UnhandledHTTPRequestError.new(request).tap do |error|
+        puts <<~ERROR
+          ❌ NO VCR CASSETTE ACTIVE FOR REQUEST
+          
+          Request: #{request.method.upcase} #{request.uri}
+          
+          To fix:
+          1. Wrap this test in VCR.use_cassette or use vcr: metadata
+          2. Record locally: VCR_RECORD=true bundle exec rspec #{RSpec.current_example.location}
+          3. Commit the cassette in spec/vcr_cassettes/
+        ERROR
+      end
+    end
+  end
+
+  # Log VCR activity only when recording and not in CI
+  if ENV['VCR_RECORD'] == 'true' && ENV['CI'] != 'true'
+    # Track what we've already logged to avoid spam
+    @vcr_logged_requests ||= Set.new
+    
     config.before_record do |interaction|
-      puts "🎥 VCR Recording: #{interaction.request.method.upcase} #{interaction.request.uri}"
+      # interaction.request.uri might be a string or URI object
+      uri = interaction.request.uri
+      uri = URI.parse(uri) if uri.is_a?(String)
+      request_key = "#{interaction.request.method.upcase} #{uri.host}#{uri.path}"
+      unless @vcr_logged_requests.include?(request_key)
+        puts "🎥 Recording: #{request_key}"
+        @vcr_logged_requests.add(request_key)
+      end
     end
-
+  elsif ENV['CI'] != 'true' && ENV['VCR_DEBUG'] == 'true'
+    # Only show playback in debug mode
     config.before_playback do |interaction|
-      puts "▶️  VCR Playback: #{interaction.request.method.upcase} #{interaction.request.uri}"
+      puts "▶️  Playing: #{interaction.request.method.upcase} #{interaction.request.uri}"
     end
   end
 end
 
-# Disable all network connections in CI - only VCR cassettes allowed
+# STRICT: Block ALL external connections except localhost
+# VCR will handle all external calls - no bypass allowed
+WebMock.disable_net_connect!(
+  allow_localhost: true,
+  allow: 'chromedriver.storage.googleapis.com' # Only for Selenium if needed
+)
+
+# Fail immediately on any external request not handled by VCR
+# But allow real requests when VCR is recording or playing back
+WebMock.after_request do |request_signature, _response|
+  host = request_signature.uri.host
+  # Only allow true localhost requests
+  unless host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
+    # Skip this check if VCR is handling the request (recording or playing back)
+    if VCR.current_cassette
+      # VCR is handling this request, allow it
+      next
+    end
+    
+    error_msg = <<~ERROR
+      ❌ EXTERNAL REQUEST ATTEMPTED WITHOUT VCR CASSETTE
+      
+      Request: #{request_signature.method.upcase} #{request_signature.uri}
+      Host: #{host}
+      Test: #{RSpec.current_example&.location}
+      
+      This request bypassed VCR! To fix:
+      
+      1. Use VCR.use_cassette in your test:
+         VCR.use_cassette('cassette_name') do
+           # your test code
+         end
+      
+      2. Or use RSpec metadata:
+         it 'does something', vcr: { cassette_name: 'my_cassette' } do
+           # your test code
+         end
+      
+      3. To record a new cassette:
+         VCR_RECORD=true bundle exec rspec #{RSpec.current_example&.location}
+      
+      ALL external requests MUST go through VCR!
+    ERROR
+    
+    raise error_msg
+  end
+end
+
+# Additional safety check for CI
 if ENV['CI'] == 'true'
-  WebMock.disable_net_connect!(allow_localhost: true)
+  # In CI, we should NEVER record new cassettes
+  VCR.configure do |config|
+    config.before_record do |interaction|
+      raise <<~ERROR
+        ❌ VCR TRIED TO RECORD IN CI!
+        
+        Request: #{interaction.request.method.upcase} #{interaction.request.uri}
+        
+        This should never happen in CI. Cassettes must be recorded locally and committed.
+        The test is missing a cassette or the cassette doesn't match the request.
+      ERROR
+    end
+  end
   
-  # In CI, fail immediately on any non-localhost request not handled by VCR
-  WebMock.after_request do |request_signature, response|
-    host = request_signature.uri.host
-    unless host&.match?(/localhost|127\.0\.0\.1/)
-      raise "❌ EXTERNAL NETWORK REQUEST IN CI: #{request_signature.method.upcase} #{request_signature.uri}\n" \
-            "All external requests must use VCR cassettes in CI!"
-    end
-  end
+  puts "✅ CI Mode: VCR will only replay existing cassettes"
+elsif ENV['VCR_RECORD'] == 'true'
+  puts "🎥 Recording Mode: VCR will record new episodes to cassettes"
+  puts "   Remember to commit new/updated cassettes!"
 else
-  # Local development - allow .local domains for Home Assistant
-  WebMock.disable_net_connect!(
-    allow_localhost: true,
-    allow: [/localhost/, /127\.0\.0\.1/, /\.local$/]
-  )
-
-  # Add callback to warn about any real HTTP requests that might slip through
-  WebMock.after_request do |request_signature, response|
-    host = request_signature.uri.host
-    is_allowed_local = host&.match?(/localhost|127\.0\.0\.1|\.local$/)
-
-    if response.status.first == 200 && !is_allowed_local
-      puts "⚠️  LIVE HTTP REQUEST: #{request_signature.method.upcase} #{request_signature.uri}"
-      puts '   This should be using a VCR cassette instead!'
-    elsif is_allowed_local && host&.match?(/\.local$/)
-      puts "📡 Home Assistant call: #{request_signature.method.upcase} #{request_signature.uri}"
-      puts '   Consider recording this in a VCR cassette for consistent tests'
-    end
-  end
+  puts "▶️  Playback Mode: VCR will only replay existing cassettes"
+  puts "   Use VCR_RECORD=true to record new cassettes"
 end

@@ -104,7 +104,7 @@ module Services
       # @return [Hash] Hash with symbol keys
       def symbolize_keys(hash)
         return hash unless hash.is_a?(Hash)
-        
+
         hash.transform_keys(&:to_sym).transform_values do |value|
           value.is_a?(Hash) ? symbolize_keys(value) : value
         end
@@ -117,7 +117,7 @@ module Services
       def extract_fallback_arguments(args_string)
         # Look for patterns like key: "value" or key: value
         args = {}
-        
+
         # Match patterns like: action: "get_sensors", params: "{}"
         args_string.scan(/(\w+):\s*"([^"]*)"/).each do |key, value|
           args[key.to_sym] = value
@@ -156,7 +156,7 @@ module Services
         # Try to find tool class
         # Convention: tool_name -> ToolNameTool
         class_name = "#{tool_name.split('_').map(&:capitalize).join}Tool"
-        
+
         # Try to constantize
         if Object.const_defined?(class_name)
           Object.const_get(class_name)

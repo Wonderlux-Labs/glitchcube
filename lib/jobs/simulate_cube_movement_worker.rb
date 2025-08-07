@@ -86,7 +86,7 @@ module Jobs
             'type' => landmark.landmark_type
           }
         end
-        
+
         # Return database landmarks if available
         return landmarks if landmarks.any?
       rescue StandardError => e
@@ -264,7 +264,7 @@ module Jobs
     end
 
     def format_location(loc)
-      "#{loc[:lat].round(8)}, #{loc[:lng].round(8)}"  # Consistent database precision
+      "#{loc[:lat].round(8)}, #{loc[:lng].round(8)}" # Consistent database precision
     end
 
     def log_movement

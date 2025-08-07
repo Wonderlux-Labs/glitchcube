@@ -228,7 +228,7 @@ RSpec.describe Services::ErrorHandlingLLM do
       it 'uses LLM to analyze error criticality' do
         expect(OpenRouterService).to receive(:complete).with(
           anything,
-          model: 'anthropic/claude-3.5-haiku-20241022',
+          model: 'openai/gpt-4o-mini',
           response_format: { type: 'json_object' }
         ).and_return(JSON.generate({
                                      'critical' => true,
@@ -596,7 +596,7 @@ RSpec.describe Services::ErrorHandlingLLM do
   describe 'rate limiting' do
     context 'with Redis available' do
       it 'tracks rate limits in Redis' do
-        expect(redis).to receive(:incr).with('glitchcube:llm_rate_limit').and_return(5)
+        expect(redis).to receive(:incr).with('glitchcube:llm_rate_limit').and_return(1)
         expect(redis).to receive(:expire).with('glitchcube:llm_rate_limit', 60)
 
         expect(service.send(:rate_limit_exceeded?)).to be false
@@ -662,7 +662,7 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       it 'falls back to file logging' do
-        expect(FileUtils).to receive(:mkdir_p).with('log/proposed_fixes')
+        expect(FileUtils).to receive(:mkdir_p).with(end_with('log/proposed_fixes'))
         expect(File).to receive(:open).with(/proposed_fixes\.jsonl/, 'a')
 
         service.send(:save_proposed_fix, error, context, analysis, fix_result)

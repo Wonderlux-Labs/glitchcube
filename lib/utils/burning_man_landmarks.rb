@@ -4,49 +4,47 @@ module Utils
   module BurningManLandmarks
     def self.load_landmarks
       # Use ActiveRecord Landmark model instead of hardcoded data
-      begin
-        # Filter to only include the most important landmarks for GPS proximity detection
-        important_types = %w[center sacred gathering medical transport service]
-        
-        landmarks = Landmark.active.where(landmark_type: important_types).map do |landmark|
-          {
-            name: landmark.name,
-            lat: landmark.latitude,
-            lng: landmark.longitude,
-            radius: landmark.radius_meters,
-            type: landmark.landmark_type,
-            context: landmark.description || "Near #{landmark.name}"
-          }
-        end
-        
-        # Return default landmarks if database query returns empty
-        return default_landmarks if landmarks.empty?
-        
-        landmarks
-      rescue StandardError => e
-        puts "Warning: Could not load landmarks from database (#{e.message}), using defaults"
-        default_landmarks
+
+      # Filter to only include the most important landmarks for GPS proximity detection
+      important_types = %w[center sacred gathering medical transport service]
+
+      landmarks = Landmark.active.where(landmark_type: important_types).map do |landmark|
+        {
+          name: landmark.name,
+          lat: landmark.latitude,
+          lng: landmark.longitude,
+          radius: landmark.radius_meters,
+          type: landmark.landmark_type,
+          context: landmark.description || "Near #{landmark.name}"
+        }
       end
+
+      # Return default landmarks if database query returns empty
+      return default_landmarks if landmarks.empty?
+
+      landmarks
+    rescue StandardError => e
+      puts "Warning: Could not load landmarks from database (#{e.message}), using defaults"
+      default_landmarks
     end
 
     def self.all_landmarks
       # Use ActiveRecord Landmark model for all landmarks
-      begin
-        Landmark.active.map do |landmark|
-          {
-            name: landmark.name,
-            lat: landmark.latitude,
-            lng: landmark.longitude,
-            radius: landmark.radius_meters,
-            type: landmark.landmark_type,
-            context: landmark.description || "Near #{landmark.name}",
-            icon: landmark.icon || '📍'
-          }
-        end
-      rescue StandardError => e
-        puts "Warning: Could not load all landmarks from database (#{e.message})"
-        []
+
+      Landmark.active.map do |landmark|
+        {
+          name: landmark.name,
+          lat: landmark.latitude,
+          lng: landmark.longitude,
+          radius: landmark.radius_meters,
+          type: landmark.landmark_type,
+          context: landmark.description || "Near #{landmark.name}",
+          icon: landmark.icon || '📍'
+        }
       end
+    rescue StandardError => e
+      puts "Warning: Could not load all landmarks from database (#{e.message})"
+      []
     end
 
     def self.default_landmarks
