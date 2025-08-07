@@ -22,6 +22,7 @@ conversation_states = [
 
 puts "\n🔄 Running conversation state sequence..."
 
+# rubocop:disable Metrics/BlockLength
 conversation_states.each_with_index do |state_config, index|
   state = state_config[:state]
   description = state_config[:description]
@@ -62,6 +63,7 @@ conversation_states.each_with_index do |state_config, index|
   puts "   ⏱️  Waiting #{duration} seconds..."
   sleep(duration)
 end
+# rubocop:enable Metrics/BlockLength
 
 puts "\n🎨 Testing custom mood colors..."
 

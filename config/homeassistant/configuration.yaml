@@ -13,6 +13,17 @@ frontend:
 # Enable configuration panel
 config:
 
+# Lovelace dashboard configuration
+lovelace:
+  mode: storage  # Keeps existing dashboards in UI mode
+  dashboards:
+    glitch-cube-monitor:
+      mode: yaml
+      title: 🎲 Glitch Cube Monitor
+      icon: mdi:cube
+      show_in_sidebar: true
+      filename: dashboard/glitch_cube_monitor.yaml
+
 # Enable logbook for tracking interactions
 logbook:
   # Note: include/exclude options are deprecated, use entity/automation filters instead
@@ -66,11 +77,24 @@ diagnostics:
 automation: !include_dir_merge_list automations/
 script: !include_dir_merge_named scripts/
 
-# Include all input helpers (each type from separate files)
+# Include all input helpers (merge from multiple files)
 input_datetime: !include input_helpers/input_datetime.yaml
-input_text: !include input_helpers/input_text.yaml
-input_number: !include input_helpers/input_number.yaml
-input_boolean: !include input_helpers/input_boolean.yaml
+input_text: !include_dir_merge_named input_helpers/
+input_number: !include_dir_merge_named input_helpers/ 
+input_boolean: !include_dir_merge_named input_helpers/
+
+# Include counters
+counter:
+  daily_conversations:
+    name: Daily Conversations
+    icon: mdi:comment-multiple
+    restore: true
+
+  # Counter for total interactions
+  total_interactions:
+    name: Total Interactions
+    icon: mdi:counter
+    restore: true
 
 # Include all sensors (REST sensors and template sensors)
 sensor: !include_dir_merge_list sensors/

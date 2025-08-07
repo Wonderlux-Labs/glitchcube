@@ -42,8 +42,6 @@
   mode: queued
   max: 50  # Allow up to 50 queued updates to prevent blocking
 
----
-
 # Alternative version that batches updates (runs every 5 minutes)
 - id: glitchcube_entity_batch_update
   alias: "Glitch Cube: Batch Entity Update"

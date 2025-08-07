@@ -4,10 +4,8 @@
 # REST sensor to get conversation state from Sinatra API  
 - platform: rest
   name: conversation_state
-  resource: !env_var GLITCHCUBE_API_URL/api/v1/conversation/state
+  resource: "{{ states('input_text.glitchcube_host_url') }}/api/v1/conversation/state"
   method: GET
-  headers:
-    Authorization: !secret glitchcube_api_key
   value_template: "{{ value_json.state | default('idle') }}"
   json_attributes:
     - last_activity
@@ -44,18 +42,10 @@
           {{ (seconds / 3600) | round(1) }}h ago
         {% endif %}
 
-# Counter for daily conversations
-counter:
-  daily_conversations:
-    name: Daily Conversations
-    icon: mdi:comment-multiple
-    initial: 0
-    step: 1
-
 # API performance sensors
 - platform: rest
   name: api_response_time
-  resource: !env_var GLITCHCUBE_API_URL/health
+  resource: "{{ states('input_text.glitchcube_host_url') }}/health"
   method: GET
   value_template: "{{ value_json.response_time_ms | default(0) }}"
   unit_of_measurement: "ms"
@@ -64,20 +54,16 @@ counter:
 
 - platform: rest  
   name: daily_api_calls
-  resource: !env_var GLITCHCUBE_API_URL/api/v1/stats/daily
+  resource: "{{ states('input_text.glitchcube_host_url') }}/api/v1/stats/daily"
   method: GET
-  headers:
-    Authorization: !secret glitchcube_api_key
   value_template: "{{ value_json.total_calls | default(0) }}"
   scan_interval: 300
 
 # Circuit breaker status
 - platform: rest
   name: circuit_breaker_status
-  resource: !env_var GLITCHCUBE_API_URL/api/v1/system/circuit_breakers
+  resource: "{{ states('input_text.glitchcube_host_url') }}/api/v1/system/circuit_breakers"
   method: GET
-  headers:
-    Authorization: !secret glitchcube_api_key
   value_template: >-
     {% set breakers = value_json.breakers %}
     {% set open_count = breakers | selectattr('state', 'eq', 'open') | list | length %}
@@ -95,10 +81,8 @@ counter:
 # OpenRouter API status
 - platform: rest
   name: openrouter_status
-  resource: !env_var GLITCHCUBE_API_URL/api/v1/openrouter/health
+  resource: "{{ states('input_text.glitchcube_host_url') }}/api/v1/openrouter/health"
   method: GET
-  headers:
-    Authorization: !secret glitchcube_api_key
   value_template: "{{ value_json.status | default('unknown') }}"
   json_attributes:
     - models_available

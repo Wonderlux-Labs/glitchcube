@@ -1,0 +1,32 @@
+speak_with_persona:
+  alias: "Speak with Current Persona"
+  fields:
+    message:
+      description: "Message to speak"
+      example: "Welcome to the Glitch Cube experience"
+    media_player:
+      description: "Media player to use"
+      example: "media_player.glitchcube_speaker"
+      default: "media_player.glitchcube_speaker"
+  sequence:
+    - service: tts.speak
+      data:
+        media_player_entity_id: "{{ media_player }}"
+        message: "{{ message }}"
+        language: "en"
+        options:
+          # Could add persona-specific voice selection here
+          voice: >
+            {% set persona = states('input_text.current_persona') %}
+            {% if persona == 'Mysterious Guide' %}
+              slow
+            {% elif persona == 'Energetic Artist' %}
+              fast
+            {% else %}
+              default
+            {% endif %}
+    - service: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.last_interaction
+      data:
+        datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"

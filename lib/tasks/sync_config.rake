@@ -30,6 +30,7 @@ namespace :config do
       'binary_sensors/',
       'input_helpers/',
       'themes/',
+      'dashboard',
       'custom_components/glitchcube_conversation/'
     ]
 

@@ -1,0 +1,11 @@
+# Debug mode toggle for additional dashboard info
+debug_mode:
+  name: Debug Mode
+  initial: false
+  icon: mdi:bug
+
+# Conversation recording mode
+record_conversations:
+  name: Record Conversations
+  initial: true
+  icon: mdi:record-rec
