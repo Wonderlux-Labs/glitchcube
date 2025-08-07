@@ -55,7 +55,7 @@ jobs:
       CI: true
       RACK_ENV: test
       MOCK_HOME_ASSISTANT: true
-      DATABASE_URL: postgresql://glitchcube:glitchcube_test@localhost:5432/glitchcube_test
+      DATABASE_URL: postgis://glitchcube:glitchcube_test@localhost:5432/glitchcube_test
       REDIS_URL: redis://localhost:6379
       OPENROUTER_API_KEY: test-api-key
       HOME_ASSISTANT_TOKEN: test-ha-token
@@ -85,6 +85,10 @@ jobs:
     
     - name: Set up database
       run: |
+        # Enable PostGIS extensions
+        PGPASSWORD=glitchcube_test psql -h localhost -U glitchcube -d glitchcube_test -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+        PGPASSWORD=glitchcube_test psql -h localhost -U glitchcube -d glitchcube_test -c "CREATE EXTENSION IF NOT EXISTS postgis_topology;"
+        
         bundle exec rake db:create
         bundle exec rake db:schema:load
         

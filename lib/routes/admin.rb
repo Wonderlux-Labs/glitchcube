@@ -280,7 +280,7 @@ module GlitchCube
             home_assistant: ha_status,
             openrouter: openrouter_status,
             redis: redis_status,
-            host_ip: Services::HostRegistrationService.new.detect_local_ip,
+            host_ip: 'localhost', # Services::HostRegistrationService.new.detect_local_ip,
             ha_url: GlitchCube.config.home_assistant.url,
             ai_model: GlitchCube.config.ai.default_model
           }.to_json
