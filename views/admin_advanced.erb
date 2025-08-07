@@ -234,6 +234,21 @@
     </div>
   </div>
 
+  <!-- Conversation Traces Panel -->
+  <div class="panel">
+    <h2>🔍 Conversation Flow Traces</h2>
+    
+    <div style="margin-bottom: 15px;">
+      <input type="text" id="trace-lookup-id" placeholder="Trace ID or Session ID for lookup">
+      <button onclick="loadTrace()">🔍 Load Trace</button>
+      <button onclick="loadSessionTraces()">📋 Load Session Traces</button>
+    </div>
+    
+    <div id="trace-display" class="response" style="margin-top: 20px; max-height: 600px;">
+      <div style="color: #666;">No trace loaded. Enter a trace ID or session ID above.</div>
+    </div>
+  </div>
+
   <!-- Memory Viewer Panel -->
   <div class="panel">
     <h2>🧠 Memory Management</h2>
@@ -458,6 +473,7 @@
             Cost: $${(data.cost || 0).toFixed(6)} | 
             Tokens: ${data.tokens?.prompt_tokens || 0}/${data.tokens?.completion_tokens || 0} |
             Continue: ${data.continue_conversation ? 'Yes' : 'No'}
+            ${data.trace_id ? ` | <span style="color: #ff00ff; cursor: pointer;" onclick="loadSpecificTrace('${data.trace_id}')">🔍 View Trace</span>` : ''}
           </div>
         </div>`;
         
@@ -469,6 +485,9 @@
         );
         
         addLog('🤖 Response received', 'success');
+        if (data.trace_id) {
+          addLog(`🔍 Trace ID: ${data.trace_id} (click to view)`, 'info');
+        }
         document.getElementById('message').value = '';
         
       } catch (err) {
@@ -624,6 +643,183 @@
       }).join('');
     }
     
+    // Conversation Trace Functions
+    async function loadTrace() {
+      const traceId = document.getElementById('trace-lookup-id').value;
+      if (!traceId) {
+        addLog('⚠️ Enter a trace ID or session ID', 'warning');
+        return;
+      }
+      
+      addLog('🔍 Loading trace: ' + traceId, 'info');
+      
+      try {
+        // Try as trace ID first, then as session ID
+        let response = await fetch('/admin/conversation_traces?trace_id=' + encodeURIComponent(traceId));
+        let data = await response.json();
+        
+        if (data.error && data.error === 'Trace not found') {
+          // Try as session ID
+          response = await fetch('/admin/conversation_traces?session_id=' + encodeURIComponent(traceId));
+          data = await response.json();
+        }
+        
+        if (data.error) {
+          addLog('❌ ' + data.error, 'error');
+          return;
+        }
+        
+        if (data.trace) {
+          displaySingleTrace(data.trace);
+          addLog('✅ Loaded single trace', 'success');
+        } else if (data.traces) {
+          displayMultipleTraces(data.traces);
+          addLog(`✅ Loaded ${data.count} traces for session`, 'success');
+        }
+      } catch (err) {
+        addLog('❌ Failed to load trace: ' + err.message, 'error');
+      }
+    }
+    
+    async function loadSessionTraces() {
+      const sessionId = document.getElementById('session-id').value || currentSessionId;
+      if (!sessionId) {
+        addLog('❌ No session ID available', 'error');
+        return;
+      }
+      
+      addLog('📋 Loading traces for session: ' + sessionId, 'info');
+      
+      try {
+        const response = await fetch('/admin/conversation_traces?session_id=' + encodeURIComponent(sessionId));
+        const data = await response.json();
+        
+        if (data.error) {
+          addLog('❌ ' + data.error, 'error');
+          return;
+        }
+        
+        displayMultipleTraces(data.traces);
+        addLog(`✅ Loaded ${data.count} traces`, 'success');
+      } catch (err) {
+        addLog('❌ Failed to load session traces: ' + err.message, 'error');
+      }
+    }
+    
+    function displaySingleTrace(trace) {
+      const display = document.getElementById('trace-display');
+      
+      const summary = {
+        services_used: trace.traces?.map(t => t.service).filter((v, i, a) => a.indexOf(v) === i) || [],
+        llm_calls: trace.traces?.filter(t => t.service === 'LLMService').length || 0,
+        tool_calls: trace.traces?.filter(t => t.service === 'ToolExecutor').length || 0,
+        memory_injections: trace.traces?.filter(t => t.service === 'MemoryRecallService').length || 0,
+        has_errors: trace.traces?.some(t => t.success === false) || false
+      };
+      
+      const html = `
+        <div style="border-bottom: 2px solid #0f0; margin-bottom: 20px; padding-bottom: 10px;">
+          <h3 style="color: #00ff00;">Trace: ${trace.trace_id}</h3>
+          <div class="grid-2">
+            <div>
+              <strong>Session:</strong> ${trace.session_id}<br>
+              <strong>Started:</strong> ${new Date(trace.started_at).toLocaleString()}<br>
+              <strong>Duration:</strong> ${trace.total_duration_ms}ms<br>
+              <strong>Steps:</strong> ${trace.total_steps}
+            </div>
+            <div>
+              <strong>Services:</strong> ${summary.services_used.join(', ')}<br>
+              <strong>LLM Calls:</strong> ${summary.llm_calls}<br>
+              <strong>Tool Calls:</strong> ${summary.tool_calls}<br>
+              <strong>Errors:</strong> ${summary.has_errors ? 'Yes' : 'No'}
+            </div>
+          </div>
+        </div>
+        
+        <div style="max-height: 400px; overflow-y: auto;">
+          ${trace.traces?.map(step => `
+            <div class="memory-item" style="margin: 10px 0; background: ${step.success === false ? '#330000' : '#001100'};">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: ${getServiceColor(step.service)}; font-weight: bold;">
+                  Step ${step.step}: ${step.service}.${step.action}
+                </span>
+                <span style="color: #666; font-size: 0.9em;">
+                  ${new Date(step.timestamp).toLocaleTimeString()} 
+                  ${step.timing_ms ? `(+${step.timing_ms}ms)` : ''}
+                </span>
+              </div>
+              <div style="margin-top: 10px;">
+                ${formatStepData(step.data)}
+              </div>
+              ${step.success === false ? '<div style="color: #ff0000; font-weight: bold;">❌ FAILED</div>' : ''}
+            </div>
+          `).join('') || '<div style="color: #666;">No trace steps available</div>'}
+        </div>
+      `;
+      
+      display.innerHTML = html;
+    }
+    
+    function displayMultipleTraces(traces) {
+      const display = document.getElementById('trace-display');
+      
+      if (!traces || traces.length === 0) {
+        display.innerHTML = '<div style="color: #666;">No traces found for this session.</div>';
+        return;
+      }
+      
+      const html = traces.map(trace => `
+        <div class="memory-item" style="cursor: pointer;" onclick="loadSpecificTrace('${trace.trace_id}')">
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: #00ff00; font-weight: bold;">Trace: ${trace.trace_id}</span>
+            <span style="color: #666;">${new Date(trace.started_at).toLocaleString()}</span>
+          </div>
+          <div style="margin-top: 5px; color: #888;">
+            Duration: ${trace.total_duration_ms}ms | Steps: ${trace.total_steps}
+          </div>
+        </div>
+      `).join('');
+      
+      display.innerHTML = html;
+    }
+    
+    async function loadSpecificTrace(traceId) {
+      document.getElementById('trace-lookup-id').value = traceId;
+      await loadTrace();
+    }
+    
+    function getServiceColor(service) {
+      const colors = {
+        'ConversationModule': '#00ff00',
+        'LLMService': '#00ffff',
+        'ToolExecutor': '#ff00ff',
+        'MemoryRecallService': '#ffff00',
+        'SystemPromptService': '#ff8000',
+        'TTSService': '#8000ff',
+        'Database': '#ff0080',
+        'HomeAssistantClient': '#80ff00'
+      };
+      return colors[service] || '#ffffff';
+    }
+    
+    function formatStepData(data) {
+      if (!data) return '';
+      
+      // Format key data points for readability
+      const formatted = [];
+      
+      if (data.message_count) formatted.push(`Messages: ${data.message_count}`);
+      if (data.model) formatted.push(`Model: ${data.model}`);
+      if (data.temperature) formatted.push(`Temp: ${data.temperature}`);
+      if (data.memories_found !== undefined) formatted.push(`Memories: ${data.memories_found}`);
+      if (data.tool_count) formatted.push(`Tools: ${data.tool_count}`);
+      if (data.execution_time_ms) formatted.push(`Exec: ${data.execution_time_ms}ms`);
+      if (data.cost) formatted.push(`Cost: $${data.cost.toFixed(6)}`);
+      if (data.response_length) formatted.push(`Response: ${data.response_length} chars`);
+      
+      return formatted.join(' | ') || JSON.stringify(data).substr(0, 100);
+    }
+
     // Logging Functions
     function addLog(message, type = 'info') {
       const timestamp = new Date().toLocaleTimeString();

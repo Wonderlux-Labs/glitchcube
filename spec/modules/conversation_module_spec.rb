@@ -30,6 +30,8 @@ RSpec.describe ConversationModule do
                     session_id: 'test-123',
                     messages_for_llm: [],
                     add_message: true,
+                    messages: double('messages', count: 0),
+                    created_at: Time.now - 1.minute,
                     metadata: {})
   end
 
@@ -183,6 +185,8 @@ RSpec.describe ConversationModule do
                         session_id: 'test-session',
                         messages_for_llm: [],
                         add_message: true,
+                        messages: double('messages', count: 0),
+                        created_at: Time.now - 1.minute,
                         metadata: {})
       end
 

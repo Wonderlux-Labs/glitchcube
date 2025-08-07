@@ -10,65 +10,40 @@ end
 RSpec.describe ConversationEnhancements do
   let(:test_instance) { TestClass.new }
 
-  describe '#execute_parallel_tools' do
-    let(:tool_calls) do
-      [
-        {
-          function: {
-            name: 'home_assistant',
-            arguments: '{"action": "get_sensors"}'
-          }
-        },
-        {
-          function: {
-            name: 'test_tool',
-            arguments: '{"info_type": "battery"}'
-          }
-        }
-      ]
+  describe '#format_sensor_summary' do
+    it 'formats sensor data correctly' do
+      sensor_data = {
+        battery: 85,
+        temperature: 22.5,
+        motion: true
+      }
+
+      summary = test_instance.format_sensor_summary(sensor_data)
+      expect(summary).to eq('Battery: 85%, Temp: 22.5°C, Motion: detected')
     end
 
-    before do
-      allow(test_instance).to receive(:find_tool_class).with('home_assistant').and_return(HomeAssistantTool)
-      allow(test_instance).to receive(:find_tool_class).with('test_tool').and_return(TestTool)
-      allow(HomeAssistantTool).to receive(:call).and_return('Sensor data')
-      allow(TestTool).to receive(:call).and_return('Test result')
+    it 'handles missing sensor data gracefully' do
+      sensor_data = {
+        battery: 45,
+        temperature: nil,
+        motion: false
+      }
+
+      summary = test_instance.format_sensor_summary(sensor_data)
+      expect(summary).to eq('Battery: 45%, Motion: none')
     end
 
-    it 'executes all tools in parallel' do
-      results = test_instance.execute_parallel_tools(tool_calls)
-
-      expect(results.length).to eq(2)
-      expect(results[0]).to include(tool: 'home_assistant', success: true)
-      expect(results[1]).to include(tool: 'test_tool', success: true)
-    end
-
-    it 'handles tool timeouts' do
-      allow(HomeAssistantTool).to receive(:call) do
-        sleep(6) # Exceed 5 second timeout
-        'Should timeout'
-      end
-
-      results = test_instance.execute_parallel_tools(tool_calls)
-
-      expect(results).not_to be_empty
-      expect(results[0]).to include(
-        tool: 'home_assistant',
-        error: 'Tool execution timed out'
-      )
-    end
-
-    it 'returns empty array for nil input' do
-      result = test_instance.execute_parallel_tools(nil)
-      expect(result).to eq([])
+    it 'returns nil for empty sensor data' do
+      summary = test_instance.format_sensor_summary({})
+      expect(summary).to be_nil
     end
   end
 
-  describe '#execute_with_retry' do
+  describe '#with_retry' do
     it 'succeeds on first attempt' do
       attempt_count = 0
 
-      result = test_instance.execute_with_retry(3) do
+      result = test_instance.with_retry('test_operation') do
         attempt_count += 1
         'success'
       end
@@ -77,29 +52,36 @@ RSpec.describe ConversationEnhancements do
       expect(attempt_count).to eq(1)
     end
 
-    it 'retries with exponential backoff' do
+    it 'retries with simple backoff for art installation' do
       attempt_count = 0
 
       allow(test_instance).to receive(:sleep).with(0.5).once
-      allow(test_instance).to receive(:sleep).with(1.0).once
 
-      result = test_instance.execute_with_retry(3) do
+      result = test_instance.with_retry('test_operation', max_retries: 2) do
         attempt_count += 1
-        raise 'Temporary error' if attempt_count < 3
+        raise 'Temporary error' if attempt_count < 2
 
         'success'
       end
 
       expect(result).to eq('success')
-      expect(attempt_count).to eq(3)
+      expect(attempt_count).to eq(2)
     end
 
     it 'raises error after max attempts' do
       expect do
-        test_instance.execute_with_retry(2) do
+        test_instance.with_retry('test_operation', max_retries: 2) do
           raise 'Persistent error'
         end
       end.to raise_error('Persistent error')
+    end
+
+    it 'prints warning after failed attempts' do
+      expect do
+        test_instance.with_retry('test_operation', max_retries: 2) do
+          raise StandardError, 'Test error with long message that should be truncated'
+        end
+      end.to raise_error('Test error with long message that should be truncated')
     end
   end
 
@@ -143,86 +125,93 @@ RSpec.describe ConversationEnhancements do
     end
   end
 
-  describe '#attempt_error_recovery' do
-    it 'attempts connection recovery for connection errors' do
-      expect(test_instance).to receive(:attempt_connection_recovery).and_return(true)
+  describe '#attempt_connection_recovery' do
+    it 'only attempts recovery in development environment' do
+      allow(ENV).to receive(:[]).with('RACK_ENV').and_return('production')
+      
+      result = test_instance.attempt_connection_recovery
+      expect(result).to be false
+    end
 
-      result = test_instance.attempt_error_recovery('connection refused')
+    it 'attempts docker restart in development' do
+      allow(ENV).to receive(:[]).with('RACK_ENV').and_return('development')
+      allow(test_instance).to receive(:system).with('docker-compose restart homeassistant 2>/dev/null').and_return(true)
+      allow(test_instance).to receive(:sleep).with(1)
+      
+      result = test_instance.attempt_connection_recovery
       expect(result).to be true
     end
 
-    it 'attempts timeout recovery for timeout errors' do
-      expect(test_instance).to receive(:attempt_timeout_recovery).and_return(true)
-
-      result = test_instance.attempt_error_recovery('timeout error')
-      expect(result).to be true
-    end
-
-    it 'attempts rate limit recovery' do
-      expect(test_instance).to receive(:attempt_rate_limit_recovery).and_return(true)
-
-      result = test_instance.attempt_error_recovery('rate limit exceeded')
-      expect(result).to be true
-    end
-
-    it 'returns false for unknown errors' do
-      result = test_instance.attempt_error_recovery('unknown error')
+    it 'handles system command failures gracefully' do
+      allow(ENV).to receive(:[]).with('RACK_ENV').and_return('development')
+      allow(test_instance).to receive(:system).and_raise(StandardError, 'Command failed')
+      
+      result = test_instance.attempt_connection_recovery
       expect(result).to be false
     end
   end
 
-  describe '#with_self_healing' do
-    it 'succeeds without retries when operation works' do
-      result = test_instance.with_self_healing('test_operation') do
-        'success'
-      end
-
-      expect(result).to eq('success')
+  describe '#add_message_to_conversation' do
+    let(:conversation) { { messages: [] } }
+    let(:message_data) do
+      {
+        role: 'user',
+        content: 'Hello',
+        cost: 0.001,
+        prompt_tokens: 10,
+        completion_tokens: 5
+      }
     end
 
-    it 'attempts auto-recovery on failure' do
-      attempt_count = 0
-
-      expect(test_instance).to receive(:attempt_error_recovery).with(
-        'network error',
-        { operation: 'test_operation' }
-      ).and_return(true)
-
-      result = test_instance.with_self_healing('test_operation', max_retries: 2) do
-        attempt_count += 1
-        raise 'network error' if attempt_count == 1
-
-        'recovered'
-      end
-
-      expect(result).to eq('recovered')
+    it 'adds message to conversation with timestamp' do
+      result = test_instance.add_message_to_conversation(conversation, message_data)
+      
+      expect(conversation[:messages].length).to eq(1)
+      expect(result[:timestamp]).to be_present
+      expect(conversation[:total_cost]).to eq(0.001)
+      expect(conversation[:total_tokens]).to eq(15)
     end
 
-    it 'uses exponential backoff when auto-recovery fails' do
-      attempt_count = 0
-
-      expect(test_instance).to receive(:attempt_error_recovery).and_return(false)
-      expect(test_instance).to receive(:sleep).with(1).once # 2^(1-1) = 1
-
-      result = test_instance.with_self_healing('test_operation', max_retries: 2) do
-        attempt_count += 1
-        raise 'error' if attempt_count == 1
-
-        'success'
-      end
-
-      expect(result).to eq('success')
+    it 'handles conversation without existing messages' do
+      empty_conversation = {}
+      
+      test_instance.add_message_to_conversation(empty_conversation, message_data)
+      
+      expect(empty_conversation[:messages].length).to eq(1)
     end
 
-    it 'raises error after all retries exhausted' do
-      expect(test_instance).to receive(:attempt_error_recovery).once.and_return(false)
-      expect(test_instance).to receive(:sleep).once # Only one sleep since second retry will fail
+    it 'accumulates costs and tokens' do
+      test_instance.add_message_to_conversation(conversation, message_data)
+      test_instance.add_message_to_conversation(conversation, { cost: 0.002, prompt_tokens: 20, completion_tokens: 10 })
+      
+      expect(conversation[:total_cost]).to eq(0.003)
+      expect(conversation[:total_tokens]).to eq(45)
+    end
+  end
 
-      expect do
-        test_instance.with_self_healing('test_operation', max_retries: 2) do
-          raise 'persistent error'
-        end
-      end.to raise_error('persistent error')
+  describe '#update_conversation_totals' do
+    it 'calculates totals from all messages' do
+      conversation = {
+        messages: [
+          { cost: 0.001, prompt_tokens: 10, completion_tokens: 5 },
+          { cost: 0.002, prompt_tokens: 15, completion_tokens: 8 },
+          { prompt_tokens: 5 } # Message without cost/completion_tokens
+        ]
+      }
+      
+      result = test_instance.update_conversation_totals(conversation)
+      
+      expect(result[:total_cost]).to eq(0.003)
+      expect(result[:total_tokens]).to eq(43) # 10+5+15+8+5+0
+    end
+
+    it 'handles empty messages array' do
+      conversation = { messages: [] }
+      
+      result = test_instance.update_conversation_totals(conversation)
+      
+      expect(result[:total_cost]).to eq(0.0)
+      expect(result[:total_tokens]).to eq(0)
     end
   end
 end

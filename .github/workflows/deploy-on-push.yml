@@ -12,6 +12,9 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read  # Only needs to read repository content
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -47,11 +50,11 @@ jobs:
         EOF
         )
         
-        # Send to Home Assistant webhook (URL includes the webhook_id)
+        # Send to Home Assistant webhook (URL from secrets for security)
         curl -X POST \
           -H "Content-Type: application/json" \
           -d "$payload" \
-          "https://zjd6lgd6yhigawnj06mkguhholcsfdul.ui.nabu.casa/api/webhook/github_deploy"
+          "${{ secrets.HOME_ASSISTANT_WEBHOOK_URL }}"
       
     - name: Log deployment info
       run: |
@@ -61,4 +64,4 @@ jobs:
         echo "Branch: ${{ github.ref_name }}"
         echo "Committer: ${{ github.actor }}"
         echo "Message: ${{ github.event.head_commit.message }}"
-        echo "Webhook URL: https://zjd6lgd6yhigawnj06mkguhholcsfdul.ui.nabu.casa/api/webhook/github_deploy"
+        echo "Webhook: [REDACTED FOR SECURITY]"

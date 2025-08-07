@@ -128,9 +128,10 @@ RSpec.describe ConversationModule, 'enhanced features' do
     let(:context) { { include_sensors: true } }
 
     it 'includes conversation enhancements module' do
-      expect(module_instance).to respond_to(:execute_parallel_tools)
       expect(module_instance).to respond_to(:enrich_context_with_sensors)
-      expect(module_instance).to respond_to(:with_self_healing)
+      expect(module_instance).to respond_to(:format_sensor_summary)
+      expect(module_instance).to respond_to(:with_retry)
+      expect(module_instance).to respond_to(:attempt_connection_recovery)
     end
 
     it 'can enrich context with sensor data' do
@@ -156,6 +157,8 @@ RSpec.describe ConversationModule, 'enhanced features' do
                                      session_id: 'test-session',
                                      messages_for_llm: [],
                                      add_message: double('message', role: 'user', content: message),
+                                     messages: double('messages', count: 0),
+                                     created_at: Time.now - 1.minute,
                                      metadata: {})
       allow(Services::ConversationSession).to receive(:find_or_create).and_return(mock_session)
 
@@ -178,12 +181,14 @@ RSpec.describe ConversationModule, 'enhanced features' do
       expect(result[:continue_conversation]).to be true
     end
 
-    it 'handles failures gracefully with self-healing' do
+    it 'handles failures gracefully with error recovery' do
       # Mock conversation session to avoid database
       mock_session = instance_double(Services::ConversationSession,
                                      session_id: 'test-session',
                                      messages_for_llm: [],
                                      add_message: double('message', role: 'assistant', content: 'offline response'),
+                                     messages: double('messages', count: 0),
+                                     created_at: Time.now - 1.minute,
                                      metadata: {})
       allow(Services::ConversationSession).to receive(:find_or_create).and_return(mock_session)
 

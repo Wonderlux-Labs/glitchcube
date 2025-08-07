@@ -68,7 +68,8 @@ module Services
         old_context = current_context.dup
         current_context.merge!(context_data)
 
-        debug('Context updated', context: context_data)
+        # Only log context updates if logger is already set up to avoid recursion
+        debug('Context updated', context: context_data) if @logger
         yield
       ensure
         Thread.current[:logger_context] = old_context

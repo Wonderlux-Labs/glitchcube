@@ -226,7 +226,7 @@ module Services
         )
       )
     rescue StandardError => e
-      Rails.logger.error "Failed to sync with HA: #{e.message}" if defined?(Rails)
+      # Rails.logger.error "Failed to sync with HA: #{e.message}" if defined?(Rails)
       puts "Failed to sync with HA: #{e.message}"
     end
 

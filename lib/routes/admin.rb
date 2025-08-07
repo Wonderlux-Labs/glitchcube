@@ -417,6 +417,64 @@ module GlitchCube
 
           { memories: formatted_memories, count: formatted_memories.size, type: type }.to_json
         end
+
+        # Admin endpoint to view conversation traces
+        app.get '/admin/conversation_traces' do
+          content_type :json
+
+          session_id = params[:session_id]
+          trace_id = params[:trace_id]
+
+          begin
+            if trace_id
+              # Get specific trace by ID
+              trace = Services::ConversationTracer.get_trace(trace_id)
+              return { error: 'Trace not found' }.to_json unless trace
+
+              { trace: trace }.to_json
+            elsif session_id
+              # Get all traces for a session
+              traces = Services::ConversationTracer.get_session_traces(session_id, limit: 50)
+              { traces: traces, count: traces.size, session_id: session_id }.to_json
+            else
+              { error: 'session_id or trace_id required' }.to_json
+            end
+          rescue StandardError => e
+            status 500
+            { error: e.message }.to_json
+          end
+        end
+
+        # Admin endpoint to get conversation trace details for debugging
+        app.get '/admin/trace_details/:trace_id' do
+          content_type :json
+
+          trace_id = params[:trace_id]
+
+          begin
+            trace = Services::ConversationTracer.get_trace(trace_id)
+            return { error: 'Trace not found' }.to_json unless trace
+
+            # Enhanced trace details for debugging
+            {
+              trace: trace,
+              summary: {
+                total_steps: trace[:total_steps],
+                total_duration_ms: trace[:total_duration_ms],
+                session_id: trace[:session_id],
+                started_at: trace[:started_at],
+                services_used: trace[:traces]&.map { |t| t[:service] }&.uniq || [],
+                llm_calls: trace[:traces]&.count { |t| t[:service] == 'LLMService' } || 0,
+                tool_calls: trace[:traces]&.count { |t| t[:service] == 'ToolExecutor' } || 0,
+                memory_injections: trace[:traces]&.count { |t| t[:service] == 'MemoryRecallService' } || 0,
+                has_errors: trace[:traces]&.any? { |t| t[:success] == false } || false
+              }
+            }.to_json
+          rescue StandardError => e
+            status 500
+            { error: e.message }.to_json
+          end
+        end
       end
     end
   end

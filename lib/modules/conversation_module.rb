@@ -9,6 +9,7 @@ require_relative '../services/tts_service'
 require_relative '../services/conversation_session'
 require_relative '../services/tool_call_parser'
 require_relative '../services/tool_executor'
+require_relative '../services/conversation_tracer'
 require_relative '../home_assistant_client'
 require_relative 'conversation_responses'
 require_relative 'conversation_enhancements'
@@ -20,16 +21,37 @@ class ConversationModule
     # Use persona from context or default, also support legacy mood parameter
     persona ||= mood || context[:persona] || context[:mood] || 'neutral'
 
+    # Initialize conversation tracer
+    tracer = Services::ConversationTracer.new(
+      session_id: context[:session_id],
+      enabled: context[:trace_conversation] != false
+    )
+    
+    tracer.start_conversation(
+      message: message,
+      context: context,
+      persona: persona
+    )
+
     # Get or create conversation session using ActiveRecord
+    session_start = Time.now
     session = Services::ConversationSession.find_or_create(
       session_id: context[:session_id],
       context: context.merge(persona: persona)
+    )
+    
+    tracer.trace_session_lookup(
+      session_data: {
+        session_id: session.session_id,
+        message_count: session.messages.count
+      },
+      created: session.created_at > session_start
     )
 
     # Enrich context with sensor data if requested
     context = enrich_context_with_sensors(context) if context[:include_sensors]
 
-    system_prompt = build_system_prompt(persona, context)
+    system_prompt = build_system_prompt(persona, context, tracer)
 
     # Prepare structured output schema based on context
     response_schema = get_response_schema(context)
@@ -77,9 +99,16 @@ class ConversationModule
       )
 
       # Use new LLM service with full conversation context
+      llm_start = Time.now
       llm_response = Services::LLMService.complete_with_messages(
         messages: messages,
         **llm_options
+      )
+      
+      tracer.trace_llm_call(
+        messages: messages,
+        options: llm_options,
+        response: llm_response
       )
 
       response_time_ms = ((Time.now - start_time) * 1000).round
@@ -87,13 +116,13 @@ class ConversationModule
       # Check for and execute tool calls
       tool_results = nil
       if llm_response.has_tool_calls?
-        tool_results = handle_tool_calls(llm_response, session, persona)
+        tool_results = handle_tool_calls(llm_response, session, persona, tracer)
 
         # If we have tool results, we need to continue the conversation with them
         if tool_results && !tool_results.empty?
           # Add tool results to conversation and get final response
           llm_response = continue_with_tool_results(
-            messages, llm_response, tool_results, llm_options, session, persona
+            messages, llm_response, tool_results, llm_options, session, persona, tracer
           )
         end
       end
@@ -135,7 +164,7 @@ class ConversationModule
 
       # Wrap post-response operations to prevent fallback on their errors
       begin
-        speak_response(response_text, context)
+        speak_response(response_text, context, tracer)
       rescue StandardError => e
         puts "Warning: TTS failed but conversation succeeded: #{e.message}"
         # Log but don't fail the conversation
@@ -155,6 +184,16 @@ class ConversationModule
         # Already handled in the method but adding for clarity
       end
 
+      # Complete tracing
+      total_duration = ((Time.now - start_time) * 1000).round
+      tracer.complete_conversation(
+        result: result,
+        total_duration_ms: total_duration
+      )
+
+      # Add trace info to result for debugging
+      result[:trace_id] = tracer.trace_id if tracer.traces.any?
+      
       result
     rescue Services::LLMService::RateLimitError => e
       handle_rate_limit_error(session, message, persona, e)
@@ -167,7 +206,7 @@ class ConversationModule
 
   private
 
-  def handle_tool_calls(llm_response, session, persona)
+  def handle_tool_calls(llm_response, session, persona, tracer = nil)
     # Parse tool calls from response
     tool_calls = Services::ToolCallParser.parse(llm_response)
     return [] if tool_calls.empty?
@@ -175,7 +214,16 @@ class ConversationModule
     puts "🔧 Executing #{tool_calls.size} tool call(s)..." if ENV['DEBUG']
 
     # Execute tools
+    tool_start = Time.now
     results = Services::ToolExecutor.execute(tool_calls, timeout: 10)
+    execution_time = ((Time.now - tool_start) * 1000).round
+
+    # Trace tool execution
+    tracer&.trace_tool_execution(
+      tool_calls: tool_calls,
+      results: results,
+      execution_time_ms: execution_time
+    )
 
     # Log tool execution
     results.each do |result|
@@ -185,11 +233,11 @@ class ConversationModule
     results
   rescue StandardError => e
     puts "⚠️ Tool execution failed: #{e.message}"
-    Rails.logger.error "Tool execution error: #{e.message}" if defined?(Rails)
+    puts "Tool execution error: #{e.message}"
     []
   end
 
-  def continue_with_tool_results(messages, initial_response, tool_results, llm_options, session, persona)
+  def continue_with_tool_results(messages, initial_response, tool_results, llm_options, session, persona, tracer = nil)
     # Format tool results for conversation
     tool_message = format_tool_results_message(tool_results)
 
@@ -222,12 +270,29 @@ class ConversationModule
     )
 
     # Get final response after tool execution
-    Services::LLMService.complete_with_messages(
+    follow_up_response = Services::LLMService.complete_with_messages(
       messages: messages,
       **llm_options.except(:tools, :tool_choice) # Don't allow recursive tool calls for now
     )
+    
+    # Trace the follow-up LLM call
+    tracer&.trace_llm_call(
+      messages: messages,
+      options: llm_options.except(:tools, :tool_choice),
+      response: follow_up_response
+    )
+    
+    follow_up_response
   rescue StandardError => e
     puts "⚠️ Failed to continue after tool execution: #{e.message}"
+    
+    # Trace the error
+    tracer&.trace_llm_call(
+      messages: messages,
+      options: llm_options.except(:tools, :tool_choice),
+      error: e
+    )
+    
     # Return original response if continuation fails
     initial_response
   end
@@ -298,7 +363,7 @@ class ConversationModule
     end
   end
 
-  def build_system_prompt(persona, context)
+  def build_system_prompt(persona, context, tracer = nil)
     # Map persona to character for prompt file selection
     character = persona == 'neutral' ? nil : persona
 
@@ -316,10 +381,20 @@ class ConversationModule
     ).generate
 
     # Add relevant memories if available
-    inject_memories_into_prompt(base_prompt, context)
+    final_prompt = inject_memories_into_prompt(base_prompt, context, tracer)
+    
+    # Trace system prompt building
+    tracer&.trace_system_prompt(
+      persona: persona,
+      context: context,
+      prompt_length: final_prompt.length,
+      memories_injected: final_prompt.length - base_prompt.length > 0 ? 1 : 0
+    )
+    
+    final_prompt
   end
 
-  def inject_memories_into_prompt(base_prompt, context)
+  def inject_memories_into_prompt(base_prompt, context, tracer = nil)
     # Skip memory injection if explicitly disabled
     return base_prompt if context[:skip_memories] == true
 
@@ -336,12 +411,28 @@ class ConversationModule
     # Format and inject memories
     if memories.any?
       memory_context = Services::MemoryRecallService.format_for_context(memories)
-      "#{base_prompt}#{memory_context}"
+      final_prompt = "#{base_prompt}#{memory_context}"
+      
+      # Trace memory injection
+      tracer&.trace_memory_injection(
+        location: location,
+        memories: memories,
+        formatted_context: memory_context
+      )
+      
+      final_prompt
     else
+      # Trace empty memory injection
+      tracer&.trace_memory_injection(
+        location: location,
+        memories: [],
+        formatted_context: nil
+      )
+      
       base_prompt
     end
   rescue StandardError => e
-    Rails.logger.warn "Failed to inject memories: #{e.message}"
+    puts "Failed to inject memories: #{e.message}"
     base_prompt
   end
 
@@ -421,10 +512,13 @@ class ConversationModule
     "#{base_response} #{encouragement}"
   end
 
-  def speak_response(response_text, context = {})
+  def speak_response(response_text, context = {}, tracer = nil)
     return if response_text.nil? || response_text.strip.empty?
 
     start_time = Time.now
+    success = false
+    error = nil
+    
     begin
       # Use the new TTS service with character support
       tts_service = Services::TTSService.new
@@ -445,13 +539,33 @@ class ConversationModule
         success: success,
         duration: duration
       )
+      
+      # Trace TTS call
+      tracer&.trace_tts_call(
+        text: response_text,
+        persona: mood,
+        success: success,
+        duration_ms: duration
+      )
     rescue StandardError => e
+      error = e.message
+      success = false
       duration = ((Time.now - start_time) * 1000).round
+      
       Services::LoggerService.log_tts(
         message: response_text,
         success: false,
         duration: duration,
         error: "Unexpected Error: #{e.message}"
+      )
+      
+      # Trace TTS error
+      tracer&.trace_tts_call(
+        text: response_text,
+        persona: context[:mood] || context[:persona] || 'neutral',
+        success: false,
+        duration_ms: duration,
+        error: error
       )
     end
   end

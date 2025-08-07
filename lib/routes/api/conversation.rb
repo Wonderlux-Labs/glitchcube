@@ -289,40 +289,8 @@ module GlitchCube
           end
 
           # Proactive conversation endpoint (for starting conversations from automations)
-          app.post '/api/v1/conversation/start' do
-            content_type :json
-
-            begin
-              request_body = JSON.parse(request.body.read)
-
-              # Generate proactive message based on trigger
-              request_body['trigger'] || 'automation'
-              request_body['context'] || {}
-              custom_message = request_body['message']
-
-              # Generate appropriate conversation starter - use default if no custom message
-              conversation_text = custom_message || 'Hello! I noticed some activity and wanted to check in.'
-
-              # Send to Home Assistant conversation service using client directly
-              ha_client = HomeAssistantClient.new
-              ha_response = ha_client.process_voice_command(conversation_text)
-
-              json({
-                     success: true,
-                     data: {
-                       message: conversation_text,
-                       ha_response: ha_response
-                     },
-                     timestamp: Time.now.iso8601
-                   })
-            rescue StandardError => e
-              status 400
-              json({
-                     success: false,
-                     error: e.message
-                   })
-            end
-          end
+          # Note: This was merged with the main /api/v1/conversation/start endpoint above
+          # to resolve duplicate endpoint definition issue
 
           # Webhook endpoint for Home Assistant to trigger conversations
           app.post '/api/v1/ha_webhook' do

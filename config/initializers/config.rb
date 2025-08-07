@@ -99,7 +99,10 @@ module GlitchCube
         # Development/Test
         development?: ENV['RACK_ENV'] == 'development',
         test?: ENV['RACK_ENV'] == 'test',
-        production?: ENV['RACK_ENV'] == 'production'
+        production?: ENV['RACK_ENV'] == 'production',
+        
+        # Conversation Tracing
+        conversation_tracing_enabled: ENV.fetch('CONVERSATION_TRACING', 'false') == 'true'
       )
     end
 
@@ -169,6 +172,16 @@ module GlitchCube
 
     def self_healing_yolo?
       self_healing_mode == 'YOLO'
+    end
+
+    # Environment helper
+    def environment
+      rack_env
+    end
+
+    # Conversation tracing helper
+    def conversation_tracing_enabled?
+      conversation_tracing_enabled
     end
 
     # Database safety checks to prevent data loss

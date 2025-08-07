@@ -68,6 +68,15 @@ module Services
       message
     end
 
+    # Delegate methods to underlying conversation model
+    def messages
+      @conversation.messages
+    end
+
+    def created_at
+      @conversation.created_at
+    end
+
     # Get messages for LLM context
     def messages_for_llm(limit: nil)
       limit ||= max_context_messages

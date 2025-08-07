@@ -10,6 +10,10 @@ concurrency:
   group: lint-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write  # For commenting on PRs with lint results
+
 jobs:
   rubocop:
     runs-on: ubuntu-latest

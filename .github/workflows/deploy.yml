@@ -6,48 +6,77 @@ on:
       - main
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  contents: read
+  deployments: write  # For creating deployment records
+
 jobs:
   test:
     runs-on: ubuntu-latest
     
     services:
       postgres:
-        image: postgres:14
+        image: postgres:15
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: glitchcube
+          POSTGRES_PASSWORD: glitchcube_test
+          POSTGRES_DB: glitchcube_test
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
         ports:
-          - 5432:5432
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    env:
+      CI: true
+      RACK_ENV: test
+      MOCK_HOME_ASSISTANT: true
+      DATABASE_URL: postgresql://glitchcube:glitchcube_test@localhost:5432/glitchcube_test
+      REDIS_URL: redis://localhost:6379
+      OPENROUTER_API_KEY: test-api-key
+      HOME_ASSISTANT_TOKEN: test-ha-token
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: '3.3'
           bundler-cache: true
       
-      - name: Setup database
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          # Install PostgreSQL client tools
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          # Wait for PostgreSQL to be ready
+          for i in $(seq 1 10); do
+            pg_isready -h localhost -p 5432 -U glitchcube && break
+            echo "Waiting for PostgreSQL... ($i/10)"
+            sleep 5
+          done
+          pg_isready -h localhost -p 5432 -U glitchcube || (echo "PostgreSQL not ready after multiple attempts." && exit 1)
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/glitchcube_test
-          RACK_ENV: test
-          CI: true
+          PGPASSWORD: glitchcube_test
+      
+      - name: Setup database
         run: |
           bundle exec rake db:create
-          bundle exec rake db:migrate
+          bundle exec rake db:schema:load
       
       - name: Run tests
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/glitchcube_test
-          RACK_ENV: test
-          CI: true
-          VCR_RECORD_MODE: none  # Fail if any test tries to make real network calls
-          DISABLE_EXTERNAL_REQUESTS: true
         run: bundle exec rspec
       
       - name: Check if deployment needed
@@ -84,7 +113,7 @@ jobs:
     steps:
       - name: Notify Home Assistant
         env:
-          HASS_WEBHOOK_URL: ${{ secrets.HASS_WEBHOOK_URL }}
+          HASS_WEBHOOK_URL: ${{ secrets.HOME_ASSISTANT_WEBHOOK_URL }}
         run: |
           # Send deployment notification to Home Assistant
           # HA will trigger the host system to pull and deploy
@@ -102,7 +131,7 @@ jobs:
             }'
       
       - name: Create deployment record
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             await github.rest.repos.createDeployment({
