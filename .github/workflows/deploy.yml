@@ -1,0 +1,153 @@
+name: Auto Deploy on Green Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+      
+      - name: Setup database
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost/glitchcube_test
+          RACK_ENV: test
+        run: |
+          bundle exec rake db:create
+          bundle exec rake db:migrate
+      
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost/glitchcube_test
+          RACK_ENV: test
+          CI: true
+          VCR_RECORD_MODE: none  # Fail if any test tries to make real network calls
+          DISABLE_EXTERNAL_REQUESTS: true
+        run: bundle exec rspec
+      
+      - name: Check if deployment needed
+        if: success() && github.ref == 'refs/heads/main'
+        id: check_deploy
+        run: |
+          echo "Tests passed! Checking what needs deployment..."
+          
+          # Check what changed
+          CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD)
+          
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Determine what needs deployment
+          if echo "$CHANGED_FILES" | grep -qE '\.(rb|yml|Gemfile)'; then
+            echo "needs_host=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs_host=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q 'config/homeassistant'; then
+            echo "needs_hass=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs_hass=false" >> $GITHUB_OUTPUT
+          fi
+
+  notify_deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: success() && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Notify Home Assistant
+        env:
+          HASS_WEBHOOK_URL: ${{ secrets.HASS_WEBHOOK_URL }}
+        run: |
+          # Send deployment notification to Home Assistant
+          # HA will trigger the host system to pull and deploy
+          
+          curl -X POST "$HASS_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "event": "deployment_ready",
+              "source": "github_actions",
+              "commit": "${{ github.sha }}",
+              "branch": "${{ github.ref_name }}",
+              "actor": "${{ github.actor }}",
+              "message": "${{ github.event.head_commit.message }}",
+              "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+            }'
+      
+      - name: Create deployment record
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'production',
+              description: 'Automated deployment after successful tests',
+              auto_merge: false,
+              required_contexts: [],
+              production_environment: true
+            });
+
+  # Optional: Direct deployment via SSH (if you want GitHub to deploy directly)
+  # Uncomment and configure if you prefer direct deployment over webhook notification
+  
+  # direct_deploy:
+  #   needs: test
+  #   runs-on: ubuntu-latest
+  #   if: success() && github.ref == 'refs/heads/main'
+  #   
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     
+  #     - name: Deploy to Host
+  #       uses: appleboy/ssh-action@v0.1.5
+  #       with:
+  #         host: ${{ secrets.HOST_IP }}
+  #         username: ${{ secrets.HOST_USER }}
+  #         key: ${{ secrets.HOST_SSH_KEY }}
+  #         script: |
+  #           cd /path/to/glitchcube
+  #           git pull origin main
+  #           bundle install
+  #           bundle exec rake db:migrate
+  #           bundle exec rake host:restart
+  #     
+  #     - name: Deploy HA Config
+  #       uses: appleboy/ssh-action@v0.1.5
+  #       with:
+  #         host: ${{ secrets.HASS_VM_IP }}
+  #         username: ${{ secrets.HASS_VM_USER }}
+  #         key: ${{ secrets.HASS_SSH_KEY }}
+  #         script: |
+  #           # Pull and deploy HA config
+  #           cd /home/homeassistant/glitchcube_repo
+  #           git pull origin main
+  #           cp -r config/homeassistant/* /config/
+  #           ha core restart

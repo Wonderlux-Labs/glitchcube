@@ -52,4 +52,40 @@ class Boundary < ActiveRecord::Base
       boundary.active = true
     end
   end
+  
+  # Import city blocks from GeoJSON
+  def self.import_from_city_blocks(file_path)
+    return unless File.exist?(file_path)
+    
+    data = JSON.parse(File.read(file_path))
+    imported_count = 0
+    
+    data['features'].each_with_index do |feature, index|
+      # City blocks are polygons representing city areas
+      block_id = feature['properties']['Id'] || index
+      
+      boundary = find_or_initialize_by(
+        name: "City Block #{block_id}",
+        boundary_type: 'city_block'
+      )
+      
+      # Store the polygon coordinates directly
+      boundary.assign_attributes(
+        coordinates: feature['geometry']['coordinates'],
+        description: "City block area #{block_id}",
+        properties: {
+          fid: feature['id'],
+          block_id: block_id,
+          geometry_type: feature['geometry']['type']
+        },
+        active: true
+      )
+      
+      if boundary.save
+        imported_count += 1 if boundary.saved_change_to_id?
+      end
+    end
+    
+    puts "✅ Imported #{imported_count} city blocks (#{where(boundary_type: 'city_block').count} total)"
+  end
 end

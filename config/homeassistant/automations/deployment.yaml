@@ -1,0 +1,73 @@
+# Automation to handle deployment notifications from GitHub
+# This receives the webhook and triggers deployment on the host system
+
+- id: github_deployment_webhook
+  alias: "GitHub Deployment Ready"
+  description: "Handle deployment webhook from GitHub Actions"
+  trigger:
+    - platform: webhook
+      webhook_id: deployment_ready
+      allowed_methods:
+        - POST
+  condition: []
+  action:
+    # Log the deployment request
+    - service: system_log.write
+      data:
+        message: "Deployment webhook received from GitHub"
+        level: info
+    
+    # Set deployment status
+    - service: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.deployment_in_progress
+    
+    # Notify that deployment is starting
+    - service: notify.persistent_notification
+      data:
+        title: "🚀 Deployment Starting"
+        message: |
+          GitHub Actions triggered deployment
+          Commit: {{ trigger.json.commit[:7] }}
+          Branch: {{ trigger.json.branch }}
+          Actor: {{ trigger.json.actor }}
+    
+    # Execute deployment on host via SSH
+    - service: shell_command.deploy_host
+    
+    # Wait for host to be ready
+    - delay:
+        seconds: 10
+    
+    # Deploy HA config from host to VM
+    - service: shell_command.deploy_hass_config
+    
+    # Wait for HA restart
+    - delay:
+        seconds: 30
+    
+    # Mark deployment complete
+    - service: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.deployment_in_progress
+    
+    # Send success notification
+    - service: notify.persistent_notification
+      data:
+        title: "✅ Deployment Complete"
+        message: |
+          Successfully deployed commit {{ trigger.json.commit[:7] }}
+          Message: {{ trigger.json.message }}
+
+- id: manual_deployment_trigger
+  alias: "Manual Deployment"
+  description: "Manually trigger deployment from HA"
+  trigger:
+    - platform: state
+      entity_id: input_button.deploy_now
+  action:
+    - service: shell_command.deploy_full
+    - service: notify.persistent_notification
+      data:
+        title: "🚀 Manual Deployment"
+        message: "Deployment initiated manually"

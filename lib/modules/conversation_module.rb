@@ -7,6 +7,8 @@ require_relative '../services/logger_service'
 require_relative '../services/llm_service'
 require_relative '../services/tts_service'
 require_relative '../services/conversation_session'
+require_relative '../services/tool_call_parser'
+require_relative '../services/tool_executor'
 require_relative '../home_assistant_client'
 require_relative 'conversation_responses'
 require_relative 'conversation_enhancements'
@@ -79,6 +81,20 @@ class ConversationModule
 
       response_time_ms = ((Time.now - start_time) * 1000).round
 
+      # Check for and execute tool calls
+      tool_results = nil
+      if llm_response.has_tool_calls?
+        tool_results = handle_tool_calls(llm_response, session, persona)
+        
+        # If we have tool results, we need to continue the conversation with them
+        if tool_results && !tool_results.empty?
+          # Add tool results to conversation and get final response
+          llm_response = continue_with_tool_results(
+            messages, llm_response, tool_results, llm_options, session, persona
+          )
+        end
+      end
+
       # Extract data from response object
       response_text = llm_response.response_text
       continue_conversation = llm_response.continue_conversation?
@@ -147,6 +163,100 @@ class ConversationModule
   end
 
   private
+
+  def handle_tool_calls(llm_response, session, persona)
+    # Parse tool calls from response
+    tool_calls = Services::ToolCallParser.parse(llm_response)
+    return [] if tool_calls.empty?
+
+    puts "🔧 Executing #{tool_calls.size} tool call(s)..." if ENV['DEBUG']
+
+    # Execute tools
+    results = Services::ToolExecutor.execute(tool_calls, timeout: 10)
+
+    # Log tool execution
+    results.each do |result|
+      log_tool_execution(result, session, persona)
+    end
+
+    results
+  rescue StandardError => e
+    puts "⚠️ Tool execution failed: #{e.message}"
+    Rails.logger.error "Tool execution error: #{e.message}" if defined?(Rails)
+    []
+  end
+
+  def continue_with_tool_results(messages, initial_response, tool_results, llm_options, session, persona)
+    # Format tool results for conversation
+    tool_message = format_tool_results_message(tool_results)
+
+    # Add initial assistant response with tool calls to messages
+    assistant_message = {
+      role: 'assistant',
+      content: initial_response.content || '',
+      tool_calls: initial_response.tool_calls
+    }
+    messages << assistant_message
+
+    # Add tool results as a tool message
+    messages << {
+      role: 'tool',
+      content: tool_message
+    }
+
+    # Save tool interaction to session
+    session.add_message(
+      role: 'assistant',
+      content: initial_response.content || '[Tool calls]',
+      persona: persona,
+      tool_calls: initial_response.tool_calls
+    )
+
+    session.add_message(
+      role: 'tool',
+      content: tool_message,
+      persona: persona
+    )
+
+    # Get final response after tool execution
+    final_response = Services::LLMService.complete_with_messages(
+      messages: messages,
+      **llm_options.except(:tools, :tool_choice) # Don't allow recursive tool calls for now
+    )
+
+    final_response
+  rescue StandardError => e
+    puts "⚠️ Failed to continue after tool execution: #{e.message}"
+    # Return original response if continuation fails
+    initial_response
+  end
+
+  def format_tool_results_message(tool_results)
+    return "No tool results available." if tool_results.empty?
+
+    formatted = tool_results.map do |result|
+      if result[:success]
+        "#{result[:tool_name]}: #{result[:result]}"
+      else
+        "#{result[:tool_name]} failed: #{result[:error]}"
+      end
+    end
+
+    formatted.join("\n")
+  end
+
+  def log_tool_execution(result, session, persona)
+    Services::LoggerService.log_api_call(
+      service: 'tool_executor',
+      endpoint: result[:tool_name],
+      method: 'execute',
+      status: result[:success] ? 200 : 500,
+      session_id: session.session_id,
+      persona: persona
+    )
+  rescue StandardError => e
+    puts "Failed to log tool execution: #{e.message}" if ENV['DEBUG']
+  end
 
   def detect_continuation_intent(text)
     return true unless text

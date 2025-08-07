@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥 Glitch Cube GPS Tracker - Burning Man 2025</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            background: radial-gradient(circle at center, #1a0d00 0%, #000 70%);
+            color: #ff8c42;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Desert dust effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(255, 140, 66, 0.02) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 107, 53, 0.01) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        #map {
+            height: 100vh;
+            width: 100vw;
+            margin-top: 75px; /* Account for both toolbars */
+        }
+        
+        .info-toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.9);
+            border-bottom: 2px solid #ff6b35;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 15px;
+            font-size: 12px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .controls-toolbar {
+            position: fixed;
+            top: 40px;
+            left: 0;
+            right: 0;
+            height: 35px;
+            background: rgba(32, 32, 32, 0.95);
+            border-bottom: 1px solid #666;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            font-size: 11px;
+            gap: 15px;
+        }
+        
+        .cube-title {
+            color: #ff6b35;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .location-display {
+            color: #ffff00;
+            font-weight: bold;
+        }
+        
+        .coordinates-display {
+            font-size: 11px;
+            color: #888;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        }
+        
+        .status-display {
+            font-size: 11px;
+            color: #00ff00;
+        }
+        
+        .control-button {
+            background: rgba(255, 107, 53, 0.2);
+            border: 1px solid #ff6b35;
+            color: #ff6b35;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.2s;
+        }
+        
+        .control-button:hover {
+            background: rgba(255, 107, 53, 0.4);
+        }
+        
+        .control-button.active {
+            background: rgba(255, 255, 0, 0.3);
+            border-color: #ffff00;
+            color: #ffff00;
+        }
+        
+        .loading {
+            color: #ffaa00;
+        }
+        
+        .offline {
+            color: #ff0000;
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #ff6b35;
+            border-radius: 3px;
+            padding: 5px;
+            z-index: 1000;
+            font-size: 10px;
+        }
+        
+        .legend-item {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            margin-right: 8px;
+        }
+        
+        .legend-marker {
+            width: 15px;
+            height: 15px;
+            margin-right: 8px;
+            text-align: center;
+            font-size: 10px;
+        }
+
+        .controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: linear-gradient(135deg, rgba(26, 13, 0, 0.95) 0%, rgba(0, 0, 0, 0.9) 100%);
+            border: 2px solid #ff8c42;
+            border-radius: 16px;
+            padding: 16px;
+            z-index: 1000;
+            font-size: 11px;
+            backdrop-filter: blur(15px) saturate(1.5);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 
+                0 8px 32px rgba(255, 140, 66, 0.4),
+                inset 0 1px 0 rgba(255, 140, 66, 0.1);
+        }
+
+        .controls button {
+            background: linear-gradient(135deg, rgba(255, 140, 66, 0.15) 0%, rgba(255, 107, 53, 0.1) 100%);
+            color: #ff8c42;
+            border: 1px solid rgba(255, 140, 66, 0.5);
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            white-space: nowrap;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .controls button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 140, 66, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .controls button:hover {
+            background: linear-gradient(135deg, rgba(255, 140, 66, 0.3) 0%, rgba(255, 107, 53, 0.2) 100%);
+            border-color: #ff8c42;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(255, 140, 66, 0.3);
+        }
+        
+        .controls button:hover::before {
+            left: 100%;
+        }
+        
+        .controls button.active {
+            background: linear-gradient(135deg, #ff8c42 0%, #ff6b35 100%);
+            color: #1a0d00;
+            border-color: #ffaa66;
+            box-shadow: 
+                0 4px 16px rgba(255, 140, 66, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        /* Visual Mode Styles */
+        .temple-mode {
+            filter: saturate(0.5) brightness(0.8);
+        }
+
+        .man-mode {
+            filter: saturate(1.5) brightness(1.2);
+        }
+
+        .emergency-mode {
+            filter: saturate(1.2) contrast(1.3);
+        }
+
+        .service-mode {
+            filter: hue-rotate(30deg);
+        }
+
+        .landmark-mode {
+            filter: contrast(1.1) brightness(1.1);
+        }
+
+        /* Proximity Effect Animations */
+        .proximity-effect {
+            animation: proximityPulse 3s infinite;
+        }
+
+        .aura-effect {
+            animation: auraGlow 4s infinite;
+        }
+
+        .beacon-effect {
+            animation: beacon 2s infinite;
+        }
+
+        .glow-effect {
+            animation: softGlow 5s infinite;
+        }
+
+        @keyframes proximityPulse {
+            0% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.1); }
+            100% { opacity: 0.8; transform: scale(1); }
+        }
+
+        @keyframes auraGlow {
+            0% { opacity: 0.3; }
+            50% { opacity: 0.1; }
+            100% { opacity: 0.3; }
+        }
+
+        @keyframes beacon {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes softGlow {
+            0% { opacity: 0.2; }
+            50% { opacity: 0.4; }
+            100% { opacity: 0.2; }
+        }
+        
+        /* New marker effect animations */
+        .sacred-glow {
+            animation: sacredPulse 4s infinite;
+        }
+        
+        .emergency-pulse {
+            animation: emergencyFlash 1s infinite;
+        }
+        
+        .beacon-effect {
+            animation: beacon 2s infinite;
+        }
+        
+        .creative-pulse {
+            animation: creativeSpin 3s infinite linear;
+        }
+        
+        @keyframes sacredPulse {
+            0% { filter: drop-shadow(0 2px 8px rgba(255,255,255,0.3)); }
+            50% { filter: drop-shadow(0 2px 16px rgba(255,255,255,0.8)); }
+            100% { filter: drop-shadow(0 2px 8px rgba(255,255,255,0.3)); }
+        }
+        
+        @keyframes emergencyFlash {
+            0% { filter: drop-shadow(0 2px 8px rgba(255,0,0,0.5)); }
+            50% { filter: drop-shadow(0 2px 16px rgba(255,0,0,1)); }
+            100% { filter: drop-shadow(0 2px 8px rgba(255,0,0,0.5)); }
+        }
+        
+        @keyframes creativeSpin {
+            0% { transform: rotate(0deg); filter: drop-shadow(0 2px 8px rgba(255,136,255,0.4)); }
+            25% { filter: drop-shadow(0 2px 12px rgba(255,136,255,0.6)); }
+            50% { filter: drop-shadow(0 2px 16px rgba(255,136,255,0.8)); }
+            75% { filter: drop-shadow(0 2px 12px rgba(255,136,255,0.6)); }
+            100% { transform: rotate(360deg); filter: drop-shadow(0 2px 8px rgba(255,136,255,0.4)); }
+        }
+        
+        /* Marker hover effects */
+        .custom-marker:hover {
+            transform: scale(1.1);
+            transition: transform 0.2s ease;
+        }
+        
+        .proximity-highlight {
+            filter: brightness(1.3) saturate(1.2);
+        }
+        
+        #proximity-alert {
+            animation: proximityAlert 2s infinite;
+        }
+        
+        @keyframes proximityAlert {
+            0% { opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { opacity: 0.8; }
+        }
+        
+        .sim-muted {
+            color: #888;
+            font-size: 12px;
+            font-weight: normal;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-left: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <!-- Simulation badge removed: now handled inline in info bar -->
+    
+    <!-- Top Info Toolbar -->
+    <div class="info-toolbar" style="display: flex; gap: 20px; align-items: center;">
+        <div class="cube-title">🔥 GLITCH CUBE TRACKER</div>
+        <div class="location-display" id="addressBar">Loading...</div>
+        <div class="section-display" id="sectionBar"></div>
+        <div class="status-display" id="status">Initializing</div>
+        <span id="simModeIndicator" class="sim-muted" style="margin-left:auto; font-size:12px; color:#888;"></span>
+    </div>
+    <div class="coordinates-toolbar" style="position: fixed; bottom: 0; left: 0; width: 100vw; background: rgba(0,0,0,0.85); color: #ff8c42; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; padding: 6px 15px; z-index:1001; display: flex; gap: 20px;">
+        <div id="coordinates">Connecting...</div>
+        <div id="distanceBar"></div>
+    </div>
+    
+    <!-- Controls Toolbar -->
+    <div class="controls-toolbar">
+        <button class="control-button active" id="routeToggle">SHOW route</button>
+        <button class="control-button" id="plazaToggle">SHOW plazas</button>
+        <button class="control-button" id="portosToggle">SHOW portos</button>
+        <button class="control-button" id="medicalToggle">SHOW medical</button>
+        <button class="control-button" id="landmarksToggle">SHOW landmarks</button>
+        <button class="control-button" id="centerToggle">Center Map</button>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-color" style="background: #ff6b35;"></div>
+            <span>Streets</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #00ff00;"></div>
+            <span>Route History</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-marker" style="background: #ff6b35; border-radius: 50%; border: 2px solid white;"></div>
+            <span>Glitch Cube</span>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Initialize the map centered on Black Rock City (GOLDEN_SPIKE_COORDS)
+        const GOLDEN_SPIKE_COORDS = [<%= Utils::BrcCoordinateService.golden_spike_coordinates[:lat] %>, <%= Utils::BrcCoordinateService.golden_spike_coordinates[:lng] %>];
+        const map = L.map('map').setView(GOLDEN_SPIKE_COORDS, 14);
+        
+        // Add OpenStreetMap tiles (free!)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors | Burning Man 2025 | Glitch Cube GPS'
+        }).addTo(map);
+
+        // Add map controls
+        L.control.scale({
+            imperial: true,
+            metric: false,
+            position: 'bottomright'
+        }).addTo(map);
+
+        // Add compass/north arrow
+        const compass = L.control({ position: 'topright' });
+        compass.onAdd = function() {
+            const div = L.DomUtil.create('div', 'compass-control');
+            div.innerHTML = `
+                <div style="
+                    background: rgba(0,0,0,0.8); 
+                    border: 2px solid #ff8c42; 
+                    border-radius: 50%; 
+                    width: 60px; 
+                    height: 60px; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center;
+                    font-size: 20px;
+                    color: #ff8c42;
+                    font-weight: bold;
+                    cursor: pointer;
+                " title="North (Click to reset view)">
+                    ↑<br><span style="font-size: 12px;">N</span>
+                </div>
+            `;
+            
+            // Click to reset view to BRC center
+            div.onclick = function() {
+                map.setView(GOLDEN_SPIKE_COORDS, 14);
+            };
+            
+            return div;
+        };
+        compass.addTo(map);
+
+        // Add trash fence perimeter (hardcoded circle)
+        const trashFenceCenter = GOLDEN_SPIKE_COORDS; // The Man (BRC center)
+        const trashFenceRadius = 5280; // ~1 mile radius in feet, adjust as needed
+        
+        L.circle(trashFenceCenter, {
+            color: '#666',
+            fillColor: 'transparent',
+            fillOpacity: 0,
+            radius: trashFenceRadius,
+            weight: 2,
+            dashArray: '10, 5'
+        }).addTo(map).bindPopup('🚫 Trash Fence Perimeter');
+        
+        // Custom icon factory for creating themed markers
+        function createCustomIcon(type, size = 32) {
+            const icons = {
+                cube: {
+                    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <radialGradient id="cubeGrad" cx="50%" cy="30%">
+                                <stop offset="0%" style="stop-color:#ffaa66;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#ff6b35;stop-opacity:1" />
+                            </radialGradient>
+                            <filter id="glow">
+                                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                                <feMerge> 
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+                        <circle cx="16" cy="16" r="14" fill="url(#cubeGrad)" stroke="#fff" stroke-width="2" filter="url(#glow)"/>
+                        <path d="M8 12 L16 8 L24 12 L24 20 L16 24 L8 20 Z" fill="none" stroke="#1a0d00" stroke-width="2"/>
+                        <path d="M8 12 L16 16 L24 12 M16 16 L16 24" fill="none" stroke="#1a0d00" stroke-width="2"/>
+                    </svg>`,
+                    className: 'cube-marker pulse',
+                    color: '#ff8c42'
+                },
+                home: {
+                    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="homeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#ffdd44;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#ffaa00;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="16" cy="16" r="14" fill="url(#homeGrad)" stroke="#fff" stroke-width="2"/>
+                        <path d="M8 18 L16 10 L24 18 L22 18 L22 24 L10 24 L10 18 Z" fill="#1a0d00"/>
+                        <rect x="13" y="20" width="6" height="4" fill="#ffdd44"/>
+                    </svg>`,
+                    className: 'home-marker',
+                    color: '#ffaa00'
+                },
+                temple: {
+                    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="templeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9" />
+                                <stop offset="100%" style="stop-color:#cccccc;stop-opacity:0.9" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="16" cy="16" r="14" fill="url(#templeGrad)" stroke="#fff" stroke-width="2"/>
+                        <path d="M6 20 L16 8 L26 20 L24 20 L24 24 L8 24 L8 20 Z" fill="#1a0d00"/>
+                        <rect x="10" y="12" width="2" height="12" fill="#666"/>
+                        <rect x="15" y="12" width="2" height="12" fill="#666"/>
+                        <rect x="20" y="12" width="2" height="12" fill="#666"/>
+                    </svg>`,
+                    className: 'temple-marker sacred-glow',
+                    color: '#ffffff'
+                },
+                man: {
+                    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <radialGradient id="manGrad" cx="50%" cy="30%">
+                                <stop offset="0%" style="stop-color:#ff4444;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#cc0000;stop-opacity:1" />
+                            </radialGradient>
+                            <filter id="fireGlow">
+                                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                <feMerge> 
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+                        <circle cx="16" cy="16" r="14" fill="url(#manGrad)" stroke="#fff" stroke-width="2" filter="url(#fireGlow)"/>
+                        <path d="M16 6 L18 10 L16 14 L14 10 Z" fill="#fff"/>
+                        <circle cx="16" cy="12" r="2" fill="#fff"/>
+                        <rect x="14" y="14" width="4" height="8" fill="#fff"/>
+                        <path d="M12 18 L16 22 M20 18 L16 22 M16 22 L16 26" stroke="#fff" stroke-width="2" fill="none"/>
+                    </svg>`,
+                    className: 'man-marker beacon-effect',
+                    color: '#ff4444'
+                },
+                medical: {
+                    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="medGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#ff6666;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#cc0000;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="16" cy="16" r="14" fill="url(#medGrad)" stroke="#fff" stroke-width="2"/>
+                        <path d="M12 16 L20 16 M16 12 L16 20" stroke="#fff" stroke-width="4"/>
+                    </svg>`,
+                    className: 'medical-marker emergency-pulse',
+                    color: '#ff0000'
+                },
+                ranger: {
+                    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="rangerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#4488ff;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#0066cc;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="16" cy="16" r="14" fill="url(#rangerGrad)" stroke="#fff" stroke-width="2"/>
+                        <polygon points="16,6 20,14 12,14" fill="#fff"/>
+                        <rect x="14" y="14" width="4" height="6" fill="#fff"/>
+                        <circle cx="16" cy="22" r="2" fill="#fff"/>
+                    </svg>`,
+                    className: 'ranger-marker',
+                    color: '#4488ff'
+                },
+                art: {
+                    svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="artGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#ff88ff;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#cc44cc;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="16" cy="16" r="14" fill="url(#artGrad)" stroke="#fff" stroke-width="2"/>
+                        <polygon points="16,8 20,12 16,16 12,12" fill="#fff"/>
+                        <polygon points="16,16 20,20 16,24 12,20" fill="#fff" opacity="0.7"/>
+                    </svg>`,
+                    className: 'art-marker creative-pulse',
+                    color: '#ff88ff'
+                }
+            };
+            
+            const config = icons[type] || icons.cube;
+            return L.divIcon({
+                className: `custom-marker ${config.className}`,
+                html: `<div style="width: ${size}px; height: ${size}px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));">${config.svg}</div>`,
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2]
+            });
+        }
+
+        // Create the main markers
+        const cubeIcon = createCustomIcon('cube', 36);
+        const homeIcon = createCustomIcon('home', 28);
+        
+        // Marker for the Glitch Cube
+        let cubeMarker = null;
+        let homeMarker = null;
+        let routePolyline = null;
+        let routeHistory = [];
+        
+        // Layer groups for organization
+        const streetsLayer = L.layerGroup().addTo(map);
+        const landmarksLayer = L.layerGroup().addTo(map);
+        const proximityLayer = L.layerGroup().addTo(map);
+        const trashFenceLayer = L.layerGroup();
+        const plazasLayer = L.layerGroup();
+        let showTrashFence = false;
+        
+        // Current map mode and effects
+        let currentMapMode = 'normal';
+        let activeEffects = [];
+        
+        // Elements for updating info
+        const contextEl = document.getElementById('context');
+        const coordinatesEl = document.getElementById('coordinates');
+        const statusEl = document.getElementById('status');
+        const simulationBadgeEl = document.getElementById('simulationBadge');
+        
+        // Update location function with proximity reactions
+        async function updateLocation() {
+            try {
+                const response = await fetch('/api/v1/gps/location');
+                const data = await response.json();
+                
+                if (data.lat && data.lng) {
+                    // DEBUG: Log exact coordinates being used
+                    console.log(`🎲 CUBE DEBUG: API returned lat=${data.lat}, lng=${data.lng}, address=${data.address}`);
+                    
+                    // REMOVE any existing cube markers first
+                    if (cubeMarker) {
+                        map.removeLayer(cubeMarker);
+                        console.log(`🎲 CUBE DEBUG: Removed old marker`);
+                    }
+                    
+                    // Create fresh marker at exact coordinates
+                    cubeMarker = L.marker([data.lat, data.lng], { icon: cubeIcon })
+                        .addTo(map)
+                        .bindPopup('🎲 Glitch Cube Location<br>' + (data.address || 'Black Rock City'));
+                    
+                    console.log(`🎲 CUBE DEBUG: Created marker at [${data.lat}, ${data.lng}]`);
+                    console.log(`🎲 CUBE DEBUG: Marker actual position:`, cubeMarker.getLatLng());
+                    
+                    // Update info panel with compact format: coordinates: context: street-address
+                    const coords = `${data.lat.toFixed(6)}, ${data.lng.toFixed(6)}`;
+                    // --- Updated info panel logic ---
+                    const addressBar = document.getElementById('addressBar');
+                    const sectionBar = document.getElementById('sectionBar');
+                    const distanceBar = document.getElementById('distanceBar');
+                    // coordinatesEl and statusEl already defined
+
+                    let addressStr = '';
+                    if (data.landmark_name) {
+                        addressStr = data.landmark_name;
+                    } else if (data.address) {
+                        addressStr = data.address;
+                    } else {
+                        addressStr = "";
+                    }
+                    addressBar.textContent = addressStr;
+                    sectionBar.textContent = data.section || "";
+                    coordinatesEl.textContent = `${data.lat?.toFixed(6) ?? ""}, ${data.lng?.toFixed(6) ?? ""}`;
+                    distanceBar.textContent = data.distance_from_man || "";
+
+                    statusEl.textContent = `Last updated: ${new Date(data.timestamp).toLocaleTimeString()}`;
+                    statusEl.className = 'status-display';
+                    
+                    // Show simulation mode indicator as muted text on the right of the info bar
+                    const simModeIndicator = document.getElementById('simModeIndicator');
+                    if (data.source === 'simulation') {
+                        simModeIndicator.textContent = "SIMULATION MODE";
+                    } else {
+                        simModeIndicator.textContent = "";
+                    }
+                    
+                    // Update landmark visibility based on proximity
+                    updateLandmarkProximity({ lat: data.lat, lng: data.lng });
+                    
+                    // Check for nearby landmarks and show proximity info
+                    const nearbyLandmarks = landmarks.filter(landmark => {
+                        const distance = haversineDistance(data.lat, data.lng, landmark.lat, landmark.lng);
+                        return distance <= PROXIMITY_THRESHOLD_METERS;
+                    });
+                    
+                    // Update context with proximity information
+                    if (nearbyLandmarks.length > 0) {
+                        const nearest = nearbyLandmarks[0];
+                        const distance = Math.round(haversineDistance(data.lat, data.lng, nearest.lat, nearest.lng));
+                        // Add proximity indicator to the existing context panel
+                        const proximityAlert = document.getElementById('proximity-alert');
+                        if (proximityAlert) proximityAlert.remove();
+                        
+                        const alertEl = document.createElement('div');
+                        alertEl.id = 'proximity-alert';
+                        alertEl.innerHTML = `⚠️ Near ${nearest.name} (${distance}m)`;
+                        alertEl.style.cssText = 'color: #39ff14; font-size: 12px; margin-top: 5px; background: rgba(57, 255, 20, 0.1); padding: 3px; border-radius: 3px;';
+                        contextEl.parentNode.appendChild(alertEl);
+                    } else {
+                        const proximityAlert = document.getElementById('proximity-alert');
+                        if (proximityAlert) proximityAlert.remove();
+                    }
+                    
+                    // Add current position to route history for live tracking
+                    if (routeHistory.length === 0 || 
+                        (Math.abs(routeHistory[routeHistory.length - 1].lat - data.lat) > 0.00001 ||
+                         Math.abs(routeHistory[routeHistory.length - 1].lng - data.lng) > 0.00001)) {
+                        routeHistory.push({
+                            lat: data.lat,
+                            lng: data.lng,
+                            timestamp: data.timestamp,
+                            address: data.address
+                        });
+                        
+                        // Keep only last 200 points
+                        if (routeHistory.length > 200) {
+                            routeHistory = routeHistory.slice(-200);
+                        }
+                        
+                        // Auto-update route display if it's shown
+                        if (routePolyline) {
+                            toggleHistory(); // Hide
+                            toggleHistory(); // Show updated
+                        }
+                    }
+                    
+                    // Proximity visual effects removed for cleaner display
+                } else {
+                    throw new Error('Invalid location data');
+                }
+                
+            } catch (error) {
+                console.error('Error fetching location:', error);
+                statusEl.textContent = 'Connection lost - retrying...';
+                statusEl.className = 'status-display offline';
+            }
+        }
+
+        // Load route history
+        async function loadRouteHistory() {
+            try {
+                const response = await fetch('/api/v1/gps/history');
+                const data = await response.json();
+                
+                if (data.history && data.history.length > 0) {
+                    routeHistory = data.history.map(point => ({
+                        lat: point.lat,
+                        lng: point.lng,
+                        timestamp: point.timestamp,
+                        address: point.address
+                    }));
+                    
+                    console.log(`Loaded ${routeHistory.length} route points`);
+                }
+            } catch (error) {
+                console.error('Error loading route history:', error);
+            }
+        }
+
+        // Control states
+        let showRoute = true;     // Default to SHOW route
+        let showPlazas = false;   // Plaza GeoJSON layer
+        let showPortos = false;   // Toilet landmarks
+        let showMedical = false;  // Medical landmarks  
+        let showLandmarks = false; // Art, POI, center, sacred landmarks
+        
+        // Toggle route display
+        let routeMarkers = [];
+        function toggleHistory() {
+            if (routePolyline) {
+                // Remove existing route
+                map.removeLayer(routePolyline);
+                routePolyline = null;
+                // Remove route markers
+                routeMarkers.forEach(marker => map.removeLayer(marker));
+                routeMarkers = [];
+            } else if (routeHistory.length > 0) {
+                const routeCoords = routeHistory.map(point => [point.lat, point.lng]);
+                
+                // Add gradient polyline for the route
+                routePolyline = L.polyline(routeCoords, {
+                    color: '#00ff00',
+                    weight: 3,
+                    opacity: 0.7,
+                    smoothFactor: 1.0,
+                    lineJoin: 'round'
+                }).addTo(map);
+                
+                // Add direction arrows along the route
+                if (routeHistory.length > 1) {
+                    for (let i = 0; i < routeHistory.length - 1; i += 5) { // Every 5th point
+                        const point = routeHistory[i];
+                        const nextPoint = routeHistory[Math.min(i + 1, routeHistory.length - 1)];
+                        
+                        // Calculate bearing for arrow direction
+                        const bearing = calculateBearing(
+                            point.lat, point.lng,
+                            nextPoint.lat, nextPoint.lng
+                        );
+                        
+                        // Add small arrow marker
+                        const arrowMarker = L.marker([point.lat, point.lng], {
+                            icon: L.divIcon({
+                                html: `<div style="transform: rotate(${bearing}deg); color: #00ff00; font-size: 12px;">→</div>`,
+                                iconSize: [12, 12],
+                                className: 'route-arrow'
+                            })
+                        }).addTo(map);
+                        routeMarkers.push(arrowMarker);
+                    }
+                }
+                
+                // Add start and end markers
+                if (routeHistory.length > 0) {
+                    const startPoint = routeHistory[0];
+                    const endPoint = routeHistory[routeHistory.length - 1];
+                    
+                    const startMarker = L.circleMarker([startPoint.lat, startPoint.lng], {
+                        radius: 6,
+                        color: '#00ff00',
+                        fillColor: '#00ff00',
+                        fillOpacity: 0.8
+                    }).bindPopup(`<strong>Route Start</strong><br>${startPoint.address || 'Location'}<br>${new Date(startPoint.timestamp).toLocaleString()}`).addTo(map);
+                    routeMarkers.push(startMarker);
+                    
+                    const endMarker = L.circleMarker([endPoint.lat, endPoint.lng], {
+                        radius: 6,
+                        color: '#ff0000',
+                        fillColor: '#ff0000',
+                        fillOpacity: 0.8
+                    }).bindPopup(`<strong>Route End</strong><br>${endPoint.address || 'Location'}<br>${new Date(endPoint.timestamp).toLocaleString()}`).addTo(map);
+                    routeMarkers.push(endMarker);
+                }
+            }
+        }
+        
+        // Setup control handlers
+        function setupControlHandlers() {
+            // Route toggle (default active)
+            document.getElementById('routeToggle').addEventListener('click', () => {
+                showRoute = !showRoute;
+                const btn = document.getElementById('routeToggle');
+                btn.classList.toggle('active', showRoute);
+                btn.textContent = showRoute ? 'HIDE route' : 'SHOW route';
+                toggleHistory();
+            });
+            
+            // Plaza toggle
+            document.getElementById('plazaToggle').addEventListener('click', () => {
+                showPlazas = !showPlazas;
+                const btn = document.getElementById('plazaToggle');
+                btn.classList.toggle('active', showPlazas);
+                btn.textContent = showPlazas ? 'HIDE plaza' : 'SHOW plaza';
+                
+                if (showPlazas) {
+                    plazasLayer.addTo(map);
+                } else {
+                    map.removeLayer(plazasLayer);
+                }
+            });
+            
+            // Medical toggle - shows medical landmarks
+            document.getElementById('medicalToggle').addEventListener('click', () => {
+                showMedical = !showMedical;
+                const btn = document.getElementById('medicalToggle');
+                btn.classList.toggle('active', showMedical);
+                btn.textContent = showMedical ? 'HIDE medical' : 'SHOW medical';
+                updateLandmarkVisibility();
+            });
+            
+            // Landmarks toggle - shows art, poi, center, sacred landmarks
+            document.getElementById('landmarksToggle').addEventListener('click', () => {
+                showLandmarks = !showLandmarks;
+                const btn = document.getElementById('landmarksToggle');
+                btn.classList.toggle('active', showLandmarks);
+                btn.textContent = showLandmarks ? 'HIDE landmarks' : 'SHOW landmarks';
+                updateLandmarkVisibility();
+            });
+            
+            // Portos toggle - shows toilet landmarks
+            document.getElementById('portosToggle').addEventListener('click', () => {
+                showPortos = !showPortos;
+                const btn = document.getElementById('portosToggle');
+                btn.classList.toggle('active', showPortos);
+                btn.textContent = showPortos ? 'HIDE portos' : 'SHOW portos';
+                updateLandmarkVisibility();
+            });
+            
+            // Center map button
+            document.getElementById('centerToggle').addEventListener('click', () => {
+                centerOnCube();
+            });
+        }
+        
+        // Update landmark visibility based on toggle states
+        function updateLandmarkVisibility() {
+            landmarks.forEach(landmark => {
+                if (!landmark.marker) return;
+                
+                let shouldShow = false;
+                
+                // Determine if this landmark should be shown based on type and toggles
+                switch(landmark.type) {
+                    case 'toilet':
+                        shouldShow = showPortos;
+                        break;
+                    case 'medical':
+                        shouldShow = showMedical;
+                        break;
+                    case 'art':
+                    case 'poi': 
+                    case 'center':
+                    case 'sacred':
+                    case 'gathering':
+                    case 'service':
+                    case 'transport':
+                        shouldShow = showLandmarks;
+                        break;
+                    default:
+                        shouldShow = showLandmarks;
+                }
+                
+                // Add/remove from map based on visibility
+                if (shouldShow && !map.hasLayer(landmark.marker)) {
+                    landmark.marker.addTo(map);
+                } else if (!shouldShow && map.hasLayer(landmark.marker)) {
+                    map.removeLayer(landmark.marker);
+                }
+            });
+        }
+        
+        // Constants for accurate meter calculations at Burning Man
+        const BURNING_MAN_LAT = 40.7831;
+        const PROXIMITY_THRESHOLD_METERS = 20; // 20-meter proximity threshold
+        const LANDMARK_VISIBILITY_METERS = 20; // Always show landmarks within 20m
+        
+        // Accurate haversine distance calculation in meters
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Earth's radius in meters
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+        
+        // Convert meters to Leaflet radius (degrees) at Burning Man latitude
+        function metersToLeafletRadius(meters, lat = BURNING_MAN_LAT) {
+            return meters / (111320 * Math.cos(lat * Math.PI / 180));
+        }
+        
+        // Get meters per pixel at current zoom for accurate scaling
+        function getMetersPerPixel(zoom, lat = BURNING_MAN_LAT) {
+            return 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, zoom);
+        }
+        
+        // Helper function to calculate bearing
+        function calculateBearing(lat1, lng1, lat2, lng2) {
+            const dLon = (lng2 - lng1) * Math.PI / 180;
+            const lat1Rad = lat1 * Math.PI / 180;
+            const lat2Rad = lat2 * Math.PI / 180;
+            
+            const y = Math.sin(dLon) * Math.cos(lat2Rad);
+            const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+                      Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+            
+            const bearing = Math.atan2(y, x) * 180 / Math.PI;
+            return (bearing + 360) % 360;
+        }
+
+        // Center map on cube
+        function centerOnCube() {
+            if (cubeMarker) {
+                map.setView(cubeMarker.getLatLng(), 15);
+            }
+        }
+
+        // Toggle street display
+        function toggleStreets() {
+            if (map.hasLayer(streetsLayer)) {
+                map.removeLayer(streetsLayer);
+            } else {
+                map.addLayer(streetsLayer);
+            }
+        }
+
+        // Toggle trash fence
+        function toggleTrashFence() {
+            showTrashFence = !showTrashFence;
+            if (showTrashFence) {
+                trashFenceLayer.addTo(map);
+            } else {
+                map.removeLayer(trashFenceLayer);
+            }
+        }
+        
+        // Toggle plazas
+        function togglePlazas() {
+            showPlazas = !showPlazas;
+            if (showPlazas) {
+                plazasLayer.addTo(map);
+            } else {
+                map.removeLayer(plazasLayer);
+            }
+        }
+        
+        // Add HOME marker
+        async function addHomeMarker() {
+            try {
+                const response = await fetch('/api/v1/gps/home');
+                const homeData = await response.json();
+                
+                if (homeData.lat && homeData.lng) {
+                    homeMarker = L.marker([homeData.lat, homeData.lng], { icon: homeIcon })
+                        .addTo(map)
+                        .bindPopup(`🏠 HOME<br>${homeData.address}`);
+                }
+            } catch (error) {
+                console.error('Error loading home location:', error);
+            }
+        }
+        
+        // Store landmarks for distance calculations - loaded from database
+        let landmarks = [];
+        
+        // Load landmarks from database
+        async function loadLandmarks() {
+            try {
+                const response = await fetch('/api/v1/gps/landmarks');
+                const data = await response.json();
+                
+                if (data.landmarks && data.landmarks.length > 0) {
+                    landmarks = data.landmarks.map(landmark => ({
+                        name: landmark.name,
+                        lat: landmark.lat,
+                        lng: landmark.lng,
+                        type: landmark.type,
+                        priority: getPriorityForType(landmark.type),
+                        description: landmark.description || landmark.name
+                    }));
+                    
+                    console.log(`✅ Loaded ${landmarks.length} landmarks from database`);
+                } else {
+                    console.warn('No landmarks loaded from database');
+                }
+            } catch (error) {
+                console.error('Error loading landmarks:', error);
+                // Keep empty array - no fallback hardcoded data
+            }
+        }
+        
+        // Determine priority based on landmark type
+        function getPriorityForType(type) {
+            switch (type) {
+                case 'sacred':
+                case 'center':  
+                case 'art':
+                    return 1; // Major landmarks
+                case 'medical':
+                case 'ranger':
+                case 'service':
+                    return 2; // Emergency/service
+                default:
+                    return 3; // Other landmarks
+            }
+        }
+
+        // Create simple landmark icon
+        function createLandmarkIcon(type, size = 24) {
+            const icons = {
+                'center': '🔥',
+                'sacred': '🏛️', 
+                'medical': '🏥',
+                'toilet': '🚻',
+                'art': '🎨',
+                'service': '⚙️',
+                'gathering': '🏕️',
+                'plaza': '🏛️',
+                'poi': '📍',
+                'transport': '🚌',
+                'ranger': '👮'
+            };
+            
+            const emoji = icons[type] || '📍';
+            
+            return L.divIcon({
+                className: 'landmark-icon',
+                html: `<div style="font-size: ${Math.floor(size * 0.8)}px; text-align: center;">${emoji}</div>`,
+                iconSize: [size, size],
+                iconAnchor: [size/2, size/2]
+            });
+        }
+
+        // Add Burning Man landmarks with proper visibility logic
+        function addLandmarks() {
+            landmarks.forEach(landmark => {
+                const landmarkIcon = createLandmarkIcon(landmark.type, 24);
+                const marker = L.marker([landmark.lat, landmark.lng], {
+                    icon: landmarkIcon
+                });
+                
+                // Store reference for proximity calculations
+                landmark.marker = marker;
+                marker.bindPopup(`
+                    <div style="text-align: center; font-family: 'SF Mono', monospace;">
+                        <strong style="color: #ff8c42; font-size: 16px;">${landmark.name}</strong><br>
+                        <span style="color: #666; font-size: 12px;">${landmark.description}</span>
+                    </div>
+                `);
+            });
+            
+            // Apply initial visibility based on toggle states
+            updateLandmarkVisibility();
+            
+            // Add city boundary circle with corrected radius (1.25 miles = 2012 meters)
+            // Use Center Camp coordinates from landmarks if available, otherwise fallback
+            const centerCamp = landmarks.find(l => l.name === 'Center Camp');
+            const centerLat = centerCamp ? centerCamp.lat : 40.78696345;
+            const centerLng = centerCamp ? centerCamp.lng : -119.202994;
+            
+            L.circle([centerLat, centerLng], {
+                color: '#ff6b35',
+                fillColor: 'transparent',
+                fillOpacity: 0.05,
+                radius: metersToLeafletRadius(2012, centerLat), // Accurate 1.25 miles in degrees
+                weight: 2,
+                dashArray: '5, 5'
+            }).addTo(landmarksLayer);
+        }
+        
+        // Update landmark visibility based on proximity and zoom
+        function updateLandmarkProximity(cubeLatLng) {
+            const zoom = map.getZoom();
+            
+            landmarks.forEach(landmark => {
+                if (landmark.marker) {
+                    const distance = haversineDistance(
+                        cubeLatLng.lat, cubeLatLng.lng,
+                        landmark.lat, landmark.lng
+                    );
+                    
+                    // Show landmarks based on priority and zoom level
+                    let shouldShow = false;
+                    if (landmark.priority === 1) {
+                        shouldShow = zoom >= 12;  // Major landmarks at lower zoom
+                    } else if (landmark.priority === 2) {
+                        shouldShow = zoom >= 14;  // Emergency services at higher zoom
+                    }
+                    
+                    if (shouldShow && !map.hasLayer(landmark.marker)) {
+                        landmark.marker.addTo(landmarksLayer);
+                    } else if (!shouldShow && map.hasLayer(landmark.marker)) {
+                        landmarksLayer.removeLayer(landmark.marker);
+                    }
+                    
+                    // Highlight landmarks within proximity threshold
+                    if (distance <= PROXIMITY_THRESHOLD_METERS) {
+                        const proximityIcon = createLandmarkIcon(landmark.type, 28);
+                        proximityIcon.options.className += ' proximity-highlight';
+                        landmark.marker.setIcon(proximityIcon);
+                    } else {
+                        const normalIcon = createLandmarkIcon(landmark.type, 24);
+                        landmark.marker.setIcon(normalIcon);
+                    }
+                }
+            });
+        }
+
+        // Load real Burning Man street data
+        async function loadRealStreets() {
+            try {
+                statusEl.textContent = 'Loading BRC street grid...';
+                statusEl.className = 'status loading';
+                
+                const response = await fetch('/api/v1/gis/streets');
+                const streetsData = await response.json();
+                
+                // Add streets to map
+                L.geoJSON(streetsData, {
+                    style: function(feature) {
+                        const streetType = feature.properties.type;
+                        return {
+                            color: streetType === 'radial' ? '#ff6b35' : '#ff8c42',
+                            weight: streetType === 'radial' ? 2 : 1.5,
+                            opacity: 0.8
+                        };
+                    },
+                    onEachFeature: function(feature, layer) {
+                        const props = feature.properties;
+                        layer.bindPopup(`
+                            <strong>${props.name || 'Street'}</strong><br>
+                            Type: ${props.type || 'Unknown'}<br>
+                            ${props.width ? `Width: ${props.width}ft` : ''}
+                        `);
+                    }
+                }).addTo(streetsLayer);
+                
+                console.log('✅ BRC streets loaded successfully');
+                
+            } catch (error) {
+                console.error('Error loading streets:', error);
+                // Fallback to basic street grid
+                addBasicStreets();
+            }
+        }
+
+        // Load toilets/portos - only show on high zoom
+        async function loadToilets() {
+            try {
+                const response = await fetch('/api/v1/gis/toilets');
+                const toiletsData = await response.json();
+                
+                const toiletLayer = L.geoJSON(toiletsData, {
+                    pointToLayer: function(feature, latlng) {
+                        return L.marker(latlng, {
+                            icon: L.divIcon({
+                                className: 'toilet-marker',
+                                html: '🚽',
+                                iconSize: [12, 12],
+                                iconAnchor: [6, 6]
+                            })
+                        });
+                    },
+                    onEachFeature: function(feature, layer) {
+                        layer.bindPopup(`🚽 Porto`);
+                    }
+                });
+                
+                // Only show toilets at zoom 16+
+                map.on('zoomend', function() {
+                    if (map.getZoom() >= 16) {
+                        if (!map.hasLayer(toiletLayer)) {
+                            toiletLayer.addTo(map);
+                        }
+                    } else {
+                        if (map.hasLayer(toiletLayer)) {
+                            map.removeLayer(toiletLayer);
+                        }
+                    }
+                });
+                
+                console.log('✅ BRC toilets loaded (high zoom only)');
+                
+            } catch (error) {
+                console.error('Error loading toilets:', error);
+            }
+        }
+        
+        // Load trash fence boundary
+        async function loadTrashFence() {
+            try {
+                const response = await fetch('/api/v1/gis/trash_fence');
+                const fenceData = await response.json();
+                
+                L.geoJSON(fenceData, {
+                    style: {
+                        color: '#8B4513',
+                        weight: 3,
+                        opacity: 0.8,
+                        dashArray: '10, 5',
+                        fillOpacity: 0
+                    },
+                    onEachFeature: function(feature, layer) {
+                        layer.bindPopup('<strong>🚧 Trash Fence</strong><br>Black Rock City Boundary');
+                    }
+                }).addTo(trashFenceLayer);
+                
+                console.log('✅ BRC trash fence loaded');
+                
+            } catch (error) {
+                console.error('Error loading trash fence:', error);
+                // Add a simple circular boundary as fallback
+                L.circle([40.78696345, -119.2030071], {
+                    color: '#8B4513',
+                    fillColor: 'transparent',
+                    radius: 3200, // ~2 miles
+                    weight: 3,
+                    dashArray: '10, 5'
+                }).bindPopup('🚧 Trash Fence (Approximate)').addTo(trashFenceLayer);
+            }
+        }
+        
+        // Load plazas
+        async function loadPlazas() {
+            try {
+                const response = await fetch('/api/v1/gis/plazas');
+                const plazasData = await response.json();
+                
+                L.geoJSON(plazasData, {
+                    style: {
+                        color: '#ffff00',
+                        fillColor: '#ffff00',
+                        weight: 2,
+                        opacity: 0.6,
+                        fillOpacity: 0.1
+                    },
+                    onEachFeature: function(feature, layer) {
+                        const name = feature.properties.Name || 'Plaza';
+                        layer.bindPopup(`<strong>🏛️ ${name}</strong>`);
+                    }
+                }).addTo(plazasLayer);
+                
+                console.log('✅ BRC plazas loaded');
+                
+            } catch (error) {
+                console.error('Error loading plazas:', error);
+            }
+        }
+
+        // Add basic street grid fallback
+        function addBasicStreets() {
+            console.log('Using fallback street grid');
+            // Add some basic radial streets (time-based)
+            const center = [40.78696345, -119.2030071];
+            const radius = 0.015; // Approximate radius in degrees
+            
+            for (let hour = 2; hour <= 10; hour++) {
+                const angle = (hour * 30 - 90) * Math.PI / 180; // Convert to radians, offset by 90°
+                const endLat = center[0] + radius * Math.sin(angle);
+                const endLng = center[1] + radius * Math.cos(angle);
+                
+                L.polyline([center, [endLat, endLng]], {
+                    color: '#ff6b35',
+                    weight: 2,
+                    opacity: 0.6
+                }).bindPopup(`${hour}:00`).addTo(streetsLayer);
+            }
+            
+            // Add concentric circles for lettered streets
+            const streets = ['Esplanade', 'Atwood', 'Bradbury', 'Cherryh', 'Dick', 'Ellison'];
+            streets.forEach((street, index) => {
+                const circleRadius = (index + 1) * 300; // meters
+                L.circle(center, {
+                    color: '#ff8c42',
+                    fillColor: 'transparent',
+                    radius: circleRadius,
+                    weight: 1,
+                    opacity: 0.5
+                }).bindPopup(street).addTo(streetsLayer);
+            });
+        }
+
+        // Apply proximity-based visual effects
+        function applyProximityEffects(proximity, lat, lng) {
+            // Clear existing proximity effects
+            proximityLayer.clearLayers();
+            
+            // Get current zoom level to scale effects
+            const zoom = map.getZoom();
+            const scaleFactor = Math.max(0.2, Math.min(1, (zoom - 12) / 4)); // Scale between zoom 12-16
+            
+            // Apply map mode changes
+            if (proximity.map_mode !== currentMapMode) {
+                setMapMode(proximity.map_mode);
+                currentMapMode = proximity.map_mode;
+            }
+            
+            // Only show effects if zoomed in enough
+            if (zoom >= 13) {
+                // Apply visual effects for nearby landmarks
+                proximity.visual_effects.forEach(effect => {
+                    createVisualEffect(effect, lat, lng, scaleFactor);
+                });
+                
+                // Show nearby landmarks as pulsing markers
+                proximity.landmarks.forEach(landmark => {
+                    const baseRadius = Math.max(20, 50 - landmark.distance);
+                    const marker = L.circleMarker([lat, lng], {
+                        radius: baseRadius * scaleFactor,
+                        color: getEffectColor(landmark.type),
+                        fillColor: getEffectColor(landmark.type),
+                        fillOpacity: 0.2 * scaleFactor,
+                        weight: 2,
+                        className: 'proximity-effect pulse'
+                    }).addTo(proximityLayer);
+                    
+                    marker.bindPopup(`
+                        <strong>${landmark.name}</strong><br>
+                        Distance: ${Math.round(landmark.distance)}m<br>
+                        ${landmark.context}
+                    `);
+                });
+                
+                // Show nearby porto clusters
+                proximity.portos.forEach(porto => {
+                    L.circleMarker([lat, lng], {
+                        radius: 15 * scaleFactor,
+                        color: '#8B4513',
+                        fillColor: '#8B4513',
+                        fillOpacity: 0.3 * scaleFactor,
+                        weight: 1
+                    }).bindPopup(`
+                        <strong>${porto.name}</strong><br>
+                        Distance: ${Math.round(porto.distance)}m
+                    `).addTo(proximityLayer);
+                });
+            }
+        }
+
+        // Create visual effects based on proximity data with accurate meter calculations
+        function createVisualEffect(effect, lat, lng, scaleFactor = 1) {
+            const effectColor = effect.color || '#ff6b35';
+            const zoom = map.getZoom();
+            
+            switch (effect.type) {
+                case 'aura':
+                    // 25-meter aura effect for sacred spaces
+                    L.circle([lat, lng], {
+                        radius: metersToLeafletRadius(25, lat) * scaleFactor,
+                        color: effectColor,
+                        fillColor: effectColor,
+                        fillOpacity: 0.1 * scaleFactor,
+                        weight: 1,
+                        dashArray: '5, 5',
+                        className: 'aura-effect'
+                    }).addTo(proximityLayer);
+                    break;
+                    
+                case 'pulse':
+                    // 15-meter pulse effect for high energy areas
+                    const pulseRadiusPixels = 15 / getMetersPerPixel(zoom, lat);
+                    L.circleMarker([lat, lng], {
+                        radius: Math.max(15, pulseRadiusPixels * scaleFactor),
+                        color: effectColor,
+                        fillColor: effectColor,
+                        fillOpacity: 0.3 * scaleFactor,
+                        weight: 3 * scaleFactor,
+                        className: 'pulse-effect pulse'
+                    }).addTo(proximityLayer);
+                    break;
+                    
+                case 'beacon':
+                    // 10-meter beacon for emergency services
+                    const beaconRadiusPixels = 10 / getMetersPerPixel(zoom, lat);
+                    L.circleMarker([lat, lng], {
+                        radius: Math.max(10, beaconRadiusPixels * scaleFactor),
+                        color: effectColor,
+                        fillColor: effectColor,
+                        fillOpacity: 0.5 * scaleFactor,
+                        weight: 2 * scaleFactor,
+                        className: 'beacon-effect'
+                    }).addTo(proximityLayer);
+                    break;
+                    
+                case 'glow':
+                    // 12-meter glow for services
+                    L.circle([lat, lng], {
+                        radius: metersToLeafletRadius(12, lat) * scaleFactor,
+                        color: effectColor,
+                        fillColor: effectColor,
+                        fillOpacity: 0.2 * scaleFactor,
+                        weight: 1,
+                        className: 'glow-effect'
+                    }).addTo(proximityLayer);
+                    break;
+            }
+        }
+
+        // Get color based on landmark type
+        function getEffectColor(type) {
+            switch (type) {
+                case 'sacred': return '#ffffff';
+                case 'center': return '#ff6b35';
+                case 'medical': return '#ff0000';
+                case 'service': return '#0066ff';
+                case 'transport': return '#ffff00';
+                default: return '#ff6b35';
+            }
+        }
+
+        // Set map visual mode
+        function setMapMode(mode) {
+            const mapElement = document.getElementById('map');
+            
+            // Remove existing mode classes
+            mapElement.classList.remove('temple-mode', 'man-mode', 'emergency-mode', 'service-mode', 'landmark-mode');
+            
+            // Apply new mode
+            if (mode !== 'normal') {
+                mapElement.classList.add(`${mode}-mode`);
+            }
+            
+            // Update map tile opacity based on mode
+            const tileLayer = map.eachLayer(layer => {
+                if (layer instanceof L.TileLayer) {
+                    switch (mode) {
+                        case 'temple':
+                            layer.setOpacity(0.3); // Desaturated for reverence
+                            break;
+                        case 'emergency':
+                            layer.setOpacity(0.7); // High contrast for clarity
+                            break;
+                        default:
+                            layer.setOpacity(1.0);
+                    }
+                }
+            });
+        }
+
+        // Update proximity info in the panel
+        function updateProximityInfo(proximity) {
+            if (proximity.landmarks.length > 0) {
+                const primaryLandmark = proximity.landmarks[0];
+                contextEl.style.borderColor = getEffectColor(primaryLandmark.type);
+                
+                // Add proximity alert
+                if (primaryLandmark.distance < 100) {
+                    const alertEl = document.createElement('div');
+                    alertEl.textContent = `⚠️ ${primaryLandmark.context}`;
+                    alertEl.style.cssText = 'color: yellow; font-size: 14px; margin-top: 5px;';
+                    alertEl.id = 'proximity-alert';
+                    
+                    // Remove existing alert
+                    const existingAlert = document.getElementById('proximity-alert');
+                    if (existingAlert) existingAlert.remove();
+                    
+                    contextEl.parentNode.appendChild(alertEl);
+                }
+            } else {
+                contextEl.style.borderColor = '#ff6b35';
+                const existingAlert = document.getElementById('proximity-alert');
+                if (existingAlert) existingAlert.remove();
+            }
+        }
+        
+        // Initialize everything
+        async function initialize() {
+            try {
+                console.log('🔥 Starting initialization...');
+                
+                setupControlHandlers(); // Setup button handlers first
+                console.log('✅ Control handlers setup');
+                
+                await loadLandmarks(); // Load landmarks from database first
+                console.log('✅ Landmarks loaded');
+                
+                addLandmarks(); // Then add them to the map
+                console.log('✅ Landmarks added to map');
+                
+                await updateLocation();
+                console.log('✅ Location updated');
+                
+                statusEl.textContent = 'GPS tracking active!';
+                statusEl.className = 'status-display';
+                
+                // Update location every 10 seconds
+                setInterval(updateLocation, 10000);
+                
+                console.log('🔥 Initialization complete!');
+            } catch (error) {
+                console.error('❌ Initialization failed:', error);
+                statusEl.textContent = 'Initialization failed: ' + error.message;
+                statusEl.className = 'status-display offline';
+            }
+        }
+        
+        // Start the app
+        initialize();
+        
+        console.log('🔥 Glitch Cube GPS Tracker loaded!');
+        console.log('Tracking via Home Assistant device tracker');
+    </script>
+</body>
+</html>

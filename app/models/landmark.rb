@@ -15,6 +15,9 @@ class Landmark < ActiveRecord::Base
   scope :by_type, ->(type) { where(landmark_type: type) }
   # PostGIS spatial queries for high-performance proximity detection
   scope :within_radius, ->(lat, lng, radius_km) do
+    # Sanitize inputs
+    lat = connection.quote(lat.to_f)
+    lng = connection.quote(lng.to_f)
     point = "ST_SetSRID(ST_MakePoint(#{lng}, #{lat}), 4326)"
     radius_meters = radius_km * 1000
     
@@ -54,8 +57,10 @@ class Landmark < ActiveRecord::Base
 
   def distance_from(lat, lng)
     if has_spatial_data?
-      # Use PostGIS for precise distance calculation
-      point = "ST_SetSRID(ST_MakePoint(#{lng}, #{lat}), 4326)"
+      # Use PostGIS for precise distance calculation with sanitized inputs
+      lat_safe = self.class.connection.quote(lat.to_f)
+      lng_safe = self.class.connection.quote(lng.to_f)
+      point = "ST_SetSRID(ST_MakePoint(#{lng_safe}, #{lat_safe}), 4326)"
       result = self.class.connection.execute(
         "SELECT ST_Distance(location::geography, (#{point})::geography) as distance"
       ).first
@@ -95,8 +100,10 @@ class Landmark < ActiveRecord::Base
 
   def self.by_distance_from(lat, lng)
     if postgis_available?
-      # Use PostGIS for efficient distance-based ordering
-      point = "ST_SetSRID(ST_MakePoint(#{lng}, #{lat}), 4326)"
+      # Use PostGIS for efficient distance-based ordering with sanitized inputs
+      lat_safe = connection.quote(lat.to_f)
+      lng_safe = connection.quote(lng.to_f)
+      point = "ST_SetSRID(ST_MakePoint(#{lng_safe}, #{lat_safe}), 4326)"
       active.order(
         Arel.sql("ST_Distance(location::geography, (#{point})::geography)")
       )
@@ -119,10 +126,16 @@ class Landmark < ActiveRecord::Base
     import_from_landmarks_json(File.join(gis_data_path, 'burning_man_landmarks.json'))
     import_from_toilets_geojson(File.join(gis_data_path, 'toilets.geojson'))
     import_from_plazas_geojson(File.join(gis_data_path, 'plazas.geojson'))
+    import_from_cpns_geojson(File.join(gis_data_path, 'cpns.geojson'))
     
     # Also import streets if Street model exists
     if defined?(Street)
       Street.import_from_geojson(File.join(gis_data_path, 'street_lines.geojson'))
+    end
+    
+    # Import city blocks if Boundary model exists
+    if defined?(Boundary)
+      Boundary.import_from_city_blocks(File.join(gis_data_path, 'city_blocks.geojson'))
     end
   end
 
@@ -209,6 +222,38 @@ class Landmark < ActiveRecord::Base
         properties: {
           fid: feature['id']
         },
+        active: true
+      )
+      
+      landmark.save! if landmark.changed?
+    end
+  end
+
+  def self.import_from_cpns_geojson(file_path)
+    return unless File.exist?(file_path)
+
+    data = JSON.parse(File.read(file_path))
+    data['features'].each do |feature|
+      # CPNs are points of interest (Center Placement Names)
+      name = feature['properties']['NAME']
+      cpn_type = feature['properties']['TYPE'] || 'CPN'
+      
+      landmark = find_or_initialize_by(
+        name: name,
+        landmark_type: 'cpn'
+      )
+      
+      landmark.assign_attributes(
+        latitude: feature['geometry']['coordinates'][1],
+        longitude: feature['geometry']['coordinates'][0],
+        icon: '📍',
+        radius_meters: 30,
+        description: "Center Placement: #{name}",
+        properties: {
+          fid: feature['id'],
+          cpn_type: cpn_type,
+          alias: feature['properties']['ALIAS1']
+        }.compact,
         active: true
       )
       

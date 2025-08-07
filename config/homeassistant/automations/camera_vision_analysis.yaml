@@ -1,0 +1,91 @@
+---
+# Camera Vision Analysis Automation
+# Triggers LLM vision analysis when motion is detected and stores the result
+
+- id: camera_motion_vision_analysis
+  alias: "Camera Motion Vision Analysis"
+  description: "Analyze camera stream when motion is detected and store the analysis"
+  mode: single  # Only run one instance at a time
+  trigger:
+    - platform: state
+      entity_id: switch.motion_detected # Update this to your actual motion sensor entity
+      to: 'on'
+  condition:
+    # Optional: Add conditions to prevent excessive API calls
+    - condition: template
+      value_template: >
+        {% set last_triggered = state_attr('automation.camera_motion_vision_analysis', 'last_triggered') %}
+        {{ last_triggered is none or (now() - last_triggered).total_seconds() > 60 }}
+  action:
+    # Call the LLM vision analyzer
+    - service: llmvision.stream_analyzer
+      data:
+        remember: false
+        duration: 5
+        max_frames: 4
+        include_filename: false
+        target_width: 1280
+        max_tokens: 100
+        generate_title: true
+        expose_images: false
+        provider: 01K21T5563YK72553SX49G9WK3
+        message: >-
+          summary of any notable things happening in this camera stream - people count
+          approx genders and moods and noteworthy things about them
+        image_entity:
+          - camera.camera  # Update this to your actual camera entity
+        use_memory: false
+      response_variable: vision_response
+    
+    # Store the analysis result in an input_text helper
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.camera_vision_analysis
+      data:
+        value: >
+          {% if vision_response is defined and vision_response.response_text is defined %}
+            {{ vision_response.response_text[:255] }}
+          {% else %}
+            No analysis available
+          {% endif %}
+    
+    # Optional: Log the full response for debugging
+    - service: system_log.write
+      data:
+        message: >
+          Camera vision analysis: {{ vision_response | tojson if vision_response is defined else 'No response' }}
+        level: info
+        logger: glitchcube.camera_vision
+    
+    # Optional: Send notification if something interesting is detected
+    - condition: template
+      value_template: >
+        {% if vision_response is defined and vision_response.response_text is defined %}
+          {{ 'people' in vision_response.response_text.lower() or 
+             'person' in vision_response.response_text.lower() or
+             'noteworthy' in vision_response.response_text.lower() }}
+        {% else %}
+          false
+        {% endif %}
+    - service: notify.persistent_notification
+      data:
+        title: "Camera Activity Detected"
+        message: >
+          {{ vision_response.response_text if vision_response is defined and vision_response.response_text is defined else 'Activity detected' }}
+
+# Optional: Clear the analysis after a period of inactivity
+- id: clear_camera_vision_analysis
+  alias: "Clear Camera Vision Analysis"
+  description: "Clear the vision analysis text after no motion for 5 minutes"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.camera_motion  # Update this to your actual motion sensor entity
+      to: 'off'
+      for:
+        minutes: 5
+  action:
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.camera_vision_analysis
+      data:
+        value: "No recent activity"

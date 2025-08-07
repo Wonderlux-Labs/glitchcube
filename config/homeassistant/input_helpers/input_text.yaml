@@ -21,3 +21,9 @@ glitchcube_host:
   name: "Glitch Cube Host IP"
   max: 15
   icon: "mdi:cube-outline"
+
+camera_vision_analysis:
+  name: "Camera Vision Analysis"
+  max: 255
+  initial: "No analysis available"
+  icon: "mdi:camera-iris"

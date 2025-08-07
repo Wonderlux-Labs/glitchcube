@@ -1,0 +1,98 @@
+---
+# Script to manually trigger camera vision analysis
+# Can be called from other automations or the UI
+
+analyze_camera_now:
+  alias: "Analyze Camera Now"
+  description: "Trigger immediate camera vision analysis"
+  icon: mdi:camera-iris
+  sequence:
+    - service: llmvision.stream_analyzer
+      data:
+        remember: false
+        duration: 5
+        max_frames: 4
+        include_filename: false
+        target_width: 1280
+        max_tokens: 100
+        generate_title: true
+        expose_images: false
+        provider: 01K21T5563YK72553SX49G9WK3
+        message: >-
+          summary of any notable things happening in this camera stream - people count
+          approx genders and moods and noteworthy things about them
+        image_entity:
+          - camera.camera
+        use_memory: false
+      response_variable: vision_response
+    
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.camera_vision_analysis
+      data:
+        value: >
+          {% if vision_response is defined and vision_response.response_text is defined %}
+            {{ vision_response.response_text[:255] }}
+          {% else %}
+            Analysis failed
+          {% endif %}
+    
+    - service: system_log.write
+      data:
+        message: "Manual camera analysis: {{ vision_response | tojson if vision_response is defined else 'No response' }}"
+        level: info
+
+analyze_camera_with_prompt:
+  alias: "Analyze Camera with Custom Prompt"
+  description: "Trigger camera analysis with a custom prompt"
+  icon: mdi:camera-iris
+  fields:
+    prompt:
+      description: "Custom prompt for the vision analysis"
+      example: "Describe what you see in detail"
+      required: true
+      selector:
+        text:
+    duration:
+      description: "Duration in seconds to analyze"
+      example: 5
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 30
+          step: 1
+  sequence:
+    - service: llmvision.stream_analyzer
+      data:
+        remember: false
+        duration: "{{ duration | default(5) }}"
+        max_frames: 4
+        include_filename: false
+        target_width: 1280
+        max_tokens: 150
+        generate_title: true
+        expose_images: false
+        provider: 01K21T5563YK72553SX49G9WK3
+        message: "{{ prompt }}"
+        image_entity:
+          - camera.camera
+        use_memory: false
+      response_variable: vision_response
+    
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.camera_vision_analysis
+      data:
+        value: >
+          {% if vision_response is defined and vision_response.response_text is defined %}
+            {{ vision_response.response_text[:255] }}
+          {% else %}
+            Analysis failed
+          {% endif %}
+    
+    - service: notify.persistent_notification
+      data:
+        title: "Camera Analysis Result"
+        message: >
+          {{ vision_response.response_text if vision_response is defined and vision_response.response_text is defined else 'Analysis failed' }}

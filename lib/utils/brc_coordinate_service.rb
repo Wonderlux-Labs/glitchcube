@@ -117,10 +117,9 @@ module Utils
         # BRC ACTUAL layout: 6:00 = 180° (due south), streets 2:00-10:00
         # Total arc is 240° (from 2:00 to 10:00)
         # 6:00 = 180°, so 2:00 = 60°, 10:00 = 300°
-        # If the map is off by 2 hours (60°), adjust the bearing by -60°
 
-        # Normalize bearing to 0-360 and apply -60° offset for correct orientation
-        normalized_bearing = (bearing - 60) % 360
+        # Normalize bearing to 0-360 (no offset needed)
+        normalized_bearing = bearing % 360
 
         # Convert to BRC time: 6:00 = 180°, each hour = 30°
         # Formula: time = 6 + (normalized_bearing - 180) / 30

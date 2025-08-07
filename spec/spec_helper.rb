@@ -125,43 +125,68 @@ VCR.configure do |config|
   config.filter_sensitive_data('<OPENROUTER_API_KEY>') { ENV.fetch('OPENROUTER_API_KEY', nil) }
   config.filter_sensitive_data('<HOME_ASSISTANT_TOKEN>') { ENV.fetch('HOME_ASSISTANT_TOKEN', nil) }
 
-  config.default_cassette_options = {
-    record: :new_episodes,
-    match_requests_on: %i[method uri body]
-  }
-
-  # Allow Home Assistant calls without cassettes during tests
-  config.ignore_request do |request|
-    URI(request.uri).host&.match?(/\.local$/)
+  # In CI, never allow new recordings - only use existing cassettes
+  if ENV['CI'] == 'true'
+    config.default_cassette_options = {
+      record: :none,  # Fail if cassette doesn't exist
+      match_requests_on: %i[method uri body]
+    }
+  else
+    config.default_cassette_options = {
+      record: :new_episodes,  # Allow recording locally
+      match_requests_on: %i[method uri body]
+    }
   end
 
-  # Add logging for VCR interactions
-  config.before_record do |interaction|
-    puts "🎥 VCR Recording: #{interaction.request.method.upcase} #{interaction.request.uri}"
+  # Allow Home Assistant calls without cassettes during tests (local only)
+  unless ENV['CI'] == 'true'
+    config.ignore_request do |request|
+      URI(request.uri).host&.match?(/\.local$/)
+    end
   end
 
-  config.before_playback do |interaction|
-    puts "▶️  VCR Playback: #{interaction.request.method.upcase} #{interaction.request.uri}"
+  # Add logging for VCR interactions (only in non-CI)
+  unless ENV['CI'] == 'true'
+    config.before_record do |interaction|
+      puts "🎥 VCR Recording: #{interaction.request.method.upcase} #{interaction.request.uri}"
+    end
+
+    config.before_playback do |interaction|
+      puts "▶️  VCR Playback: #{interaction.request.method.upcase} #{interaction.request.uri}"
+    end
   end
 end
 
-# Disable all network connections except to localhost and .local domains
-# This prevents live API calls during tests - VCR cassettes should be used instead
-WebMock.disable_net_connect!(
-  allow_localhost: true,
-  allow: [/localhost/, /127\.0\.0\.1/, /\.local$/]
-)
+# Disable all network connections in CI - only VCR cassettes allowed
+if ENV['CI'] == 'true'
+  WebMock.disable_net_connect!(allow_localhost: true)
+  
+  # In CI, fail immediately on any non-localhost request not handled by VCR
+  WebMock.after_request do |request_signature, response|
+    host = request_signature.uri.host
+    unless host&.match?(/localhost|127\.0\.0\.1/)
+      raise "❌ EXTERNAL NETWORK REQUEST IN CI: #{request_signature.method.upcase} #{request_signature.uri}\n" \
+            "All external requests must use VCR cassettes in CI!"
+    end
+  end
+else
+  # Local development - allow .local domains for Home Assistant
+  WebMock.disable_net_connect!(
+    allow_localhost: true,
+    allow: [/localhost/, /127\.0\.0\.1/, /\.local$/]
+  )
 
-# Add callback to warn about any real HTTP requests that might slip through
-WebMock.after_request do |request_signature, response|
-  host = request_signature.uri.host
-  is_allowed_local = host&.match?(/localhost|127\.0\.0\.1|\.local$/)
+  # Add callback to warn about any real HTTP requests that might slip through
+  WebMock.after_request do |request_signature, response|
+    host = request_signature.uri.host
+    is_allowed_local = host&.match?(/localhost|127\.0\.0\.1|\.local$/)
 
-  if response.status.first == 200 && !is_allowed_local
-    puts "⚠️  LIVE HTTP REQUEST: #{request_signature.method.upcase} #{request_signature.uri}"
-    puts '   This should be using a VCR cassette instead!'
-  elsif is_allowed_local && host&.match?(/\.local$/)
-    puts "📡 Home Assistant call: #{request_signature.method.upcase} #{request_signature.uri}"
-    puts '   Consider recording this in a VCR cassette for consistent tests'
+    if response.status.first == 200 && !is_allowed_local
+      puts "⚠️  LIVE HTTP REQUEST: #{request_signature.method.upcase} #{request_signature.uri}"
+      puts '   This should be using a VCR cassette instead!'
+    elsif is_allowed_local && host&.match?(/\.local$/)
+      puts "📡 Home Assistant call: #{request_signature.method.upcase} #{request_signature.uri}"
+      puts '   Consider recording this in a VCR cassette for consistent tests'
+    end
   end
 end

@@ -1,27 +1,38 @@
 # frozen_string_literal: true
-# Updated to use simple in-memory cache instead of Rails.cache
+# Updated to use thread-safe in-memory cache with Mutex
+
+require 'thread'
 
 module Services
   class GpsCacheService
     CACHE_TTL = 5 # 5 seconds for real-time cube tracking
     
-    # Simple in-memory cache for Sinatra
+    # Thread-safe in-memory cache for Sinatra/Puma
     @cache = {}
     @cache_timestamps = {}
+    @mutex = Mutex.new
     
     def self.cache_fetch(key, expires_in:)
       now = Time.now
       
-      # Check if cache entry exists and is still valid
-      if @cache[key] && @cache_timestamps[key] && 
-         (now - @cache_timestamps[key]) < expires_in
-        return @cache[key]
+      # Thread-safe cache read
+      @mutex.synchronize do
+        # Check if cache entry exists and is still valid
+        if @cache[key] && @cache_timestamps[key] && 
+           (now - @cache_timestamps[key]) < expires_in
+          return @cache[key]
+        end
       end
       
       # Cache miss or expired - compute new value
       value = yield
-      @cache[key] = value
-      @cache_timestamps[key] = now
+      
+      # Thread-safe cache write
+      @mutex.synchronize do
+        @cache[key] = value
+        @cache_timestamps[key] = now
+      end
+      
       value
     end
     
@@ -46,8 +57,10 @@ module Services
     end
     
     def self.clear_cache!
-      @cache.clear
-      @cache_timestamps.clear
+      @mutex.synchronize do
+        @cache.clear
+        @cache_timestamps.clear
+      end
     end
   end
 end
