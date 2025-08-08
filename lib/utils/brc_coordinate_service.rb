@@ -12,7 +12,6 @@ module Utils
     # GOLDEN_SPIKE_COORDS - canonical center for BRC and all map logic
     # Use this everywhere as the single source of truth for the city center.
     GOLDEN_SPIKE_COORDS = { lat: 40.78696345, lng: -119.2030071 }.freeze
-    # DEPRECATED: THE_MAN_COORDS (use GOLDEN_SPIKE_COORDS instead)
     THE_MAN_COORDS = GOLDEN_SPIKE_COORDS
 
     # REAL street distances from The Man (calculated from BRC GIS data)
@@ -76,10 +75,6 @@ module Utils
         GOLDEN_SPIKE_COORDS
       end
 
-      # DEPRECATED: Get The Man coordinates, use golden_spike_coordinates instead
-      def the_man_coordinates
-        GOLDEN_SPIKE_COORDS
-      end
 
       private
 

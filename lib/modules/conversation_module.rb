@@ -9,6 +9,7 @@ require_relative '../services/conversation_session'
 require_relative '../services/tool_call_parser'
 require_relative '../services/tool_executor'
 require_relative '../services/conversation_feedback_service'
+require_relative '../services/memory_recall_service'
 require_relative '../home_assistant_client'
 require_relative 'conversation_responses'
 require_relative 'conversation_enhancements'
@@ -60,8 +61,14 @@ class ConversationModule
     # Simple logging instead of complex tracing
     puts "💬 [#{persona}] User: #{message[0..100]}..." if GlitchCube.config.debug?
 
-    # Get or create conversation session using ActiveRecord
+    # Phase 3.5: Ultra-simple Session Management
+    # Just use whatever session_id is provided (HA provides voice_conversation_id)
+    # If no session_id, generate one (for non-voice interactions)
     session_start = Time.now
+    
+    # Ensure we have a session_id
+    context[:session_id] ||= SecureRandom.uuid
+    
     session = Services::ConversationSession.find_or_create(
       session_id: context[:session_id],
       context: context.merge(persona: persona)
@@ -150,7 +157,17 @@ class ConversationModule
 
       # Extract data from response object
       response_text = llm_response.response_text
+      
+      # Phase 3.5: Ultra-simple continuation logic with safe defaults
+      # Let the LLM decide if conversation should continue
+      # Default to ending conversation if unclear (safer for voice interactions)
       continue_conversation = llm_response.continue_conversation?
+      
+      # Safe default: if nil or unclear, end the conversation
+      if continue_conversation.nil?
+        puts "⚠️ No continuation signal from LLM, defaulting to end conversation" if GlitchCube.config.debug?
+        continue_conversation = false
+      end
 
       # Debug trace: Check if response_text is nil
       if GlitchCube.config.debug? && response_text.nil?
@@ -198,7 +215,7 @@ class ConversationModule
         # Set LED feedback to speaking state before TTS
         execute_feedback_tool(:speaking, context)
 
-        execute_speech_tool(response_text, context)
+        execute_speech_tool(response_text, context, persona)
       rescue StandardError => e
         puts "Warning: TTS failed but conversation succeeded: #{e.message}"
         # Log but don't fail the conversation
@@ -356,21 +373,6 @@ class ConversationModule
     puts "Failed to log tool execution: #{e.message}" if GlitchCube.config.debug?
   end
 
-  def detect_continuation_intent(text)
-    return true unless text
-
-    text_lower = text.downcase
-
-    # Check for explicit endings
-    return false if text_lower.match?(/\b(goodbye|bye|farewell|see you|talk later)\b/)
-
-    # Check for questions or engagement
-    return true if text.include?('?')
-    return true if text_lower.match?(/\b(would you|do you|can you|tell me|what|how|why|let me know)\b/)
-
-    # Default to continuing for engagement
-    true
-  end
 
   def get_response_schema(context)
     # Load schema class if not already loaded
@@ -399,11 +401,12 @@ class ConversationModule
     # Map persona to character for prompt file selection
     character = persona == 'neutral' ? nil : persona
 
-    # Build enriched context
+    # Build enriched context - include response_format flag if we have a schema
     enriched_context = context.merge(
       current_persona: persona,
       session_id: context[:session_id] || SecureRandom.uuid,
-      interaction_count: context[:interaction_count] || 1
+      interaction_count: context[:interaction_count] || 1,
+      response_format: context[:response_format] || !get_response_schema(context).nil?
     )
 
     # Generate base system prompt
@@ -528,45 +531,6 @@ class ConversationModule
     "#{base_response} #{encouragement}"
   end
 
-  def speak_response(response_text, context = {})
-    return if response_text.nil? || response_text.strip.empty?
-
-    start_time = Time.now
-
-    begin
-      # Use Home Assistant client directly for all TTS
-      home_assistant = HomeAssistantClient.new
-
-      # Get entity from context or use default
-      entity_id = context[:entity_id] || 'media_player.square_voice'
-
-      # Direct Home Assistant TTS call
-      success = home_assistant.speak(response_text, entity_id: entity_id)
-
-      duration = ((Time.now - start_time) * 1000).round
-      Services::LoggerService.log_tts(
-        message: response_text,
-        success: success,
-        duration: duration,
-        entity_id: entity_id
-      )
-
-      puts "🔊 TTS: #{success ? 'success' : 'failed'} (#{duration}ms)" if GlitchCube.config.debug?
-    rescue StandardError => e
-      error = e.message
-      duration = ((Time.now - start_time) * 1000).round
-
-      Services::LoggerService.log_tts(
-        message: response_text,
-        success: false,
-        duration: duration,
-        error: "Unexpected Error: #{e.message}",
-        entity_id: context[:entity_id] || 'media_player.square_voice'
-      )
-
-      puts "⚠️ TTS error: #{error} (#{duration}ms)" if GlitchCube.config.debug?
-    end
-  end
 
   def update_kiosk_display(message, response, persona)
     # Update the kiosk service with new interaction data
@@ -639,14 +603,15 @@ class ConversationModule
       persona: persona
     )
 
-    execute_speech_tool(response_text, {})
+    execute_speech_tool(response_text, {}, persona)
 
     {
       response: response_text,
       conversation_id: session.session_id,
       session_id: session.session_id,
       persona: persona,
-      error: 'rate_limit'
+      error: 'rate_limit',
+      continue_conversation: false  # End on rate limit to be safe
     }
   end
 
@@ -659,14 +624,15 @@ class ConversationModule
       persona: persona
     )
 
-    execute_speech_tool(response_text, {})
+    execute_speech_tool(response_text, {}, persona)
 
     {
       response: response_text,
       conversation_id: session.session_id,
       session_id: session.session_id,
       persona: persona,
-      error: 'llm_error'
+      error: 'llm_error',
+      continue_conversation: false  # End on LLM error to be safe
     }
   end
 
@@ -685,14 +651,15 @@ class ConversationModule
       persona: persona
     )
 
-    execute_speech_tool(response_text, {})
+    execute_speech_tool(response_text, {}, persona)
 
     {
       response: response_text,
       conversation_id: session.session_id,
       session_id: session.session_id,
       persona: persona,
-      error: 'general_error'
+      error: 'general_error',
+      continue_conversation: false  # End on general error to be safe
     }
   end
 
@@ -705,38 +672,25 @@ class ConversationModule
     )
   end
 
-  # Tool-based hardware operation helpers with graceful fallback
-  # These methods try to use tools first, then fall back to direct calls
+  # Tool-based hardware operation helpers - standardized execution
+  # These methods execute operations via tools only, no fallbacks
 
   def execute_feedback_tool(state, context = {})
     return unless context[:visual_feedback] != false
 
-    # Try to execute via tool system first
+    # Execute via tool system only - no fallbacks
     if context[:tools] && tool_available?(context[:tools], 'conversation_feedback')
       execute_tool_call('conversation_feedback', 'set_state', { state: state.to_s })
+      puts "🔧 LED feedback via tool: #{state}" if GlitchCube.config.debug?
     else
-      # Fallback to direct service call
-      with_error_handling("set_led_#{state}", fallback: nil, reraise_unexpected: false) do
-        case state
-        when :listening
-          Services::ConversationFeedbackService.set_listening
-        when :thinking
-          Services::ConversationFeedbackService.set_thinking
-        when :speaking
-          Services::ConversationFeedbackService.set_speaking
-        when :completed
-          Services::ConversationFeedbackService.set_completed
-        when :error
-          Services::ConversationFeedbackService.set_error
-        end
-      end
+      puts "⚠️ LED feedback skipped - no conversation_feedback tool available" if GlitchCube.config.debug?
     end
   end
 
-  def execute_speech_tool(text, context = {})
+  def execute_speech_tool(text, context = {}, persona = nil)
     return if text.nil? || text.strip.empty?
 
-    # Try to execute via tool system first
+    # Execute via tool system only - no fallbacks
     if context[:tools] && tool_available?(context[:tools], 'speech_synthesis')
       entity_id = context[:entity_id] || 'media_player.square_voice'
       result = execute_tool_call('speech_synthesis', 'speak_text', {
@@ -746,16 +700,14 @@ class ConversationModule
 
       puts "🔊 TTS via tool: #{result&.include?('Spoke:') ? 'success' : 'failed'}" if GlitchCube.config.debug?
     else
-      # Fallback to direct speak_response method
-      speak_response(text, context)
+      puts "⚠️ TTS skipped - no speech_synthesis tool available" if GlitchCube.config.debug?
     end
   rescue StandardError => e
-    puts "Warning: Tool-based TTS failed, using fallback: #{e.message}"
-    speak_response(text, context)
+    puts "⚠️ Tool-based TTS failed: #{e.message}" if GlitchCube.config.debug?
   end
 
   def execute_display_tool(message, response, persona, context = {})
-    # Try to execute via tool system first for kiosk display
+    # Execute via tool system only - no dual execution
     if context[:tools] && tool_available?(context[:tools], 'display_control')
       # Use display tool for conversation update
       execute_tool_call('display_control', 'show_display_text', {
@@ -763,13 +715,15 @@ class ConversationModule
                           color: persona_to_color(persona),
                           duration: 8
                         })
-    end
-
-    # Always try the direct kiosk update as well (for now, during transition)
-    begin
-      update_kiosk_display(message, response, persona)
-    rescue StandardError => e
-      puts "Warning: Kiosk display update failed: #{e.message}"
+      puts "📺 Display update via tool" if GlitchCube.config.debug?
+    else
+      # Fallback to direct kiosk update only if no tool available
+      begin
+        update_kiosk_display(message, response, persona)
+        puts "📺 Display update via direct kiosk" if GlitchCube.config.debug?
+      rescue StandardError => e
+        puts "⚠️ Kiosk display update failed: #{e.message}"
+      end
     end
   end
 

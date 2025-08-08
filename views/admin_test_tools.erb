@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tool Testing</title>
+  <style>
+    body {
+      font-family: monospace;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1, h2 { color: #333; }
+    .nav {
+      margin-bottom: 20px;
+      padding: 10px;
+      background: white;
+      border: 1px solid #ddd;
+    }
+    .nav a {
+      margin-right: 15px;
+      color: #2196F3;
+      text-decoration: none;
+    }
+    .tool {
+      background: white;
+      padding: 15px;
+      margin: 15px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .tool-header {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .tool-description {
+      color: #666;
+      margin-bottom: 10px;
+    }
+    form {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    .result {
+      background: #f9f9f9;
+      padding: 15px;
+      margin: 20px 0;
+      border-left: 4px solid #4CAF50;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+    .error {
+      border-left-color: #f44336;
+      background: #ffebee;
+    }
+  </style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="/admin/test">← Back to Test Interface</a>
+  <a href="/admin/test/sessions">Sessions</a>
+  <a href="/admin/test/memories">Memories</a>
+</div>
+
+<h1>Tool Testing</h1>
+
+<% if @tool_result %>
+  <div class="result <%= @tool_result[:success] == false ? 'error' : '' %>">
+    <strong>Result:</strong>
+    <%= @tool_result.to_json %>
+  </div>
+<% end %>
+
+<% @tools.each do |tool| %>
+  <div class="tool">
+    <div class="tool-header"><%= tool[:name] %></div>
+    <div class="tool-description"><%= tool[:description] %></div>
+    
+    <form action="/admin/test/tools/<%= tool[:name] %>" method="POST">
+      <% case tool[:name] %>
+      <% when 'weather_tool' %>
+        <input name="location" placeholder="Location (e.g., Black Rock City)" value="Black Rock City">
+      <% when 'sensor_status' %>
+        <input name="sensor_type" placeholder="Sensor type (optional)">
+      <% when 'battery_level' %>
+        <!-- No parameters needed -->
+      <% when 'conversation_feedback' %>
+        <input name="state" placeholder="State (listening, thinking, speaking, completed, error)" value="thinking">
+      <% when 'display_control' %>
+        <input name="text" placeholder="Text to display" value="Hello World">
+        <input name="color" placeholder="Color (#RRGGBB)" value="#00FF00">
+        <input name="duration" placeholder="Duration (seconds)" value="5">
+      <% else %>
+        <p style="color: #666; font-size: 0.9em;">
+          This tool may require parameters. Check the tool documentation.
+        </p>
+      <% end %>
+      
+      <button type="submit">Execute <%= tool[:name] %></button>
+    </form>
+  </div>
+<% end %>
+
+<% if @tools.empty? %>
+  <p>No tools found. Make sure tool registry is configured.</p>
+<% end %>
+
+</body>
+</html>

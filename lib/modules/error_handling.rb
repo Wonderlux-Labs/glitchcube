@@ -57,16 +57,4 @@ module ErrorHandling
     fallback unless reraise_unexpected
   end
   
-  # Log deprecation warnings for methods that return false on error
-  def deprecated_error_swallow(method_name)
-    # Use api_call to log deprecation warnings
-    Services::LoggerService.log_api_call(
-      service: 'deprecation',
-      endpoint: method_name,
-      method: 'WARNING',
-      status: 200,
-      warning: "Method #{method_name} swallows errors and returns false - this pattern is deprecated",
-      deprecation: true
-    )
-  end
 end

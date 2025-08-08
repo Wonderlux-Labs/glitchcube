@@ -16,7 +16,7 @@ RSpec.describe Services::LLMService, 'structured output support' do
         schema = GlitchCube::Schemas::ConversationResponseSchema.simple_response
         formatted_schema = GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(schema)
 
-        VCR.use_cassette('llm_service_structured_simple', record: :new_episodes, match_requests_on: %i[method uri]) do
+        VCR.use_cassette('llm_service_structured_simple', match_requests_on: %i[method uri]) do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Respond in JSON format.',
             user_message: 'Hello, how are you?',
@@ -60,7 +60,7 @@ RSpec.describe Services::LLMService, 'structured output support' do
       end
 
       it 'calls tools when appropriate' do
-        VCR.use_cassette('llm_service_tool_calling', record: :new_episodes, match_requests_on: %i[method uri]) do
+        VCR.use_cassette('llm_service_tool_calling', match_requests_on: %i[method uri]) do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Use tools when appropriate.',
             user_message: "What's the weather in San Francisco?",
@@ -92,7 +92,7 @@ RSpec.describe Services::LLMService, 'structured output support' do
       end
 
       it 'does not call tools when not needed' do
-        VCR.use_cassette('llm_service_no_tool_calling', record: :new_episodes, match_requests_on: %i[method uri]) do
+        VCR.use_cassette('llm_service_no_tool_calling', match_requests_on: %i[method uri]) do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Use tools when appropriate.',
             user_message: 'Tell me a joke',
@@ -118,7 +118,7 @@ RSpec.describe Services::LLMService, 'structured output support' do
       end
 
       it 'indicates continuation correctly' do
-        VCR.use_cassette('llm_service_continue_true', record: :new_episodes, match_requests_on: %i[method uri]) do
+        VCR.use_cassette('llm_service_continue_true', match_requests_on: %i[method uri]) do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Respond in JSON format.',
             user_message: 'Tell me about art',
@@ -134,7 +134,7 @@ RSpec.describe Services::LLMService, 'structured output support' do
       end
 
       it 'indicates no continuation correctly' do
-        VCR.use_cassette('llm_service_continue_false', record: :new_episodes, match_requests_on: %i[method uri]) do
+        VCR.use_cassette('llm_service_continue_false', match_requests_on: %i[method uri]) do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Respond in JSON format.',
             user_message: 'Goodbye!',
@@ -157,7 +157,7 @@ RSpec.describe Services::LLMService, 'structured output support' do
         ]
 
         messages.each do |msg|
-          VCR.use_cassette("llm_service_edge_case_#{msg.gsub(/[^a-z0-9]/i, '_')}", record: :new_episodes, match_requests_on: %i[method uri]) do
+          VCR.use_cassette("llm_service_edge_case_#{msg.gsub(/[^a-z0-9]/i, '_')}", match_requests_on: %i[method uri]) do
             response = described_class.complete(
               system_prompt: 'You are a helpful assistant. Respond in JSON format.',
               user_message: msg,

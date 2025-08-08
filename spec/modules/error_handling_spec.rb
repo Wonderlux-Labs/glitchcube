@@ -192,20 +192,4 @@ RSpec.describe ErrorHandling do
     end
   end
 
-  describe '#deprecated_error_swallow' do
-    it 'logs a deprecation warning' do
-      expect(Services::LoggerService).to receive(:log_api_call).with(
-        hash_including(
-          service: 'deprecation',
-          endpoint: 'old_method',
-          method: 'WARNING',
-          status: 200,
-          warning: 'Method old_method swallows errors and returns false - this pattern is deprecated',
-          deprecation: true
-        )
-      )
-
-      instance.deprecated_error_swallow('old_method')
-    end
-  end
 end

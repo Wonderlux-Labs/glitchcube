@@ -1,122 +1,100 @@
 # Glitch Cube Documentation
 
-## 📚 Documentation Index
+## Quick Start
+- [Main README](../README.md) - Project overview and setup
+- [CLAUDE.md](../CLAUDE.md) - AI development instructions
+- [Architecture Overview](./ARCHITECTURE.md) - System design and components
 
-Welcome to the Glitch Cube documentation! This autonomous interactive art installation combines Ruby/Sinatra, AI conversation, and IoT hardware control.
+## Developer Documentation
 
-### 🚀 Getting Started
+### Core Systems
+- [Conversation System](./technical/conversation-system.md) - AI conversation architecture
+- [Tool System](./TOOL_SYSTEM.md) - LLM function calling framework
+- [Hardware Integration](./technical/hardware-integration.md) - Physical device control
 
-- **[Overview](overview.md)** - Project overview and architecture
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide for Mac Mini + VMware setup
-- **[ENVIRONMENT_CONFIG.md](ENVIRONMENT_CONFIG.md)** - Environment configuration system
-- **[ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md)** - Complete list of environment variables
+### Technical References
+- [Environment Variables](./ENVIRONMENT_VARIABLES.md) - Configuration reference
+- [Home Assistant Integration](./technical/home_assistant_integration.md) - HA API details
+- [AI Framework (Desiru)](./technical/desirue_framework.md) - ReAct agent system
+- [GPS Implementation](./technical/gps_real_time_implementation.md) - Location tracking
 
-### 🔧 Configuration & Setup
+### API Documentation
+- [Home Assistant Endpoints](./technical/home_assistant_api_endpoints.md) - HA API reference
+- [System Prompt Service](./technical/system_prompt_service.md) - Prompt generation
 
-- **[DATABASE_CONFIG.md](DATABASE_CONFIG.md)** - Database setup and configuration
-- **[SIDEKIQ_CONFIG.md](SIDEKIQ_CONFIG.md)** - Background job processing setup
-- **[cube_settings_reference.md](cube_settings_reference.md)** - Ruby Settings module reference
-- **[docker_development.md](docker_development.md)** - Docker development environment (optional)
-- **[development_notes.md](development_notes.md)** - macOS development tips and tricks
+## Operational Documentation
 
-### 🤖 AI & Conversation System
+### Deployment & Configuration
+- [Deployment Guide](./DEPLOYMENT.md) - Complete deployment instructions
+- [Database Configuration](./operational/database-config.md) - PostgreSQL setup
+- [Sidekiq Configuration](./operational/sidekiq-config.md) - Background jobs
 
-- **[TOOL_SYSTEM.md](TOOL_SYSTEM.md)** - Complete tool system documentation: architecture, parameters, validation, and development patterns
-- **[PERSONA_DEVELOPMENT.md](PERSONA_DEVELOPMENT.md)** - Guide to developing AI personas: console testing, admin interface, and best practices
+### Monitoring & Maintenance
+- [Admin Interface Guide](./operational/admin-interface-guide.md) - Testing conversations and tools
+- [Health Monitoring](./operational/health-monitoring.md) - System health checks
+- [Uptime Kuma Setup](./operational/uptime-kuma.md) - Service monitoring
+- [GitHub Webhooks](./operational/github-webhooks.md) - CI/CD integration
 
-- **[characters/](characters/)** - Persona documentation
-  - [GENERAL INSTRUCTIONS](characters/GENERAL%20INSTRUCTIONS%20FOR%20ALL%20CUBE%20PERSONAS.md) - Base personality traits
-  - [BUDDY](characters/BUDDY%20-%20THE%20HELPER%20CUBE%20(NAIVE%20ASSISTANT%20PERSONA).md) - Helpful assistant persona
-  - [JAX](characters/JAX%20THE%20JUKE%20-%20SURLY%20BARTENDER%20PERSONA.md) - Surly bartender persona
-  - [LOMI](characters/LOMI%20-%20THE%20GLITCH%20BITCH%20(DRAG%20QUEEN%20PERSONA).md) - Drag queen persona
-  - [ZORP](characters/ZORP%20-%20THE%20SLACKER%20GOD%20(PARTY%20BRO%20PERSONA).md) - Party bro persona
+## Personas & Content
 
-- **[context/](context/)** - Contextual information
-  - [art_philosophy.md](context/art_philosophy.md) - Artistic vision and philosophy
-  - [glitch_cube_identity.txt](context/glitch_cube_identity.txt) - Cube identity context
+### Character Documentation
+- [Persona Development Guide](./personas/README.md) - Creating and managing personas
+- [General Instructions](./personas/general-instructions.md) - Base personality rules
+- [Art Philosophy](./personas/art-philosophy.md) - Creative direction
 
-- **[sample_conversation_flow.md](sample_conversation_flow.md)** - Example conversation flows
-- **[tts_voice_mapping.md](tts_voice_mapping.md)** - Text-to-speech voice configuration
+### Individual Personas
+- [Buddy](./personas/buddy.md) - The helpful assistant
+- [Jax](./personas/jax.md) - The surly bartender
+- [Lomi](./personas/lomi.md) - The drag queen
+- [Zorp](./personas/zorp.md) - The party bro
 
-### 🏠 Home Assistant Integration
+## Home Assistant Configuration
+- [Entity Reference](../config/homeassistant/ENTITIES.md) - HA entities list
+- [Integration Map](../config/homeassistant/INTEGRATION_MAP.md) - Service mappings
 
-- **[HEALTH_MONITORING.md](HEALTH_MONITORING.md)** - Health monitoring architecture and flows
-- **[home_assistant_entities.md](home_assistant_entities.md)** - Entity definitions and usage
-- **[camera_vision_setup.md](camera_vision_setup.md)** - Camera and vision AI setup
-- **[technical/home_assistant_integration.md](technical/home_assistant_integration.md)** - Integration details
-- **[technical/home_assistant_api_endpoints.md](technical/home_assistant_api_endpoints.md)** - API reference
+## Additional Resources
+- [TTS Voice Mapping](./tts_voice_mapping.md) - Voice configuration
+- [Cube Settings Reference](./cube_settings_reference.md) - Hardware settings
+- [AWTRIX Integration](./technical/awtrix_integration.md) - LED display details
+- [Location Configuration](./technical/location_configuration.md) - GPS setup
 
-### 📍 Location & GPS Features
+## Development Tools
 
-- **[gps_architecture.md](gps_architecture.md)** - GPS tracking architecture
-- **[technical/location_configuration.md](technical/location_configuration.md)** - Location setup
-- **[technical/gps_real_time_implementation.md/](technical/gps_real_time_implementation.md/)** - Real-time tracking implementation
-  - Burning Man specific GPS tracking and visualization
-
-### 🔧 Technical Documentation
-
-- **[technical/](technical/)** - Deep technical guides
-  - [awtrix_integration.md](technical/awtrix_integration.md) - LED matrix display integration
-  - [desirue_framework.md](technical/desirue_framework.md) - Desiru AI framework details
-  - [glitchcube_integration_summary.md](technical/glitchcube_integration_summary.md) - System integration overview
-  - [mariadb_setup.md](technical/mariadb_setup.md) - MariaDB configuration
-  - [summarization_and_context.md](technical/summarization_and_context.md) - Context management
-  - [system_prompt_service.md](technical/system_prompt_service.md) - System prompt handling
-
-### 🔄 Persistence & Data
-
-- **[persistence_options.md](persistence_options.md)** - Data persistence strategies
-- **[implementation_plan.md](implementation_plan.md)** - Project implementation phases
-
-### 🛠️ Development Tools
-
-- **[github-webhook-setup.md](github-webhook-setup.md)** - GitHub webhook configuration
-- **[self_healing_error_handler.md](self_healing_error_handler.md)** - Error recovery system
-
-### 📝 Additional Resources
-
-- **[important_info.md](important_info.md)** - Production URLs and critical info
-- **[../CLAUDE.md](../CLAUDE.md)** - AI assistant instructions for development
-- **[../README.md](../README.md)** - Main project README
-
-## 🗂️ Deprecated Documentation
-
-Old or outdated documentation has been moved to `/deprecated/` for historical reference:
-- Legacy deployment scripts (Docker/Raspberry Pi) → `/deprecated/deployment/`
-- Beacon monitoring service → `/deprecated/beacon/`
-
-## 📖 Documentation Standards
-
-When adding new documentation:
-1. Use clear, descriptive filenames
-2. Include a title and overview section
-3. Keep technical docs in `/docs/technical/`
-4. Keep persona docs in `/docs/characters/`
-5. Update this index when adding new files
-6. Move deprecated docs to `/deprecated/` with a `DEPRECATION_NOTICE.md`
-
-## 🔍 Quick Reference
-
-### Key Configuration Files
-- `.env.defaults` - Default environment variables
-- `.env.example` - Example environment setup
-- `config/initializers/config.rb` - Application configuration
-- `config/homeassistant/` - Home Assistant YAML configs
-
-### Important Rake Tasks
+### Testing
 ```bash
-rake deploy:full    # Full deployment
-rake deploy:check   # Check what needs deploying
-rake hass:deploy    # Deploy Home Assistant config
-rake host:deploy    # Deploy Sinatra app
+# Run all tests
+bundle exec rspec
+
+# Test conversations in console
+rake console
+test_conversation("Hello!")
 ```
 
-### API Endpoints
-- `GET /health` - Health check endpoint
-- `GET /health/push` - Push health to Uptime Kuma
-- `POST /api/v1/conversation` - Main conversation endpoint
-- `POST /api/webhook/glitchcube_update` - HA webhook endpoint
+### Common Tasks
+```bash
+# Deploy to production
+rake deploy:smart
+
+# Check system status
+rake status
+
+# Access Home Assistant VM
+ssh root@glitch.local
+```
+
+## Documentation Standards
+
+- **Technical docs**: Implementation details, API references
+- **Operational docs**: Deployment, monitoring, configuration
+- **Persona docs**: Character development, creative content
+- **User-facing**: How to interact with the system
+
+## Contributing
+When updating documentation:
+1. Keep it concise and practical
+2. Include code examples
+3. Update this index if adding new files
+4. Remove outdated content aggressively
 
 ---
-
-*Documentation last organized: January 2025*
+*Last updated: January 2025*
