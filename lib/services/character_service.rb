@@ -6,8 +6,8 @@ module Services
   class CharacterService
     # TTS provider types
     TTS_PROVIDERS = {
-      cloud: :cloud,      # Default Azure Cognitive Services via Home Assistant
-      elevenlabs: :elevenlabs  # ElevenLabs via Home Assistant
+      cloud: :cloud, # Default Azure Cognitive Services via Home Assistant
+      elevenlabs: :elevenlabs # ElevenLabs via Home Assistant
     }.freeze
 
     # Character definitions with voice configurations
@@ -87,9 +87,9 @@ module Services
       zorp: {
         name: 'ZORP',
         description: 'The Slacker God - Divine party bro',
-        tts_provider: :elevenlabs,  # Use ElevenLabs as primary
-        voice: 'Josh',           # ElevenLabs voice name (mapped to ID in HomeAssistantClient)
-        language: 'en-US',  # Not used by ElevenLabs but kept for consistency
+        tts_provider: :elevenlabs, # Use ElevenLabs as primary
+        voice: 'Josh', # ElevenLabs voice name (mapped to ID in HomeAssistantClient)
+        language: 'en-US', # Not used by ElevenLabs but kept for consistency
         speed: 90, # Slow, drawn-out delivery
         volume: 0.7,
         personality_traits: {
@@ -100,7 +100,7 @@ module Services
         reverb: true, # Divine echo effects
         alternate_provider: :cloud,       # Fallback to cloud
         alternate_voice: 'DavisNeural',   # Azure fallback
-        alternate_style: 'friendly',     # Azure style for fallback
+        alternate_style: 'friendly', # Azure style for fallback
         tools: %w[error_handling test_tool lighting_control music_control home_assistant display_control speech_synthesis conversation_feedback]
       }
     }.freeze
@@ -204,32 +204,31 @@ module Services
       entity_id = options[:entity_id] || 'media_player.square_voice'
 
       # Determine contextual mood (existing logic)
-      mood = options[:mood] || determine_mood(context)
+      options[:mood] || determine_mood(context)
 
       # Determine TTS provider and voice
       provider = options[:tts_provider] || @character_config[:tts_provider] || :cloud
-      
+
       # Build simple provider specification for HomeAssistantClient
-      if provider == :elevenlabs
-        voice_options = {
-          tts: :elevenlabs,
-          voice: @character_config[:voice],  # ElevenLabs voice name
-          language: @character_config[:language] || 'en-US'
-        }
-      else
-        # Cloud provider (Azure Cognitive Services)
-        # For now, just use plain voice without mood styling
-        voice_options = {
-          tts: :cloud,
-          voice: @character_config[:voice],  # Plain voice without style
-          language: @character_config[:language] || 'en-US'
-        }
-      end
+      voice_options = if provider == :elevenlabs
+                        {
+                          tts: :elevenlabs,
+                          voice: @character_config[:voice], # ElevenLabs voice name
+                          language: @character_config[:language] || 'en-US'
+                        }
+                      else
+                        # Cloud provider (Azure Cognitive Services)
+                        # For now, just use plain voice without mood styling
+                        {
+                          tts: :cloud,
+                          voice: @character_config[:voice], # Plain voice without style
+                          language: @character_config[:language] || 'en-US'
+                        }
+                      end
 
       # Use Home Assistant client - it will handle provider-specific implementation
       @home_assistant.speak(message, entity_id: entity_id, voice_options: voice_options)
     end
-
 
     # Get character configuration
     def config
@@ -271,7 +270,7 @@ module Services
     def self.get_character_tools(character_name)
       character = CHARACTERS[character_name.to_sym] || CHARACTERS[:default]
       character_tools = character[:tools] || []
-      
+
       # Always include error_handling as a base tool if not already present
       base_tools = %w[error_handling]
       (base_tools + character_tools).uniq
@@ -280,30 +279,25 @@ module Services
     # Check if a voice supports a specific variant (migrated from TTSService)
     def voice_supports_variant?(voice_name, variant)
       return false unless VOICES_WITH_VARIANTS.key?(voice_name)
+
       VOICES_WITH_VARIANTS[voice_name].include?(variant.to_s)
     end
 
-    # Get best voice for mood with intelligent fallback logic (migrated from TTSService)  
+    # Get best voice for mood with intelligent fallback logic (migrated from TTSService)
     def best_voice_for_mood(mood, preferred_voice_id)
       return preferred_voice_id unless mood
-      
+
       suffix = MOOD_TO_VOICE_SUFFIX[mood.to_sym]
       return preferred_voice_id unless suffix
 
       # Try preferred voice first
-      if voice_supports_variant?(preferred_voice_id, suffix)
-        return "#{preferred_voice_id}||#{suffix}"
-      end
+      return "#{preferred_voice_id}||#{suffix}" if voice_supports_variant?(preferred_voice_id, suffix)
 
       # Fallback to JennyNeural (has most variants)
-      if voice_supports_variant?('JennyNeural', suffix)
-        return "JennyNeural||#{suffix}"
-      end
+      return "JennyNeural||#{suffix}" if voice_supports_variant?('JennyNeural', suffix)
 
       # Fallback to AriaNeural
-      if voice_supports_variant?('AriaNeural', suffix)
-        return "AriaNeural||#{suffix}"
-      end
+      return "AriaNeural||#{suffix}" if voice_supports_variant?('AriaNeural', suffix)
 
       # No voice supports this variant, use base voice
       preferred_voice_id

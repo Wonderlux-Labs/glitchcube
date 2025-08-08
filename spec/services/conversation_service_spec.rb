@@ -147,8 +147,7 @@ RSpec.describe Services::ConversationService do
       mock_messages = double('Messages', count: 1)
       mock_session = double('ConversationSession')
       allow(mock_session).to receive(:add_message)
-      allow(mock_session).to receive(:messages).and_return(mock_messages)
-      allow(mock_session).to receive(:created_at).and_return(Time.now - 1.minute)
+      allow(mock_session).to receive_messages(messages: mock_messages, created_at: Time.now - 1.minute)
       allow(mock_session).to receive_messages(messages_for_llm: [], session_id: 'test-session-123')
       allow(Services::ConversationSession).to receive(:find_or_create).and_return(mock_session)
 

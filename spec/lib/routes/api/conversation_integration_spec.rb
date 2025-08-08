@@ -6,9 +6,9 @@ require 'concurrent'
 
 # Advanced integration tests for conversation service
 # Focus on circuit breakers, performance, session corruption, and error boundaries
-RSpec.describe "Conversation Service Integration", vcr: { 
-  cassette_name: "conversation_service_integration", 
-  match_requests_on: [:method, :uri],  # Don't match on body for TTS flexibility
+RSpec.describe 'Conversation Service Integration', vcr: {
+  cassette_name: 'conversation_service_integration',
+  match_requests_on: %i[method uri], # Don't match on body for TTS flexibility
   allow_playback_repeats: true
 } do
   include Rack::Test::Methods
@@ -46,7 +46,7 @@ RSpec.describe "Conversation Service Integration", vcr: {
           # Debug: Print actual response for investigation
           puts "Response status: #{last_response.status}"
           puts "Response body: #{last_response.body}"
-          
+
           # Should return 200 with fallback response (graceful degradation)
           expect(last_response.status).to eq(200)
           expect(parsed_body['success']).to be true
@@ -74,18 +74,16 @@ RSpec.describe "Conversation Service Integration", vcr: {
         call_count = 0
         allow(Services::LLMService).to receive(:complete_with_messages) do
           call_count += 1
-          if call_count <= 3
-            raise Timeout::Error, 'Service timeout'
-          else
-            # Return a successful response after failures
-            double('LLMResponse',
-                   response_text: 'Service recovered',
-                   continue_conversation?: true,
-                   has_tool_calls?: false,
-                   cost: 0.001,
-                   model: 'test-model',
-                   usage: { prompt_tokens: 10, completion_tokens: 20 })
-          end
+          raise Timeout::Error, 'Service timeout' if call_count <= 3
+
+          # Return a successful response after failures
+          double('LLMResponse',
+                 response_text: 'Service recovered',
+                 continue_conversation?: true,
+                 has_tool_calls?: false,
+                 cost: 0.001,
+                 model: 'test-model',
+                 usage: { prompt_tokens: 10, completion_tokens: 20 })
         end
 
         # Make failing requests
@@ -252,7 +250,7 @@ RSpec.describe "Conversation Service Integration", vcr: {
     it 'times out long-running conversations appropriately' do
       # Mock LLM service to raise timeout error
       allow(Services::LLMService).to receive(:complete_with_messages)
-        .and_raise(Services::LLMService::LLMError, "Request timed out after 30 seconds")
+        .and_raise(Services::LLMService::LLMError, 'Request timed out after 30 seconds')
 
       # Mock HomeAssistant TTS calls to prevent real network calls during timeout handling
       allow_any_instance_of(HomeAssistantClient).to receive(:call_service)

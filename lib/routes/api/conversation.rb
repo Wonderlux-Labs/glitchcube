@@ -9,7 +9,7 @@ module GlitchCube
     module Api
       module Conversation
         extend ErrorHandling
-        
+
         def self.registered(app)
           # Basic conversation test endpoint
           app.post '/api/v1/test' do
@@ -35,7 +35,7 @@ module GlitchCube
               # Log the error
               puts "❌ Error in /api/v1/test: #{e.class.name} - #{e.message}"
               ::Services::LoggerService.track_error('api', e.message) if defined?(::Services::LoggerService)
-              
+
               status 500
               json({
                      success: false,
@@ -44,7 +44,6 @@ module GlitchCube
                    })
             end
           end
-
 
           # PRIMARY CONVERSATION ENDPOINT - Phase 3 Sinatra-Centric Architecture
           # This is the unified endpoint for all conversation interactions:
@@ -64,17 +63,17 @@ module GlitchCube
               # Use session_id from request context if provided (e.g., from HA)
               # Otherwise generate a new one
               context = request_body['context'] || {}
-              
+
               # Preserve session_id from context if provided
               # This allows HA to track multi-turn conversations
               context[:session_id] ||= SecureRandom.uuid
 
               # Memory/resource guard: reject oversize context payloads
-              if context['conversation_history']&.is_a?(Array) && context['conversation_history'].size > 100
+              if context['conversation_history'].is_a?(Array) && context['conversation_history'].size > 100
                 status 413
                 return json({ success: false, error: 'conversation_history too large (max 100 entries)' })
               end
-              if context['metadata']&.is_a?(Hash)
+              if context['metadata'].is_a?(Hash)
                 metadata_size = context['metadata'].to_json.bytesize
                 if metadata_size > 100 * 1024
                   status 413
@@ -176,7 +175,7 @@ module GlitchCube
               session_id = request.session[:session_id]
               session_id = session_id.to_s if session_id.respond_to?(:to_s)
               # Fix: Check for both nil and empty string before using session_id
-              context[:session_id] ||= (session_id.nil? || session_id.empty?) ? SecureRandom.uuid : session_id
+              context[:session_id] ||= session_id.nil? || session_id.empty? ? SecureRandom.uuid : session_id
 
               # Get conversation response using module directly
               conversation_module = ConversationModule.new
@@ -202,7 +201,6 @@ module GlitchCube
                    })
             end
           end
-
         end
       end
     end

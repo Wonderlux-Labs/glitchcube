@@ -19,28 +19,28 @@ class MusicTool < BaseTool
   end
 
   def self.tool_prompt
-    "Search local library and Spotify with search_music(). Play tracks with play_media(). Control with pause_media(), stop_media(), next_track(), set_volume()."
+    'Search local library and Spotify with search_music(). Play tracks with play_media(). Control with pause_media(), stop_media(), next_track(), set_volume().'
   end
 
   # Search for music in Music Assistant
   def self.search_music(query:, limit: 5)
     return format_response(false, 'Query is required for music search') if query.nil? || query.empty?
-    
+
     begin
       # Use the actual Music Assistant config entry ID from Home Assistant
       result = call_ha_service('music_assistant', 'search', {
-        name: query,
-        limit: limit,
-        config_entry_id: '01K1VK4MYJ75WNGJR5ESSAC2WY'  # Music Assistant instance ID
-      }, return_response: true)
-      
+                                 name: query,
+                                 limit: limit,
+                                 config_entry_id: '01K1VK4MYJ75WNGJR5ESSAC2WY' # Music Assistant instance ID
+                               }, return_response: true)
+
       Services::LoggerService.log_api_call(
         service: 'music_tool',
         endpoint: 'search',
         query: query,
         limit: limit
       )
-      
+
       # Format the search results nicely
       if result && result['service_response']
         format_search_results(result['service_response'], query)
@@ -51,42 +51,41 @@ class MusicTool < BaseTool
       "❌ Music search error: #{e.message}"
     end
   end
-  
+
   # Format search results for display
   def self.format_search_results(response, query)
     results = []
     results << "=== SEARCH RESULTS FOR '#{query}' ==="
-    
+
     # Handle different result types (artists, albums, tracks, playlists)
-    ['artists', 'albums', 'tracks', 'playlists'].each do |type|
-      if response[type] && !response[type].empty?
-        results << "\n#{type.capitalize}:"
-        response[type].each_with_index do |item, idx|
-          # Format based on type
-          case type
-          when 'artists'
-            results << "  #{idx + 1}. #{item['name']} (URI: #{item['uri']})"
-          when 'albums'
-            artist = item['artists']&.first&.dig('name') || 'Unknown Artist'
-            results << "  #{idx + 1}. #{item['name']} by #{artist} (URI: #{item['uri']})"
-          when 'tracks'
-            artist = item['artists']&.first&.dig('name') || 'Unknown Artist'
-            album = item['album']&.dig('name') || 'Unknown Album'
-            results << "  #{idx + 1}. #{item['name']} - #{artist} (#{album}) (URI: #{item['uri']})"
-          when 'playlists'
-            results << "  #{idx + 1}. #{item['name']} (URI: #{item['uri']})"
-          end
+    %w[artists albums tracks playlists].each do |type|
+      next unless response[type] && !response[type].empty?
+
+      results << "\n#{type.capitalize}:"
+      response[type].each_with_index do |item, idx|
+        # Format based on type
+        case type
+        when 'artists'
+          results << "  #{idx + 1}. #{item['name']} (URI: #{item['uri']})"
+        when 'albums'
+          artist = item['artists']&.first&.dig('name') || 'Unknown Artist'
+          results << "  #{idx + 1}. #{item['name']} by #{artist} (URI: #{item['uri']})"
+        when 'tracks'
+          artist = item['artists']&.first&.dig('name') || 'Unknown Artist'
+          album = item['album']&.dig('name') || 'Unknown Album'
+          results << "  #{idx + 1}. #{item['name']} - #{artist} (#{album}) (URI: #{item['uri']})"
+        when 'playlists'
+          results << "  #{idx + 1}. #{item['name']} (URI: #{item['uri']})"
         end
       end
     end
-    
+
     results << "\nUse the URI to play specific content"
     results.join("\n")
   end
 
   # List all available media players with their capabilities
   def self.list_available_players(verbose: true)
-
     result = []
     result << '=== AVAILABLE MEDIA PLAYERS ==='
 
@@ -171,7 +170,7 @@ class MusicTool < BaseTool
   # Play media on the Glitch Cube music player
   def self.play_media(track:, volume: nil, mode: 'add')
     player = 'cube_music' # Hardcoded - art installation has fixed audio setup
-    
+
     return format_response(false, 'Track is required') if track.nil? || track.empty?
 
     entity_id = resolve_player_entity(player)
@@ -182,27 +181,27 @@ class MusicTool < BaseTool
       if volume
         volume_float = volume.is_a?(String) ? volume.to_f : volume
         call_ha_service('media_player', 'volume_set', {
-                              entity_id: entity_id,
-                              volume_level: volume_float
-                            })
+                          entity_id: entity_id,
+                          volume_level: volume_float
+                        })
       end
 
       # Play the track using Music Assistant's play_media service
       # This will do fuzzy search and play first result if not an exact ID
       enqueue_mode = mode == 'replace_next' ? 'replace_next' : 'add'
-      
+
       call_ha_service('music_assistant', 'play_media', {
-        media_id: track,
-        media_type: 'track', # Can be track, album, artist, playlist
-        enqueue: enqueue_mode,
-        entity_id: entity_id
-      })
+                        media_id: track,
+                        media_type: 'track', # Can be track, album, artist, playlist
+                        enqueue: enqueue_mode,
+                        entity_id: entity_id
+                      })
 
       # Ensure playback is started (queuing doesn't auto-start)
       sleep(0.5) # Brief pause to let the queue update
       call_ha_service('media_player', 'media_play', {
-        entity_id: entity_id
-      })
+                        entity_id: entity_id
+                      })
 
       Services::LoggerService.log_api_call(
         service: 'music_tool',
@@ -230,7 +229,7 @@ class MusicTool < BaseTool
 
     begin
       call_ha_service('media_player', 'media_pause', { entity_id: entity_id })
-      format_response(true, "Paused Glitch Cube music")
+      format_response(true, 'Paused Glitch Cube music')
     rescue StandardError => e
       format_response(false, "Failed to pause music: #{e.message}")
     end
@@ -245,7 +244,7 @@ class MusicTool < BaseTool
 
     begin
       call_ha_service('media_player', 'media_stop', { entity_id: entity_id })
-      format_response(true, "Stopped Glitch Cube music")
+      format_response(true, 'Stopped Glitch Cube music')
     rescue StandardError => e
       format_response(false, "Failed to stop music: #{e.message}")
     end
@@ -267,9 +266,9 @@ class MusicTool < BaseTool
 
     begin
       call_ha_service('media_player', 'volume_set', {
-                            entity_id: entity_id,
-                            volume_level: volume_level
-                          })
+                        entity_id: entity_id,
+                        volume_level: volume_level
+                      })
 
       format_response(true, "Set Glitch Cube music volume to #{(volume_level * 100).round}%")
     rescue StandardError => e
@@ -286,7 +285,7 @@ class MusicTool < BaseTool
 
     begin
       call_ha_service('media_player', 'media_next_track', { entity_id: entity_id })
-      format_response(true, "Skipped to next track")
+      format_response(true, 'Skipped to next track')
     rescue StandardError => e
       format_response(false, "Failed to skip track: #{e.message}")
     end
@@ -301,7 +300,7 @@ class MusicTool < BaseTool
 
     begin
       call_ha_service('media_player', 'media_previous_track', { entity_id: entity_id })
-      format_response(true, "Skipped to previous track")
+      format_response(true, 'Skipped to previous track')
     rescue StandardError => e
       format_response(false, "Failed to skip to previous track: #{e.message}")
     end
@@ -345,7 +344,7 @@ class MusicTool < BaseTool
 
         status_parts.join(' | ')
       else
-        "Glitch Cube music: unavailable"
+        'Glitch Cube music: unavailable'
       end
     rescue StandardError => e
       format_response(false, "Error getting music status: #{e.message}")

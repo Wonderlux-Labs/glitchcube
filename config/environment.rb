@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Centralized environment loader for GlitchCube
 
 # Load environment variables BEFORE anything else

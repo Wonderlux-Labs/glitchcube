@@ -4,12 +4,12 @@ require 'spec_helper'
 require 'home_assistant_client'
 
 RSpec.describe HomeAssistantClient do
-  let(:client) { 
+  let(:client) do
     described_class.new(
       base_url: GlitchCube.config.home_assistant.url,
       token: GlitchCube.config.home_assistant.token
     )
-  }
+  end
 
   describe 'AWTRIX Display Control' do
     describe '#awtrix_display_text' do
@@ -20,10 +20,10 @@ RSpec.describe HomeAssistantClient do
 
       it 'sends text with custom parameters', vcr: { cassette_name: 'awtrix_display_text_custom' } do
         result = client.awtrix_display_text('Custom Text Test',
-                                           app_name: 'test_app',
-                                           color: '#FF0000',
-                                           duration: 3,
-                                           rainbow: false)
+                                            app_name: 'test_app',
+                                            color: '#FF0000',
+                                            duration: 3,
+                                            rainbow: false)
         expect(result).to be_truthy
       end
     end
@@ -36,9 +36,9 @@ RSpec.describe HomeAssistantClient do
 
       it 'sends notification with custom parameters', vcr: { cassette_name: 'awtrix_notify_custom' } do
         result = client.awtrix_notify('Custom Alert!',
-                                     color: '#FF0000',
-                                     duration: 5,
-                                     wakeup: false)
+                                      color: '#FF0000',
+                                      duration: 5,
+                                      wakeup: false)
         expect(result).to be_truthy
       end
     end

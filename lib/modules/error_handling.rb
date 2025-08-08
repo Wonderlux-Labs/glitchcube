@@ -8,7 +8,7 @@ module ErrorHandling
   class ServiceUnavailableError < OperationalError; end
   class RateLimitError < OperationalError; end
   class NetworkTimeoutError < OperationalError; end
-  
+
   # Log and optionally re-raise errors with proper context
   def log_error(error, context = {}, reraise: true)
     # Use LoggerService's api_call method to log errors
@@ -22,23 +22,23 @@ module ErrorHandling
       backtrace: error.backtrace&.first(5)&.join("\n"),
       **context
     )
-    
+
     # Also log to console in development for immediate visibility
     if GlitchCube.config.development?
       puts "❌ Error: #{error.class} - #{error.message}"
       puts "   Context: #{context.inspect}" if context.any?
       puts "   Backtrace: #{error.backtrace&.first(3)&.join("\n   ")}"
     end
-    
+
     raise error if reraise
   end
-  
+
   # Handle expected operational errors gracefully
   def handle_operational_error(error, fallback_value = nil, context = {})
     log_error(error, context.merge(operational: true), reraise: false)
     fallback_value
   end
-  
+
   # Wrap a block with comprehensive error handling
   def with_error_handling(operation_name, fallback: nil, reraise_unexpected: true)
     yield
@@ -56,5 +56,4 @@ module ErrorHandling
     log_error(e, { operation: operation_name, unexpected: true }, reraise: reraise_unexpected)
     fallback unless reraise_unexpected
   end
-  
 end

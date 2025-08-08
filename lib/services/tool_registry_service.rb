@@ -9,7 +9,7 @@ module Services
     class << self
       # Initialize and eagerly load all tools on startup
       def initialize!
-        puts "🔧 Loading tool registry..." if defined?(Rails) || ENV['RACK_ENV'] == 'development'
+        puts '🔧 Loading tool registry...' if defined?(Rails) || ENV['RACK_ENV'] == 'development'
         @tools_cache = build_tool_registry
         puts "✅ Loaded #{@tools_cache.size} tools: #{@tools_cache.keys.join(', ')}" if defined?(Rails) || ENV['RACK_ENV'] == 'development'
         @tools_cache
@@ -17,12 +17,12 @@ module Services
         puts "❌ Failed to load tools: #{e.message}"
         raise e
       end
-      
+
       # Get all available tools with their metadata
       #
       # @return [Hash] Tool registry with name, description, parameters, etc.
       def discover_tools
-        @tools_cache ||= build_tool_registry
+        @discover_tools ||= build_tool_registry
       end
 
       # Get tool specifications formatted for OpenAI function calling
@@ -32,7 +32,7 @@ module Services
       # @return [Array<Hash>] OpenAI function schemas
       def get_openai_functions(tool_names = nil, context: :all)
         tools = discover_tools
-        selected_tools = tool_names ? tools.select { |name, _| tool_names.include?(name) } : tools
+        selected_tools = tool_names ? tools.slice(*tool_names) : tools
 
         selected_tools.map do |name, tool_info|
           build_openai_function_schema(name, tool_info)
@@ -64,19 +64,19 @@ module Services
       # @return [Array<Hash>] OpenAI function schemas for all methods
       def get_tool_methods_as_functions(tool_names = nil)
         tools = discover_tools
-        selected_tools = tool_names ? tools.select { |name, _| tool_names.include?(name) } : tools
+        selected_tools = tool_names ? tools.slice(*tool_names) : tools
 
         functions = []
         selected_tools.each do |tool_name, tool_info|
           tool_class = tool_info[:ruby_class] || load_tool_class(tool_name)
           next unless tool_class
-          
+
           methods = get_tool_methods(tool_class)
           methods.each do |method_name, method_info|
             functions << build_method_function_schema(tool_name, method_name, method_info)
           end
         end
-        
+
         functions
       end
 
@@ -97,7 +97,7 @@ module Services
         # Add optional parameters
         method_info[:parameters][:optional].each do |param|
           properties[param[:name]] = {
-            type: param[:type], 
+            type: param[:type],
             description: param[:description] || "#{param[:name]} parameter (optional)"
           }
         end
@@ -121,16 +121,16 @@ module Services
       # @param character [String] Character name (buddy, jax, lomi, etc.)
       # @param context [Hash] Additional context for tool selection
       # @return [Array<Hash>] Filtered and contextualized tool list
-      def get_tools_for_character(character, context = {})
+      def get_tools_for_character(character, _context = {})
         all_tools = discover_tools
-        
+
         # Get character tools from CharacterService - this consolidates all character config
         require_relative 'character_service'
         character_tool_names = Services::CharacterService.get_character_tools(character)
 
         # Filter to available tools and add context
         available_character_tools = character_tool_names.select { |tool| all_tools.key?(tool) }
-        
+
         get_openai_functions(available_character_tools, context: :character_specific)
       end
 
@@ -141,7 +141,7 @@ module Services
       # @return [Hash] Execution result with timing and error handling
       def execute_tool_directly(tool_name, parameters = {})
         start_time = Time.now
-        
+
         tool_info = discover_tools[tool_name]
         return { success: false, error: "Tool not found: #{tool_name}" } unless tool_info
 
@@ -152,10 +152,10 @@ module Services
 
           # Normalize parameters
           normalized_params = normalize_parameters(parameters, tool_info[:parameters])
-          
+
           # Execute tool
           result = tool_class.call(**normalized_params)
-          
+
           {
             success: true,
             result: result,
@@ -193,53 +193,53 @@ module Services
       # Extract all public methods from tool class that can be called
       def get_tool_methods(tool_class)
         # Get all public methods except inherited ones and framework methods
-        exclude_methods = [:name, :description, :category, :parameters, :required_parameters, :examples, :call, 
-                          :allocate, :superclass, :subclasses, :attached_object, :new]
+        exclude_methods = %i[name description category parameters required_parameters examples call
+                             allocate superclass subclasses attached_object new]
         tool_methods = tool_class.public_methods(false) - exclude_methods
-        
+
         methods = {}
         tool_methods.each do |method_name|
           next if method_name.to_s.start_with?('_') # Skip private-ish methods
           next if method_name.to_s.start_with?('get_') && !method_name.to_s.match?(/(status|state|info)/) # Skip internal getters unless they're status methods
           next if method_name.to_s.start_with?('parse_') # Skip internal parse methods
-          
+
           begin
             method = tool_class.method(method_name)
             params = extract_method_parameters(method)
-            
+
             methods[method_name.to_s] = {
               description: generate_method_description(method_name, params),
               parameters: params
             }
-          rescue StandardError => e
+          rescue StandardError
             # Skip methods we can't analyze
             next
           end
         end
-        
+
         methods
       end
 
       # Extract parameter information from a specific method
       def extract_method_parameters(method)
         parameters = method.parameters
-        
+
         required = []
         optional = []
-        
+
         parameters.each do |type, name|
           case type
           when :keyreq
-            required << { 
-              name: name.to_s, 
+            required << {
+              name: name.to_s,
               type: infer_parameter_type(name),
-              required: true 
+              required: true
             }
           when :key
-            optional << { 
-              name: name.to_s, 
+            optional << {
+              name: name.to_s,
               type: infer_parameter_type(name),
-              required: false 
+              required: false
             }
           when :keyrest
             # **kwargs parameter - skip for now
@@ -247,7 +247,7 @@ module Services
         end
 
         { required: required, optional: optional }
-      rescue StandardError => e
+      rescue StandardError
         { required: [], optional: [] }
       end
 
@@ -258,7 +258,7 @@ module Services
         when /color/
           'string'
         when /brightness|volume|duration|transition|pulses|limit/
-          'number'  
+          'number'
         when /verbose|rainbow|enabled/
           'boolean'
         when /rgb_color|variables/
@@ -270,17 +270,13 @@ module Services
 
       # Generate a description for a method
       def generate_method_description(method_name, params)
-        method_str = method_name.to_s.gsub('_', ' ').gsub(/\b\w/) { |match| match.upcase }
+        method_str = method_name.to_s.gsub('_', ' ').gsub(/\b\w/, &:upcase)
         required_params = params[:required].map { |p| p[:name] }.join(', ')
         optional_params = params[:optional].map { |p| p[:name] }.join(', ')
-        
-        desc = "#{method_str}"
-        if required_params.any?
-          desc += ". Required: #{required_params}"
-        end
-        if optional_params.any?
-          desc += ". Optional: #{optional_params}"
-        end
+
+        desc = method_str.to_s
+        desc += ". Required: #{required_params}" if required_params.any?
+        desc += ". Optional: #{optional_params}" if optional_params.any?
         desc
       end
 
@@ -290,14 +286,12 @@ module Services
       def build_tool_registry
         tools = {}
         tool_files = discover_tool_files
-        
+
         tool_files.each do |tool_file|
-          begin
-            tool_info = analyze_tool_file(tool_file)
-            tools[tool_info[:name]] = tool_info if tool_info
-          rescue StandardError => e
-            Rails.logger.warn "Failed to analyze tool file #{tool_file}: #{e.message}" if defined?(Rails)
-          end
+          tool_info = analyze_tool_file(tool_file)
+          tools[tool_info[:name]] = tool_info if tool_info
+        rescue StandardError => e
+          Rails.logger.warn "Failed to analyze tool file #{tool_file}: #{e.message}" if defined?(Rails)
         end
 
         tools
@@ -308,25 +302,25 @@ module Services
         tools_dir = if defined?(Rails) && Rails.root
                       Rails.root.join('lib', 'tools')
                     else
-                      File.expand_path('../../tools', __FILE__)
+                      File.expand_path('../tools', __dir__)
                     end
 
         return [] unless Dir.exist?(tools_dir)
 
-        Dir.glob(File.join(tools_dir, '*.rb')).sort
+        Dir.glob(File.join(tools_dir, '*.rb'))
       end
 
       # Analyze a single tool file and extract metadata
       def analyze_tool_file(tool_file)
         # Skip base_tool.rb as it's an abstract class
         return nil if File.basename(tool_file) == 'base_tool.rb'
-        
+
         # Load the tool file
         require tool_file
-        
+
         # Extract tool name from filename
         base_name = File.basename(tool_file, '.rb')
-        
+
         # Try to find the tool class
         tool_class = load_tool_class_from_file(base_name)
         return nil unless tool_class
@@ -334,8 +328,8 @@ module Services
         # Extract metadata from the class
         {
           name: tool_class.respond_to?(:name) ? tool_class.name : base_name,
-          class_name: tool_class.to_s,  # Get the actual Ruby class name (e.g., "LightingTool")
-          ruby_class: tool_class,  # Store the actual class reference for direct use
+          class_name: tool_class.to_s, # Get the actual Ruby class name (e.g., "LightingTool")
+          ruby_class: tool_class, # Store the actual class reference for direct use
           description: tool_class.respond_to?(:description) ? tool_class.description : 'No description available',
           file_path: tool_file,
           parameters: extract_tool_parameters(tool_class),
@@ -354,7 +348,7 @@ module Services
         class_names = [
           base_name.split('_').map(&:capitalize).join, # test_tool -> TestTool
           "#{base_name.split('_').map(&:capitalize).join}Tool", # test -> TestTool
-          base_name.split('_').map(&:capitalize).join.gsub('Tool', '') + 'Tool' # Normalize
+          "#{base_name.split('_').map(&:capitalize).join.gsub('Tool', '')}Tool" # Normalize
         ].uniq
 
         class_names.each do |class_name|
@@ -367,23 +361,23 @@ module Services
       # Extract parameter information from a specific method
       def extract_method_parameters(method)
         parameters = method.parameters
-        
+
         required = []
         optional = []
-        
+
         parameters.each do |type, name|
           case type
           when :keyreq
-            required << { 
-              name: name.to_s, 
+            required << {
+              name: name.to_s,
               type: infer_parameter_type(name),
-              required: true 
+              required: true
             }
           when :key
-            optional << { 
-              name: name.to_s, 
+            optional << {
+              name: name.to_s,
               type: infer_parameter_type(name),
-              required: false 
+              required: false
             }
           when :keyrest
             # **kwargs parameter - skip for now
@@ -391,7 +385,7 @@ module Services
         end
 
         { required: required, optional: optional }
-      rescue StandardError => e
+      rescue StandardError
         { required: [], optional: [] }
       end
 
@@ -402,7 +396,7 @@ module Services
         when /color/
           'string'
         when /brightness|volume|duration|transition|pulses|limit/
-          'number'  
+          'number'
         when /verbose|rainbow|enabled/
           'boolean'
         when /rgb_color|variables/
@@ -414,21 +408,17 @@ module Services
 
       # Generate a description for a method
       def generate_method_description(method_name, params)
-        method_str = method_name.to_s.gsub('_', ' ').gsub(/\b\w/) { |match| match.upcase }
+        method_str = method_name.to_s.gsub('_', ' ').gsub(/\b\w/, &:upcase)
         required_params = params[:required].map { |p| p[:name] }.join(', ')
         optional_params = params[:optional].map { |p| p[:name] }.join(', ')
-        
-        desc = "#{method_str}"
-        if required_params.any?
-          desc += ". Required: #{required_params}"
-        end
-        if optional_params.any?
-          desc += ". Optional: #{optional_params}"
-        end
+
+        desc = method_str.to_s
+        desc += ". Required: #{required_params}" if required_params.any?
+        desc += ". Optional: #{optional_params}" if optional_params.any?
         desc
       end
 
-      # Extract parameter information from tool class (legacy method for compatibility)  
+      # Extract parameter information from tool class (legacy method for compatibility)
       def extract_tool_parameters(tool_class)
         # For new method-based tools, return the first method as default
         methods = get_tool_methods(tool_class)
@@ -436,16 +426,16 @@ module Services
           first_method = methods.values.first
           return first_method[:parameters] if first_method
         end
-        
+
         # Legacy fallback
         return { required: [], optional: [] } unless tool_class.respond_to?(:call)
 
         method = tool_class.method(:call)
         parameters = method.parameters
-        
+
         required = []
         optional = []
-        
+
         parameters.each do |type, name|
           case type
           when :keyreq
@@ -467,48 +457,48 @@ module Services
       def parse_description_for_parameters(description)
         # Look for patterns like "Args: param (type) - description"
         params = {}
-        
+
         # Match patterns like: "action (string), params (string) - JSON parameters"
         if description =~ /Args:\s*(.+?)(?:\.|$)/mi
-          args_text = $1
-          
+          args_text = ::Regexp.last_match(1)
+
           # Split by commas and parse each parameter
           args_text.split(',').each do |arg|
             # Match "param_name (type) - description" or "param_name (type)"
-            if arg.match(/(\w+)\s*\(([^)]+)\)(?:\s*-\s*(.+))?/)
-              param_name = $1.strip
-              param_type = $2.strip.downcase
-              param_description = $3&.strip
-              
-              # Map common type names
-              openai_type = case param_type
-                           when 'string', 'str' then 'string'
-                           when 'integer', 'int', 'number' then 'integer'
-                           when 'boolean', 'bool' then 'boolean'
-                           when 'array', 'list' then 'array'
-                           when 'object', 'hash', 'json' then 'object'
-                           else 'string'
-                           end
-              
-              params[param_name] = {
-                type: openai_type,
-                description: param_description
-              }
-            end
+            next unless arg.match(/(\w+)\s*\(([^)]+)\)(?:\s*-\s*(.+))?/)
+
+            param_name = ::Regexp.last_match(1).strip
+            param_type = ::Regexp.last_match(2).strip.downcase
+            param_description = ::Regexp.last_match(3)&.strip
+
+            # Map common type names
+            openai_type = case param_type
+                          when 'string', 'str' then 'string'
+                          when 'integer', 'int', 'number' then 'integer'
+                          when 'boolean', 'bool' then 'boolean'
+                          when 'array', 'list' then 'array'
+                          when 'object', 'hash', 'json' then 'object'
+                          else 'string'
+                          end
+
+            params[param_name] = {
+              type: openai_type,
+              description: param_description
+            }
           end
         end
-        
+
         # Enhanced parsing for complex tool descriptions
         enhanced_params = extract_enhanced_parameters(description)
         params.merge!(enhanced_params)
-        
+
         params
       end
 
       # Extract enhanced parameter details from complex descriptions
       def extract_enhanced_parameters(description)
         params = {}
-        
+
         # For tools with action-based structure, parse actions and their parameters
         if description.include?('Actions:')
           actions = extract_actions_from_description(description)
@@ -519,7 +509,7 @@ module Services
               enum: actions.keys,
               actions_detail: actions
             }
-            
+
             # Parse common parameter patterns
             if description.include?('params')
               params['params'] = {
@@ -529,17 +519,17 @@ module Services
             end
           end
         end
-        
+
         # Extract enum values from descriptions
         extract_enum_parameters(description, params)
-        
+
         params
       end
 
       # Extract actions and their details from tool descriptions
       def extract_actions_from_description(description)
         actions = {}
-        
+
         # Pattern: "action" (param1, param2, param3)
         description.scan(/"([^"]+)"\s*\(([^)]*)\)/) do |action_name, action_params|
           param_details = parse_action_parameters(action_params)
@@ -548,13 +538,13 @@ module Services
             parameters: param_details
           }
         end
-        
+
         # If no quoted actions, try without quotes
         if actions.empty?
           description.scan(/(\w+)\s*\(([^)]*)\)/) do |action_name, action_params|
             # Skip common words that aren't actions
             next if %w[Args string boolean integer].include?(action_name)
-            
+
             param_details = parse_action_parameters(action_params)
             actions[action_name] = {
               description: "#{action_name} action",
@@ -562,14 +552,14 @@ module Services
             }
           end
         end
-        
+
         actions
       end
 
       # Parse parameters within action parentheses
       def parse_action_parameters(param_string)
         return [] if param_string.strip.empty?
-        
+
         params = param_string.split(',').map(&:strip)
         params.map do |param|
           # Remove common type indicators
@@ -585,7 +575,7 @@ module Services
       # Extract enum values and parameter constraints
       def extract_enum_parameters(description, params)
         # Extract target options: "Targets: cube, cart, voice_ring, matrix, indicators, all"
-        if match = description.match(/Targets?:\s*([^.]+)/)
+        if (match = description.match(/Targets?:\s*([^.]+)/))
           values = match[1].split(',').map(&:strip)
           if params['params']
             params['params'][:properties] ||= {}
@@ -596,21 +586,19 @@ module Services
             }
           end
         end
-        
+
         # Extract color formats: "Colors: hex "#FF0000" or RGB [255,0,0]"
-        if description.include?('Colors:')
-          if params['params']
-            params['params'][:properties] ||= {}
-            params['params'][:properties][:color] = {
-              type: 'string', 
-              description: 'Color in hex format (#FF0000) or RGB array [255,0,0]',
-              examples: ['#FF0000', '#00FF00', '#0000FF', '[255,0,0]', '[0,255,0]']
-            }
-          end
+        if description.include?('Colors:') && params['params']
+          params['params'][:properties] ||= {}
+          params['params'][:properties][:color] = {
+            type: 'string',
+            description: 'Color in hex format (#FF0000) or RGB array [255,0,0]',
+            examples: ['#FF0000', '#00FF00', '#0000FF', '[255,0,0]', '[0,255,0]']
+          }
         end
-        
+
         # Extract mood/scene options
-        if match = description.match(/mood[s]?:\s*([^.]+)/i)
+        if (match = description.match(/mood[s]?:\s*([^.]+)/i))
           values = match[1].split(',').map(&:strip)
           if params['params']
             params['params'][:properties] ||= {}
@@ -627,45 +615,43 @@ module Services
       def merge_parameter_info(required, optional, parsed_params)
         # Update required parameters with parsed info
         required.each do |param|
-          if parsed_info = parsed_params[param[:name]]
+          if (parsed_info = parsed_params[param[:name]])
             param.merge!(parsed_info)
           end
         end
-        
-        # Update optional parameters with parsed info  
+
+        # Update optional parameters with parsed info
         optional.each do |param|
-          if parsed_info = parsed_params[param[:name]]
+          if (parsed_info = parsed_params[param[:name]])
             param.merge!(parsed_info)
           end
         end
-        
+
         # Add any additional parameters found in description
         parsed_params.each do |name, info|
-          unless required.any? { |p| p[:name] == name } || optional.any? { |p| p[:name] == name }
-            optional << { name: name }.merge(info)
-          end
+          optional << { name: name }.merge(info) unless required.any? { |p| p[:name] == name } || optional.any? { |p| p[:name] == name }
         end
       end
 
       # Extract usage examples from tool class if available
-      def extract_tool_examples(tool_class)
+      def extract_tool_examples(_tool_class)
         # This could be extended to look for example methods, comments, etc.
         []
       end
 
       # Infer if tool is character-specific
-      def infer_character_specific(tool_class)
+      def infer_character_specific(_tool_class)
         # Could analyze tool behavior, description, etc.
         false
       end
 
       # Infer tool category from class and name
-      def infer_tool_category(tool_class, name)
+      def infer_tool_category(_tool_class, name)
         case name
         when /lighting/
           'environment_control'
         when /music|audio|sound/
-          'media_control'  
+          'media_control'
         when /camera|display|visual/
           'visual_interface'
         when /test|debug/
@@ -724,7 +710,7 @@ module Services
           actual_class = tool_info[:class_name]
           return Object.const_get(actual_class) if Object.const_defined?(actual_class)
         end
-        
+
         # Try the same logic as ToolExecutor
         class_name = "#{tool_name.split('_').map(&:capitalize).join}Tool"
         return Object.const_get(class_name) if Object.const_defined?(class_name)
@@ -750,15 +736,15 @@ module Services
       end
 
       # Normalize parameters for tool execution
-      def normalize_parameters(parameters, tool_parameters)
+      def normalize_parameters(parameters, _tool_parameters)
         normalized = {}
-        
+
         # Convert string keys to symbols
         parameters.each do |key, value|
           sym_key = key.to_s.to_sym
           normalized[sym_key] = value
         end
-        
+
         normalized
       end
     end

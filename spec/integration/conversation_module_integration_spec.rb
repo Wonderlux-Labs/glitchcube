@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../lib/modules/conversation_module'
 
-RSpec.describe 'ConversationModule Integration', vcr: { cassette_name: "auto_generated" } do
+RSpec.describe 'ConversationModule Integration', vcr: { cassette_name: 'auto_generated' } do
   let(:module_instance) { ConversationModule.new }
 
   describe 'Real conversation flow with Home Assistant' do

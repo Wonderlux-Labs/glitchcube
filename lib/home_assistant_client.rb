@@ -11,6 +11,7 @@ require_relative 'modules/error_handling'
 
 class HomeAssistantClient
   include ErrorHandling
+
   class Error < StandardError; end
   class AuthenticationError < Error; end
   class NotFoundError < Error; end
@@ -92,8 +93,8 @@ class HomeAssistantClient
   def call_service(domain, service, data = {}, return_response: false)
     # Add return_response query parameter if requested
     path = "/api/services/#{domain}/#{service}"
-    path += "?return_response" if return_response
-    
+    path += '?return_response' if return_response
+
     # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
     return post(path, data) if GlitchCube.config.test? && !ENV['ENABLE_CIRCUIT_BREAKERS']
 
@@ -121,13 +122,13 @@ class HomeAssistantClient
   # TTS methods - Support multiple TTS providers via Home Assistant
   def speak(message, entity_id: nil, voice_options: {})
     target_entity = entity_id || 'media_player.square_voice'
-    
+
     # Determine TTS provider from voice_options
     provider = voice_options[:tts] || :cloud
-    
+
     begin
       LogHelper.log("🔊 TTS Request: '#{message}' to #{target_entity} via #{provider}")
-      
+
       case provider
       when :elevenlabs
         speak_with_elevenlabs(message, target_entity, voice_options)
@@ -145,20 +146,20 @@ class HomeAssistantClient
     rescue StandardError => e
       LogHelper.error("Unexpected TTS error: #{e.class} - #{e.message}")
       LogHelper.error("   Provider: #{provider}")
-      LogHelper.error("   Entity: #{target_entity}")  
+      LogHelper.error("   Entity: #{target_entity}")
       LogHelper.error("   Message: #{message}")
       LogHelper.error("   Backtrace: #{e.backtrace.first(3).join("\n   ")}")
       false
     end
   end
-  
+
   private
-  
+
   # Use Azure Cognitive Services TTS via tts.cloud_say
   def speak_with_cloud(message, target_entity, voice_options)
     # Check if queue mode is enabled (default to true if not set)
     use_queue = voice_options[:queue] != false
-    
+
     if use_queue
       # Use the queued Cloud TTS script to prevent interruption
       script_params = {
@@ -167,7 +168,7 @@ class HomeAssistantClient
         language: voice_options[:language] || 'en-US',
         media_player: target_entity
       }
-      
+
       result = call_service('script', 'glitchcube_cloud_speak', script_params)
       LogHelper.success("Queued Cloud TTS: Voice=#{script_params[:voice]}, Response=#{result.inspect}")
     else
@@ -177,28 +178,26 @@ class HomeAssistantClient
         message: message,
         language: voice_options[:language] || 'en-US'
       }
-      
+
       # Handle voice with optional style (e.g., "DavisNeural||excited")
-      if voice_options[:voice]
-        tts_params[:options] = { voice: voice_options[:voice] }
-      end
-      
+      tts_params[:options] = { voice: voice_options[:voice] } if voice_options[:voice]
+
       result = call_service('tts', 'cloud_say', tts_params)
       LogHelper.success("Direct Cloud TTS: Response=#{result.inspect}")
     end
-    
+
     true
   end
-  
+
   # Use ElevenLabs TTS via tts.speak
   def speak_with_elevenlabs(message, target_entity, voice_options)
     # Get voice ID from name, or use as-is if already an ID
     voice_name = voice_options[:voice] || 'Josh'
     voice_id = ELEVENLABS_VOICE_MAP[voice_name] || voice_name
-    
+
     # Check if queue mode is enabled (default to true if not set)
     use_queue = voice_options[:queue] != false
-    
+
     if use_queue
       # Use the queued ElevenLabs TTS script to prevent interruption
       script_params = {
@@ -207,7 +206,7 @@ class HomeAssistantClient
         media_player: target_entity,
         model: voice_options[:model] || 'eleven_multilingual_v2'
       }
-      
+
       result = call_service('script', 'glitchcube_elevenlabs_speak', script_params)
       LogHelper.success("Queued ElevenLabs TTS: Voice=#{voice_id}, Response=#{result.inspect}")
     else
@@ -217,31 +216,31 @@ class HomeAssistantClient
         media_player_entity_id: target_entity,
         message: message,
         options: {
-          voice: voice_id,  # Use the mapped voice ID
+          voice: voice_id, # Use the mapped voice ID
           model: voice_options[:model] || 'eleven_multilingual_v2'
         }
       }
-      
+
       result = call_service('tts', 'speak', tts_params)
       LogHelper.success("Direct ElevenLabs TTS: Response=#{result.inspect}")
     end
-    
+
     true
   end
-  
+
   public
 
   # Voice assistant
   def process_voice_command(text)
     call_service('conversation', 'process', { text: text })
   end
-  
+
   # Music Assistant search
   def search_music(query, limit: 5)
-    call_service('music_assistant', 'search', { 
-      name: query, 
-      limit: limit 
-    }, return_response: true)
+    call_service('music_assistant', 'search', {
+                   name: query,
+                   limit: limit
+                 }, return_response: true)
   end
 
   # Camera
@@ -378,7 +377,7 @@ class HomeAssistantClient
     else
       uri = URI.join(@base_url, path)
     end
-    
+
     request = Net::HTTP::Post.new(uri)
     request['Authorization'] = "Bearer #{@token}"
     request['Content-Type'] = 'application/json'
@@ -445,28 +444,22 @@ class HomeAssistantClient
 
       # Extract meaningful error information
       error_details = []
-      
+
       if error_body.is_a?(Hash)
         # Common Home Assistant error fields
         error_details << error_body['message'] if error_body['message']
         error_details << error_body['error'] if error_body['error']
         error_details << "Code: #{error_body['code']}" if error_body['code']
-        
+
         # Service-specific errors
-        if error_body['error_code']
-          error_details << "Error Code: #{error_body['error_code']}"
-        end
-        
+        error_details << "Error Code: #{error_body['error_code']}" if error_body['error_code']
+
         # Validation errors
-        if error_body['errors']
-          error_details << "Validation: #{error_body['errors']}"
-        end
+        error_details << "Validation: #{error_body['errors']}" if error_body['errors']
       end
-      
+
       # Fallback to raw response
-      if error_details.empty?
-        error_details << response.body
-      end
+      error_details << response.body if error_details.empty?
 
       # Enhanced logging for debugging
       if request
@@ -483,8 +476,8 @@ class HomeAssistantClient
 
       # Create comprehensive error message
       error_summary = error_details.join(' | ')
-      endpoint_info = request ? " (#{request.method} #{response.uri})" : ""
-      
+      endpoint_info = request ? " (#{request.method} #{response.uri})" : ''
+
       raise Error, "Bad Request (400)#{endpoint_info}: #{error_summary}"
     when 500
       # Parse 500 error details for better debugging

@@ -4,7 +4,7 @@ module LogHelper
   def self.log(message, level = :info)
     timestamp = Time.now.strftime('%Y-%m-%d %H:%M:%S.%L')
     formatted = "[#{timestamp}] #{message}"
-    
+
     case level
     when :error
       puts "❌ #{formatted}"

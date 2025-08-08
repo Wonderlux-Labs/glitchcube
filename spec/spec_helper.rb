@@ -57,7 +57,7 @@ RSpec.configure do |config|
   end
 
   # Set test context for auto-recording
-  config.before(:each) do |example|
+  config.before do |example|
     VCRAutoRecording.set_test_context(example) if defined?(VCRAutoRecording)
   end
 
@@ -119,7 +119,7 @@ RSpec.configure do |config|
 
     # Clean database between tests - let Rails handle dependent: :destroy relationships
     Memory.destroy_all if defined?(Memory)
-    Conversation.destroy_all if defined?(Conversation)  # This will cascade to messages via dependent: :destroy
+    Conversation.destroy_all if defined?(Conversation) # This will cascade to messages via dependent: :destroy
 
     # Reset circuit breakers if they exist (but don't disable them globally)
     Services::CircuitBreakerService.reset_all_breakers if defined?(Services::CircuitBreakerService) && Services::CircuitBreakerService.respond_to?(:reset_all_breakers)
@@ -242,30 +242,30 @@ VCR.configure do |config|
   # Enable auto-recording mode when VCR_AUTO_RECORD=true
   if ENV['VCR_AUTO_RECORD'] == 'true'
     config.allow_http_connections_when_no_cassette = true
-    
+
     # Set up a hook to automatically wrap tests without cassettes
     config.around_http_request do |request|
       if VCR.current_cassette.nil?
         host = request.uri.respond_to?(:host) ? request.uri.host : URI.parse(request.uri.to_s).host
-        
+
         # Skip localhost
         if host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
           request.proceed
           next
         end
-        
+
         # Generate cassette for this test
         if RSpec.current_example
           puts "🎬 Auto-recording cassette for: #{RSpec.current_example.full_description}"
-          
+
           cassette_name = VCRAutoRecording.generate_cassette_name(RSpec.current_example, request)
-          
+
           # Create directory
           cassette_dir = File.join('spec', 'vcr_cassettes', File.dirname(cassette_name))
-          FileUtils.mkdir_p(cassette_dir) unless File.exist?(cassette_dir)
-          
+          FileUtils.mkdir_p(cassette_dir)
+
           # Use cassette to record
-          VCR.use_cassette(cassette_name, record: :new_episodes, match_requests_on: [:method, :uri, :body]) do
+          VCR.use_cassette(cassette_name, record: :new_episodes, match_requests_on: %i[method uri body]) do
             VCRAutoRecording.auto_record_request(request, RSpec.current_example)
             request.proceed
           end

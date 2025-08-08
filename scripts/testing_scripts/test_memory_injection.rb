@@ -1,10 +1,12 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 # Test memory injection in conversations
 
 require_relative 'config/environment'
 require_relative 'app'
 
-puts "=== Testing Memory Injection in Conversations ==="
+puts '=== Testing Memory Injection in Conversations ==='
 
 # Enable debug mode to see memory injection
 GlitchCube.config.instance_eval { @debug = true }
@@ -16,9 +18,9 @@ conversation = ConversationModule.new(persona: 'buddy')
 response = conversation.call(
   message: "Hey, what's happening around here?",
   context: {
-    location: "Center Camp",
+    location: 'Center Camp',
     include_sensors: false,
-    skip_memories: false  # Explicitly enable memories
+    skip_memories: false # Explicitly enable memories
   }
 )
 
@@ -28,9 +30,9 @@ puts "Persona: #{response[:persona]}"
 # Test without memory injection
 puts "\n🚫 Testing conversation WITHOUT memory injection:"
 response2 = conversation.call(
-  message: "Tell me a story",
+  message: 'Tell me a story',
   context: {
-    skip_memories: true  # Explicitly disable memories
+    skip_memories: true # Explicitly disable memories
   }
 )
 

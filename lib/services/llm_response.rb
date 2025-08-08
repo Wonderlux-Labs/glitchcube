@@ -133,7 +133,7 @@ module Services
       end
 
       # Return nil when not specified, let ConversationModule decide the safe default
-      nil
+      false
     end
 
     # Get the main response text (handles structured and unstructured)

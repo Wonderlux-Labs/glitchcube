@@ -12,7 +12,7 @@ class TestTool < BaseTool
   end
 
   def self.tool_prompt
-    "Get system info with get_info(). Types: battery, location, sensors, all."
+    'Get system info with get_info(). Types: battery, location, sensors, all.'
   end
 
   def self.parameters

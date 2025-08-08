@@ -6,7 +6,7 @@ source 'https://rubygems.org'
 gem 'rake', '~> 13.3'
 gem 'sinatra', '~> 4.1'
 gem 'sinatra-contrib', '~> 4.1'
-gem 'webrick', '~> 1.8'  # Simple server for single-user art installation
+gem 'webrick', '~> 1.8' # Simple server for single-user art installation
 
 # AI & API
 gem 'open_router', '~> 0.3'

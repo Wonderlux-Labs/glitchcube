@@ -25,11 +25,9 @@ module Services
 
         # Ensure the record is persisted (find_or_create_by should do this, but let's be explicit)
         conversation.save! if conversation.new_record?
-        
+
         # Verify it's in the database
-        unless ::Conversation.exists?(session_id: session_id)
-          raise "Failed to persist conversation with session_id: #{session_id}"
-        end
+        raise "Failed to persist conversation with session_id: #{session_id}" unless ::Conversation.exists?(session_id: session_id)
 
         new(conversation)
       end

@@ -20,7 +20,7 @@ class ErrorHandlingTool < BaseTool
   end
 
   def self.tool_prompt
-    "Monitor system health with get_system_health(), reset_circuit_breaker(), test_connection()."
+    'Monitor system health with get_system_health(), reset_circuit_breaker(), test_connection().'
   end
 
   # Get comprehensive system health status

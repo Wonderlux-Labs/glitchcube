@@ -21,14 +21,14 @@ RSpec.describe 'Simple Admin Interface' do
 
     it 'has basic JavaScript functions' do
       get '/admin/simple'
-      
+
       # Should have these basic functions
       expect(last_response.body).to include('sendMessage()')
       expect(last_response.body).to include('clearDisplay()')
-      
+
       # Should have memory functions (simple includes memory management)
       expect(last_response.body).to include('loadMemories')
-      
+
       # Should NOT have advanced tab switching from advanced version
       expect(last_response.body).not_to include('switchMemoryTab')
     end
@@ -36,12 +36,12 @@ RSpec.describe 'Simple Admin Interface' do
 
   describe 'POST /admin/proactive_conversation' do
     it 'creates a conversation session with proactive message', vcr: { cassette_name: 'admin_proactive_conversation' } do
-      post '/admin/proactive_conversation', 
+      post '/admin/proactive_conversation',
            { character: 'buddy' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
       expect(last_response).to be_ok
-      
+
       body = JSON.parse(last_response.body)
       expect(body['success']).to be true
       expect(body['session_id']).to start_with('proactive_')
@@ -55,7 +55,7 @@ RSpec.describe 'Simple Admin Interface' do
       get '/admin/status'
 
       expect(last_response).to be_ok
-      
+
       body = JSON.parse(last_response.body)
       expect(body).to have_key('home_assistant')
       expect(body).to have_key('openrouter')

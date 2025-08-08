@@ -10,8 +10,8 @@ require_relative 'lib/home_assistant_client'
 require 'json'
 require 'time'
 
-puts "📋 Checking Home Assistant Logs"
-puts "=" * 50
+puts '📋 Checking Home Assistant Logs'
+puts '=' * 50
 
 client = HomeAssistantClient.new
 
@@ -19,9 +19,9 @@ client = HomeAssistantClient.new
 puts "\n1. Recent Logbook Entries:"
 begin
   # Get logbook entries for the last hour
-  end_time = Time.now.iso8601
-  start_time = (Time.now - 3600).iso8601  # 1 hour ago
-  
+  Time.now.iso8601
+  (Time.now - 3600).iso8601 # 1 hour ago
+
   # Use call_service to get logbook entries
   result = client.call_service(
     'logbook',
@@ -33,9 +33,9 @@ begin
       domain: 'conversation'
     }
   )
-  
-  puts "✅ Logged test entry"
-rescue => e
+
+  puts '✅ Logged test entry'
+rescue StandardError => e
   puts "⚠️  Could not write to logbook: #{e.message}"
 end
 
@@ -51,7 +51,7 @@ begin
       puts "   Error count: #{health_state['attributes']['error_count']}" if health_state['attributes']['error_count']
     end
   end
-rescue => e
+rescue StandardError => e
   puts "❌ Error checking health: #{e.message}"
 end
 
@@ -59,20 +59,20 @@ end
 puts "\n3. Error-related Sensors:"
 begin
   states = client.states
-  error_entities = states.select do |s| 
-    s['entity_id'].include?('error') || 
-    s['entity_id'].include?('warning') ||
-    s['entity_id'].include?('alert')
+  error_entities = states.select do |s|
+    s['entity_id'].include?('error') ||
+      s['entity_id'].include?('warning') ||
+      s['entity_id'].include?('alert')
   end
-  
+
   if error_entities.any?
     error_entities.each do |entity|
       puts "   #{entity['entity_id']}: #{entity['state']}"
     end
   else
-    puts "   No error entities found"
+    puts '   No error entities found'
   end
-rescue => e
+rescue StandardError => e
   puts "❌ Error checking sensors: #{e.message}"
 end
 
@@ -80,7 +80,7 @@ end
 puts "\n4. Testing Conversation with Error Details:"
 begin
   # First, try without agent_id to see what happens
-  puts "   Testing without agent_id..."
+  puts '   Testing without agent_id...'
   result = client.call_service(
     'conversation',
     'process',
@@ -89,7 +89,7 @@ begin
     }
   )
   puts "   ✅ Success without agent_id: #{result.class}"
-  
+
   # Now try with our custom agent
   puts "\n   Testing with agent_id='conversation.glitchcube'..."
   result = client.call_service(
@@ -100,30 +100,27 @@ begin
       agent_id: 'conversation.glitchcube'
     }
   )
-  puts "   ✅ Success with custom agent"
-  
-rescue => e
+  puts '   ✅ Success with custom agent'
+rescue StandardError => e
   puts "   ❌ Error: #{e.message}"
-  
+
   # Try alternative agent ID formats
   puts "\n   Trying alternative formats..."
-  
+
   ['glitchcube', 'agent.glitchcube', 'glitchcube_conversation'].each do |agent_id|
-    begin
-      puts "   Testing agent_id='#{agent_id}'..."
-      result = client.call_service(
-        'conversation',
-        'process',
-        {
-          text: 'Test',
-          agent_id: agent_id
-        }
-      )
-      puts "   ✅ Success with '#{agent_id}'"
-      break
-    rescue => e
-      puts "   ❌ Failed: #{e.message.split("\n").first}"
-    end
+    puts "   Testing agent_id='#{agent_id}'..."
+    result = client.call_service(
+      'conversation',
+      'process',
+      {
+        text: 'Test',
+        agent_id: agent_id
+      }
+    )
+    puts "   ✅ Success with '#{agent_id}'"
+    break
+  rescue StandardError => e
+    puts "   ❌ Failed: #{e.message.split("\n").first}"
   end
 end
 
@@ -131,32 +128,30 @@ end
 puts "\n5. Checking for Log Sensors:"
 begin
   log_sensors = client.states.select { |s| s['entity_id'].include?('log') }
-  
+
   if log_sensors.any?
-    puts "   Found log sensors:"
+    puts '   Found log sensors:'
     log_sensors.each do |sensor|
       puts "   - #{sensor['entity_id']}"
-      if sensor['state'] && sensor['state'].length > 0 && sensor['state'] != 'unknown'
-        puts "     State: #{sensor['state'][0..100]}..." 
-      end
+      puts "     State: #{sensor['state'][0..100]}..." if sensor['state']&.length&.positive? && sensor['state'] != 'unknown'
     end
   else
-    puts "   No log sensors found"
+    puts '   No log sensors found'
   end
-rescue => e
+rescue StandardError => e
   puts "❌ Error checking log sensors: #{e.message}"
 end
 
-puts "\n" + "=" * 50
-puts "📋 Log Check Complete"
+puts "\n#{'=' * 50}"
+puts '📋 Log Check Complete'
 
 puts "\n💡 To get detailed logs, you may need to:"
-puts "1. SSH into Home Assistant: ssh user@glitch.local"
-puts "2. Check logs: docker logs homeassistant 2>&1 | grep -i conversation"
-puts "3. Or check the UI: Configuration -> Logs"
-puts "4. Enable debug logging for conversation component in configuration.yaml:"
+puts '1. SSH into Home Assistant: ssh user@glitch.local'
+puts '2. Check logs: docker logs homeassistant 2>&1 | grep -i conversation'
+puts '3. Or check the UI: Configuration -> Logs'
+puts '4. Enable debug logging for conversation component in configuration.yaml:'
 puts <<~YAML
-  
+
   logger:
     default: info
     logs:

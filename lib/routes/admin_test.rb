@@ -10,8 +10,8 @@ module GlitchCube
         app.get '/admin/test' do
           # Load recent conversations for display
           @recent_conversations = Conversation.order(created_at: :desc)
-                                             .limit(5)
-                                             .map do |conv|
+            .limit(5)
+            .map do |conv|
             {
               session_id: conv.session_id,
               persona: conv.persona,
@@ -20,7 +20,7 @@ module GlitchCube
               total_cost: conv.total_cost&.round(4) || 0
             }
           end
-          
+
           # Use improved view if it exists
           if File.exist?('views/admin_test_improved.erb')
             erb :admin_test_improved
@@ -28,7 +28,7 @@ module GlitchCube
             erb :admin_test
           end
         end
-        
+
         # Continuous conversation flow tester
         app.get '/admin/test/flow' do
           erb :admin_test_flow
@@ -44,34 +44,33 @@ module GlitchCube
 
             # Call the main conversation endpoint with tool tracking
             conversation = ConversationModule.new(persona: persona)
-            
+
             # Enable verbose logging for admin testing
             start_time = Time.now
-            
+
             @conversation_response = conversation.call(
               message: message,
-              context: { 
+              context: {
                 session_id: session_id,
                 source: 'admin_test',
-                include_tool_calls: true,  # Request tool call info
-                verbose: true               # Enable verbose mode
+                include_tool_calls: true, # Request tool call info
+                verbose: true # Enable verbose mode
               }
             )
-            
+
             # Store session ID and other details for next request
             @session_id = @conversation_response[:session_id]
             @selected_persona = persona
             @last_message = message
-            
+
             # Calculate response time
             @response_time = ((Time.now - start_time) * 1000).round
-            
           rescue StandardError => e
             @error = "Conversation failed: #{e.message}"
             puts "ERROR in conversation: #{e.message}"
             puts e.backtrace.first(5).join("\n") if GlitchCube.config.debug?
           end
-          
+
           # Reload recent conversations
           @recent_conversations = Conversation.order(created_at: :desc).limit(5).map do |conv|
             {
@@ -82,7 +81,7 @@ module GlitchCube
               total_cost: conv.total_cost&.round(4) || 0
             }
           end
-          
+
           # Use improved view if it exists
           if File.exist?('views/admin_test_improved.erb')
             erb :admin_test_improved
@@ -96,10 +95,10 @@ module GlitchCube
           begin
             message = params[:message]
             character = params[:character]&.to_sym || :buddy
-            
+
             character_service = ::Services::CharacterService.new(character: character)
             success = character_service.speak(message)
-            
+
             @tts_result = {
               success: success,
               character: character,
@@ -111,7 +110,7 @@ module GlitchCube
               error: e.message
             }
           end
-          
+
           erb :admin_test
         end
 
@@ -119,7 +118,7 @@ module GlitchCube
         app.get '/admin/test/sessions/:session_id' do
           @session_id = params[:session_id]
           @conversation = Conversation.find_by(session_id: @session_id)
-          
+
           if @conversation
             @messages = @conversation.messages.order(:created_at).map do |msg|
               {
@@ -131,21 +130,21 @@ module GlitchCube
                 metadata: msg.metadata
               }
             end
-            
+
             @total_cost = @conversation.total_cost&.round(4) || 0
             @total_tokens = @conversation.total_tokens || 0
           else
             @error = "Session not found: #{@session_id}"
           end
-          
+
           erb :admin_test_session
         end
 
         # List all sessions
         app.get '/admin/test/sessions' do
           @conversations = Conversation.order(created_at: :desc)
-                                     .limit(20)
-                                     .map do |conv|
+            .limit(20)
+            .map do |conv|
             {
               session_id: conv.session_id,
               persona: conv.persona,
@@ -155,7 +154,7 @@ module GlitchCube
               total_cost: conv.total_cost&.round(4) || 0
             }
           end
-          
+
           erb :admin_test_sessions
         end
 
@@ -172,7 +171,7 @@ module GlitchCube
               created_at: memory.created_at.strftime('%Y-%m-%d %H:%M')
             }
           end
-          
+
           erb :admin_test_memories
         end
 
@@ -186,29 +185,29 @@ module GlitchCube
               category: info[:category]
             }
           end
-          
+
           erb :admin_test_tools
         end
 
         # Execute tool form submission
         app.post '/admin/test/tools/:tool_name' do
           tool_name = params[:tool_name]
-          
+
           begin
             # Parse parameters from form
             tool_params = {}
             params.each do |key, value|
-              next if ['tool_name', 'captures'].include?(key)
+              next if %w[tool_name captures].include?(key)
+
               tool_params[key.to_sym] = value unless value.to_s.strip.empty?
             end
-            
+
             require_relative '../services/tool_registry_service'
             @tool_result = ::Services::ToolRegistryService.execute_tool_directly(tool_name, tool_params)
-            
           rescue StandardError => e
             @tool_result = { success: false, error: e.message }
           end
-          
+
           # Reload tools list
           @tools = ::Services::ToolRegistryService.discover_tools.map do |name, info|
             {
@@ -217,7 +216,7 @@ module GlitchCube
               category: info[:category]
             }
           end
-          
+
           erb :admin_test_tools
         end
       end

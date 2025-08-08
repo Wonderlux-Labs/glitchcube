@@ -174,7 +174,7 @@ module GlitchCube
             # Use character service to speak
             character_service = ::Services::CharacterService.new(character: character)
             success = character_service.speak(message, entity_id: entity_id)
-            
+
             # Log if it failed
             unless success
               require_relative '../helpers/log_helper'
@@ -187,7 +187,7 @@ module GlitchCube
               message: message,
               entity_id: entity_id || 'media_player.square_voice',
               timestamp: Time.now.iso8601,
-              debug: success ? nil : "Check server logs for details"
+              debug: success ? nil : 'Check server logs for details'
             }.to_json
           rescue StandardError => e
             status 500
@@ -313,7 +313,11 @@ module GlitchCube
           # Check Redis
           begin
             if defined?($redis) && $redis
-              response[:redis] = $redis.ping == 'PONG' rescue false
+              response[:redis] = begin
+                $redis.ping == 'PONG'
+              rescue StandardError
+                false
+              end
             else
               redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379')
               response[:redis] = redis.ping == 'PONG'
@@ -473,9 +477,9 @@ module GlitchCube
           offset = (params[:offset] || 0).to_i
 
           conversations = Conversation.order(created_at: :desc)
-                                    .limit(limit)
-                                    .offset(offset)
-                                    .includes(:messages)
+            .limit(limit)
+            .offset(offset)
+            .includes(:messages)
 
           formatted_conversations = conversations.map do |conv|
             {
@@ -508,7 +512,7 @@ module GlitchCube
           begin
             require_relative '../services/tool_registry_service'
             tools = ::Services::ToolRegistryService.discover_tools
-            
+
             # Format for frontend consumption
             formatted_tools = tools.map do |name, info|
               {
@@ -531,10 +535,10 @@ module GlitchCube
             # Log the full error for debugging
             puts "Tool API Error: #{e.class} - #{e.message}"
             puts e.backtrace.first(5).join("\n") if ENV['RACK_ENV'] == 'development'
-            
+
             status 500
-            { 
-              success: false, 
+            {
+              success: false,
               error: e.message,
               error_type: e.class.to_s,
               backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil
@@ -553,7 +557,7 @@ module GlitchCube
 
             require_relative '../services/tool_registry_service'
             result = ::Services::ToolRegistryService.execute_tool_directly(tool_name, parameters)
-            
+
             result.to_json
           rescue JSON::ParserError => e
             status 400
@@ -561,10 +565,10 @@ module GlitchCube
           rescue StandardError => e
             puts "Tool Execution Error: #{e.class} - #{e.message}"
             puts e.backtrace.first(5).join("\n") if ENV['RACK_ENV'] == 'development'
-            
+
             status 500
-            { 
-              success: false, 
+            {
+              success: false,
               error: e.message,
               error_type: e.class.to_s,
               backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil
@@ -581,12 +585,12 @@ module GlitchCube
             tool_names = params[:tools]&.split(',')&.map(&:strip)
 
             require_relative '../services/tool_registry_service'
-            
+
             functions = if character
-              ::Services::ToolRegistryService.get_tools_for_character(character)
-            else
-              ::Services::ToolRegistryService.get_openai_functions(tool_names)
-            end
+                          ::Services::ToolRegistryService.get_tools_for_character(character)
+                        else
+                          ::Services::ToolRegistryService.get_openai_functions(tool_names)
+                        end
 
             {
               success: true,
@@ -674,7 +678,7 @@ module GlitchCube
                 total_prompt_tokens: total_prompt_tokens,
                 total_completion_tokens: total_completion_tokens,
                 total_tokens: total_prompt_tokens + total_completion_tokens,
-                avg_cost_per_message: messages.length > 0 ? total_cost / messages.length : 0,
+                avg_cost_per_message: messages.length.positive? ? total_cost / messages.length : 0,
                 conversation_duration: conversation.started_at ? (Time.now - conversation.started_at).to_i : 0
               }
             }.to_json

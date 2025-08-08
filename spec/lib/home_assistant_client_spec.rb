@@ -15,7 +15,6 @@ RSpec.describe HomeAssistantClient do
       expect(client.base_url).to eq('http://glitch.local:8123')
     end
 
-
     context 'when no HA URL is configured' do
       it 'uses configured URL from environment' do
         # Test that client uses configured URL

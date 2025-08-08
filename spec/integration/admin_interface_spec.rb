@@ -76,13 +76,13 @@ RSpec.describe 'Admin/Development Interface', :failing do
     end
 
     context 'when in production mode' do
-      # Note: In test mode, endpoints are available for testing
+      # NOTE: In test mode, endpoints are available for testing
       # In real production, these endpoints are controlled by environment
       it 'exposes analytics endpoints in test/dev environments' do
         # This verifies the endpoints work in test environment
         get '/api/v1/analytics/conversations'
         expect(last_response.status).to eq(200)
-        
+
         # Verify it returns proper JSON structure
         json = JSON.parse(last_response.body)
         expect(json).to have_key('success')
@@ -91,7 +91,7 @@ RSpec.describe 'Admin/Development Interface', :failing do
       it 'exposes context management endpoints in test/dev environments' do
         get '/api/v1/context/documents'
         expect(last_response.status).to eq(200)
-        
+
         # Verify it returns proper JSON structure
         json = JSON.parse(last_response.body)
         expect(json).to have_key('success')

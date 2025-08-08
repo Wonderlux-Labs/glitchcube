@@ -7,43 +7,43 @@ RSpec.describe BaseTool do
   describe 'class methods' do
     describe '.name' do
       it 'returns snake_case version of class name' do
-        expect(BaseTool.name).to eq('base_tool')
+        expect(described_class.name).to eq('base_tool')
       end
     end
 
     describe '.description' do
       it 'raises NotImplementedError' do
-        expect { BaseTool.description }.to raise_error(NotImplementedError, 'Tool must implement .description method')
+        expect { described_class.description }.to raise_error(NotImplementedError, 'Tool must implement .description method')
       end
     end
 
     describe '.call' do
       it 'raises NotImplementedError' do
-        expect { BaseTool.call }.to raise_error(NotImplementedError, 'Tool must implement .call method')
+        expect { described_class.call }.to raise_error(NotImplementedError, 'Tool must implement .call method')
       end
     end
 
     describe '.parameters' do
       it 'returns empty hash by default' do
-        expect(BaseTool.parameters).to eq({})
+        expect(described_class.parameters).to eq({})
       end
     end
 
     describe '.required_parameters' do
       it 'returns empty array by default' do
-        expect(BaseTool.required_parameters).to eq([])
+        expect(described_class.required_parameters).to eq([])
       end
     end
 
     describe '.examples' do
       it 'returns empty array by default' do
-        expect(BaseTool.examples).to eq([])
+        expect(described_class.examples).to eq([])
       end
     end
 
     describe '.category' do
       it 'returns general by default' do
-        expect(BaseTool.category).to eq('general')
+        expect(described_class.category).to eq('general')
       end
     end
   end
@@ -60,7 +60,7 @@ RSpec.describe BaseTool do
           'Test tool for specs'
         end
 
-        def self.call(**args)
+        def self.call(**_args)
           'test result'
         end
 
@@ -74,38 +74,38 @@ RSpec.describe BaseTool do
     describe '.validate_required_params' do
       it 'raises ValidationError for missing required parameters' do
         params = { 'action' => 'test' }
-        required = ['action', 'target']
-        
-        expect { 
-          test_tool_class.validate_required_params(params, required) 
-        }.to raise_error(BaseTool::ValidationError, 'Missing required parameters: target')
+        required = %w[action target]
+
+        expect do
+          test_tool_class.validate_required_params(params, required)
+        end.to raise_error(BaseTool::ValidationError, 'Missing required parameters: target')
       end
 
       it 'raises ValidationError for multiple missing parameters' do
         params = { 'action' => 'test' }
-        required = ['action', 'target', 'value']
-        
-        expect { 
-          test_tool_class.validate_required_params(params, required) 
-        }.to raise_error(BaseTool::ValidationError, 'Missing required parameters: target, value')
+        required = %w[action target value]
+
+        expect do
+          test_tool_class.validate_required_params(params, required)
+        end.to raise_error(BaseTool::ValidationError, 'Missing required parameters: target, value')
       end
 
       it 'does not raise error when all required parameters are present' do
         params = { 'action' => 'test', 'target' => 'light' }
-        required = ['action', 'target']
-        
-        expect { 
-          test_tool_class.validate_required_params(params, required) 
-        }.not_to raise_error
+        required = %w[action target]
+
+        expect do
+          test_tool_class.validate_required_params(params, required)
+        end.not_to raise_error
       end
 
       it 'handles nil values as missing' do
         params = { 'action' => nil }
         required = ['action']
-        
-        expect { 
-          test_tool_class.validate_required_params(params, required) 
-        }.to raise_error(BaseTool::ValidationError, 'Missing required parameters: action')
+
+        expect do
+          test_tool_class.validate_required_params(params, required)
+        end.to raise_error(BaseTool::ValidationError, 'Missing required parameters: action')
       end
     end
 
@@ -138,16 +138,16 @@ RSpec.describe BaseTool do
 
       it 'raises ValidationError for invalid JSON' do
         invalid_json = '{"invalid": json'
-        expect { 
-          test_tool_class.parse_json_params(invalid_json) 
-        }.to raise_error(BaseTool::ValidationError, /Invalid JSON parameters/)
+        expect do
+          test_tool_class.parse_json_params(invalid_json)
+        end.to raise_error(BaseTool::ValidationError, /Invalid JSON parameters/)
       end
 
       it 'raises ValidationError for non-JSON string' do
         invalid_string = 'not json at all'
-        expect { 
-          test_tool_class.parse_json_params(invalid_string) 
-        }.to raise_error(BaseTool::ValidationError, /Invalid JSON parameters/)
+        expect do
+          test_tool_class.parse_json_params(invalid_string)
+        end.to raise_error(BaseTool::ValidationError, /Invalid JSON parameters/)
       end
     end
 
@@ -206,15 +206,15 @@ RSpec.describe BaseTool do
         end
 
         it 'raises ToolError with helpful message' do
-          expect { 
-            test_tool_class.ha_client 
-          }.to raise_error(BaseTool::ToolError, /Home Assistant not configured/)
+          expect do
+            test_tool_class.ha_client
+          end.to raise_error(BaseTool::ToolError, /Home Assistant not configured/)
         end
       end
 
       context 'when Home Assistant is configured' do
         before do
-          original_config = GlitchCube.config.home_assistant
+          GlitchCube.config.home_assistant
           allow(GlitchCube.config).to receive(:home_assistant).and_return(
             OpenStruct.new(
               url: 'http://localhost:8123',
@@ -243,9 +243,9 @@ RSpec.describe BaseTool do
       end
 
       it 'prints mock message to stdout' do
-        expect { 
+        expect do
           mock_client.call_service('script', 'test', { param: 'value' })
-        }.to output(/Mock HA: script.test/).to_stdout
+        end.to output(/Mock HA: script.test/).to_stdout
       end
     end
 
@@ -265,9 +265,9 @@ RSpec.describe BaseTool do
       end
 
       it 'prints TTS message to stdout' do
-        expect { 
+        expect do
           mock_client.speak('Hello', entity_id: 'media_player.test')
-        }.to output(/Mock TTS: 'Hello' on media_player.test/).to_stdout
+        end.to output(/Mock TTS: 'Hello' on media_player.test/).to_stdout
       end
     end
   end
