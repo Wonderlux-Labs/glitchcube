@@ -1,0 +1,98 @@
+---
+# Ring light status indicator automations
+# Shows system connection status on the voice assistant ring light:
+# - Blue: Home Assistant connected (basic system up)
+# - Green: Sinatra API connected to Home Assistant (full system operational)
+# - Red/Error: System issues (handled by existing error states)
+
+# Blue when Home Assistant is connected but Sinatra is not yet connected
+- id: ring_light_ha_connected
+  alias: "Ring Light: Blue when HA Connected"
+  description: "Set ring light to blue when Home Assistant is up but Sinatra isn't connected yet"
+  trigger:
+    - platform: homeassistant
+      event: start
+    - platform: state
+      entity_id: sensor.glitch_cube_api_health
+      to: 'unavailable'
+    - platform: state
+      entity_id: sensor.glitch_cube_api_health
+      to: 'unknown'
+  condition:
+    # Only set blue if Sinatra API is not healthy
+    - condition: not
+      conditions:
+        - condition: state
+          entity_id: sensor.glitch_cube_api_health
+          state: 'healthy'
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.cube_voice_ring
+      data:
+        rgb_color: [0, 100, 255]  # Blue
+        brightness: 150
+        transition: 2
+    - service: logbook.log
+      data:
+        name: "Ring Light Status"
+        message: "Set to blue - Home Assistant connected, waiting for Sinatra"
+
+# Green when Sinatra API is connected and healthy
+- id: ring_light_full_system_connected
+  alias: "Ring Light: Green when Full System Connected"
+  description: "Set ring light to green when both HA and Sinatra are connected and healthy"
+  trigger:
+    - platform: state
+      entity_id: sensor.glitch_cube_api_health
+      to: 'healthy'
+    - platform: state
+      entity_id: sensor.glitch_cube_api_health
+      from: 'unavailable'
+      to: 'healthy'
+    - platform: state
+      entity_id: sensor.glitch_cube_api_health
+      from: 'unknown'  
+      to: 'healthy'
+  condition:
+    - condition: state
+      entity_id: sensor.glitch_cube_api_health
+      state: 'healthy'
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.cube_voice_ring
+      data:
+        rgb_color: [0, 255, 0]  # Green
+        brightness: 150
+        transition: 2
+    - service: logbook.log
+      data:
+        name: "Ring Light Status"
+        message: "Set to green - Full system operational (HA + Sinatra)"
+
+# Fallback to blue if Sinatra goes offline but HA is still up
+- id: ring_light_sinatra_disconnected
+  alias: "Ring Light: Blue when Sinatra Disconnected"
+  description: "Return ring light to blue if Sinatra disconnects but HA is still running"
+  trigger:
+    - platform: state
+      entity_id: sensor.glitch_cube_api_health
+      from: 'healthy'
+      to: 'unavailable'
+    - platform: state
+      entity_id: sensor.glitch_cube_api_health
+      from: 'healthy'
+      to: 'unknown'
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.cube_voice_ring
+      data:
+        rgb_color: [0, 100, 255]  # Blue
+        brightness: 150
+        transition: 2
+    - service: logbook.log
+      data:
+        name: "Ring Light Status"  
+        message: "Set to blue - Sinatra disconnected, HA still running"

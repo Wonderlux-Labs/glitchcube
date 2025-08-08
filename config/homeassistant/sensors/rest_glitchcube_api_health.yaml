@@ -1,7 +1,7 @@
 # REST Health Sensor: Glitch Cube API Health
-# Monitors the Sinatra application health endpoint
+# Monitors the Sinatra application health endpoint using dynamic IP
 - platform: rest
-  resource: "http://localhost:4567/health"
+  resource_template: "http://{{ states('input_text.glitchcube_host') }}:4567/health"
   name: "Glitch Cube API Health"
   unique_id: "glitchcube_api_health"
   scan_interval: 30  # Check every 30 seconds

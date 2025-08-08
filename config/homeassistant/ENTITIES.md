@@ -104,7 +104,35 @@ The webhook automatically updates the corresponding input_boolean entities.
   - `input_boolean.cube_stopped_moving`
   - `input_boolean.cube_tilted`
 
+## Lighting Entities
+
+### Voice Ring Light
+- **Entity ID**: `light.cube_voice_ring`
+- **Type**: Light
+- **Description**: Ring light on the voice assistant that shows system status
+- **Status Colors**:
+  - **Blue**: Home Assistant connected, Sinatra not connected
+  - **Green**: Full system operational (HA + Sinatra connected)
+  - **Red/Error**: System errors (handled by existing error states)
+- **Used By**:
+  - Ring light status automations
+  - Lighting tool for voice feedback
+  - System health indicators
+
+### Other Lights (from lighting tool)
+- `light.cube_light` - Main cube lighting
+- `light.cart_light` - Cart ambient lighting  
+- `light.awtrix_b85e20_matrix` - Matrix display
+- `light.awtrix_b85e20_indicator_1` - Status indicator 1
+- `light.awtrix_b85e20_indicator_2` - Status indicator 2
+- `light.awtrix_b85e20_indicator_3` - Status indicator 3
+
 ## Automations
+
+### Ring Light Status Indicators
+- **Blue when HA Connected**: Sets ring light blue when Home Assistant starts but Sinatra isn't connected
+- **Green when Full System Connected**: Sets ring light green when both HA and Sinatra are healthy
+- **Blue when Sinatra Disconnected**: Returns to blue if Sinatra goes offline but HA remains up
 
 ### Camera Motion Vision Analysis
 - **Trigger**: `input_boolean.motion_detected` turns on
