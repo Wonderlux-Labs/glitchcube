@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 # Base class for all Glitch Cube tools
 # Provides standardized interface and common functionality
 class BaseTool
@@ -10,7 +12,16 @@ class BaseTool
   class << self
     # Tool identification
     def name
-      raise NotImplementedError, 'Tool must implement .name method'
+      # Default implementation: derive from class name
+      # e.g., LightingTool -> lighting_tool, BaseTool -> base_tool
+      class_name = self.to_s
+      # Convert CamelCase to snake_case
+      snake_case = class_name.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+        .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+        .downcase
+      
+      # Don't remove 'tool' suffix for base classes
+      snake_case
     end
 
     def description
@@ -42,6 +53,11 @@ class BaseTool
       'general'
     end
 
+    # Optional: Define tool prompt for LLM context
+    def tool_prompt
+      description
+    end
+
     protected
 
     # Helper: Get Home Assistant client with error handling
@@ -60,9 +76,13 @@ class BaseTool
     end
 
     # Helper: Call HA service with consistent error handling
-    def call_ha_service(domain, service, data = {})
-      result = ha_client.call_service(domain, service, data)
+    def call_ha_service(domain, service, data = {}, return_response: false)
+      result = ha_client.call_service(domain, service, data, return_response: return_response)
       
+      # If return_response is true, return the actual result
+      return result if return_response && result
+      
+      # Otherwise return status message
       if result
         "✅ Service #{domain}.#{service} executed successfully"
       else

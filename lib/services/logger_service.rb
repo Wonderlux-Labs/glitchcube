@@ -30,7 +30,7 @@ module Services
         @general_logger
       end
 
-      def log_interaction(user_message:, ai_response:, mood:, confidence: nil, session_id: nil, context: {})
+      def log_interaction(user_message:, ai_response:, persona:, confidence: nil, session_id: nil, context: {})
         ensure_loggers
 
         interaction_data = {
@@ -38,7 +38,7 @@ module Services
           session_id: session_id,
           user_message: user_message,
           ai_response: ai_response,
-          mood: mood,
+          persona: persona,
           context: context
         }
 
@@ -247,7 +247,7 @@ module Services
         <<~INTERACTION
 
           ═══════════════════════════════════════════════════════════════
-          #{data[:timestamp]} | Session: #{data[:session_id] || 'N/A'} | Mood: #{data[:mood]}#{confidence_str}
+          #{data[:timestamp]} | Session: #{data[:session_id] || 'N/A'} | Persona: #{data[:persona]}#{confidence_str}
           ═══════════════════════════════════════════════════════════════
 
           👤 USER: #{data[:user_message]}

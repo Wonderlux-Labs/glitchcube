@@ -205,7 +205,11 @@ module GlitchCube
 
               # Add session ID to context if not present
               context = request_body['context'] || {}
-              context[:session_id] ||= request.session[:session_id] || SecureRandom.uuid
+              # Convert SessionId object to string if needed
+              session_id = request.session[:session_id]
+              session_id = session_id.to_s if session_id.respond_to?(:to_s)
+              # Fix: Check for both nil and empty string before using session_id
+              context[:session_id] ||= (session_id.nil? || session_id.empty?) ? SecureRandom.uuid : session_id
 
               # Memory/resource guard: reject oversize context payloads
               if context['conversation_history']&.is_a?(Array) && context['conversation_history'].size > 100
@@ -310,7 +314,11 @@ module GlitchCube
               # Enhance the response with context
               context = request_body['context'] || {}
               context[:rag_contexts] = rag_result[:contexts_used]
-              context[:session_id] ||= request.session[:session_id] || SecureRandom.uuid
+              # Convert SessionId object to string if needed
+              session_id = request.session[:session_id]
+              session_id = session_id.to_s if session_id.respond_to?(:to_s)
+              # Fix: Check for both nil and empty string before using session_id
+              context[:session_id] ||= (session_id.nil? || session_id.empty?) ? SecureRandom.uuid : session_id
 
               # Get conversation response using module directly
               conversation_module = ConversationModule.new

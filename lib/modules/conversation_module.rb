@@ -8,7 +8,6 @@ require_relative '../services/llm_service'
 require_relative '../services/conversation_session'
 require_relative '../services/tool_call_parser'
 require_relative '../services/tool_executor'
-require_relative '../services/conversation_tracer'
 require_relative '../services/conversation_feedback_service'
 require_relative '../home_assistant_client'
 require_relative 'conversation_responses'
@@ -19,28 +18,47 @@ class ConversationModule
   include ConversationEnhancements
   include ErrorHandling
 
-  def call(message:, context: {}, persona: nil, mood: nil)
-    # Use persona from context or default, also support legacy mood parameter
-    persona ||= mood || context[:persona] || context[:mood] || 'neutral'
+  # Convenience class methods for each persona
+  def self.buddy
+    new(persona: 'buddy')
+  end
 
-    # Set LED feedback to listening state at start of conversation
-    if context[:visual_feedback] != false
-      with_error_handling('set_led_listening', fallback: nil, reraise_unexpected: false) do
-        Services::ConversationFeedbackService.set_listening
-      end
+  def self.jax
+    new(persona: 'jax')
+  end
+
+  def self.lomi
+    new(persona: 'lomi')
+  end
+
+  def self.zorp
+    new(persona: 'zorp')
+  end
+
+  def self.default
+    new(persona: 'default')
+  end
+
+  def initialize(persona: 'buddy')
+    @default_persona = persona
+  end
+
+  def call(message:, context: {}, persona: nil)
+    # Use persona from context or instance default
+    persona ||= context[:persona] || @default_persona
+
+    # Load persona-specific tools if not already provided
+    if context[:tools].nil? || context[:tools].empty?
+      require_relative '../services/tool_registry_service'
+      context[:tools] = Services::ToolRegistryService.get_tools_for_character(persona)
+      puts "🔧 Auto-loaded #{context[:tools]&.size || 0} tools for persona '#{persona}'" if GlitchCube.config.debug?
     end
 
-    # Initialize conversation tracer
-    tracer = Services::ConversationTracer.new(
-      session_id: context[:session_id],
-      enabled: context[:trace_conversation] != false
-    )
+    # Set LED feedback to listening state at start of conversation
+    execute_feedback_tool(:listening, context)
 
-    tracer.start_conversation(
-      message: message,
-      context: context,
-      persona: persona
-    )
+    # Simple logging instead of complex tracing
+    puts "💬 [#{persona}] User: #{message[0..100]}..." if GlitchCube.config.debug?
 
     # Get or create conversation session using ActiveRecord
     session_start = Time.now
@@ -49,18 +67,12 @@ class ConversationModule
       context: context.merge(persona: persona)
     )
 
-    tracer.trace_session_lookup(
-      session_data: {
-        session_id: session.session_id,
-        message_count: session.messages.count
-      },
-      created: session.created_at > session_start
-    )
+    puts "📝 Session #{session.session_id} (#{session.messages.count} messages)" if GlitchCube.config.debug?
 
     # Enrich context with sensor data if requested
     context = enrich_context_with_sensors(context) if context[:include_sensors]
 
-    system_prompt = build_system_prompt(persona, context, tracer)
+    system_prompt = build_system_prompt(persona, context)
 
     # Prepare structured output schema based on context
     response_schema = get_response_schema(context)
@@ -108,11 +120,7 @@ class ConversationModule
       )
 
       # Set LED feedback to thinking state before LLM call
-      begin
-        Services::ConversationFeedbackService.set_thinking if context[:visual_feedback] != false
-      rescue StandardError => e
-        puts "⚠️  LED feedback failed: #{e.message}"
-      end
+      execute_feedback_tool(:thinking, context)
 
       # Use new LLM service with full conversation context
       Time.now
@@ -121,24 +129,21 @@ class ConversationModule
         **llm_options
       )
 
-      tracer.trace_llm_call(
-        messages: messages,
-        options: llm_options,
-        response: llm_response
-      )
+      puts "🤖 LLM Response: #{llm_response.response_text&.[](0..50)}..." if GlitchCube.config.debug?
 
       response_time_ms = ((Time.now - start_time) * 1000).round
 
       # Check for and execute tool calls
-      tool_results = nil
+      tool_calls_made = []
       if llm_response.has_tool_calls?
-        tool_results = handle_tool_calls(llm_response, session, persona, tracer)
+        tool_results = handle_tool_calls(llm_response, session, persona)
+        tool_calls_made = extract_tool_names_from_response(llm_response)
 
         # If we have tool results, we need to continue the conversation with them
         if tool_results && !tool_results.empty?
           # Add tool results to conversation and get final response
           llm_response = continue_with_tool_results(
-            messages, llm_response, tool_results, llm_options, session, persona, tracer
+            messages, llm_response, tool_results, llm_options, session, persona
           )
         end
       end
@@ -157,7 +162,7 @@ class ConversationModule
       # Calculate cost
       cost = llm_response.cost
 
-      # Record assistant message
+      # Record assistant message with tool calls
       session.add_message(
         role: 'assistant',
         content: response_text,
@@ -167,7 +172,10 @@ class ConversationModule
         completion_tokens: llm_response.usage[:completion_tokens],
         cost: cost,
         response_time_ms: response_time_ms,
-        metadata: { continue_conversation: continue_conversation }
+        metadata: {
+          continue_conversation: continue_conversation,
+          tool_calls: tool_calls_made
+        }
       )
 
       # Only use fallback if response_text is nil or empty
@@ -178,7 +186,6 @@ class ConversationModule
         conversation_id: session.session_id,
         session_id: session.session_id,
         persona: persona,
-        suggested_mood: persona, # Backward compatibility
         model: llm_response.model,
         cost: cost,
         tokens: llm_response.usage,
@@ -189,9 +196,9 @@ class ConversationModule
       # Wrap post-response operations to prevent fallback on their errors
       begin
         # Set LED feedback to speaking state before TTS
-        Services::ConversationFeedbackService.set_speaking if context[:visual_feedback] != false
+        execute_feedback_tool(:speaking, context)
 
-        speak_response(response_text, context, tracer)
+        execute_speech_tool(response_text, context)
       rescue StandardError => e
         puts "Warning: TTS failed but conversation succeeded: #{e.message}"
         # Log but don't fail the conversation
@@ -205,50 +212,32 @@ class ConversationModule
       end
 
       begin
-        update_kiosk_display(message, response_text, persona)
+        execute_display_tool(message, response_text, persona, context)
       rescue StandardError => e
-        puts "Warning: Kiosk display update failed: #{e.message}"
+        puts "Warning: Display update failed: #{e.message}"
         # Already handled in the method but adding for clarity
       end
 
       # Set LED feedback to completed state
-      begin
-        Services::ConversationFeedbackService.set_completed if context[:visual_feedback] != false
-      rescue StandardError => e
-        puts "⚠️  LED feedback failed: #{e.message}"
-      end
+      execute_feedback_tool(:completed, context)
 
-      # Complete tracing
+      # Simple completion logging
       total_duration = ((Time.now - start_time) * 1000).round
-      tracer.complete_conversation(
-        result: result,
-        total_duration_ms: total_duration
-      )
-
-      # Add trace info to result for debugging
-      result[:trace_id] = tracer.trace_id if tracer.traces.any?
+      puts "✅ Conversation completed in #{total_duration}ms" if GlitchCube.config.debug?
 
       result
     rescue Services::LLMService::RateLimitError => e
       puts "DEBUG: Hit rate limit error: #{e.message}" if GlitchCube.config.debug?
 
       # Set LED to error state
-      begin
-        Services::ConversationFeedbackService.set_error if context[:visual_feedback] != false
-      rescue StandardError
-        # Ignore LED feedback errors during error handling
-      end
+      execute_feedback_tool(:error, context)
 
       handle_rate_limit_error(session, message, persona, e)
     rescue Services::LLMService::LLMError => e
       puts "DEBUG: Hit LLM error: #{e.message}" if GlitchCube.config.debug?
 
       # Set LED to error state
-      begin
-        Services::ConversationFeedbackService.set_error if context[:visual_feedback] != false
-      rescue StandardError
-        # Ignore LED feedback errors during error handling
-      end
+      execute_feedback_tool(:error, context)
 
       handle_llm_error(session, message, persona, e)
     rescue StandardError => e
@@ -256,11 +245,7 @@ class ConversationModule
       puts "DEBUG: Backtrace: #{e.backtrace.first(3).join("\n")}" if GlitchCube.config.debug?
 
       # Set LED to error state
-      begin
-        Services::ConversationFeedbackService.set_error if context[:visual_feedback] != false
-      rescue StandardError
-        # Ignore LED feedback errors during error handling
-      end
+      execute_feedback_tool(:error, context)
 
       handle_general_error(session, message, persona, e)
     end
@@ -268,7 +253,7 @@ class ConversationModule
 
   private
 
-  def handle_tool_calls(llm_response, session, persona, tracer = nil)
+  def handle_tool_calls(llm_response, session, persona)
     # Parse tool calls from response
     tool_calls = Services::ToolCallParser.parse(llm_response)
     return [] if tool_calls.empty?
@@ -280,12 +265,7 @@ class ConversationModule
     results = Services::ToolExecutor.execute(tool_calls, timeout: 10)
     execution_time = ((Time.now - tool_start) * 1000).round
 
-    # Trace tool execution
-    tracer&.trace_tool_execution(
-      tool_calls: tool_calls,
-      results: results,
-      execution_time_ms: execution_time
-    )
+    puts "🔧 Executed #{tool_calls.size} tool calls in #{execution_time}ms" if GlitchCube.config.debug?
 
     # Log tool execution
     results.each do |result|
@@ -299,7 +279,7 @@ class ConversationModule
     []
   end
 
-  def continue_with_tool_results(messages, initial_response, tool_results, llm_options, session, persona, tracer = nil)
+  def continue_with_tool_results(messages, initial_response, tool_results, llm_options, session, persona)
     # Format tool results for conversation
     tool_message = format_tool_results_message(tool_results)
 
@@ -337,23 +317,13 @@ class ConversationModule
       **llm_options.except(:tools, :tool_choice) # Don't allow recursive tool calls for now
     )
 
-    # Trace the follow-up LLM call
-    tracer&.trace_llm_call(
-      messages: messages,
-      options: llm_options.except(:tools, :tool_choice),
-      response: follow_up_response
-    )
+    puts "🤖 Follow-up LLM call completed" if GlitchCube.config.debug?
 
     follow_up_response
   rescue StandardError => e
     puts "⚠️ Failed to continue after tool execution: #{e.message}"
 
-    # Trace the error
-    tracer&.trace_llm_call(
-      messages: messages,
-      options: llm_options.except(:tools, :tool_choice),
-      error: e
-    )
+    puts "⚠️ Follow-up LLM call failed: #{e.message}" if GlitchCube.config.debug?
 
     # Return original response if continuation fails
     initial_response
@@ -425,7 +395,7 @@ class ConversationModule
     end
   end
 
-  def build_system_prompt(persona, context, tracer = nil)
+  def build_system_prompt(persona, context)
     # Map persona to character for prompt file selection
     character = persona == 'neutral' ? nil : persona
 
@@ -443,20 +413,14 @@ class ConversationModule
     ).generate
 
     # Add relevant memories if available
-    final_prompt = inject_memories_into_prompt(base_prompt, context, tracer)
+    final_prompt = inject_memories_into_prompt(base_prompt, context)
 
-    # Trace system prompt building
-    tracer&.trace_system_prompt(
-      persona: persona,
-      context: context,
-      prompt_length: final_prompt.length,
-      memories_injected: (final_prompt.length - base_prompt.length).positive? ? 1 : 0
-    )
+    puts "🧠 System prompt: #{final_prompt.length} chars" if GlitchCube.config.debug?
 
     final_prompt
   end
 
-  def inject_memories_into_prompt(base_prompt, context, tracer = nil)
+  def inject_memories_into_prompt(base_prompt, context)
     # Skip memory injection if explicitly disabled
     return base_prompt if context[:skip_memories] == true
 
@@ -475,21 +439,11 @@ class ConversationModule
       memory_context = Services::MemoryRecallService.format_for_context(memories)
       final_prompt = "#{base_prompt}#{memory_context}"
 
-      # Trace memory injection
-      tracer&.trace_memory_injection(
-        location: location,
-        memories: memories,
-        formatted_context: memory_context
-      )
+      puts "📝 Injected #{memories.size} memories" if GlitchCube.config.debug?
 
       final_prompt
     else
-      # Trace empty memory injection
-      tracer&.trace_memory_injection(
-        location: location,
-        memories: [],
-        formatted_context: nil
-      )
+      puts "📝 No memories to inject" if GlitchCube.config.debug?
 
       base_prompt
     end
@@ -574,7 +528,7 @@ class ConversationModule
     "#{base_response} #{encouragement}"
   end
 
-  def speak_response(response_text, context = {}, tracer = nil)
+  def speak_response(response_text, context = {})
     return if response_text.nil? || response_text.strip.empty?
 
     start_time = Time.now
@@ -597,13 +551,7 @@ class ConversationModule
         entity_id: entity_id
       )
 
-      # Trace TTS call
-      tracer&.trace_tts_call(
-        text: response_text,
-        persona: context[:mood] || context[:persona] || 'neutral',
-        success: success,
-        duration_ms: duration
-      )
+      puts "🔊 TTS: #{success ? 'success' : 'failed'} (#{duration}ms)" if GlitchCube.config.debug?
     rescue StandardError => e
       error = e.message
       duration = ((Time.now - start_time) * 1000).round
@@ -616,14 +564,7 @@ class ConversationModule
         entity_id: context[:entity_id] || 'media_player.square_voice'
       )
 
-      # Trace TTS error
-      tracer&.trace_tts_call(
-        text: response_text,
-        persona: context[:mood] || context[:persona] || 'neutral',
-        success: false,
-        duration_ms: duration,
-        error: error
-      )
+      puts "⚠️ TTS error: #{error} (#{duration}ms)" if GlitchCube.config.debug?
     end
   end
 
@@ -698,14 +639,13 @@ class ConversationModule
       persona: persona
     )
 
-    speak_response(response_text, {})
+    execute_speech_tool(response_text, {})
 
     {
       response: response_text,
       conversation_id: session.session_id,
       session_id: session.session_id,
       persona: persona,
-      suggested_mood: persona,
       error: 'rate_limit'
     }
   end
@@ -719,14 +659,13 @@ class ConversationModule
       persona: persona
     )
 
-    speak_response(response_text, { mood: 'neutral', cache: true })
+    execute_speech_tool(response_text, {})
 
     {
       response: response_text,
       conversation_id: session.session_id,
       session_id: session.session_id,
       persona: persona,
-      suggested_mood: persona,
       error: 'llm_error'
     }
   end
@@ -743,17 +682,16 @@ class ConversationModule
     Services::LoggerService.log_interaction(
       user_message: message,
       ai_response: response_text,
-      mood: persona
+      persona: persona
     )
 
-    speak_response(response_text, {})
+    execute_speech_tool(response_text, {})
 
     {
       response: response_text,
       conversation_id: session.session_id,
       session_id: session.session_id,
       persona: persona,
-      suggested_mood: persona,
       error: 'general_error'
     }
   end
@@ -762,8 +700,128 @@ class ConversationModule
     Services::LoggerService.log_interaction(
       user_message: message,
       ai_response: response,
-      mood: persona,
+      persona: persona,
       session_id: session.session_id
     )
+  end
+
+  # Tool-based hardware operation helpers with graceful fallback
+  # These methods try to use tools first, then fall back to direct calls
+
+  def execute_feedback_tool(state, context = {})
+    return unless context[:visual_feedback] != false
+
+    # Try to execute via tool system first
+    if context[:tools] && tool_available?(context[:tools], 'conversation_feedback')
+      execute_tool_call('conversation_feedback', 'set_state', { state: state.to_s })
+    else
+      # Fallback to direct service call
+      with_error_handling("set_led_#{state}", fallback: nil, reraise_unexpected: false) do
+        case state
+        when :listening
+          Services::ConversationFeedbackService.set_listening
+        when :thinking
+          Services::ConversationFeedbackService.set_thinking
+        when :speaking
+          Services::ConversationFeedbackService.set_speaking
+        when :completed
+          Services::ConversationFeedbackService.set_completed
+        when :error
+          Services::ConversationFeedbackService.set_error
+        end
+      end
+    end
+  end
+
+  def execute_speech_tool(text, context = {})
+    return if text.nil? || text.strip.empty?
+
+    # Try to execute via tool system first
+    if context[:tools] && tool_available?(context[:tools], 'speech_synthesis')
+      entity_id = context[:entity_id] || 'media_player.square_voice'
+      result = execute_tool_call('speech_synthesis', 'speak_text', {
+                                   text: text,
+                                   entity_id: entity_id
+                                 })
+
+      puts "🔊 TTS via tool: #{result&.include?('Spoke:') ? 'success' : 'failed'}" if GlitchCube.config.debug?
+    else
+      # Fallback to direct speak_response method
+      speak_response(text, context)
+    end
+  rescue StandardError => e
+    puts "Warning: Tool-based TTS failed, using fallback: #{e.message}"
+    speak_response(text, context)
+  end
+
+  def execute_display_tool(message, response, persona, context = {})
+    # Try to execute via tool system first for kiosk display
+    if context[:tools] && tool_available?(context[:tools], 'display_control')
+      # Use display tool for conversation update
+      execute_tool_call('display_control', 'show_display_text', {
+                          text: response.length > 50 ? response[0..47] + '...' : response,
+                          color: persona_to_color(persona),
+                          duration: 8
+                        })
+    end
+
+    # Always try the direct kiosk update as well (for now, during transition)
+    begin
+      update_kiosk_display(message, response, persona)
+    rescue StandardError => e
+      puts "Warning: Kiosk display update failed: #{e.message}"
+    end
+  end
+
+  # Helper methods
+
+  def extract_tool_names_from_response(llm_response)
+    return [] unless llm_response.has_tool_calls?
+
+    tool_calls = Services::ToolCallParser.parse(llm_response)
+    tool_calls.map { |call| call.dig(:function, :name) }.compact
+  rescue StandardError => e
+    puts "Warning: Failed to extract tool names: #{e.message}"
+    []
+  end
+
+  def tool_available?(tools, tool_name)
+    return false unless tools.is_a?(Array)
+
+    tools.any? { |tool| tool.is_a?(Hash) && tool.dig('function', 'name') == tool_name }
+  end
+
+  def execute_tool_call(tool_name, method_name, params = {})
+    # Simple tool execution - in a full implementation, this would go through ToolExecutor
+    require_relative '../services/tool_executor'
+
+    # Format as tool call
+    tool_calls = [{
+      id: SecureRandom.hex(8),
+      type: 'function',
+      function: {
+        name: tool_name,
+        arguments: { action: method_name, params: params }.to_json
+      }
+    }]
+
+    results = Services::ToolExecutor.execute(tool_calls, timeout: 10)
+    results.first&.dig(:result)
+  rescue StandardError => e
+    puts "Tool execution failed: #{e.message}"
+    nil
+  end
+
+  def persona_to_color(persona)
+    case persona
+    when 'playful'
+      '#FF00FF'  # Magenta
+    when 'contemplative'
+      '#0064FF'  # Blue
+    when 'mysterious'
+      '#8000FF'  # Purple
+    else
+      '#FFFFFF'  # White
+    end
   end
 end

@@ -117,20 +117,5 @@ RSpec.describe WeatherService, :vcr do
     end
   end
 
-  describe 'integration with real APIs', :vcr do
-    it 'attempts to connect to real HA and records the interaction', skip: 'Weather service being moved to HA side' do
-      # This test uses VCR to record real HA interactions
-
-      # This will record real API calls to HA (even if they fail) and potentially OpenRouter
-      result = service.update_weather_summary
-
-      expect(result).to be_a(String)
-      expect(result.length).to be <= 255
-      expect(result).not_to eq('HA unavailable')
-
-      # The result should be either weather data, "No weather data", or a weather error
-      # This tests that the service handles real API calls and failures gracefully
-      expect(['No weather data'] + [result]).to include(result)
-    end
-  end
+  # Weather service integration tests removed - feature moved to HA side
 end

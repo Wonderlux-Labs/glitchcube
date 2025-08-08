@@ -22,11 +22,7 @@ module Services
         persona: mood
       )
 
-      # Update context with any relevant information from the response
-      if result[:suggested_mood] && result[:suggested_mood] != mood
-        @context[:mood_changed] = true
-        @context[:previous_mood] = mood
-      end
+      # No need to track mood changes - personas are scheduled
 
       result
     end

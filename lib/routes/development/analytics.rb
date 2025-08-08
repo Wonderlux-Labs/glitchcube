@@ -42,17 +42,55 @@ module GlitchCube
             content_type :json
 
             limit = params[:limit]&.to_i || 10
-            history = GlitchCube::Persistence.get_conversation_history(limit: limit)
+            
+            # Use Conversation ActiveRecord model
+            sessions = Conversation
+                      .order(updated_at: :desc)
+                      .limit(limit)
+                      .map do |conversation|
+              {
+                session_id: conversation.session_id,
+                started_at: conversation.created_at,
+                last_activity: conversation.updated_at,
+                message_count: conversation.messages.count,
+                messages: conversation.messages.as_json
+              }
+            end
 
             json({
                    success: true,
-                   count: history.length,
-                   conversations: history
+                   count: sessions.length,
+                   conversations: sessions
                  })
           end
 
-          # System prompt preview endpoint
-          app.get '/api/v1/system_prompt/:character?' do
+          # System prompt preview endpoints
+          app.get '/api/v1/system_prompt' do
+            content_type :json
+
+            require_relative '../../services/system_prompt_service'
+
+            character = nil
+            context = {
+              location: params[:location] || 'Default Location',
+              battery_level: params[:battery] || '100%',
+              interaction_count: params[:count]&.to_i || 1
+            }
+
+            prompt_service = ::Services::SystemPromptService.new(
+              character: character,
+              context: context
+            )
+
+            json({
+                   success: true,
+                   character: character || 'default',
+                   prompt: prompt_service.generate,
+                   timestamp: Time.now.iso8601
+                 })
+          end
+
+          app.get '/api/v1/system_prompt/:character' do
             content_type :json
 
             require_relative '../../services/system_prompt_service'
@@ -81,12 +119,19 @@ module GlitchCube
           app.get '/api/v1/analytics/modules/:module_name' do
             content_type :json
 
-            analytics = GlitchCube::Persistence.get_module_analytics(params[:module_name])
-
+            # For now, return basic module usage stats
+            # Could be enhanced to track actual module usage patterns
             json({
                    success: true,
                    module: params[:module_name],
-                   analytics: analytics
+                   analytics: {
+                     status: 'Module analytics not yet implemented',
+                     placeholder_data: {
+                       calls_today: 0,
+                       avg_response_time: 0,
+                       error_rate: 0
+                     }
+                   }
                  })
           end
 

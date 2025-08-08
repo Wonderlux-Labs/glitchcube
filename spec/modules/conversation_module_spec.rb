@@ -71,21 +71,20 @@ RSpec.describe ConversationModule do
 
     context 'when LLM service returns a response' do
       it 'returns the formatted response' do
-        result = module_instance.call(message: message, context: context, mood: mood)
+        result = module_instance.call(message: message, context: context, persona: mood)
 
         expect(result[:response]).to eq('Mock AI response')
         expect(result[:persona]).to eq('neutral')
-        expect(result[:suggested_mood]).to eq('neutral')
         expect(result[:cost]).to eq(0.001)
         expect(result[:model]).to eq('test-model')
         expect(result[:continue_conversation]).to be(true)
       end
 
       it 'speaks the response through Home Assistant service' do
-        # Mock TTSService which is called first
-        tts_service_double = instance_double(Services::TTSService)
-        allow(Services::TTSService).to receive(:new).and_return(tts_service_double)
-        allow(tts_service_double).to receive(:speak).and_return(true)
+        # Mock CharacterService which is called for TTS
+        character_service_double = instance_double(Services::CharacterService)
+        allow(Services::CharacterService).to receive(:new).and_return(character_service_double)
+        allow(character_service_double).to receive(:speak).and_return(true)
         
         # Mock HomeAssistantClient for the second speak call
         ha_client_double = instance_double(HomeAssistantClient)
@@ -99,7 +98,7 @@ RSpec.describe ConversationModule do
           entity_id: anything
         ).and_return(true)
 
-        module_instance.call(message: message, context: context, mood: mood)
+        module_instance.call(message: message, context: context, persona: mood)
       end
 
       # NOTE: This is tested more thoroughly in the integration tests with VCR
@@ -107,7 +106,7 @@ RSpec.describe ConversationModule do
         # Just verify it's called - the exact parameters don't matter for this test
         expect(Services::LoggerService).to receive(:log_interaction).at_least(:once)
 
-        module_instance.call(message: message, context: context, mood: mood)
+        module_instance.call(message: message, context: context, persona: mood)
       end
     end
 
@@ -119,7 +118,7 @@ RSpec.describe ConversationModule do
 
       # NOTE: These behaviors are tested more accurately in integration tests with VCR
       it 'returns an offline fallback response' do
-        result = module_instance.call(message: message, context: context, mood: mood)
+        result = module_instance.call(message: message, context: context, persona: mood)
 
         # Should fall back to offline response (check for offline mode indicators)
         expect(result[:response].downcase).to match(/offline|capabilities|present|moment|spirit|connectivity|unavailable/)
@@ -143,7 +142,7 @@ RSpec.describe ConversationModule do
           entity_id: 'media_player.square_voice'
         ).and_return(true)
 
-        module_instance.call(message: message, context: context, mood: mood)
+        module_instance.call(message: message, context: context, persona: mood)
       end
     end
 
@@ -154,7 +153,7 @@ RSpec.describe ConversationModule do
       end
 
       it 'returns a rate limit response' do
-        result = module_instance.call(message: message, context: context, mood: mood)
+        result = module_instance.call(message: message, context: context, persona: mood)
 
         expect(result[:response]).to include('pause')
         expect(result[:error]).to eq('rate_limit')
@@ -168,7 +167,7 @@ RSpec.describe ConversationModule do
       end
 
       it 'returns a fallback response' do
-        result = module_instance.call(message: message, context: context, mood: mood)
+        result = module_instance.call(message: message, context: context, persona: mood)
 
         expect(result[:response]).not_to be_nil
         expect(result[:error]).to eq('general_error')
@@ -179,10 +178,9 @@ RSpec.describe ConversationModule do
     context 'with different personas' do
       %w[playful contemplative mysterious neutral].each do |persona|
         it "handles #{persona} persona correctly" do
-          result = module_instance.call(message: message, context: context, mood: persona)
+          result = module_instance.call(message: message, context: context, persona: persona)
 
           expect(result[:persona]).to eq(persona)
-          expect(result[:suggested_mood]).to eq(persona)
         end
       end
     end
@@ -213,7 +211,7 @@ RSpec.describe ConversationModule do
       end
 
       it 'preserves context in the conversation' do
-        result = module_instance.call(message: message, context: enriched_context, mood: mood)
+        result = module_instance.call(message: message, context: enriched_context, persona: mood)
 
         expect(result[:session_id]).to eq('test-session')
         expect(result[:conversation_id]).to eq('test-session')

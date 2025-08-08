@@ -1,58 +1,98 @@
 # frozen_string_literal: true
 
-require_relative '../home_assistant_client'
+require_relative 'base_tool'
 require_relative '../services/logger_service'
 
 # Tool for controlling Music Assistant and media playback
 # Provides music control, playlist management, and audio routing
-class MusicTool
+class MusicTool < BaseTool
   def self.name
     'music_control'
   end
 
   def self.description
-    'Control Music Assistant for audio playback and music management. Actions: "list_players" (verbose: true/false - shows available media players), "play" (player, source, volume), "pause" (player), "stop" (player), "set_volume" (player, volume), "next_track" (player), "previous_track" (player), "get_status" (player). Players and sources discovered dynamically. Args: action (string), params (string) - JSON with player, source, volume, etc.'
+    'Control Music Assistant for audio playbook and music management on the Glitch Cube. Supports search, playback control, and status queries.'
   end
 
-  def self.call(action:, params: '{}')
-    params = JSON.parse(params) if params.is_a?(String)
+  def self.category
+    'media_control'
+  end
 
-    client = HomeAssistantClient.new
+  def self.tool_prompt
+    "Search local library and Spotify with search_music(). Play tracks with play_media(). Control with pause_media(), stop_media(), next_track(), set_volume()."
+  end
 
-    case action
-    when 'list_players'
-      list_available_players(client, params)
-    when 'play'
-      play_media(client, params)
-    when 'pause'
-      pause_media(client, params)
-    when 'stop'
-      stop_media(client, params)
-    when 'set_volume'
-      set_volume(client, params)
-    when 'next_track'
-      next_track(client, params)
-    when 'previous_track'
-      previous_track(client, params)
-    when 'get_status'
-      get_player_status(client, params)
-    else
-      "Unknown action: #{action}. Available actions: list_players, play, pause, stop, set_volume, next_track, previous_track, get_status"
+  # Search for music in Music Assistant
+  def self.search_music(query:, limit: 5)
+    return format_response(false, 'Query is required for music search') if query.nil? || query.empty?
+    
+    begin
+      # Use the actual Music Assistant config entry ID from Home Assistant
+      result = call_ha_service('music_assistant', 'search', {
+        name: query,
+        limit: limit,
+        config_entry_id: '01K1VK4MYJ75WNGJR5ESSAC2WY'  # Music Assistant instance ID
+      }, return_response: true)
+      
+      Services::LoggerService.log_api_call(
+        service: 'music_tool',
+        endpoint: 'search',
+        query: query,
+        limit: limit
+      )
+      
+      # Format the search results nicely
+      if result && result['service_response']
+        format_search_results(result['service_response'], query)
+      else
+        "No results found for '#{query}'"
+      end
+    rescue StandardError => e
+      "❌ Music search error: #{e.message}"
     end
-  rescue StandardError => e
-    "Music control error: #{e.message}"
+  end
+  
+  # Format search results for display
+  def self.format_search_results(response, query)
+    results = []
+    results << "=== SEARCH RESULTS FOR '#{query}' ==="
+    
+    # Handle different result types (artists, albums, tracks, playlists)
+    ['artists', 'albums', 'tracks', 'playlists'].each do |type|
+      if response[type] && !response[type].empty?
+        results << "\n#{type.capitalize}:"
+        response[type].each_with_index do |item, idx|
+          # Format based on type
+          case type
+          when 'artists'
+            results << "  #{idx + 1}. #{item['name']} (URI: #{item['uri']})"
+          when 'albums'
+            artist = item['artists']&.first&.dig('name') || 'Unknown Artist'
+            results << "  #{idx + 1}. #{item['name']} by #{artist} (URI: #{item['uri']})"
+          when 'tracks'
+            artist = item['artists']&.first&.dig('name') || 'Unknown Artist'
+            album = item['album']&.dig('name') || 'Unknown Album'
+            results << "  #{idx + 1}. #{item['name']} - #{artist} (#{album}) (URI: #{item['uri']})"
+          when 'playlists'
+            results << "  #{idx + 1}. #{item['name']} (URI: #{item['uri']})"
+          end
+        end
+      end
+    end
+    
+    results << "\nUse the URI to play specific content"
+    results.join("\n")
   end
 
   # List all available media players with their capabilities
-  def self.list_available_players(client, params)
-    verbose = params['verbose'] != false # Default to verbose unless explicitly false
+  def self.list_available_players(verbose: true)
 
     result = []
     result << '=== AVAILABLE MEDIA PLAYERS ==='
 
     begin
       # Get all media_player entities from Home Assistant
-      states = client.states
+      states = ha_client.states
       media_players = states.select { |state| state['entity_id'].start_with?('media_player.') }
 
       if verbose
@@ -128,100 +168,97 @@ class MusicTool
     end
   end
 
-  # Play media on specified player
-  def self.play_media(client, params)
-    player = params['player']
-    source = params['source']
-    volume = params['volume']
+  # Play media on the Glitch Cube music player
+  def self.play_media(track:, volume: nil, mode: 'add')
+    player = 'cube_music' # Hardcoded - art installation has fixed audio setup
+    
+    return format_response(false, 'Track is required') if track.nil? || track.empty?
 
-    return 'Error: player required' unless player
-
-    entity_id = resolve_player_entity(client, player)
+    entity_id = resolve_player_entity(player)
     return "Error: Player '#{player}' not found" unless entity_id
 
     begin
       # Set volume if specified
       if volume
         volume_float = volume.is_a?(String) ? volume.to_f : volume
-        client.call_service('media_player', 'volume_set', {
+        call_ha_service('media_player', 'volume_set', {
                               entity_id: entity_id,
                               volume_level: volume_float
                             })
       end
 
-      # If source is provided, try to play it
-      if source
-        # For Music Assistant, we might need to browse media or use specific service calls
-        # For now, try generic media_player.play_media
-        client.call_service('media_player', 'play_media', {
-                              entity_id: entity_id,
-                              media_content_type: 'music',
-                              media_content_id: source
-                            })
-      else
-        # Just resume/play current media
-        client.call_service('media_player', 'media_play', {
-                              entity_id: entity_id
-                            })
-      end
+      # Play the track using Music Assistant's play_media service
+      # This will do fuzzy search and play first result if not an exact ID
+      enqueue_mode = mode == 'replace_next' ? 'replace_next' : 'add'
+      
+      call_ha_service('music_assistant', 'play_media', {
+        media_id: track,
+        media_type: 'track', # Can be track, album, artist, playlist
+        enqueue: enqueue_mode,
+        entity_id: entity_id
+      })
+
+      # Ensure playback is started (queuing doesn't auto-start)
+      sleep(0.5) # Brief pause to let the queue update
+      call_ha_service('media_player', 'media_play', {
+        entity_id: entity_id
+      })
 
       Services::LoggerService.log_api_call(
         service: 'music_tool',
         endpoint: 'play',
         entity_id: entity_id,
-        source: source,
-        volume: volume
+        track: track,
+        volume: volume,
+        mode: enqueue_mode
       )
 
-      source_desc = source ? " (#{source})" : ''
       volume_desc = volume ? " at #{(volume.to_f * 100).round}% volume" : ''
-      "Started playback on #{player}#{source_desc}#{volume_desc}"
+      mode_desc = mode == 'replace_next' ? ' (replaced queue)' : ' (added to queue)'
+      format_response(true, "Playing '#{track}' on #{player}#{volume_desc}#{mode_desc}")
     rescue StandardError => e
-      "Failed to play on #{player}: #{e.message}"
+      format_response(false, "Failed to play on #{player}: #{e.message}")
     end
   end
 
   # Pause media player
-  def self.pause_media(client, params)
-    player = params['player']
-    return 'Error: player required' unless player
+  def self.pause_media
+    player = 'cube_music' # Hardcoded - art installation has fixed audio setup
 
-    entity_id = resolve_player_entity(client, player)
-    return "Error: Player '#{player}' not found" unless entity_id
+    entity_id = resolve_player_entity(player)
+    return format_response(false, "Player '#{player}' not found") unless entity_id
 
     begin
-      client.call_service('media_player', 'media_pause', { entity_id: entity_id })
-      "Paused #{player}"
+      call_ha_service('media_player', 'media_pause', { entity_id: entity_id })
+      format_response(true, "Paused Glitch Cube music")
     rescue StandardError => e
-      "Failed to pause #{player}: #{e.message}"
+      format_response(false, "Failed to pause music: #{e.message}")
     end
   end
 
   # Stop media player
-  def self.stop_media(client, params)
-    player = params['player']
-    return 'Error: player required' unless player
+  def self.stop_media
+    player = 'cube_music' # Hardcoded - art installation has fixed audio setup
 
-    entity_id = resolve_player_entity(client, player)
-    return "Error: Player '#{player}' not found" unless entity_id
+    entity_id = resolve_player_entity(player)
+    return format_response(false, "Player '#{player}' not found") unless entity_id
 
     begin
-      client.call_service('media_player', 'media_stop', { entity_id: entity_id })
-      "Stopped #{player}"
+      call_ha_service('media_player', 'media_stop', { entity_id: entity_id })
+      format_response(true, "Stopped Glitch Cube music")
     rescue StandardError => e
-      "Failed to stop #{player}: #{e.message}"
+      format_response(false, "Failed to stop music: #{e.message}")
     end
   end
 
   # Set volume for media player
-  def self.set_volume(client, params)
-    player = params['player']
-    volume = params['volume']
+  def self.set_volume(volume:)
+    player = 'cube_music' # Hardcoded - art installation has fixed audio setup
 
-    return 'Error: player and volume required' unless player && volume
+    return format_response(false, 'Volume is required') if volume.nil?
 
-    entity_id = resolve_player_entity(client, player)
-    return "Error: Player '#{player}' not found" unless entity_id
+    entity_id = resolve_player_entity(player)
+    return format_response(false, "Player '#{player}' not found") unless entity_id
 
     # Convert volume to float between 0.0 and 1.0
     volume_level = volume.is_a?(String) ? volume.to_f : volume
@@ -229,59 +266,56 @@ class MusicTool
     volume_level = [[0.0, volume_level].max, 1.0].min # Clamp between 0.0 and 1.0
 
     begin
-      client.call_service('media_player', 'volume_set', {
+      call_ha_service('media_player', 'volume_set', {
                             entity_id: entity_id,
                             volume_level: volume_level
                           })
 
-      "Set #{player} volume to #{(volume_level * 100).round}%"
+      format_response(true, "Set Glitch Cube music volume to #{(volume_level * 100).round}%")
     rescue StandardError => e
-      "Failed to set #{player} volume: #{e.message}"
+      format_response(false, "Failed to set music volume: #{e.message}")
     end
   end
 
   # Skip to next track
-  def self.next_track(client, params)
-    player = params['player']
-    return 'Error: player required' unless player
+  def self.next_track
+    player = 'cube_music' # Hardcoded - art installation has fixed audio setup
 
-    entity_id = resolve_player_entity(client, player)
-    return "Error: Player '#{player}' not found" unless entity_id
+    entity_id = resolve_player_entity(player)
+    return format_response(false, "Player '#{player}' not found") unless entity_id
 
     begin
-      client.call_service('media_player', 'media_next_track', { entity_id: entity_id })
-      "Skipped to next track on #{player}"
+      call_ha_service('media_player', 'media_next_track', { entity_id: entity_id })
+      format_response(true, "Skipped to next track")
     rescue StandardError => e
-      "Failed to skip track on #{player}: #{e.message}"
+      format_response(false, "Failed to skip track: #{e.message}")
     end
   end
 
   # Skip to previous track
-  def self.previous_track(client, params)
-    player = params['player']
-    return 'Error: player required' unless player
+  def self.previous_track
+    player = 'cube_music' # Hardcoded - art installation has fixed audio setup
 
-    entity_id = resolve_player_entity(client, player)
-    return "Error: Player '#{player}' not found" unless entity_id
+    entity_id = resolve_player_entity(player)
+    return format_response(false, "Player '#{player}' not found") unless entity_id
 
     begin
-      client.call_service('media_player', 'media_previous_track', { entity_id: entity_id })
-      "Skipped to previous track on #{player}"
+      call_ha_service('media_player', 'media_previous_track', { entity_id: entity_id })
+      format_response(true, "Skipped to previous track")
     rescue StandardError => e
-      "Failed to skip to previous track on #{player}: #{e.message}"
+      format_response(false, "Failed to skip to previous track: #{e.message}")
     end
   end
 
   # Get detailed status of media player
-  def self.get_player_status(client, params)
-    player = params['player']
-    return 'Error: player required' unless player
+  def self.get_player_status
+    player = 'cube_music' # Hardcoded - art installation has fixed audio setup
 
-    entity_id = resolve_player_entity(client, player)
-    return "Error: Player '#{player}' not found" unless entity_id
+    entity_id = resolve_player_entity(player)
+    return format_response(false, "Player '#{player}' not found") unless entity_id
 
     begin
-      state = client.state(entity_id)
+      state = ha_client.state(entity_id)
 
       if state && state['state'] != 'unavailable'
         status_parts = ["#{player}: #{state['state']}"]
@@ -311,19 +345,19 @@ class MusicTool
 
         status_parts.join(' | ')
       else
-        "#{player}: unavailable"
+        "Glitch Cube music: unavailable"
       end
     rescue StandardError => e
-      "Error getting #{player} status: #{e.message}"
+      format_response(false, "Error getting music status: #{e.message}")
     end
   end
 
   # Resolve player name to full entity ID
-  def self.resolve_player_entity(client, player_name)
+  def self.resolve_player_entity(player_name)
     return player_name if player_name.start_with?('media_player.')
 
     # Try to find the entity by name
-    states = client.states
+    states = ha_client.states
     media_players = states.select { |state| state['entity_id'].start_with?('media_player.') }
 
     # Look for exact match first

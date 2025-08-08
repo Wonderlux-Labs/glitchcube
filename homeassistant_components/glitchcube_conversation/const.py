@@ -12,7 +12,6 @@ DEFAULT_TIMEOUT = 10
 RESPONSE_KEY = "response"
 ACTIONS_KEY = "actions"
 CONTINUE_KEY = "continue_conversation"
-MOOD_KEY = "suggested_mood"
 MEDIA_KEY = "media_actions"
 
 # Supported languages (can be expanded)

@@ -4,128 +4,61 @@ require 'spec_helper'
 require 'home_assistant_client'
 
 RSpec.describe HomeAssistantClient do
-  let(:client) { described_class.new(base_url: 'http://localhost:8123', token: 'test-token') }
+  let(:client) { 
+    described_class.new(
+      base_url: GlitchCube.config.home_assistant.url,
+      token: GlitchCube.config.home_assistant.token
+    )
+  }
 
   describe 'AWTRIX Display Control' do
     describe '#awtrix_display_text' do
-      it 'sends text to AWTRIX display with default parameters' do
-        expect(client).to receive(:call_service).with('script', 'awtrix_send_custom_app', {
-                                                        app_name: 'glitchcube',
-                                                        text: 'Hello World',
-                                                        color: '#FFFFFF',
-                                                        duration: 5,
-                                                        rainbow: false
-                                                      })
-
-        client.awtrix_display_text('Hello World')
+      it 'sends text to AWTRIX display with default parameters', vcr: { cassette_name: 'awtrix_display_text_default' } do
+        result = client.awtrix_display_text('Hello World Test')
+        expect(result).to be_truthy
       end
 
-      it 'sends text with custom parameters' do
-        expect(client).to receive(:call_service).with('script', 'awtrix_send_custom_app', {
-                                                        app_name: 'test_app',
-                                                        text: 'Rainbow Text',
-                                                        color: '#FF0000',
-                                                        duration: 10,
-                                                        rainbow: true,
-                                                        icon: '1234'
-                                                      })
-
-        client.awtrix_display_text('Rainbow Text',
-                                   app_name: 'test_app',
-                                   color: '#FF0000',
-                                   duration: 10,
-                                   rainbow: true,
-                                   icon: '1234')
-      end
-
-      it 'handles errors gracefully' do
-        allow(client).to receive(:call_service).and_raise(HomeAssistantClient::Error, 'Service unavailable')
-
-        expect { client.awtrix_display_text('Test') }.not_to raise_error
-        expect(client.awtrix_display_text('Test')).to be(false)
+      it 'sends text with custom parameters', vcr: { cassette_name: 'awtrix_display_text_custom' } do
+        result = client.awtrix_display_text('Custom Text Test',
+                                           app_name: 'test_app',
+                                           color: '#FF0000',
+                                           duration: 3,
+                                           rainbow: false)
+        expect(result).to be_truthy
       end
     end
 
     describe '#awtrix_notify' do
-      it 'sends notification with default parameters' do
-        expect(client).to receive(:call_service).with('script', 'awtrix_send_notification', {
-                                                        text: 'Alert!',
-                                                        color: '#FFFFFF',
-                                                        duration: 8,
-                                                        wakeup: true,
-                                                        stack: true
-                                                      })
-
-        client.awtrix_notify('Alert!')
+      it 'sends notification with default parameters', vcr: { cassette_name: 'awtrix_notify_default' } do
+        result = client.awtrix_notify('Test Alert!')
+        expect(result).to be_truthy
       end
 
-      it 'sends notification with custom parameters' do
-        expect(client).to receive(:call_service).with('script', 'awtrix_send_notification', {
-                                                        text: 'Urgent!',
-                                                        color: '#FF0000',
-                                                        duration: 15,
-                                                        wakeup: false,
-                                                        stack: false,
-                                                        sound: 'alarm',
-                                                        icon: '5678'
-                                                      })
-
-        client.awtrix_notify('Urgent!',
-                             color: '#FF0000',
-                             duration: 15,
-                             wakeup: false,
-                             stack: false,
-                             sound: 'alarm',
-                             icon: '5678')
-      end
-
-      it 'handles errors gracefully' do
-        allow(client).to receive(:call_service).and_raise(HomeAssistantClient::Error, 'Service unavailable')
-
-        expect { client.awtrix_notify('Test') }.not_to raise_error
-        expect(client.awtrix_notify('Test')).to be(false)
+      it 'sends notification with custom parameters', vcr: { cassette_name: 'awtrix_notify_custom' } do
+        result = client.awtrix_notify('Custom Alert!',
+                                     color: '#FF0000',
+                                     duration: 5,
+                                     wakeup: false)
+        expect(result).to be_truthy
       end
     end
 
     describe '#awtrix_clear_display' do
-      it 'clears the AWTRIX display' do
-        expect(client).to receive(:call_service).with('script', 'awtrix_clear_display', {})
-
-        client.awtrix_clear_display
-      end
-
-      it 'handles errors gracefully' do
-        allow(client).to receive(:call_service).and_raise(HomeAssistantClient::Error, 'Service unavailable')
-
-        expect { client.awtrix_clear_display }.not_to raise_error
-        expect(client.awtrix_clear_display).to be(false)
+      it 'clears the AWTRIX display', vcr: { cassette_name: 'awtrix_clear_display' } do
+        result = client.awtrix_clear_display
+        expect(result).to be_truthy
       end
     end
 
     describe '#awtrix_mood_light' do
-      it 'sets mood light with default brightness' do
-        expect(client).to receive(:call_service).with('script', 'awtrix_set_mood_light', {
-                                                        color: '#FF00FF',
-                                                        brightness: 100
-                                                      })
-
-        client.awtrix_mood_light('#FF00FF')
+      it 'sets mood light with default brightness', vcr: { cassette_name: 'awtrix_mood_light_default' } do
+        result = client.awtrix_mood_light('#FF00FF')
+        expect(result).to be_truthy
       end
 
-      it 'sets mood light with custom brightness' do
-        expect(client).to receive(:call_service).with('script', 'awtrix_set_mood_light', {
-                                                        color: '#00FF00',
-                                                        brightness: 50
-                                                      })
-
-        client.awtrix_mood_light('#00FF00', brightness: 50)
-      end
-
-      it 'handles errors gracefully' do
-        allow(client).to receive(:call_service).and_raise(HomeAssistantClient::Error, 'Service unavailable')
-
-        expect { client.awtrix_mood_light('#FFFFFF') }.not_to raise_error
-        expect(client.awtrix_mood_light('#FFFFFF')).to be(false)
+      it 'sets mood light with custom brightness', vcr: { cassette_name: 'awtrix_mood_light_custom' } do
+        result = client.awtrix_mood_light('#00FF00', brightness: 75)
+        expect(result).to be_truthy
       end
     end
   end

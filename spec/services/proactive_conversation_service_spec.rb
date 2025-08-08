@@ -116,7 +116,7 @@ RSpec.describe Services::ProactiveConversationService do
         hash_including(
           user_message: '[PROACTIVE: battery_low]',
           ai_response: 'Battery at 15%!',
-          mood: 'proactive',
+          persona: 'proactive',
           context: { trigger: :battery_low }
         )
       )

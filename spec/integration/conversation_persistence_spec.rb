@@ -5,7 +5,7 @@ require_relative '../../lib/services/conversation_service'
 require_relative '../../lib/services/system_prompt_service'
 require_relative '../../lib/modules/conversation_module'
 
-RSpec.describe 'Conversation with Persistence Integration', :vcr do
+RSpec.describe "Conversation with Persistence Integration", vcr: { cassette_name: "conversation_persistence" } do
   before do
     # Clean database between tests to avoid foreign key conflicts
     Message.destroy_all
@@ -33,7 +33,7 @@ RSpec.describe 'Conversation with Persistence Integration', :vcr do
       # Verify response structure
       expect(result1).to include(
         response: String,
-        suggested_mood: String
+        persona: String
       )
       expect(result1[:response]).not_to be_empty
       # Confidence may not be present in error responses
@@ -64,33 +64,11 @@ RSpec.describe 'Conversation with Persistence Integration', :vcr do
 
       # Verify context maintains interaction count
       expect(results).to all(be_a(Hash))
-      expect(results).to all(include(:response, :suggested_mood))
+      expect(results).to all(include(:response, :persona))
     end
 
-    it 'tracks mood transitions' do
-      # Start with playful
-      conversation_service.process_message("Let's have fun!", mood: 'playful')
-
-      # Mock the ConversationModule to return a different suggested_mood
-      allow_any_instance_of(ConversationModule).to receive(:call).and_return({
-                                                                               response: 'I sense a shift in our conversation...',
-                                                                               suggested_mood: 'contemplative', # Different from input mood
-                                                                               conversation_id: 'test-id',
-                                                                               session_id: 'test-id',
-                                                                               persona: 'playful'
-                                                                             })
-
-      # Send another message with same mood to trigger mood_changed detection
-      conversation_service.process_message(
-        "Actually, let's keep playing!",
-        mood: 'playful' # Same mood but AI suggests different
-      )
-
-      # Check context tracks mood change when suggested differs from input
-      context = conversation_service.get_context
-      expect(context[:mood_changed]).to be true
-      expect(context[:previous_mood]).to eq('playful')
-    end
+    # Removed: mood transitions are no longer tracked
+    # Personas are scheduled and don't change based on conversation
   end
 
   describe 'System prompt generation' do

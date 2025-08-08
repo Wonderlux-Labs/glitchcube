@@ -3,24 +3,24 @@
 require 'spec_helper'
 require_relative '../../lib/modules/conversation_module'
 
-RSpec.describe 'ConversationModule Integration', :vcr do
+RSpec.describe 'ConversationModule Integration', vcr: { cassette_name: "auto_generated" } do
   let(:module_instance) { ConversationModule.new }
 
   describe 'Real conversation flow with Home Assistant' do
     context 'with real LLM and Home Assistant' do
       it 'processes a message and speaks through Home Assistant' do
-        VCR.use_cassette('conversation_module/real_conversation_with_ha', record: :new_episodes) do
+        VCR.use_cassette('conversation_module/real_conversation_with_ha') do
           result = module_instance.call(
             message: 'Hello, what are you?',
             context: { session_id: 'test-integration-123' },
-            mood: 'playful'
+            persona: 'buddy'
           )
 
           # Verify we got a real response
           expect(result[:response]).to be_a(String)
           expect(result[:response].length).to be > 10
           expect(result[:conversation_id]).to eq('test-integration-123')
-          expect(result[:persona]).to eq('playful')
+          expect(result[:persona]).to eq('buddy')
 
           # Model, cost, and tokens may be nil in error responses
           if result[:error].nil?
@@ -32,15 +32,15 @@ RSpec.describe 'ConversationModule Integration', :vcr do
       end
 
       it 'handles personas correctly' do
-        VCR.use_cassette('conversation_module/persona_test', record: :new_episodes) do
+        VCR.use_cassette('conversation_module/persona_test') do
           result = module_instance.call(
             message: 'Tell me about yourself',
             context: { session_id: 'test-persona' },
-            mood: 'playful'
+            persona: 'buddy'
           )
 
           expect(result[:response]).to be_a(String)
-          expect(result[:persona]).to eq('playful')
+          expect(result[:persona]).to eq('buddy')
         end
       end
     end
@@ -54,7 +54,7 @@ RSpec.describe 'ConversationModule Integration', :vcr do
         result = module_instance.call(
           message: 'This should fail',
           context: { session_id: 'test-error' },
-          mood: 'neutral'
+          persona: 'default'
         )
 
         # Should return a fallback response
@@ -67,11 +67,11 @@ RSpec.describe 'ConversationModule Integration', :vcr do
     context 'with real Home Assistant TTS' do
       it 'sends TTS commands to Home Assistant' do
         # This will actually try to speak through HA if available
-        VCR.use_cassette('conversation_module/tts_integration', record: :new_episodes) do
+        VCR.use_cassette('conversation_module/tts_integration') do
           result = module_instance.call(
             message: 'Say something short',
             context: { session_id: 'test-tts' },
-            mood: 'friendly'
+            persona: 'buddy'
           )
 
           expect(result[:response]).to be_a(String)
@@ -86,12 +86,12 @@ RSpec.describe 'ConversationModule Integration', :vcr do
     let(:session_id) { 'test-session-persistence' }
 
     it 'maintains context across multiple messages' do
-      VCR.use_cassette('conversation_module/session_persistence', record: :new_episodes) do
+      VCR.use_cassette('conversation_module/session_persistence') do
         # First message
         result1 = module_instance.call(
           message: 'My name is TestUser',
           context: { session_id: session_id },
-          mood: 'neutral'
+          persona: 'default'
         )
 
         expect(result1[:response]).to be_a(String)
@@ -100,7 +100,7 @@ RSpec.describe 'ConversationModule Integration', :vcr do
         result2 = module_instance.call(
           message: 'What is my name?',
           context: { session_id: session_id },
-          mood: 'neutral'
+          persona: 'default'
         )
 
         expect(result2[:response]).to be_a(String)

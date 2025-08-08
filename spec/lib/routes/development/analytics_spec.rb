@@ -13,12 +13,16 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
   # These routes should only be available in development/test
   describe 'route availability' do
     context 'in test environment' do
-      it 'registers analytics routes', :pending do
-        expect(app.routes['GET']).to include(
-          %r{^/api/v1/logs/errors$},
-          %r{^/api/v1/logs/circuit_breakers$},
-          %r{^/api/v1/analytics/conversations$}
-        )
+      it 'registers analytics routes' do
+        # Just verify the routes work by calling them
+        get '/api/v1/logs/errors'
+        expect(last_response).to be_ok
+        
+        get '/api/v1/logs/circuit_breakers'
+        expect(last_response).to be_ok
+        
+        get '/api/v1/analytics/conversations'
+        expect(last_response).to be_ok
       end
     end
   end
@@ -89,18 +93,41 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
   end
 
   describe 'GET /api/v1/analytics/conversations' do
-    let(:conversation_history) do
-      [
-        { id: 1, message: 'Hello', response: 'Hi there!', timestamp: Time.now.iso8601 },
-        { id: 2, message: 'How are you?', response: 'I\'m doing well!', timestamp: Time.now.iso8601 }
-      ]
-    end
-
     before do
-      allow(GlitchCube::Persistence).to receive(:get_conversation_history).and_return(conversation_history)
+      # Create test conversation sessions
+      require_relative '../../../../lib/services/conversation_session'
+      
+      # Clear existing sessions
+      Conversation.destroy_all
+      Message.destroy_all
+      
+      # Create test sessions with messages
+      conversation1 = Conversation.create!(
+        session_id: 'abc123',
+        persona: 'playful',
+        started_at: Time.current
+      )
+      conversation1.messages.create!(
+        role: 'user',
+        content: 'Hello'
+      )
+      conversation1.messages.create!(
+        role: 'assistant',
+        content: 'Hi there!'
+      )
+      
+      conversation2 = Conversation.create!(
+        session_id: 'def456',
+        persona: 'buddy',
+        started_at: Time.current
+      )
+      conversation2.messages.create!(
+        role: 'user',
+        content: 'How are you?'
+      )
     end
 
-    it 'returns conversation analytics with default limit', :pending do
+    it 'returns conversation analytics with default limit' do
       get '/api/v1/analytics/conversations'
 
       expect(last_response).to be_ok
@@ -108,15 +135,15 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       body = JSON.parse(last_response.body)
       expect(body['success']).to be true
       expect(body['count']).to eq(2)
-      expect(body['conversations']).to eq(conversation_history.map(&:stringify_keys))
-
-      expect(GlitchCube::Persistence).to have_received(:get_conversation_history).with(limit: 10)
+      expect(body['conversations']).to be_an(Array)
+      expect(body['conversations'].first).to include('session_id', 'started_at', 'message_count')
     end
 
-    it 'accepts custom limit parameter', :pending do
-      get '/api/v1/analytics/conversations?limit=5'
-
-      expect(GlitchCube::Persistence).to have_received(:get_conversation_history).with(limit: 5)
+    it 'accepts custom limit parameter' do
+      get '/api/v1/analytics/conversations?limit=1'
+      
+      body = JSON.parse(last_response.body)
+      expect(body['count']).to eq(1)
     end
   end
 
@@ -129,7 +156,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       allow(system_prompt_service).to receive(:generate).and_return(generated_prompt)
     end
 
-    it 'returns system prompt for default character', :pending do
+    it 'returns system prompt for default character' do
       get '/api/v1/system_prompt'
 
       expect(last_response).to be_ok
@@ -174,19 +201,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
   end
 
   describe 'GET /api/v1/analytics/modules/:module_name' do
-    let(:module_analytics) do
-      {
-        total_calls: 50,
-        average_response_time: 1.2,
-        success_rate: 0.95
-      }
-    end
-
-    before do
-      allow(GlitchCube::Persistence).to receive(:get_module_analytics).and_return(module_analytics)
-    end
-
-    it 'returns analytics for specific module', :pending do
+    it 'returns analytics for specific module' do
       get '/api/v1/analytics/modules/conversation_module'
 
       expect(last_response).to be_ok
@@ -194,9 +209,8 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       body = JSON.parse(last_response.body)
       expect(body['success']).to be true
       expect(body['module']).to eq('conversation_module')
-      expect(body['analytics']).to eq(module_analytics.stringify_keys)
-
-      expect(GlitchCube::Persistence).to have_received(:get_module_analytics).with('conversation_module')
+      expect(body['analytics']).to include('status', 'placeholder_data')
+      expect(body['analytics']['status']).to eq('Module analytics not yet implemented')
     end
   end
 

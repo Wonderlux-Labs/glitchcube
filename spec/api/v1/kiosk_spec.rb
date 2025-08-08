@@ -178,27 +178,26 @@ RSpec.describe 'Kiosk Interface API', type: :request do
       Services::Kiosk::StateManager.reset!
     end
 
-    it 'updates kiosk display when conversation happens', :pending do
-      # Mock the conversation dependencies
-      allow(Services::SystemPromptService).to receive(:new).and_return(
-        double(generate: 'test prompt')
+    it 'updates kiosk display when conversation happens' do
+      # Mock LLM service
+      mock_response = instance_double(
+        Services::LLMResponse,
+        response_text: 'Hello there!',
+        model: 'test-model',
+        cost: 0.001,
+        usage: { prompt_tokens: 10, completion_tokens: 20 },
+        has_tool_calls?: false,
+        continue_conversation?: true
       )
-
-      # Mock circuit breaker
-      mock_breaker = double('circuit_breaker')
-      allow(Services::CircuitBreakerService).to receive(:openrouter_breaker).and_return(mock_breaker)
-      allow(mock_breaker).to receive(:call).and_yield
-
-      allow(Timeout).to receive(:timeout).and_yield
-
-      mock_model = double('model')
-      allow(mock_model).to receive_messages(complete: { content: 'Hello there!' }, config: { model: 'test-model' })
-
-      # Mock removed - using ConversationModule directly now
-
-      allow(HomeAssistantClient).to receive(:new).and_return(
-        double(speak: true)
-      )
+      
+      allow(Services::LLMService).to receive(:complete_with_messages).and_return(mock_response)
+      
+      # Mock Home Assistant client for TTS and other calls
+      mock_ha_client = double('HomeAssistantClient')
+      allow(HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
+      allow(mock_ha_client).to receive(:speak).and_return(true)
+      allow(mock_ha_client).to receive(:state).and_return(nil)
+      allow(mock_ha_client).to receive(:call_service).and_return(true)
 
       allow(Services::LoggerService).to receive(:log_interaction)
       allow(Services::LoggerService).to receive(:log_tts)
@@ -206,12 +205,12 @@ RSpec.describe 'Kiosk Interface API', type: :request do
       # Call conversation
       result = conversation_module.call(
         message: 'Hello, are you there?',
-        mood: 'playful'
+        context: { persona: 'playful' }
       )
 
       # Verify conversation worked
       expect(result[:response]).to eq('Hello there!')
-      expect(result[:suggested_mood]).to eq('playful')
+      expect(result[:persona]).to eq('playful')
 
       # Check that kiosk was updated
       expect(Services::KioskService.current_mood).to eq('playful')

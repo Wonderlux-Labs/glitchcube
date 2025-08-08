@@ -133,7 +133,7 @@ module Services
         Services::LoggerService.log_interaction(
           user_message: "[PROACTIVE: #{trigger_result[:trigger]}]",
           ai_response: message,
-          mood: 'proactive',
+          persona: 'proactive',
           context: { trigger: trigger_result[:trigger] }
         )
 

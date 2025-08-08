@@ -1,62 +1,44 @@
 # frozen_string_literal: true
 
-require_relative '../home_assistant_client'
+require_relative 'base_tool'
 require_relative '../services/logger_service'
 
 # Tool for controlling AWTRIX LED matrix display system
 # Provides text display, notifications, mood lighting, and visual effects
-class DisplayTool
+class DisplayTool < BaseTool
   def self.name
     'display_control'
   end
 
   def self.description
-    'Control AWTRIX 32x8 LED matrix display and status indicators. Actions: "list_displays" (verbose: true/false - shows available display entities and capabilities), "show_text" (text, color, duration, rainbow, icon), "notify" (text, color, duration, sound, icon), "mood_light" (color, brightness), "clear_display", "get_status". Use list_displays first to see capabilities. Colors: hex like "#FF0000". Icons: numeric ID or base64 8x8 image. Sounds: RTTTL string or MP3 filename. Args: action (string), params (string) - JSON with text, color, duration, etc.'
+    'Control AWTRIX 32x8 LED matrix display and status indicators. Supports text display, notifications, mood lighting, and status queries.'
   end
 
-  def self.call(action:, params: '{}')
-    params = JSON.parse(params) if params.is_a?(String)
-
-    # AWTRIX entities based on our hardware scan
-    display_entities = {
-      'matrix' => 'light.awtrix_b85e20_matrix', # Main 32x8 RGB LED matrix
-      'indicator_1' => 'light.awtrix_b85e20_indicator_1', # Status indicator 1
-      'indicator_2' => 'light.awtrix_b85e20_indicator_2', # Status indicator 2
-      'indicator_3' => 'light.awtrix_b85e20_indicator_3'  # Status indicator 3
-    }
-
-    client = HomeAssistantClient.new
-
-    case action
-    when 'list_displays'
-      list_available_displays(client, display_entities, params)
-    when 'show_text'
-      show_display_text(client, params)
-    when 'notify'
-      send_notification(client, params)
-    when 'mood_light'
-      set_mood_light(client, params)
-    when 'clear_display'
-      clear_display(client)
-    when 'get_status'
-      get_display_status(client, display_entities)
-    else
-      "Unknown action: #{action}. Available actions: list_displays, show_text, notify, mood_light, clear_display, get_status"
-    end
-  rescue StandardError => e
-    "Display control error: #{e.message}"
+  def self.category
+    'visual_interface'
   end
+
+  def self.tool_prompt
+    "Control 32x8 LED matrix with display_text(), send_notification(), set_mood_light(), clear_display()."
+  end
+
+  # AWTRIX entities based on our hardware scan
+  DISPLAY_ENTITIES = {
+    'matrix' => 'light.awtrix_b85e20_matrix', # Main 32x8 RGB LED matrix
+    'indicator_1' => 'light.awtrix_b85e20_indicator_1', # Status indicator 1
+    'indicator_2' => 'light.awtrix_b85e20_indicator_2', # Status indicator 2
+    'indicator_3' => 'light.awtrix_b85e20_indicator_3'  # Status indicator 3
+  }.freeze
 
   # List all available display entities and their capabilities
-  def self.list_available_displays(client, display_entities, params)
-    verbose = params['verbose'] != false # Default to verbose unless explicitly false
+  def self.list_available_displays(verbose: true)
 
     result = []
     result << '=== AVAILABLE DISPLAYS ==='
 
     if verbose
-      display_entities.each do |key, entity_id|
-        state = client.state(entity_id)
+      DISPLAY_ENTITIES.each do |key, entity_id|
+        state = ha_client.state(entity_id)
 
         if state && state['state'] != 'unavailable'
           supported_modes = state.dig('attributes', 'supported_color_modes') || []
@@ -106,7 +88,7 @@ class DisplayTool
       # Simple list
       available_displays = []
       display_entities.each do |key, entity_id|
-        state = client.state(entity_id)
+        state = ha_client.state(entity_id)
         available_displays << key if state && state['state'] != 'unavailable'
       rescue StandardError
         # Skip errors in simple mode
@@ -131,25 +113,24 @@ class DisplayTool
   end
 
   # Display text on the AWTRIX matrix
-  def self.show_display_text(client, params)
-    text = params['text']
-    return 'Error: text required' unless text
+  def self.show_display_text(text:, app_name: 'glitchcube', color: '#FFFFFF', duration: 5, rainbow: false, icon: nil)
+    return format_response(false, 'Text is required') if text.nil? || text.empty?
 
     # Build display parameters
     display_params = {
-      app_name: params['app_name'] || 'glitchcube',
+      app_name: app_name,
       text: text,
-      color: params['color'] || '#FFFFFF',
-      duration: params['duration'] || 5,
-      rainbow: params['rainbow'] || false
+      color: color,
+      duration: duration,
+      rainbow: rainbow
     }
 
     # Add icon if provided
-    display_params[:icon] = params['icon'] if params['icon']
+    display_params[:icon] = icon if icon
 
     begin
       # Use existing AWTRIX method from HomeAssistantClient
-      success = client.awtrix_display_text(
+      success = ha_client.awtrix_display_text(
         text,
         app_name: display_params[:app_name],
         color: display_params[:color],
@@ -182,7 +163,7 @@ class DisplayTool
   end
 
   # Send notification to AWTRIX
-  def self.send_notification(client, params)
+  def self.send_notification(params)
     text = params['text']
     return 'Error: text required' unless text
 
@@ -199,7 +180,7 @@ class DisplayTool
     notify_params[:icon] = params['icon'] if params['icon']
 
     begin
-      success = client.awtrix_notify(
+      success = ha_client.awtrix_notify(
         text,
         color: notify_params[:color],
         duration: notify_params[:duration],
@@ -231,7 +212,7 @@ class DisplayTool
   end
 
   # Set AWTRIX mood lighting
-  def self.set_mood_light(client, params)
+  def self.set_mood_light(params)
     color = params['color']
     return 'Error: color required' unless color
 
@@ -241,7 +222,7 @@ class DisplayTool
     return 'Error: color must be hex format like #FF0000' unless color.match?(/^#[0-9A-Fa-f]{6}$/)
 
     begin
-      success = client.awtrix_mood_light(color, brightness: brightness)
+      success = ha_client.awtrix_mood_light(color, brightness: brightness)
 
       Services::LoggerService.log_api_call(
         service: 'display_tool',
@@ -261,8 +242,8 @@ class DisplayTool
   end
 
   # Clear all custom apps from display
-  def self.clear_display(client)
-    success = client.awtrix_clear_display
+  def self.clear_display()
+    success = ha_client.awtrix_clear_display
 
     Services::LoggerService.log_api_call(
       service: 'display_tool',
@@ -279,11 +260,11 @@ class DisplayTool
   end
 
   # Get status of display entities
-  def self.get_display_status(client, display_entities)
+  def self.get_display_status(display_entities)
     statuses = []
 
     display_entities.each do |key, entity_id|
-      state = client.state(entity_id)
+      state = ha_client.state(entity_id)
 
       if state && state['state'] != 'unavailable'
         status = "#{key}: #{state['state']}"

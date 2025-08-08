@@ -31,7 +31,6 @@ RSpec.describe Services::ConversationService do
       let(:mock_response) do
         {
           response: "Hello! I'm buzzing with excitement to meet you!",
-          suggested_mood: 'playful',
           confidence: 0.95
         }
       end
@@ -64,46 +63,8 @@ RSpec.describe Services::ConversationService do
       end
     end
 
-    context 'with mood change' do
-      let(:mock_response) do
-        {
-          response: "That's a profound question...",
-          suggested_mood: 'contemplative',
-          confidence: 0.9
-        }
-      end
-
-      before do
-        allow(service.conversation_module).to receive(:call).and_return(mock_response)
-      end
-
-      it 'tracks mood changes in context' do
-        service.process_message(message, mood: 'playful')
-
-        expect(service.get_context[:mood_changed]).to be true
-        expect(service.get_context[:previous_mood]).to eq('playful')
-      end
-    end
-
-    context 'without mood change' do
-      let(:mock_response) do
-        {
-          response: "Let's keep playing!",
-          suggested_mood: 'playful',
-          confidence: 0.9
-        }
-      end
-
-      before do
-        allow(service.conversation_module).to receive(:call).and_return(mock_response)
-      end
-
-      it 'does not set mood_changed flag' do
-        service.process_message(message, mood: 'playful')
-
-        expect(service.get_context[:mood_changed]).to be_nil
-      end
-    end
+    # Mood changes are no longer tracked - personas are scheduled
+    # These tests are removed as we now have fixed personas that change on schedule
   end
 
   describe '#add_context' do
@@ -127,7 +88,6 @@ RSpec.describe Services::ConversationService do
     let(:mock_response) do
       {
         response: 'Hello! Test response',
-        suggested_mood: 'playful',
         confidence: 0.95
       }
     end
@@ -168,7 +128,7 @@ RSpec.describe Services::ConversationService do
   end
 
   describe 'integration with system prompt' do
-    it 'passes context through to system prompt generation' do
+    it 'passes context through to system prompt generation', vcr: { cassette_name: 'services/conversation_service/system_prompt_integration' } do
       # Set up expected context values
       service.add_context(:location, 'Test Gallery')
       service.add_context(:event_name, 'RSpec Test')

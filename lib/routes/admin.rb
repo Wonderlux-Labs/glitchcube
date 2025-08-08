@@ -7,30 +7,19 @@ module GlitchCube
   module Routes
     module Admin
       def self.registered(app)
-        # Admin panel pages
+        # Main admin interface - conversation development focused
         app.get '/admin' do
-          erb :admin
+          erb :admin_simple
         end
 
-        # Simple admin interface - just the basics
+        # Keep simple admin as main interface
         app.get '/admin/simple' do
           erb :admin_simple
         end
 
+        # Keep advanced for complex debugging when needed
         app.get '/admin/advanced' do
           erb :admin_advanced
-        end
-
-        app.get '/admin/conversation_flow' do
-          erb :conversation_flow
-        end
-
-        app.get '/admin/conversation_studio' do
-          erb :admin_conversation_studio
-        end
-
-        app.get '/admin/dashboard' do
-          erb :admin_dashboard
         end
 
         # Comprehensive conversation show view for debugging
@@ -391,11 +380,11 @@ module GlitchCube
               content: msg.content,
               created_at: msg.created_at.iso8601,
               persona: msg.persona,
-              model: msg.model,
+              model: msg.model_used,
               cost: msg.cost,
               prompt_tokens: msg.prompt_tokens,
               completion_tokens: msg.completion_tokens,
-              continue_conversation: msg.continue_conversation
+              metadata: msg.metadata || {}
             }
           end
 
@@ -473,62 +462,35 @@ module GlitchCube
           { memories: formatted_memories, count: formatted_memories.size, type: type }.to_json
         end
 
-        # Admin endpoint to view conversation traces
-        app.get '/admin/conversation_traces' do
+        # Simple conversation listing for admin
+        app.get '/admin/api/conversations' do
           content_type :json
 
-          session_id = params[:session_id]
-          trace_id = params[:trace_id]
+          limit = (params[:limit] || 20).to_i
+          offset = (params[:offset] || 0).to_i
 
-          begin
-            if trace_id
-              # Get specific trace by ID
-              trace = ::Services::ConversationTracer.get_trace(trace_id)
-              return { error: 'Trace not found' }.to_json unless trace
+          conversations = Conversation.order(created_at: :desc)
+                                    .limit(limit)
+                                    .offset(offset)
+                                    .includes(:messages)
 
-              { trace: trace }.to_json
-            elsif session_id
-              # Get all traces for a session
-              traces = ::Services::ConversationTracer.get_session_traces(session_id, limit: 50)
-              { traces: traces, count: traces.size, session_id: session_id }.to_json
-            else
-              { error: 'session_id or trace_id required' }.to_json
-            end
-          rescue StandardError => e
-            status 500
-            { error: e.message }.to_json
-          end
-        end
-
-        # Admin endpoint to get conversation trace details for debugging
-        app.get '/admin/trace_details/:trace_id' do
-          content_type :json
-
-          trace_id = params[:trace_id]
-
-          begin
-            trace = ::Services::ConversationTracer.get_trace(trace_id)
-            return { error: 'Trace not found' }.to_json unless trace
-
-            # Enhanced trace details for debugging
+          formatted_conversations = conversations.map do |conv|
             {
-              trace: trace,
-              summary: {
-                total_steps: trace[:total_steps],
-                total_duration_ms: trace[:total_duration_ms],
-                session_id: trace[:session_id],
-                started_at: trace[:started_at],
-                services_used: trace[:traces]&.map { |t| t[:service] }&.uniq || [],
-                llm_calls: trace[:traces]&.count { |t| t[:service] == 'LLMService' } || 0,
-                tool_calls: trace[:traces]&.count { |t| t[:service] == 'ToolExecutor' } || 0,
-                memory_injections: trace[:traces]&.count { |t| t[:service] == 'MemoryRecallService' } || 0,
-                has_errors: trace[:traces]&.any? { |t| t[:success] == false } || false
-              }
-            }.to_json
-          rescue StandardError => e
-            status 500
-            { error: e.message }.to_json
+              session_id: conv.session_id,
+              persona: conv.persona,
+              message_count: conv.message_count,
+              started_at: conv.started_at&.iso8601,
+              last_message: conv.messages.last&.created_at&.iso8601,
+              total_cost: conv.total_cost,
+              total_tokens: conv.total_tokens
+            }
           end
+
+          {
+            conversations: formatted_conversations,
+            count: formatted_conversations.size,
+            total_count: Conversation.count
+          }.to_json
         end
 
         # Tool testing and isolation interface
@@ -563,8 +525,17 @@ module GlitchCube
               count: formatted_tools.size
             }.to_json
           rescue StandardError => e
+            # Log the full error for debugging
+            puts "Tool API Error: #{e.class} - #{e.message}"
+            puts e.backtrace.first(5).join("\n") if ENV['RACK_ENV'] == 'development'
+            
             status 500
-            { success: false, error: e.message, backtrace: e.backtrace.first(5) }.to_json
+            { 
+              success: false, 
+              error: e.message,
+              error_type: e.class.to_s,
+              backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil
+            }.compact.to_json
           end
         end
 
@@ -585,8 +556,16 @@ module GlitchCube
             status 400
             { success: false, error: "Invalid JSON: #{e.message}" }.to_json
           rescue StandardError => e
+            puts "Tool Execution Error: #{e.class} - #{e.message}"
+            puts e.backtrace.first(5).join("\n") if ENV['RACK_ENV'] == 'development'
+            
             status 500
-            { success: false, error: e.message, backtrace: e.backtrace.first(5) }.to_json
+            { 
+              success: false, 
+              error: e.message,
+              error_type: e.class.to_s,
+              backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil
+            }.compact.to_json
           end
         end
 
@@ -644,12 +623,11 @@ module GlitchCube
               }
             end
 
-            # Get traces for this session
-            traces = begin
-              ::Services::ConversationTracer.get_session_traces(session_id, limit: 100)
-            rescue StandardError
-              []
-            end
+            # Simple debugging info instead of complex traces
+            debug_info = {
+              messages_with_tools: messages.count { |m| m[:metadata]&.dig('tool_calls')&.any? },
+              total_duration: conversation.started_at ? (Time.now - conversation.started_at).to_i : 0
+            }
 
             # Get memories related to this session
             memories = begin
@@ -685,7 +663,7 @@ module GlitchCube
                 metadata: conversation.metadata || {}
               },
               messages: messages,
-              traces: traces,
+              debug_info: debug_info,
               memories: memories,
               analytics: {
                 total_messages: messages.length,

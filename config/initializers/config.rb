@@ -37,11 +37,7 @@ module GlitchCube
         # Home Assistant Integration
         home_assistant: OpenStruct.new(
           url: ENV['HOME_ASSISTANT_URL'] || ENV.fetch('HA_URL', nil),
-          token: if ENV['RACK_ENV'] == 'test'
-                   'test-ha-token' # Use consistent token for tests
-                 else
-                   ENV['HOME_ASSISTANT_TOKEN'] || ENV.fetch('HA_TOKEN', nil)
-                 end
+          token: ENV['HOME_ASSISTANT_TOKEN'] || ENV.fetch('HA_TOKEN', nil)
         ),
 
         # Monitoring
@@ -237,13 +233,12 @@ rescue StandardError => e
   raise if ENV['RACK_ENV'] == 'production'
 end
 
-# TODO: Fix base_tool implementation before enabling
 # Initialize tool registry
-# begin
-#   require_relative '../../lib/services/tool_registry_service'
-#   Services::ToolRegistryService.initialize!
-# rescue StandardError => e
-#   puts "⚠️  Tool registry initialization failed: #{e.message}"
-#   # Don't fail startup if tools can't load in dev
-#   raise if ENV['RACK_ENV'] == 'production'
-# end
+begin
+  require_relative '../../lib/services/tool_registry_service'
+  Services::ToolRegistryService.initialize!
+rescue StandardError => e
+  puts "⚠️  Tool registry initialization failed: #{e.message}"
+  # Don't fail startup if tools can't load in dev
+  raise if ENV['RACK_ENV'] == 'production'
+end

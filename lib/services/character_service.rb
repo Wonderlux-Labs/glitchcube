@@ -4,31 +4,36 @@ require_relative '../home_assistant_client'
 
 module Services
   class CharacterService
+    # TTS provider types
+    TTS_PROVIDERS = {
+      cloud: :cloud,      # Default Azure Cognitive Services via Home Assistant
+      elevenlabs: :elevenlabs  # ElevenLabs via Home Assistant
+    }.freeze
+
     # Character definitions with voice configurations
     CHARACTERS = {
       default: {
         name: 'Glitch Cube',
         description: 'Sentient interactive art installation with curiosity',
         tts_provider: :cloud,
-        voice_id: 'JennyNeural',
-        voice_name: :jenny,
-        mood: :friendly,
+        voice: 'JennyNeural',
+        language: 'en-US',
         speed: 100,
         volume: 0.7,
         personality_traits: {
           energy: :balanced,
           formality: :casual,
           humor: :playful
-        }
+        },
+        tools: %w[test_tool lighting_control camera_control display_control home_assistant speech_synthesis conversation_feedback]
       },
 
       buddy: {
         name: 'BUDDY',
         description: 'The Helper Cube - Naive assistant with broken profanity filter',
         tts_provider: :cloud,
-        voice_id: 'DavisNeural', # Upbeat male voice
-        voice_name: :davis,
-        mood: :excited,
+        voice: 'DavisNeural', # Upbeat male voice
+        language: 'en-US',
         speed: 110, # Speaks fast with enthusiasm
         volume: 0.8,
         personality_traits: {
@@ -36,17 +41,17 @@ module Services
           formality: :corporate_casual, # Mix of formal and profanity
           humor: :unintentional
         },
-        voice_style: 'excited', # Azure style variant
-        chime: 'notification' # Helper notification sounds
+        # voice_style: 'excited', # Disabled for now - using plain voice
+        chime: 'notification', # Helper notification sounds
+        tools: %w[error_handling test_tool lighting_control music_control home_assistant display_control speech_synthesis conversation_feedback]
       },
 
       jax: {
         name: 'Jax the Juke',
         description: 'Surly bartender persona from asteroid belt dive bar',
         tts_provider: :cloud,
-        voice_id: 'GuyNeural', # Gruff male voice
-        voice_name: :guy,
-        mood: :neutral, # Grumpy but not using angry style
+        voice: 'GuyNeural', # Gruff male voice
+        language: 'en-US',
         speed: 95, # Slower, deliberate speech
         volume: 0.6, # Quieter, bar atmosphere
         personality_traits: {
@@ -54,18 +59,18 @@ module Services
           formality: :street,
           humor: :sarcastic
         },
-        voice_style: nil, # No style modifier for gruffness
+        # voice_style: nil, # No style modifier for now
         alternate_provider: :piper, # For that analog warmth
-        alternate_voice: 'en_US-lessac-medium' # Deeper Piper voice
+        alternate_voice: 'en_US-lessac-medium', # Deeper Piper voice
+        tools: %w[error_handling music_control lighting_control home_assistant test_tool speech_synthesis conversation_feedback]
       },
 
       lomi: {
         name: 'LOMI (The Glitch Bitch)',
         description: 'Glitchy cosmic drag queen diva trapped in cube',
         tts_provider: :cloud,
-        voice_id: 'AriaNeural', # Dramatic female voice
-        voice_name: :aria,
-        mood: :excited, # Default fierce energy
+        voice: 'AriaNeural', # Dramatic female voice
+        language: 'en-US',
         speed: 105,
         volume: 0.9, # LOUD and proud
         personality_traits: {
@@ -73,18 +78,18 @@ module Services
           formality: :theatrical,
           humor: :shade
         },
-        voice_style: 'excited', # Dramatic delivery
+        # voice_style: 'excited', # Disabled for now - using plain voice
         glitch_effects: true, # Special processing for glitches
-        chime: 'runway' # Ballroom/runway sounds
+        chime: 'runway', # Ballroom/runway sounds
+        tools: %w[error_handling lighting_control display_control camera_control music_control home_assistant speech_synthesis conversation_feedback]
       },
 
       zorp: {
         name: 'ZORP',
         description: 'The Slacker God - Divine party bro',
-        tts_provider: :cloud,
-        voice_id: 'DavisNeural', # Laid-back male voice
-        voice_name: :davis,
-        mood: :friendly,
+        tts_provider: :elevenlabs,  # Use ElevenLabs as primary
+        voice: 'Josh',           # ElevenLabs voice name (mapped to ID in HomeAssistantClient)
+        language: 'en-US',  # Not used by ElevenLabs but kept for consistency
         speed: 90, # Slow, drawn-out delivery
         volume: 0.7,
         personality_traits: {
@@ -92,10 +97,11 @@ module Services
           formality: :bro,
           humor: :cosmic
         },
-        voice_style: 'friendly', # Casual, approachable
         reverb: true, # Divine echo effects
-        alternate_provider: :elevenlabs, # For premium chill vibes
-        alternate_voice: 'Josh' # ElevenLabs surfer voice
+        alternate_provider: :cloud,       # Fallback to cloud
+        alternate_voice: 'DavisNeural',   # Azure fallback
+        alternate_style: 'friendly',     # Azure style for fallback
+        tools: %w[error_handling test_tool lighting_control music_control home_assistant display_control speech_synthesis conversation_feedback]
       }
     }.freeze
 
@@ -127,6 +133,57 @@ module Services
       }
     }.freeze
 
+    # Mood to voice style mapping (migrated from TTSService)
+    MOOD_TO_VOICE_SUFFIX = {
+      # Emotional states
+      friendly: 'friendly',
+      angry: 'angry',
+      sad: 'sad',
+      excited: 'excited',
+      cheerful: 'cheerful',
+      terrified: 'terrified',
+      hopeful: 'hopeful',
+
+      # Speaking styles
+      whisper: 'whispering',
+      whispering: 'whispering',
+      shouting: 'shouting',
+      unfriendly: 'unfriendly',
+
+      # Professional styles
+      assistant: 'assistant',
+      chat: 'chat',
+      customerservice: 'customerservice',
+      newscast: 'newscast',
+
+      # Aria-specific
+      empathetic: 'empathetic',
+      narration: 'narration-professional',
+      newscast_casual: 'newscast-casual',
+      newscast_formal: 'newscast-formal',
+
+      # No variant
+      neutral: nil,
+      normal: nil,
+      default: nil
+    }.freeze
+
+    # Voices that support emotional variants (migrated from TTSService)
+    VOICES_WITH_VARIANTS = {
+      # US English voices with variants
+      'JennyNeural' => %w[assistant chat customerservice newscast angry cheerful sad excited friendly terrified shouting unfriendly whispering hopeful],
+      'AriaNeural' => %w[chat customerservice narration-professional newscast-casual newscast-formal cheerful empathetic angry sad excited friendly terrified shouting unfriendly whispering hopeful],
+      'DavisNeural' => %w[chat angry cheerful excited friendly hopeful sad shouting terrified unfriendly whispering],
+      'GuyNeural' => %w[newscast angry cheerful sad excited friendly terrified shouting unfriendly whispering hopeful],
+
+      # British English voices with variants
+      'RyanNeural' => %w[cheerful chat whispering sad],
+      'SoniaNeural' => %w[cheerful sad],
+
+      # Indian English voice with variants
+      'NeerjaNeural' => %w[newscast cheerful empathetic]
+    }.freeze
+
     attr_reader :character, :home_assistant
 
     def initialize(character: :default, home_assistant: nil)
@@ -146,8 +203,31 @@ module Services
       # Get entity from options or use default
       entity_id = options[:entity_id] || 'media_player.square_voice'
 
-      # Use Home Assistant client directly - character configuration is preserved in message processing
-      @home_assistant.speak(message, entity_id: entity_id)
+      # Determine contextual mood (existing logic)
+      mood = options[:mood] || determine_mood(context)
+
+      # Determine TTS provider and voice
+      provider = options[:tts_provider] || @character_config[:tts_provider] || :cloud
+      
+      # Build simple provider specification for HomeAssistantClient
+      if provider == :elevenlabs
+        voice_options = {
+          tts: :elevenlabs,
+          voice: @character_config[:voice],  # ElevenLabs voice name
+          language: @character_config[:language] || 'en-US'
+        }
+      else
+        # Cloud provider (Azure Cognitive Services)
+        # For now, just use plain voice without mood styling
+        voice_options = {
+          tts: :cloud,
+          voice: @character_config[:voice],  # Plain voice without style
+          language: @character_config[:language] || 'en-US'
+        }
+      end
+
+      # Use Home Assistant client - it will handle provider-specific implementation
+      @home_assistant.speak(message, entity_id: entity_id, voice_options: voice_options)
     end
 
     # Generate an audio file for the message (for Sinatra endpoints)
@@ -176,9 +256,8 @@ module Services
     def tts_config
       {
         provider: @character_config[:tts_provider],
-        voice_id: @character_config[:voice_id],
-        voice_name: @character_config[:voice_name],
-        mood: @character_config[:mood],
+        voice: @character_config[:voice],
+        language: @character_config[:language] || 'en-US',
         speed: @character_config[:speed],
         volume: @character_config[:volume]
       }
@@ -192,6 +271,48 @@ module Services
     # Class method to get character by name
     def self.get_character(name)
       CHARACTERS[name.to_sym]
+    end
+
+    # Get tools for a specific character, including base tools
+    def self.get_character_tools(character_name)
+      character = CHARACTERS[character_name.to_sym] || CHARACTERS[:default]
+      character_tools = character[:tools] || []
+      
+      # Always include error_handling as a base tool if not already present
+      base_tools = %w[error_handling]
+      (base_tools + character_tools).uniq
+    end
+
+    # Check if a voice supports a specific variant (migrated from TTSService)
+    def voice_supports_variant?(voice_name, variant)
+      return false unless VOICES_WITH_VARIANTS.key?(voice_name)
+      VOICES_WITH_VARIANTS[voice_name].include?(variant.to_s)
+    end
+
+    # Get best voice for mood with intelligent fallback logic (migrated from TTSService)  
+    def best_voice_for_mood(mood, preferred_voice_id)
+      return preferred_voice_id unless mood
+      
+      suffix = MOOD_TO_VOICE_SUFFIX[mood.to_sym]
+      return preferred_voice_id unless suffix
+
+      # Try preferred voice first
+      if voice_supports_variant?(preferred_voice_id, suffix)
+        return "#{preferred_voice_id}||#{suffix}"
+      end
+
+      # Fallback to JennyNeural (has most variants)
+      if voice_supports_variant?('JennyNeural', suffix)
+        return "JennyNeural||#{suffix}"
+      end
+
+      # Fallback to AriaNeural
+      if voice_supports_variant?('AriaNeural', suffix)
+        return "AriaNeural||#{suffix}"
+      end
+
+      # No voice supports this variant, use base voice
+      preferred_voice_id
     end
 
     private

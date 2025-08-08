@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Glitch Cube Admin - Simple</title>
+  <title>Glitch Cube Admin - Conversation Development</title>
   <style>
     body {
       font-family: monospace;
       background: #000;
       color: #0f0;
       padding: 20px;
-      max-width: 1200px;
+      max-width: 1400px;
       margin: 0 auto;
+      line-height: 1.4;
     }
     .panel {
       border: 1px solid #0f0;
@@ -17,157 +18,258 @@
       margin-bottom: 20px;
       background: #001100;
     }
-    h1, h2 { color: #00ff00; }
+    h1, h2 { color: #00ff00; margin: 0 0 15px 0; }
     input, textarea, select {
       background: #000;
       color: #0f0;
       border: 1px solid #0f0;
-      padding: 10px;
+      padding: 8px;
       width: 100%;
       box-sizing: border-box;
       font-family: monospace;
+      margin-bottom: 10px;
     }
     button {
       background: #003300;
       color: #0f0;
       border: 1px solid #0f0;
-      padding: 10px 20px;
+      padding: 8px 15px;
       cursor: pointer;
       font-family: monospace;
-      margin: 5px;
+      margin: 3px;
+      font-size: 13px;
     }
-    button:hover {
-      background: #005500;
-    }
-    #conversation-display {
-      background: #000;
-      border: 1px solid #333;
-      padding: 10px;
-      min-height: 400px;
-      max-height: 600px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-    }
+    button:hover { background: #005500; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     .message {
-      margin: 10px 0;
+      margin: 8px 0;
       padding: 10px;
       border-left: 3px solid #0f0;
+      background: #000a00;
     }
     .user { border-left-color: #00ff00; }
     .assistant { border-left-color: #00ffff; }
-    .error { color: #ff0000; }
-    .status { color: #999; font-size: 0.9em; }
+    .system { border-left-color: #ffff00; color: #ffff00; }
+    .error { color: #ff0000; border-left-color: #ff0000; }
+    .status { color: #888; font-size: 0.9em; }
+    .small { font-size: 0.85em; }
+    .history {
+      max-height: 500px;
+      overflow-y: auto;
+      background: #000;
+      border: 1px solid #333;
+      padding: 10px;
+    }
+    .sessions {
+      max-height: 300px;
+      overflow-y: auto;
+      background: #000;
+      border: 1px solid #333;
+      padding: 10px;
+    }
+    .session-item {
+      margin: 5px 0;
+      padding: 8px;
+      border: 1px solid #333;
+      cursor: pointer;
+      background: #001100;
+    }
+    .session-item:hover { background: #002200; }
+    .flex { display: flex; gap: 10px; align-items: center; }
   </style>
 </head>
 <body>
   <div style="margin-bottom: 20px;">
-    <a href="/admin" style="color: #00ff00; text-decoration: none;">← Main Admin</a> |
-    <a href="/admin/advanced" style="color: #ff00ff; text-decoration: none;">Advanced Admin</a> |
-    <a href="/admin/conversations" style="color: #00ffff; text-decoration: none;">🔍 Debug Conversations</a> |
-    <a href="/admin/tools" style="color: #ffff00; text-decoration: none;">🔧 Tools</a>
+    <a href="/admin/errors" style="color: #ff3333; text-decoration: none;">🐛 Errors</a> |
+    <a href="/admin/tools" style="color: #ffff00; text-decoration: none;">🔧 Tools</a> |
+    <a href="/health" style="color: #888; text-decoration: none;">System Status</a>
   </div>
 
   <h1>🎲 GLITCH CUBE ADMIN - SIMPLE</h1>
   
-  <div class="panel">
-    <h2>Conversation Test</h2>
-    
+  <div class="grid">
+    <!-- Left Column: Conversation Testing -->
     <div>
-      <label>Session ID (leave blank for new):</label>
-      <input type="text" id="session-id" placeholder="auto-generate">
-    </div>
-    
-    <div>
-      <label>Persona:</label>
-      <select id="persona">
-        <option value="neutral">Neutral</option>
-        <option value="buddy">BUDDY</option>
-        <option value="jax">Jax</option>
-        <option value="lomi">LOMI</option>
-        <option value="playful">Playful</option>
-        <option value="contemplative">Contemplative</option>
-        <option value="mysterious">Mysterious</option>
-      </select>
-    </div>
-    
-    <div>
-      <label>Message:</label>
-      <textarea id="message" rows="3" placeholder="Type your message..."></textarea>
-    </div>
-    
-    <div>
-      <button onclick="sendMessage()">Send Message</button>
-      <button onclick="clearDisplay()">Clear Display</button>
-      <button onclick="newSession()">New Session</button>
-      <button onclick="proactiveSpeak()">Proactive Speak</button>
-    </div>
-  </div>
+      <div class="panel">
+        <h2>💬 Conversation Test</h2>
+        
+        <div class="flex">
+          <input type="text" id="session-id" placeholder="Session ID (auto-generate)">
+          <button onclick="newSession()">New</button>
+          <button onclick="loadSession()">Load</button>
+        </div>
+        
+        <select id="persona">
+          <option value="neutral">Neutral</option>
+          <option value="buddy">BUDDY - Enthusiastic Helper</option>
+          <option value="jax">Jax - Bartender</option>
+          <option value="lomi">LOMI - Dramatic Diva</option>
+          <option value="playful">Playful</option>
+          <option value="contemplative">Contemplative</option>
+          <option value="mysterious">Mysterious</option>
+        </select>
+        
+        <textarea id="message" rows="3" placeholder="Type your message..."></textarea>
+        
+        <div>
+          <button onclick="sendMessage()">💬 Send Message</button>
+          <button onclick="proactiveSpeak()">🎲 Cube Initiates</button>
+          <button onclick="testTTS()">🔊 Test TTS</button>
+        </div>
+        
+        <div class="small">
+          <label><input type="checkbox" id="enable-tools" checked> Enable Tools</label>
+          <label><input type="checkbox" id="skip-memories"> Skip Memories</label>
+          <label><input type="checkbox" id="enable-tts"> TTS Output</label>
+        </div>
+      </div>
 
-  <div class="panel">
-    <h2>Conversation Display</h2>
-    <div id="conversation-display"></div>
-  </div>
+      <div class="panel">
+        <h2>📜 Conversation History</h2>
+        <div class="flex">
+          <button onclick="clearDisplay()">Clear Display</button>
+          <button onclick="loadSessionHistory()">Load Full History</button>
+          <button onclick="extractMemories()">Extract Memories</button>
+        </div>
+        <div id="conversation-display" class="history"></div>
+      </div>
+    </div>
 
-  <div class="panel">
-    <h2>Quick Actions</h2>
-    <button onclick="checkStatus()">Check System Status</button>
-    <button onclick="extractMemories()">Extract Memories</button>
-    <button onclick="testTTS()">Test TTS</button>
+    <!-- Right Column: Session Management & Debug -->
+    <div>
+      <div class="panel">
+        <h2>📋 Recent Sessions</h2>
+        <button onclick="refreshSessions()">🔄 Refresh</button>
+        <div id="sessions-list" class="sessions">
+          <div class="status">Click Refresh to load recent sessions</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>🧠 Memory Viewer</h2>
+        <div class="flex">
+          <input type="text" id="memory-search" placeholder="Search memories...">
+          <button onclick="searchMemories()">Search</button>
+        </div>
+        <div>
+          <button onclick="loadMemories('recent')">Recent</button>
+          <button onclick="loadMemories('session')">Session</button>
+          <button onclick="loadMemories('popular')">Popular</button>
+        </div>
+        <div id="memory-display" class="history">
+          <div class="status">Select a memory type to view</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>🔧 Debug Tools</h2>
+        <div>
+          <button onclick="checkStatus()">System Status</button>
+          <button onclick="viewLogs()">View Logs</button>
+          <button onclick="testAllPersonas()">Test All Personas</button>
+        </div>
+        <div id="debug-output" class="history" style="max-height: 200px;">
+          <div class="status">Debug output will appear here</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
     let currentSessionId = null;
+    let recentSessions = [];
     
+    // Core Functions
     function generateSessionId() {
-      return 'admin_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      return 'dev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
     }
     
+    function addToDisplay(text, className = '', targetId = 'conversation-display') {
+      const display = document.getElementById(targetId);
+      const div = document.createElement('div');
+      div.className = 'message ' + className;
+      div.textContent = text;
+      display.appendChild(div);
+      display.scrollTop = display.scrollHeight;
+    }
+    
+    function addHtmlToDisplay(html, targetId = 'conversation-display') {
+      const display = document.getElementById(targetId);
+      const div = document.createElement('div');
+      div.innerHTML = html;
+      display.appendChild(div);
+      display.scrollTop = display.scrollHeight;
+    }
+    
+    // Session Management
     function newSession() {
       currentSessionId = generateSessionId();
       document.getElementById('session-id').value = currentSessionId;
-      addToDisplay('New session: ' + currentSessionId, 'status');
+      document.getElementById('conversation-display').innerHTML = '';
+      addToDisplay('🆕 New session: ' + currentSessionId, 'system');
+      updateRecentSessions();
     }
     
+    function loadSession() {
+      const sessionId = document.getElementById('session-id').value;
+      if (!sessionId) return;
+      
+      currentSessionId = sessionId;
+      addToDisplay('📂 Loading session: ' + sessionId, 'system');
+      loadSessionHistory();
+    }
+    
+    // Conversation Functions
     async function sendMessage() {
-      const message = document.getElementById('message').value;
-      if (!message.trim()) return;
+      const message = document.getElementById('message').value.trim();
+      if (!message) return;
       
-      const sessionId = document.getElementById('session-id').value || currentSessionId || generateSessionId();
+      if (!currentSessionId) newSession();
+      
       const persona = document.getElementById('persona').value;
+      const enableTools = document.getElementById('enable-tools').checked;
+      const skipMemories = document.getElementById('skip-memories').checked;
+      const enableTts = document.getElementById('enable-tts').checked;
       
-      if (!currentSessionId) {
-        currentSessionId = sessionId;
-        document.getElementById('session-id').value = sessionId;
-      }
-      
+      // Display user message
       addToDisplay('USER: ' + message, 'user');
+      document.getElementById('message').value = '';
       
       try {
+        const requestBody = {
+          message: message,
+          context: {
+            session_id: currentSessionId,
+            persona: persona,
+            source: 'admin_dev',
+            tools: enableTools ? ['test_tool', 'weather', 'memory_search'] : [],
+            skip_memories: skipMemories,
+            enable_tts: enableTts
+          }
+        };
+        
         const response = await fetch('/api/v1/conversation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: message,
-            context: {
-              session_id: sessionId,
-              persona: persona,
-              source: 'admin_simple'
-            }
-          })
+          body: JSON.stringify(requestBody)
         });
         
         const data = await response.json();
         
         if (data.success && data.data) {
-          addToDisplay('ASSISTANT: ' + (data.data.response || 'No response'), 'assistant');
-          addToDisplay(`[${data.data.model || 'unknown'} | tokens: ${data.data.tokens?.total || '?'} | cost: $${(data.data.cost || 0).toFixed(6)}]`, 'status');
+          addToDisplay('ASSISTANT (' + persona + '): ' + (data.data.response || 'No response'), 'assistant');
+          
+          // Show tool calls if present (for debugging)
+          if (data.data.tool_calls && data.data.tool_calls.length > 0) {
+            addToDisplay(`🔧 Tools used: ${data.data.tool_calls.join(', ')}`, 'status');
+          }
+          
+          addToDisplay(`💰 ${data.data.model || 'unknown'} | $${(data.data.cost || 0).toFixed(4)} | ${data.data.tokens?.total || '?'} tokens`, 'status');
         } else {
-          addToDisplay('ERROR: ' + (data.error || 'Unknown error'), 'error');
+          addToDisplay('❌ ERROR: ' + (data.error || 'Unknown error'), 'error');
         }
-        
-        document.getElementById('message').value = '';
       } catch (err) {
-        addToDisplay('ERROR: ' + err.message, 'error');
+        addToDisplay('❌ NETWORK ERROR: ' + err.message, 'error');
       }
     }
     
@@ -184,30 +286,173 @@
         const data = await response.json();
         
         if (data.success) {
-          addToDisplay('PROACTIVE (' + persona + '): ' + data.message, 'assistant');
+          addToDisplay('🎲 CUBE INITIATED (' + persona + '): ' + data.message, 'assistant');
           currentSessionId = data.session_id;
           document.getElementById('session-id').value = currentSessionId;
+          updateRecentSessions();
         } else {
-          addToDisplay('ERROR: ' + data.error, 'error');
+          addToDisplay('❌ Proactive failed: ' + data.error, 'error');
         }
       } catch (err) {
-        addToDisplay('ERROR: ' + err.message, 'error');
+        addToDisplay('❌ Proactive error: ' + err.message, 'error');
       }
     }
     
-    async function checkStatus() {
+    // History and Session Management
+    async function loadSessionHistory() {
+      const sessionId = currentSessionId || document.getElementById('session-id').value;
+      if (!sessionId) {
+        addToDisplay('No session ID specified', 'error');
+        return;
+      }
+      
       try {
-        const response = await fetch('/admin/status');
+        const response = await fetch('/admin/session_history?session_id=' + encodeURIComponent(sessionId));
         const data = await response.json();
-        addToDisplay('SYSTEM STATUS:\n' + JSON.stringify(data, null, 2), 'status');
+        
+        if (data.messages && data.messages.length > 0) {
+          document.getElementById('conversation-display').innerHTML = '';
+          
+          data.messages.forEach(msg => {
+            const roleClass = msg.role === 'user' ? 'user' : 'assistant';
+            const time = new Date(msg.created_at).toLocaleTimeString();
+            const persona = msg.persona ? ` (${msg.persona})` : '';
+            addToDisplay(`${msg.role.toUpperCase()}${persona} [${time}]: ${msg.content}`, roleClass);
+            
+            // Show tool calls if present
+            if (msg.metadata && msg.metadata.tool_calls && msg.metadata.tool_calls.length > 0) {
+              addToDisplay(`🔧 Tools: ${msg.metadata.tool_calls.join(', ')}`, 'status');
+            }
+            
+            if (msg.cost) {
+              addToDisplay(`💰 ${msg.model} | $${parseFloat(msg.cost).toFixed(4)} | ${msg.prompt_tokens}/${msg.completion_tokens} tokens`, 'status');
+            }
+          });
+          
+          addToDisplay(`📊 Session totals: $${data.total_cost?.toFixed(4) || '0'} | ${data.total_tokens || 0} tokens`, 'system');
+        } else {
+          addToDisplay('No messages found in session', 'status');
+        }
       } catch (err) {
-        addToDisplay('ERROR checking status: ' + err.message, 'error');
+        addToDisplay('❌ Failed to load history: ' + err.message, 'error');
       }
     }
     
+    async function refreshSessions() {
+      addToDisplay('🔄 Refreshing sessions...', 'status', 'debug-output');
+      
+      // Simplified - just show current and recent sessions
+      const sessionsList = document.getElementById('sessions-list');
+      sessionsList.innerHTML = '';
+      
+      if (currentSessionId) {
+        const currentDiv = document.createElement('div');
+        currentDiv.className = 'session-item';
+        currentDiv.style.background = '#003300';
+        currentDiv.textContent = `🟢 Current: ${currentSessionId}`;
+        currentDiv.onclick = () => loadSession();
+        sessionsList.appendChild(currentDiv);
+      }
+      
+      recentSessions.forEach(session => {
+        if (session !== currentSessionId) {
+          const div = document.createElement('div');
+          div.className = 'session-item';
+          div.textContent = `📋 ${session}`;
+          div.onclick = () => {
+            document.getElementById('session-id').value = session;
+            loadSession();
+          };
+          sessionsList.appendChild(div);
+        }
+      });
+      
+      if (recentSessions.length === 0) {
+        sessionsList.innerHTML = '<div class="status">No recent sessions</div>';
+      }
+    }
+    
+    function updateRecentSessions() {
+      if (currentSessionId && !recentSessions.includes(currentSessionId)) {
+        recentSessions.unshift(currentSessionId);
+        if (recentSessions.length > 5) recentSessions.pop();
+        refreshSessions();
+      }
+    }
+    
+    // Memory Functions
+    async function loadMemories(type) {
+      let url = `/admin/memories?type=${type}&limit=10`;
+      
+      if (type === 'session' && currentSessionId) {
+        url += '&session_id=' + encodeURIComponent(currentSessionId);
+      }
+      
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        const display = document.getElementById('memory-display');
+        display.innerHTML = '';
+        
+        if (data.memories && data.memories.length > 0) {
+          data.memories.forEach(memory => {
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.innerHTML = `
+              <strong>${memory.category || 'general'}</strong> 
+              <span class="small">[${new Date(memory.created_at).toLocaleDateString()}]</span><br>
+              ${memory.content}<br>
+              <span class="status">🔄 ${memory.recall_count || 0}x | ⚡ ${Math.round((memory.emotional_intensity || 0) * 100)}%</span>
+            `;
+            display.appendChild(div);
+          });
+          
+          addToDisplay(`✅ Loaded ${data.count} ${type} memories`, 'status', 'debug-output');
+        } else {
+          display.innerHTML = '<div class="status">No memories found</div>';
+        }
+      } catch (err) {
+        addToDisplay('❌ Memory load failed: ' + err.message, 'error', 'debug-output');
+      }
+    }
+    
+    async function searchMemories() {
+      const query = document.getElementById('memory-search').value.trim();
+      if (!query) return;
+      
+      try {
+        const response = await fetch('/admin/memories?type=search&query=' + encodeURIComponent(query) + '&limit=10');
+        const data = await response.json();
+        
+        const display = document.getElementById('memory-display');
+        display.innerHTML = '';
+        
+        if (data.memories && data.memories.length > 0) {
+          data.memories.forEach(memory => {
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.innerHTML = `
+              <strong>${memory.category || 'general'}</strong><br>
+              ${memory.content}<br>
+              <span class="status">🔄 ${memory.recall_count || 0}x</span>
+            `;
+            display.appendChild(div);
+          });
+          
+          addToDisplay(`🔍 Found ${data.count} memories for "${query}"`, 'status', 'debug-output');
+        } else {
+          display.innerHTML = '<div class="status">No memories found for your search</div>';
+        }
+      } catch (err) {
+        addToDisplay('❌ Search failed: ' + err.message, 'error', 'debug-output');
+      }
+    }
+    
+    // Utility Functions
     async function extractMemories() {
       if (!currentSessionId) {
-        addToDisplay('No session to extract memories from', 'error');
+        addToDisplay('❌ No active session', 'error', 'debug-output');
         return;
       }
       
@@ -219,58 +464,100 @@
         });
         
         const data = await response.json();
-        addToDisplay('Memory extraction: ' + (data.success ? 'Started' : 'Failed: ' + data.error), data.success ? 'status' : 'error');
+        addToDisplay(data.success ? '🧠 ' + data.message : '❌ ' + data.error, 
+                    data.success ? 'status' : 'error', 'debug-output');
+        
+        if (data.success) {
+          setTimeout(() => loadMemories('session'), 1000);
+        }
       } catch (err) {
-        addToDisplay('ERROR extracting memories: ' + err.message, 'error');
+        addToDisplay('❌ Extract failed: ' + err.message, 'error', 'debug-output');
       }
     }
     
     async function testTTS() {
-      const message = document.getElementById('message').value || 'Hello, this is a test';
+      const message = document.getElementById('message').value || 'Hello, this is a test from the admin interface';
+      const persona = document.getElementById('persona').value;
       
       try {
-        const response = await fetch('/admin/test_tts', {
+        const response = await fetch('/admin/test_character', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: message })
+          body: JSON.stringify({ character: persona, message: message })
         });
         
         const data = await response.json();
-        addToDisplay('TTS test: ' + (data.success ? 'Success' : 'Failed: ' + data.error), data.success ? 'status' : 'error');
+        addToDisplay(data.success ? '🔊 TTS Success' : '❌ TTS Failed: ' + data.error, 
+                    data.success ? 'status' : 'error', 'debug-output');
       } catch (err) {
-        addToDisplay('ERROR testing TTS: ' + err.message, 'error');
+        addToDisplay('❌ TTS Error: ' + err.message, 'error', 'debug-output');
       }
     }
     
-    function addToDisplay(text, className = '') {
-      const display = document.getElementById('conversation-display');
-      const div = document.createElement('div');
-      div.className = 'message ' + className;
-      div.textContent = text;
-      display.appendChild(div);
-      display.scrollTop = display.scrollHeight;
-      
-      // Add debug link if we have a current session
-      if (currentSessionId && className === 'status' && text.includes('session:')) {
-        const debugLink = document.createElement('div');
-        debugLink.innerHTML = `<a href="/admin/conversations/${currentSessionId}" target="_blank" style="color: #00ffff;">🔍 Debug this session</a>`;
-        display.appendChild(debugLink);
+    async function checkStatus() {
+      try {
+        const response = await fetch('/admin/status');
+        const data = await response.json();
+        
+        const display = document.getElementById('debug-output');
+        display.innerHTML = '';
+        
+        Object.entries(data).forEach(([key, value]) => {
+          const status = value === true ? '✅' : value === false ? '❌' : '📍';
+          addToDisplay(`${status} ${key}: ${value}`, 'status', 'debug-output');
+        });
+      } catch (err) {
+        addToDisplay('❌ Status check failed: ' + err.message, 'error', 'debug-output');
       }
+    }
+    
+    function viewLogs() {
+      addToDisplay('📋 Check server console for logs', 'status', 'debug-output');
+    }
+    
+    async function testAllPersonas() {
+      const personas = ['neutral', 'buddy', 'jax', 'lomi', 'playful', 'contemplative', 'mysterious'];
+      const testMessage = 'Hello, how are you today?';
+      
+      addToDisplay('🧪 Testing all personas with: "' + testMessage + '"', 'system', 'debug-output');
+      
+      for (const persona of personas) {
+        document.getElementById('persona').value = persona;
+        document.getElementById('message').value = testMessage;
+        
+        addToDisplay(`Testing ${persona}...`, 'status', 'debug-output');
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay
+        await sendMessage();
+      }
+      
+      addToDisplay('🧪 Persona testing complete', 'system', 'debug-output');
     }
     
     function clearDisplay() {
       document.getElementById('conversation-display').innerHTML = '';
-      addToDisplay('Display cleared', 'status');
+      addToDisplay('🗑️ Display cleared', 'system');
     }
     
-    // Allow Enter key to send message
+    // Event Listeners
     document.addEventListener('DOMContentLoaded', () => {
+      // Enter key to send message
       document.getElementById('message').addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
           sendMessage();
         }
       });
+      
+      // Enter key to search memories
+      document.getElementById('memory-search').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          searchMemories();
+        }
+      });
+      
+      // Auto-start with new session
+      newSession();
     });
   </script>
 </body>

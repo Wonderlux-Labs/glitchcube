@@ -15,14 +15,13 @@ class ConversationSession
   end
 
   # Add message to conversation history
-  def add_message(message, response, mood, suggested_mood)
+  def add_message(message, response, mood)
     current_messages = messages
 
     message_data = {
       message: message,
       response: response,
       mood: mood,
-      suggested_mood: suggested_mood,
       timestamp: Time.now.iso8601,
       from_user: true
     }

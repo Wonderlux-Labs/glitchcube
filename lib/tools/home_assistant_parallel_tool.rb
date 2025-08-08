@@ -2,10 +2,10 @@
 
 require 'concurrent'
 require 'json'
-require_relative '../home_assistant_client'
+require_relative 'base_tool'
 
 # Enhanced Home Assistant tool with parallel execution support
-class HomeAssistantParallelTool
+class HomeAssistantParallelTool < BaseTool
   def self.name
     'home_assistant_parallel'
   end
@@ -16,6 +16,30 @@ class HomeAssistantParallelTool
       'and executing complex sequences. Args: actions (array of {action: string, params: object})'
   end
 
+  def self.parameters
+    {
+      'actions' => {
+        type: 'array',
+        description: 'Array of actions to execute in parallel',
+        items: {
+          type: 'object',
+          properties: {
+            'action' => { type: 'string' },
+            'params' => { type: 'object' }
+          }
+        }
+      }
+    }
+  end
+
+  def self.required_parameters
+    %w[actions]
+  end
+
+  def self.category
+    'system_integration'
+  end
+
   def self.call(actions:)
     # Parse actions if it's a JSON string
     actions = JSON.parse(actions) if actions.is_a?(String)
@@ -23,13 +47,16 @@ class HomeAssistantParallelTool
     # Ensure actions is an array
     actions = [actions] unless actions.is_a?(Array)
 
-    client = HomeAssistantClient.new
+    # Add resource limit as mentioned in PR review
+    if actions.length > 5
+      return format_response(false, "Too many parallel actions (#{actions.length}). Maximum allowed: 5")
+    end
 
     # Execute all actions in parallel
     results = Concurrent::Array.new
     futures = actions.map do |action_spec|
       Concurrent::Future.execute do
-        execute_single_action(client, action_spec)
+        execute_single_action(action_spec)
       end
     end
 
@@ -51,23 +78,23 @@ class HomeAssistantParallelTool
     "Error executing parallel actions: #{e.message}"
   end
 
-  def self.execute_single_action(client, action_spec)
+  def self.execute_single_action(action_spec)
     action = action_spec['action'] || action_spec[:action]
     params = action_spec['params'] || action_spec[:params] || {}
 
     case action
     when 'get_sensor'
-      get_sensor_value(client, params)
+      get_sensor_value(params)
     when 'set_light'
-      set_light_state(client, params)
+      set_light_state(params)
     when 'speak'
-      speak_message(client, params)
+      speak_message(params)
     when 'awtrix_display'
-      display_on_awtrix(client, params)
+      display_on_awtrix(params)
     when 'run_script'
-      run_ha_script(client, params)
+      run_ha_script(params)
     when 'call_service'
-      call_ha_service(client, params)
+      call_ha_service_action(params)
     else
       { error: "Unknown action: #{action}" }
     end
@@ -75,44 +102,80 @@ class HomeAssistantParallelTool
     { error: "Action '#{action}' failed: #{e.message}" }
   end
 
-  def self.get_sensor_value(client, params)
+  def self.get_sensor_value(params)
     entity_id = params['entity_id']
     return { error: 'entity_id required for get_sensor' } unless entity_id
 
+    # Access ha_client directly since we inherit from BaseTool
+    client = ha_client
     state = client.state(entity_id)
-    {
-      entity_id: entity_id,
-      value: state['state'],
-      unit: state.dig('attributes', 'unit_of_measurement'),
-      friendly_name: state.dig('attributes', 'friendly_name')
-    }
-  end
-
-  def self.set_light_state(client, params)
-    entity_id = params['entity_id'] || 'light.glitch_cube'
-
-    if params['state'] == 'off'
-      client.turn_off_light(entity_id)
-      { entity_id: entity_id, state: 'off' }
+    
+    if state
+      {
+        entity_id: entity_id,
+        value: state['state'],
+        unit: state.dig('attributes', 'unit_of_measurement'),
+        friendly_name: state.dig('attributes', 'friendly_name')
+      }
     else
-      brightness = params['brightness']
-      rgb_color = params['rgb_color']
-      client.set_light(entity_id, brightness: brightness, rgb_color: rgb_color)
-      { entity_id: entity_id, state: 'on', brightness: brightness, rgb_color: rgb_color }
+      { error: "Failed to get state for #{entity_id}" }
     end
   end
 
-  def self.speak_message(client, params)
+  def self.set_light_state(params)
+    entity_id = params['entity_id'] || 'light.glitch_cube'
+    client = ha_client
+
+    if params['state'] == 'off'
+      success = if client.respond_to?(:turn_off_light)
+                  client.turn_off_light(entity_id)
+                  true
+                else
+                  result = call_ha_service('light', 'turn_off', { entity_id: entity_id })
+                  result.include?('✅')
+                end
+      { entity_id: entity_id, state: 'off', success: success }
+    else
+      brightness = params['brightness']
+      rgb_color = params['rgb_color']
+      
+      success = if client.respond_to?(:set_light)
+                  client.set_light(entity_id, brightness: brightness, rgb_color: rgb_color)
+                  true
+                else
+                  service_data = { entity_id: entity_id }
+                  service_data[:brightness] = brightness if brightness
+                  service_data[:rgb_color] = rgb_color if rgb_color
+                  result = call_ha_service('light', 'turn_on', service_data)
+                  result.include?('✅')
+                end
+      
+      { entity_id: entity_id, state: 'on', brightness: brightness, rgb_color: rgb_color, success: success }
+    end
+  end
+
+  def self.speak_message(params)
     message = params['message']
     return { error: 'message required for speak' } unless message
 
     entity_id = params['entity_id'] || 'media_player.square_voice'
-    success = client.speak(message, entity_id: entity_id)
-
+    
+    # Use ha_client directly
+    client = ha_client
+    success = if client.respond_to?(:speak)
+                client.speak(message, entity_id: entity_id)
+              else
+                result = call_ha_service('tts', 'speak', {
+                  entity_id: entity_id,
+                  message: message
+                })
+                result.include?('✅')
+              end
+    
     { action: 'speak', message: message, success: success }
   end
 
-  def self.display_on_awtrix(client, params)
+  def self.display_on_awtrix(params)
     text = params['text']
     return { error: 'text required for AWTRIX display' } unless text
 
@@ -120,30 +183,45 @@ class HomeAssistantParallelTool
     duration = params['duration'] || 5
     rainbow = params['rainbow'] || false
 
-    success = client.awtrix_display_text(text, color: color, duration: duration, rainbow: rainbow)
+    # Use ha_client directly
+    client = ha_client
+    success = if client.respond_to?(:awtrix_display_text)
+                client.awtrix_display_text(text, color: color, duration: duration, rainbow: rainbow)
+              else
+                # Fallback to service call
+                result = call_ha_service('awtrix', 'display_text', {
+                  text: text,
+                  color: color,
+                  duration: duration,
+                  rainbow: rainbow
+                })
+                result.include?('✅')
+              end
 
     { action: 'awtrix_display', text: text, success: success }
   end
 
-  def self.run_ha_script(client, params)
+  def self.run_ha_script(params)
     script_name = params['script_name']
     return { error: 'script_name required' } unless script_name
 
     variables = params['variables'] || {}
-    response = client.call_service('script', script_name, variables)
-
-    { action: 'run_script', script: script_name, success: !response.nil? }
+    result = call_ha_script(script_name, variables)
+    
+    success = result.include?('✅')
+    { action: 'run_script', script: script_name, success: success }
   end
 
-  def self.call_ha_service(client, params)
+  def self.call_ha_service_action(params)
     domain = params['domain']
     service = params['service']
     return { error: 'domain and service required' } unless domain && service
 
     service_data = params['data'] || {}
-    response = client.call_service(domain, service, service_data)
-
-    { action: 'call_service', service: "#{domain}.#{service}", success: !response.nil? }
+    result = call_ha_service(domain, service, service_data)
+    
+    success = result.include?('✅')
+    { action: 'call_service', service: "#{domain}.#{service}", success: success }
   end
 
   def self.format_parallel_results(results)

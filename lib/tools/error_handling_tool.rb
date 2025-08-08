@@ -1,48 +1,31 @@
 # frozen_string_literal: true
 
+require_relative 'base_tool'
 require_relative '../services/circuit_breaker_service'
 require_relative '../services/logger_service'
-require_relative '../home_assistant_client'
 
 # Tool for system diagnostics, error handling, and self-healing
 # Provides circuit breaker status, system health checks, and recovery actions
-class ErrorHandlingTool
+class ErrorHandlingTool < BaseTool
   def self.name
     'error_handling'
   end
 
   def self.description
-    'System diagnostics and error handling. Actions: "system_health" (shows circuit breakers, service status), "reset_circuit_breakers" (reset failed services), "test_connections" (test Home Assistant, OpenRouter), "get_recent_errors" (show recent error logs), "self_diagnose" (comprehensive system check), "recovery_mode" (attempt automatic recovery). Use for troubleshooting and maintaining system reliability. Args: action (string), params (string) - JSON with optional filters.'
+    'System diagnostics and error handling for the Glitch Cube art installation. Monitors system health, manages circuit breakers, tests connections, and provides recovery capabilities.'
   end
 
-  def self.call(action:, params: '{}')
-    params = JSON.parse(params) if params.is_a?(String)
+  def self.category
+    'system_integration'
+  end
 
-    case action
-    when 'system_health'
-      get_system_health(params)
-    when 'reset_circuit_breakers'
-      reset_circuit_breakers(params)
-    when 'test_connections'
-      test_system_connections(params)
-    when 'get_recent_errors'
-      get_recent_errors(params)
-    when 'self_diagnose'
-      perform_self_diagnosis(params)
-    when 'recovery_mode'
-      attempt_recovery(params)
-    else
-      "Unknown action: #{action}. Available actions: system_health, reset_circuit_breakers, test_connections, get_recent_errors, self_diagnose, recovery_mode"
-    end
-  rescue StandardError => e
-    "Error handling tool error: #{e.message}"
+  def self.tool_prompt
+    "Monitor system health with get_system_health(), reset_circuit_breaker(), test_connection()."
   end
 
   # Get comprehensive system health status
-  def self.get_system_health(params)
-    verbose = params['verbose'] != false
+  def self.get_system_health(verbose: true)
     result = []
-
     result << '=== SYSTEM HEALTH STATUS ==='
 
     begin
@@ -97,22 +80,20 @@ class ErrorHandlingTool
         overall_healthy: overall_healthy,
         circuit_breaker_count: circuit_status.size
       )
-    rescue StandardError => e
-      result << "❌ Error checking system health: #{e.message}"
-    end
 
-    result.join("\n")
+      format_response(true, result.join("\n"))
+    rescue StandardError => e
+      format_response(false, "Error checking system health: #{e.message}")
+    end
   end
 
   # Reset circuit breakers to allow retry of failed services
-  def self.reset_circuit_breakers(params)
-    service_name = params['service'] # Optional: reset specific service
-
+  def self.reset_circuit_breakers(service: nil)
     result = []
     result << '=== RESETTING CIRCUIT BREAKERS ==='
 
     begin
-      if service_name
+      if service
         # Reset specific service if implemented
         result << '⚠️  Specific service reset not yet implemented'
         result << 'Resetting all circuit breakers instead...'
@@ -127,17 +108,17 @@ class ErrorHandlingTool
       Services::LoggerService.log_api_call(
         service: 'error_handling_tool',
         endpoint: 'reset_circuit_breakers',
-        service_name: service_name
+        service_name: service
       )
-    rescue StandardError => e
-      result << "❌ Error resetting circuit breakers: #{e.message}"
-    end
 
-    result.join("\n")
+      format_response(true, result.join("\n"))
+    rescue StandardError => e
+      format_response(false, "Error resetting circuit breakers: #{e.message}")
+    end
   end
 
   # Test connections to external services
-  def self.test_system_connections(_params)
+  def self.test_connections
     result = []
     result << '=== CONNECTION TESTS ==='
 
@@ -145,8 +126,7 @@ class ErrorHandlingTool
     result << ''
     result << '🏠 HOME ASSISTANT:'
     begin
-      client = HomeAssistantClient.new
-      states = client.states
+      states = ha_client.states
 
       if states.is_a?(Array)
         result << '  ✅ Connection successful'
@@ -206,14 +186,11 @@ class ErrorHandlingTool
       endpoint: 'test_connections'
     )
 
-    result.join("\n")
+    format_response(true, result.join("\n"))
   end
 
   # Get recent error logs (simplified version)
-  def self.get_recent_errors(params)
-    limit = params['limit'] || 10
-    service_filter = params['service']
-
+  def self.get_recent_errors(limit: 10, service_filter: nil)
     result = []
     result << '=== RECENT ERRORS ==='
     result << "(Showing last #{limit} errors)"
@@ -242,20 +219,20 @@ class ErrorHandlingTool
         result << ''
         result << '✅ No recent errors found'
       end
-    rescue StandardError => e
-      result << "❌ Error retrieving error logs: #{e.message}"
-    end
 
-    result.join("\n")
+      format_response(true, result.join("\n"))
+    rescue StandardError => e
+      format_response(false, "Error retrieving error logs: #{e.message}")
+    end
   end
 
   # Perform comprehensive self-diagnosis
-  def self.perform_self_diagnosis(_params)
+  def self.perform_self_diagnosis
     result = []
     result << '=== COMPREHENSIVE SYSTEM DIAGNOSIS ==='
 
     # Check system health
-    health_result = get_system_health('verbose' => false)
+    health_result = get_system_health(verbose: false)
     result << health_result
 
     result << ''
@@ -305,13 +282,11 @@ class ErrorHandlingTool
       issues_found: issues_found
     )
 
-    result.join("\n")
+    format_response(true, result.join("\n"))
   end
 
   # Attempt automatic recovery procedures
-  def self.attempt_recovery(params)
-    dry_run = params['dry_run'] != false # Default to dry run for safety
-
+  def self.attempt_recovery(dry_run: true)
     result = []
     result << "=== AUTOMATIC RECOVERY #{dry_run ? '(DRY RUN)' : '(LIVE MODE)'} ==="
 
@@ -368,7 +343,7 @@ class ErrorHandlingTool
       actions_planned: recovery_actions.size
     )
 
-    result.join("\n")
+    format_response(true, result.join("\n"))
   end
 
   # Get system uptime in hours

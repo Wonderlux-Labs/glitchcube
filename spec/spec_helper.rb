@@ -50,6 +50,23 @@ RSpec.configure do |config|
     GlitchCubeApp
   end
 
+  # Reset VCR tracker and auto-recording before suite
+  config.before(:suite) do
+    VCRRequestTracker.reset! if defined?(VCRRequestTracker)
+    VCRAutoRecording.reset! if defined?(VCRAutoRecording)
+  end
+
+  # Set test context for auto-recording
+  config.before(:each) do |example|
+    VCRAutoRecording.set_test_context(example) if defined?(VCRAutoRecording)
+  end
+
+  # Generate reports after suite
+  config.after(:suite) do
+    VCRRequestTracker.generate_report if defined?(VCRRequestTracker)
+    VCRAutoRecording.generate_report if defined?(VCRAutoRecording)
+  end
+
   # Global timeout for all examples - tests should be fast!
   config.around do |example|
     timeout_seconds = ENV['TEST_TIMEOUT']&.to_i || 10 # 10 second default
@@ -100,10 +117,9 @@ RSpec.configure do |config|
       # Tests should be designed to work with or without Redis
     end
 
-    # Clean database between tests
+    # Clean database between tests - let Rails handle dependent: :destroy relationships
     Memory.destroy_all if defined?(Memory)
-    Message.destroy_all if defined?(Message)
-    Conversation.destroy_all if defined?(Conversation)
+    Conversation.destroy_all if defined?(Conversation)  # This will cascade to messages via dependent: :destroy
 
     # Reset circuit breakers if they exist (but don't disable them globally)
     Services::CircuitBreakerService.reset_all_breakers if defined?(Services::CircuitBreakerService) && Services::CircuitBreakerService.respond_to?(:reset_all_breakers)
@@ -223,30 +239,73 @@ VCR.configure do |config|
     end
   end
 
-  # Fail fast on missing cassettes with helpful error
-  config.before_http_request do |request|
-    unless VCR.current_cassette
-      host = request.uri.respond_to?(:host) ? request.uri.host : URI.parse(request.uri.to_s).host
+  # Enable auto-recording mode when VCR_AUTO_RECORD=true
+  if ENV['VCR_AUTO_RECORD'] == 'true'
+    config.allow_http_connections_when_no_cassette = true
+    
+    # Set up a hook to automatically wrap tests without cassettes
+    config.around_http_request do |request|
+      if VCR.current_cassette.nil?
+        host = request.uri.respond_to?(:host) ? request.uri.host : URI.parse(request.uri.to_s).host
+        
+        # Skip localhost
+        if host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
+          request.proceed
+          next
+        end
+        
+        # Generate cassette for this test
+        if RSpec.current_example
+          puts "🎬 Auto-recording cassette for: #{RSpec.current_example.full_description}"
+          
+          cassette_name = VCRAutoRecording.generate_cassette_name(RSpec.current_example, request)
+          
+          # Create directory
+          cassette_dir = File.join('spec', 'vcr_cassettes', File.dirname(cassette_name))
+          FileUtils.mkdir_p(cassette_dir) unless File.exist?(cassette_dir)
+          
+          # Use cassette to record
+          VCR.use_cassette(cassette_name, record: :new_episodes, match_requests_on: [:method, :uri, :body]) do
+            VCRAutoRecording.auto_record_request(request, RSpec.current_example)
+            request.proceed
+          end
+        else
+          request.proceed
+        end
+      else
+        request.proceed
+      end
+    end
+  else
+    # Fail fast on missing cassettes with helpful error
+    config.before_http_request do |request|
+      unless VCR.current_cassette
+        host = request.uri.respond_to?(:host) ? request.uri.host : URI.parse(request.uri.to_s).host
 
-      # Allow localhost requests without VCR (for app testing)
-      next if host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
+        # Allow localhost requests without VCR (for app testing)
+        next if host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
 
-      error_msg = <<~ERROR
-        ❌ NO VCR CASSETTE ACTIVE FOR EXTERNAL REQUEST
+        # Track this unhandled request for reporting
+        VCRRequestTracker.track_request(request, RSpec.current_example) if defined?(VCRRequestTracker)
 
-        Request: #{request.method.upcase} #{request.uri}
-        Host: #{host}
-        Test: #{RSpec.current_example&.location || 'Unknown test'}
+        error_msg = <<~ERROR
+          ❌ NO VCR CASSETTE ACTIVE FOR EXTERNAL REQUEST
 
-        To fix:
-        1. Wrap this test in VCR.use_cassette or use vcr: metadata
-        2. Record locally: VCR_OVERRIDE=true bundle exec rspec #{RSpec.current_example&.location || 'your_spec.rb'}
-        3. Commit the cassette in spec/vcr_cassettes/
+          Request: #{request.method.upcase} #{request.uri}
+          Host: #{host}
+          Test: #{RSpec.current_example&.location || 'Unknown test'}
 
-        IMPORTANT: All external HTTP requests MUST go through VCR!
-      ERROR
+          To enable auto-recording: VCR_AUTO_RECORD=true bundle exec rspec
+          Or fix manually:
+          1. Wrap this test in VCR.use_cassette or use vcr: metadata
+          2. Record locally: VCR_OVERRIDE=true bundle exec rspec #{RSpec.current_example&.location || 'your_spec.rb'}
+          3. Commit the cassette in spec/vcr_cassettes/
 
-      raise(VCR::Errors::UnhandledHTTPRequestError.new(request).tap { puts error_msg })
+          IMPORTANT: All external HTTP requests MUST go through VCR!
+        ERROR
+
+        raise(VCR::Errors::UnhandledHTTPRequestError.new(request).tap { puts error_msg })
+      end
     end
   end
 

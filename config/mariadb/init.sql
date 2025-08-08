@@ -38,7 +38,6 @@ CREATE TABLE IF NOT EXISTS `conversations` (
   `user_message` TEXT NOT NULL,
   `ai_response` TEXT NOT NULL,
   `mood` VARCHAR(50) DEFAULT 'neutral',
-  `suggested_mood` VARCHAR(50) DEFAULT 'neutral',
   `confidence` DECIMAL(3,2) DEFAULT 0.95,
   `model_used` VARCHAR(100) DEFAULT 'unknown',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

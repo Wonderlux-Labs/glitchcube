@@ -1,52 +1,35 @@
 # frozen_string_literal: true
 
-require_relative '../home_assistant_client'
+require_relative 'base_tool'
 require_relative '../services/logger_service'
 
 # Tool for camera control and image capture
 # Provides snapshot capture, motion detection, and visual analysis
-class CameraTool
+class CameraTool < BaseTool
   def self.name
     'camera_control'
   end
 
   def self.description
-    'Control cameras and capture visual input. Actions: "list_cameras" (verbose: true/false - shows available cameras), "take_snapshot" (camera, description), "get_motion_status" (shows motion detection state), "set_motion_sensitivity" (level), "analyze_scene" (camera, focus_area). Use for visual input, security monitoring, and scene analysis. Args: action (string), params (string) - JSON with camera, description, level, focus_area, etc.'
+    'Control cameras and capture visual input for the Glitch Cube art installation. Provides camera listing, snapshot capture, motion detection monitoring, and scene analysis.'
   end
 
-  def self.call(action:, params: '{}')
-    params = JSON.parse(params) if params.is_a?(String)
+  def self.category
+    'visual_interface'
+  end
 
-    client = HomeAssistantClient.new
-
-    case action
-    when 'list_cameras'
-      list_available_cameras(client, params)
-    when 'take_snapshot'
-      take_camera_snapshot(client, params)
-    when 'get_motion_status'
-      get_motion_detection_status(client, params)
-    when 'set_motion_sensitivity'
-      set_motion_sensitivity(client, params)
-    when 'analyze_scene'
-      analyze_camera_scene(client, params)
-    else
-      "Unknown action: #{action}. Available actions: list_cameras, take_snapshot, get_motion_status, set_motion_sensitivity, analyze_scene"
-    end
-  rescue StandardError => e
-    "Camera control error: #{e.message}"
+  def self.tool_prompt
+    "Capture images and analyze scenes with take_snapshot(), check_motion(), analyze_scene()."
   end
 
   # List all available cameras with their capabilities
-  def self.list_available_cameras(client, params)
-    verbose = params['verbose'] != false
-
+  def self.list_cameras(verbose: true)
     result = []
     result << '=== AVAILABLE CAMERAS ==='
 
     begin
       # Get all camera entities from Home Assistant
-      states = client.states
+      states = ha_client.states
       cameras = states.select { |state| state['entity_id'].start_with?('camera.') }
 
       if verbose
@@ -98,9 +81,9 @@ class CameraTool
 
         result << ''
         result << '=== USAGE EXAMPLES ==='
-        result << 'Take snapshot: {"action": "take_snapshot", "params": {"camera": "tablet", "description": "visitor interaction"}}'
-        result << 'Motion status: {"action": "get_motion_status", "params": {}}'
-        result << 'Scene analysis: {"action": "analyze_scene", "params": {"camera": "tablet", "focus_area": "person detection"}}'
+        result << 'Use take_snapshot method with camera name and description'
+        result << 'Use get_motion_status to check current motion detection'
+        result << 'Use analyze_scene with camera name and focus area'
 
       else
         # Simple list
@@ -123,31 +106,28 @@ class CameraTool
         camera_count: cameras.size
       )
 
-      result.join("\n")
+      format_response(true, result.join("\n"))
     rescue StandardError => e
-      "Error listing cameras: #{e.message}"
+      format_response(false, "Error listing cameras: #{e.message}")
     end
   end
 
   # Take a snapshot from specified camera
-  def self.take_camera_snapshot(client, params)
-    camera = params['camera']
-    description = params['description'] || 'manual snapshot'
+  def self.take_snapshot(camera:, description: 'manual snapshot')
+    return format_response(false, 'Camera name is required') if camera.nil? || camera.empty?
 
-    return 'Error: camera required' unless camera
-
-    entity_id = resolve_camera_entity(client, camera)
-    return "Error: Camera '#{camera}' not found" unless entity_id
+    entity_id = resolve_camera_entity(camera)
+    return format_response(false, "Camera '#{camera}' not found") unless entity_id
 
     begin
       # Take snapshot using Home Assistant camera service
-      client.call_service('camera', 'snapshot', {
+      call_ha_service('camera', 'snapshot', {
                             entity_id: entity_id,
                             filename: "/config/www/snapshots/#{camera}_#{Time.now.to_i}.jpg"
                           })
 
       # Also try the direct snapshot method from HomeAssistantClient
-      client.take_snapshot(entity_id: entity_id)
+      ha_client.take_snapshot(entity_id: entity_id)
 
       Services::LoggerService.log_api_call(
         service: 'camera_tool',
@@ -156,19 +136,19 @@ class CameraTool
         description: description
       )
 
-      "📸 Captured snapshot from #{camera} - #{description}"
+      format_response(true, "📸 Captured snapshot from #{camera} - #{description}")
     rescue StandardError => e
-      "Failed to capture snapshot from #{camera}: #{e.message}"
+      format_response(false, "Failed to capture snapshot from #{camera}: #{e.message}")
     end
   end
 
   # Get current motion detection status
-  def self.get_motion_detection_status(client, _params)
+  def self.get_motion_status
     result = []
     result << '=== MOTION DETECTION STATUS ==='
 
     begin
-      states = client.states
+      states = ha_client.states
 
       # Check main motion boolean
       motion_boolean = states.find { |s| s['entity_id'] == 'input_boolean.motion_detected' }
@@ -205,24 +185,23 @@ class CameraTool
         service: 'camera_tool',
         endpoint: 'get_motion_status'
       )
-    rescue StandardError => e
-      result << "Error getting motion status: #{e.message}"
-    end
 
-    result.join("\n")
+      format_response(true, result.join("\n"))
+    rescue StandardError => e
+      format_response(false, "Error getting motion status: #{e.message}")
+    end
   end
 
   # Set motion detection sensitivity
-  def self.set_motion_sensitivity(client, params)
-    level = params['level']
-    return 'Error: level required (low, medium, high)' unless level
+  def self.set_motion_sensitivity(level:)
+    return format_response(false, 'Level is required (low, medium, high)') if level.nil? || level.empty?
 
     valid_levels = %w[low medium high]
-    return "Error: level must be one of: #{valid_levels.join(', ')}" unless valid_levels.include?(level.to_s)
+    return format_response(false, "Level must be one of: #{valid_levels.join(', ')}") unless valid_levels.include?(level.to_s)
 
     begin
       # Set motion detection sensitivity via Home Assistant select entity
-      client.call_service('select', 'select_option', {
+      call_ha_service('select', 'select_option', {
                             entity_id: 'select.camera_motion_detection_sensitivity',
                             option: level.to_s
                           })
@@ -233,31 +212,28 @@ class CameraTool
         level: level
       )
 
-      "Set motion detection sensitivity to #{level}"
+      format_response(true, "Set motion detection sensitivity to #{level}")
     rescue StandardError => e
-      "Failed to set motion sensitivity: #{e.message}"
+      format_response(false, "Failed to set motion sensitivity: #{e.message}")
     end
   end
 
   # Analyze current camera scene (placeholder for future AI vision integration)
-  def self.analyze_camera_scene(client, params)
-    camera = params['camera']
-    focus_area = params['focus_area'] || 'general scene'
+  def self.analyze_scene(camera:, focus_area: 'general scene')
+    return format_response(false, 'Camera name is required') if camera.nil? || camera.empty?
 
-    return 'Error: camera required' unless camera
-
-    entity_id = resolve_camera_entity(client, camera)
-    return "Error: Camera '#{camera}' not found" unless entity_id
+    entity_id = resolve_camera_entity(camera)
+    return format_response(false, "Camera '#{camera}' not found") unless entity_id
 
     begin
       # For now, this captures a snapshot and provides basic analysis
       # In the future, this would integrate with AI vision services
 
       # Take a snapshot first
-      client.take_snapshot(entity_id: entity_id)
+      ha_client.take_snapshot(entity_id: entity_id)
 
       # Get current camera state for basic info
-      state = client.state(entity_id)
+      state = ha_client.state(entity_id)
 
       result = []
       result << "=== SCENE ANALYSIS: #{camera.upcase} ==="
@@ -273,7 +249,7 @@ class CameraTool
         result << "📊 Status: #{state['state']}"
 
         # Mock analysis based on current motion detection
-        motion_state = client.state('input_boolean.motion_detected')
+        motion_state = ha_client.state('input_boolean.motion_detected')
         if motion_state && motion_state['state'] == 'on'
           result << '👤 Motion detected - possible human presence'
           result << '🎯 Recommended action: Engage in conversation'
@@ -297,18 +273,18 @@ class CameraTool
         focus_area: focus_area
       )
 
-      result.join("\n")
+      format_response(true, result.join("\n"))
     rescue StandardError => e
-      "Failed to analyze scene from #{camera}: #{e.message}"
+      format_response(false, "Failed to analyze scene from #{camera}: #{e.message}")
     end
   end
 
   # Resolve camera name to full entity ID
-  def self.resolve_camera_entity(client, camera_name)
+  def self.resolve_camera_entity(camera_name)
     return camera_name if camera_name.start_with?('camera.')
 
     # Try to find the entity by name
-    states = client.states
+    states = ha_client.states
     cameras = states.select { |state| state['entity_id'].start_with?('camera.') }
 
     # Look for exact match first

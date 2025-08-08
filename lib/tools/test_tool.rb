@@ -1,12 +1,36 @@
 # frozen_string_literal: true
 
-class TestTool
+require_relative 'base_tool'
+
+class TestTool < BaseTool
   def self.name
     'test_tool'
   end
 
   def self.description
     'Get system information. Args: info_type (string) - battery, location, sensors, or all'
+  end
+
+  def self.tool_prompt
+    "Get system info with get_info(). Types: battery, location, sensors, all."
+  end
+
+  def self.parameters
+    {
+      'info_type' => {
+        type: 'string',
+        description: 'Type of information to retrieve',
+        enum: %w[battery location sensors all]
+      }
+    }
+  end
+
+  def self.required_parameters
+    []
+  end
+
+  def self.category
+    'system_integration'
   end
 
   def self.call(info_type: 'all')
@@ -16,7 +40,12 @@ class TestTool
   end
 
   def self.format_result(result)
-    result[:error] || result.map { |k, v| "#{k}: #{v.is_a?(Hash) ? v.to_json : v}" }.join(', ')
+    if result[:error]
+      format_response(false, result[:error])
+    else
+      formatted_result = result.map { |k, v| "#{k}: #{v.is_a?(Hash) ? v.to_json : v}" }.join(', ')
+      format_response(true, formatted_result)
+    end
   end
 
   def self.perform_action(info_type)

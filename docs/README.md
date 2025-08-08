@@ -21,6 +21,9 @@ Welcome to the Glitch Cube documentation! This autonomous interactive art instal
 
 ### 🤖 AI & Conversation System
 
+- **[TOOL_SYSTEM.md](TOOL_SYSTEM.md)** - Complete tool system documentation: architecture, parameters, validation, and development patterns
+- **[PERSONA_DEVELOPMENT.md](PERSONA_DEVELOPMENT.md)** - Guide to developing AI personas: console testing, admin interface, and best practices
+
 - **[characters/](characters/)** - Persona documentation
   - [GENERAL INSTRUCTIONS](characters/GENERAL%20INSTRUCTIONS%20FOR%20ALL%20CUBE%20PERSONAS.md) - Base personality traits
   - [BUDDY](characters/BUDDY%20-%20THE%20HELPER%20CUBE%20(NAIVE%20ASSISTANT%20PERSONA).md) - Helpful assistant persona

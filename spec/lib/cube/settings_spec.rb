@@ -20,14 +20,22 @@ RSpec.describe Cube::Settings do
     # Mock Home Assistant functionality removed - using real HA instance
 
     describe '.disable_circuit_breakers?' do
-      it 'returns true when ENV is set to true' do
-        ENV['DISABLE_CIRCUIT_BREAKERS'] = 'true'
+      after(:each) do
+        described_class.clear_overrides!
+      end
+
+      it 'returns true in test environment by default' do
         expect(described_class.disable_circuit_breakers?).to be true
       end
 
-      xit 'returns false when ENV is not set' do
-        ENV['DISABLE_CIRCUIT_BREAKERS'] = nil
+      it 'can be overridden to false' do
+        described_class.override!(:disable_circuit_breakers, false)
         expect(described_class.disable_circuit_breakers?).to be false
+      end
+
+      it 'can be overridden to true' do
+        described_class.override!(:disable_circuit_breakers, true)
+        expect(described_class.disable_circuit_breakers?).to be true
       end
     end
 

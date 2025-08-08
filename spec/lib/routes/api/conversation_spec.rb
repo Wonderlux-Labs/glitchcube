@@ -18,9 +18,16 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
   # VCR will handle external service calls
   let(:conversation_module) { ConversationModule.new }
 
+  # Mock TTS calls by default to prevent overwhelming Home Assistant
+  before do
+    # Mock HomeAssistant TTS calls by default - override in specific tests that need real calls
+    allow_any_instance_of(HomeAssistantClient).to receive(:speak)
+      .and_return(true)
+  end
+
   describe 'POST /api/v1/test' do
     # Integration test with real conversation module
-    it 'processes basic conversation requests', :vcr do
+    it 'processes basic conversation requests', vcr: { cassette_name: 'conversation_basic_test', match_requests_on: [:method, :uri] } do
       post '/api/v1/test',
            { message: 'Hello, test message for Glitch Cube!' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -39,7 +46,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(parsed_body).to have_key('timestamp')
     end
 
-    it 'uses default message when none provided', :vcr do
+    it 'uses default message when none provided', vcr: { cassette_name: 'conversation_default_message', match_requests_on: [:method, :uri] } do
       post '/api/v1/test',
            {}.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -60,7 +67,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
     end
 
     # Test input validation
-    it 'handles extremely large context payloads' do
+    it 'handles extremely large context payloads', vcr: { cassette_name: 'conversation_large_payload' } do
       large_context = { data: 'x' * (10 * 1024 * 1024) } # 10MB
 
       post '/api/v1/test',
@@ -77,7 +84,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
   end
 
   describe 'POST /api/v1/conversation' do
-    it 'processes full conversation with session management', :vcr do
+    it 'processes full conversation with session management', vcr: { cassette_name: 'conversation_full_session', match_requests_on: [:method, :uri] } do
       post '/api/v1/conversation',
            {
              message: 'Tell me about the weather today',
@@ -91,7 +98,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(parsed_body['data']['session_id']).to be_present
     end
 
-    it 'generates session ID when not provided', :vcr do
+    it 'generates session ID when not provided', vcr: { cassette_name: 'conversation_generate_session_id', match_requests_on: [:method, :uri] } do
       post '/api/v1/conversation',
            { message: 'Hello' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -101,7 +108,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(parsed_body['data']['session_id']).to match(/^[0-9a-f-]{36}$/)
     end
 
-    it 'preserves existing session ID', :vcr do
+    it 'preserves existing session ID', vcr: { cassette_name: 'conversation_preserve_session_id', match_requests_on: [:method, :uri] } do
       existing_session_id = SecureRandom.uuid
 
       post '/api/v1/conversation',
@@ -126,7 +133,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       end
     end
 
-    it 'handles voice interaction context', :vcr do
+    it 'handles voice interaction context', vcr: { cassette_name: 'conversation_voice_interaction', match_requests_on: [:method, :uri] } do
       post '/api/v1/conversation',
            {
              message: 'Hello voice interaction test',
@@ -144,7 +151,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
     end
 
     # Security and validation tests
-    it 'sanitizes malicious context data' do
+    it 'sanitizes malicious context data', vcr: { cassette_name: 'conversation_sanitize_malicious', match_requests_on: [:method, :uri] } do
       post '/api/v1/conversation',
            {
              message: 'test',
@@ -205,7 +212,6 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
     let(:conv_result) do
       {
         response: 'Enhanced response with context',
-        suggested_mood: 'informative',
         confidence: 0.9
       }
     end
@@ -216,7 +222,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       allow(conversation_module).to receive(:call).and_return(conv_result)
     end
 
-    it 'enhances conversation with RAG context' do
+    it 'enhances conversation with RAG context', vcr: { cassette_name: 'conversation_with_rag_context', match_requests_on: [:method, :uri] } do
       post '/api/v1/conversation/with_context',
            { message: 'What is the weather like?' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -236,7 +242,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       end
     end
 
-    it 'uses RAG service to retrieve context' do
+    it 'uses RAG service to retrieve context', vcr: { cassette_name: 'conversation_rag_service', match_requests_on: [:method, :uri] } do
       post '/api/v1/conversation/with_context',
            { message: 'Tell me about the installation' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -255,7 +261,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       }
     end
 
-    it 'creates new session with context', :vcr do
+    it 'creates new session with context', vcr: { cassette_name: 'conversation_new_session_context', match_requests_on: [:method, :uri] } do
       post '/api/v1/conversation/start',
            session_params.merge(greeting: true).to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -272,7 +278,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(session.source).to eq('voice')
     end
 
-    it 'continues existing session', :vcr do
+    it 'continues existing session', vcr: { cassette_name: 'conversation_continue_session', match_requests_on: [:method, :uri] } do
       # Create session first
       post '/api/v1/conversation/start',
            session_params.to_json,
@@ -438,7 +444,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(parsed_body['session_id']).to be_present
     end
 
-    it 'handles conversation_continued events', :vcr do
+    it 'handles conversation_continued events', vcr: { cassette_name: 'webhook_conversation_continued', match_requests_on: [:method, :uri] } do
       post '/api/v1/ha_webhook',
            {
              event_type: 'conversation_continued',
@@ -454,7 +460,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(parsed_body['data']['response']).to be_present
     end
 
-    it 'handles trigger_action events' do
+    it 'handles trigger_action events', vcr: { cassette_name: 'ha_webhook_trigger_action', match_requests_on: [:method, :uri] } do
       post '/api/v1/ha_webhook',
            {
              event_type: 'trigger_action',
@@ -517,7 +523,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       allow(rag_service).to receive(:answer_with_context).and_return(rag_result)
     end
 
-    it 'enhances conversation with RAG context', :vcr do
+    it 'enhances conversation with RAG context', vcr: { cassette_name: 'conversation_with_rag_enhanced', match_requests_on: [:method, :uri] } do
       post '/api/v1/conversation/with_context',
            { message: 'What is the weather like?' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }

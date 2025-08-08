@@ -15,11 +15,6 @@ RSpec.describe HomeAssistantClient do
       expect(client.base_url).to eq('http://glitch.local:8123')
     end
 
-    it 'uses token from config' do
-      # In test environment, uses a consistent test token for VCR
-      expect(client.token).to be_a(String)
-      expect(client.token).to eq('test-ha-token') # Consistent test token
-    end
 
     context 'when no HA URL is configured' do
       it 'uses configured URL from environment' do
@@ -42,6 +37,68 @@ RSpec.describe HomeAssistantClient do
     describe '#battery_level' do
       it 'returns battery level as integer' do
         expect(client.battery_level).to eq(85)
+      end
+    end
+  end
+
+  describe '#speak (Multi-Provider TTS)', :vcr do
+    let(:message) { 'This is a test TTS message from RSpec' }
+    let(:entity_id) { 'media_player.square_voice' }
+
+    context 'when using cloud provider (default)' do
+      let(:voice_options) do
+        {
+          tts: :cloud,
+          voice: 'DavisNeural||excited',
+          language: 'en-US'
+        }
+      end
+
+      it 'successfully makes cloud TTS call to Home Assistant via script' do
+        VCR.use_cassette('home_assistant_client/tts_cloud_speak_script') do
+          result = client.speak(message, entity_id: entity_id, voice_options: voice_options)
+          expect(result).to be_truthy
+        end
+      end
+
+      it 'works without explicit tts provider (defaults to cloud via script)' do
+        voice_options_without_provider = {
+          voice: 'AriaNeural||friendly',
+          language: 'en-US'
+        }
+
+        VCR.use_cassette('home_assistant_client/tts_cloud_speak_default_script') do
+          result = client.speak(message, entity_id: entity_id, voice_options: voice_options_without_provider)
+          expect(result).to be_truthy
+        end
+      end
+    end
+
+    context 'when using elevenlabs provider' do
+      let(:voice_options) do
+        {
+          tts: :elevenlabs,
+          voice: 'Josh',
+          language: 'en-US'
+        }
+      end
+
+      it 'successfully makes ElevenLabs TTS call to Home Assistant via script' do
+        VCR.use_cassette('home_assistant_client/tts_elevenlabs_speak_script') do
+          result = client.speak(message, entity_id: entity_id, voice_options: voice_options)
+          expect(result).to be_truthy
+        end
+      end
+    end
+
+    context 'when using default entity' do
+      it 'uses default entity_id when not provided' do
+        voice_options = { tts: :cloud, voice: 'JennyNeural' }
+
+        VCR.use_cassette('home_assistant_client/tts_cloud_speak_default_entity_script') do
+          result = client.speak(message, voice_options: voice_options)
+          expect(result).to be_truthy
+        end
       end
     end
   end

@@ -24,7 +24,9 @@ RSpec.describe Services::ConversationSession do
   describe '.find_or_create' do
     context 'when session exists' do
       before do
+        allow(conversation).to receive(:new_record?).and_return(false)
         allow(Conversation).to receive(:find_or_create_by).with(session_id: session_id).and_return(conversation)
+        allow(Conversation).to receive(:exists?).with(session_id: session_id).and_return(true)
       end
 
       it 'loads existing session' do
@@ -50,8 +52,11 @@ RSpec.describe Services::ConversationSession do
           'source=': nil,
           'persona=': nil,
           'started_at=': nil,
-          'metadata=': nil
+          'metadata=': nil,
+          'new_record?': false,
+          'save!': true
         )
+        allow(Conversation).to receive(:exists?).with(session_id: anything).and_return(true)
       end
 
       it 'creates new session with generated ID' do

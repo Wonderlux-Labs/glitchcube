@@ -55,7 +55,7 @@ RSpec.describe Services::LoggerService do
       {
         user_message: 'Hello, Glitch Cube!',
         ai_response: 'Hello there! Ready to create some art?',
-        mood: 'playful',
+        persona: 'playful',
         confidence: 0.95,
         session_id: 'test_session_001',
         context: { test_mode: true }
@@ -70,7 +70,7 @@ RSpec.describe Services::LoggerService do
       expect(interactions_content).to include('👤 USER: Hello, Glitch Cube!')
       expect(interactions_content).to include('🎲 GLITCH CUBE: Hello there! Ready to create some art?')
       expect(interactions_content).to include('Session: test_session_001')
-      expect(interactions_content).to include('Mood: playful')
+      expect(interactions_content).to include('Persona: playful')
       expect(interactions_content).to include('Confidence: 95%')
     end
 
@@ -117,7 +117,8 @@ RSpec.describe Services::LoggerService do
       )
 
       api_content = File.read(File.join(log_dir, 'api_calls.log'))
-      expect(api_content).to include('❌ HOME_ASSISTANT GET /api/test 500 (500ms) - Internal Server Error')
+      expect(api_content).to include('❌ HOME_ASSISTANT GET /api/test 500 (500ms)')
+      expect(api_content).to include('Internal Server Error')
     end
 
     it 'tracks errors when present' do

@@ -131,7 +131,6 @@ result = conversation.call(
 
 puts "Response: #{result[:response]}"
 puts "Confidence: #{result[:confidence]}"
-puts "Suggested mood: #{result[:suggested_mood]}"
 
 puts "\n5. Error Statistics Summary"
 puts '-' * 30

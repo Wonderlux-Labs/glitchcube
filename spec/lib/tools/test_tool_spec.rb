@@ -62,7 +62,7 @@ RSpec.describe TestTool do
     context 'with invalid info type' do
       it 'returns an error' do
         result = described_class.call(info_type: 'invalid')
-        expect(result).to eq('Unknown info type: invalid')
+        expect(result).to eq('❌ Unknown info type: invalid')
       end
     end
   end

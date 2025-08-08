@@ -203,6 +203,7 @@ if ENV['RACK_ENV'] == 'production' && !test?
         puts "⚠️ Found #{behind_count} commits behind - scheduling deployment..."
         Services::LoggerService.log_api_call(
           service: 'startup_deployment_check',
+          endpoint: '/startup',
           method: 'startup',
           behind_count: behind_count,
           message: 'Missed deployments detected on startup'
@@ -241,6 +242,7 @@ if ENV['RACK_ENV'] == 'production' && !test?
     puts "❌ Startup deployment check failed: #{e.message}"
     Services::LoggerService.log_api_call(
       service: 'startup_deployment_check',
+      endpoint: '/startup',
       method: 'startup',
       status: 500,
       error: e.message

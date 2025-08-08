@@ -130,28 +130,7 @@ module Services
     end
 
     def tool_description(tool)
-      case tool.to_s
-      when 'customer_satisfaction_survey'
-        'Create and manage customer feedback surveys'
-      when 'technical_support'
-        'Provide technical assistance and troubleshooting'
-      when 'booking_system'
-        'Help with reservations and scheduling (may not work properly)'
-      when 'runway_lighting'
-        'Control dramatic lighting effects for fashion shows'
-      when 'music_control'
-        'Manage audio playback and sound effects'
-      when 'shade_generator'
-        'Generate witty comebacks and fashion critiques'
-      when 'classic_music_player'
-        'Play pre-electronic music and classic tracks'
-      when 'life_advice_dispenser'
-        'Provide wisdom and philosophical guidance'
-      when 'electronic_music_killer'
-        'Stop or complain about electronic music'
-      else
-        'A special capability matching your character'
-      end
+      Services::ToolRegistryService.get_tool_prompt(tool.to_s)
     end
 
     def default_glitch_cube_prompt

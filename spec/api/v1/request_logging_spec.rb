@@ -32,7 +32,7 @@ RSpec.describe 'Request Logging', type: :request do
       expect(logged_request[:ip]).to be_a(String)
     end
 
-    it 'logs POST requests' do
+    it 'logs POST requests', vcr: { cassette_name: 'request_logging_post' } do
       post '/api/v1/conversation',
            { message: 'Hello', mood: 'neutral' }.to_json,
            'CONTENT_TYPE' => 'application/json'

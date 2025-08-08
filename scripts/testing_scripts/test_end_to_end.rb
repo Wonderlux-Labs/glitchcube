@@ -40,7 +40,6 @@ result = conversation.call(
 puts '✅ Conversation completed'
 puts "Response: #{result[:response]}"
 puts "Confidence: #{(result[:confidence] * 100).round}%"
-puts "Suggested mood: #{result[:suggested_mood]}"
 
 puts "\n2. Testing Mood-Based Conversation"
 puts '-' * 35

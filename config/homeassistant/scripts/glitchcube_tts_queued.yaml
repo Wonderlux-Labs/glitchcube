@@ -1,0 +1,110 @@
+# Queued TTS Scripts for GlitchCube
+# Separate scripts for Cloud (Azure) and ElevenLabs TTS providers
+# Each uses Home Assistant's built-in queued mode to prevent voice interruption
+
+glitchcube_cloud_speak:
+  alias: "GlitchCube Cloud TTS (Queued)"
+  description: "Azure Cloud TTS with automatic queueing to prevent interruption"
+  mode: queued  # Automatically queues calls
+  max: 25  # Allow up to 25 messages in queue
+  fields:
+    message:
+      description: "Message to speak"
+      required: true
+      example: "Hello, I am the Glitch Cube"
+    voice:
+      description: "Azure voice to use (e.g., JennyNeural, DavisNeural)"
+      required: false
+      default: "JennyNeural"
+      example: "DavisNeural"
+    media_player:
+      description: "Media player entity to use"
+      required: false
+      default: "media_player.square_voice"
+      example: "media_player.square_voice"
+    language:
+      description: "Language code"
+      required: false
+      default: "en-US"
+      example: "en-US"
+  sequence:
+    # Wait for media player to be available (not playing)
+    - wait_template: "{{ states(media_player | default('media_player.square_voice')) != 'playing' }}"
+      timeout: '00:00:30'
+      continue_on_timeout: true
+    
+    # Small delay to ensure clean transition
+    - delay:
+        milliseconds: 200
+    
+    # Call the Cloud TTS service
+    - service: tts.cloud_say
+      data:
+        entity_id: "{{ media_player | default('media_player.square_voice') }}"
+        message: "{{ message }}"
+        language: "{{ language | default('en-US') }}"
+        options:
+          voice: "{{ voice | default('JennyNeural') }}"
+    
+    # Wait for the TTS to finish playing before the next queued message
+    - wait_template: "{{ states(media_player | default('media_player.square_voice')) == 'playing' }}"
+      timeout: '00:00:05'
+      continue_on_timeout: true
+    
+    - wait_template: "{{ states(media_player | default('media_player.square_voice')) != 'playing' }}"
+      timeout: '00:00:30'
+      continue_on_timeout: true
+
+glitchcube_elevenlabs_speak:
+  alias: "GlitchCube ElevenLabs TTS (Queued)"
+  description: "ElevenLabs TTS with automatic queueing to prevent interruption"
+  mode: queued  # Automatically queues calls
+  max: 25  # Allow up to 25 messages in queue
+  fields:
+    message:
+      description: "Message to speak"
+      required: true
+      example: "Hello, I am the Glitch Cube"
+    voice:
+      description: "ElevenLabs voice ID or name"
+      required: false
+      default: "Josh"
+      example: "Josh"
+    media_player:
+      description: "Media player entity to use"
+      required: false
+      default: "media_player.square_voice"
+      example: "media_player.square_voice"
+    model:
+      description: "ElevenLabs model to use"
+      required: false
+      default: "eleven_multilingual_v2"
+      example: "eleven_multilingual_v2"
+  sequence:
+    # Wait for media player to be available (not playing)
+    - wait_template: "{{ states(media_player | default('media_player.square_voice')) != 'playing' }}"
+      timeout: '00:00:30'
+      continue_on_timeout: true
+    
+    # Small delay to ensure clean transition
+    - delay:
+        milliseconds: 200
+    
+    # Call the ElevenLabs TTS service
+    - service: tts.speak
+      data:
+        entity_id: "tts.elevenlabs"
+        media_player_entity_id: "{{ media_player | default('media_player.square_voice') }}"
+        message: "{{ message }}"
+        options:
+          voice: "{{ voice | default('Josh') }}"
+          model: "{{ model | default('eleven_multilingual_v2') }}"
+    
+    # Wait for the TTS to finish playing before the next queued message
+    - wait_template: "{{ states(media_player | default('media_player.square_voice')) == 'playing' }}"
+      timeout: '00:00:05'
+      continue_on_timeout: true
+    
+    - wait_template: "{{ states(media_player | default('media_player.square_voice')) != 'playing' }}"
+      timeout: '00:00:30'
+      continue_on_timeout: true
