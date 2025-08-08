@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.glitchcube.startup</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/eristmini/glitch/glitchcube/scripts/mac_mini_startup.sh</string>
+    </array>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>StandardOutPath</key>
+    <string>/Users/eristmini/glitch/startup_stdout.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/Users/eristmini/glitch/startup_stderr.log</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/eristmini/.asdf/shims:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>RACK_ENV</key>
+        <string>production</string>
+    </dict>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/eristmini/glitch/glitchcube</string>
+    
+    <key>UserName</key>
+    <string>eristmini</string>
+</dict>
+</plist>

@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tool Testing & Specification</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .panel {
+      border: 1px solid #0f0;
+      padding: 20px;
+      background: #001100;
+      margin-bottom: 20px;
+    }
+    h1, h2, h3 {
+      color: #00ff00;
+      text-shadow: 0 0 10px #0f0;
+    }
+    .nav {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #333;
+      background: #001100;
+    }
+    .nav a {
+      color: #00ff00;
+      text-decoration: none;
+      margin-right: 20px;
+    }
+    .nav a:hover {
+      text-shadow: 0 0 10px #0f0;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 15px;
+    }
+    .tool-selector {
+      margin-bottom: 20px;
+    }
+    .tool-card {
+      border: 1px solid #333;
+      padding: 15px;
+      background: #002200;
+      margin: 10px 0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tool-card:hover {
+      border-color: #0f0;
+      background: #003300;
+    }
+    .tool-card.selected {
+      border-color: #00ff00;
+      background: #004400;
+      box-shadow: 0 0 10px #0f0;
+    }
+    .tool-name {
+      font-weight: bold;
+      color: #00ff00;
+      margin-bottom: 5px;
+    }
+    .tool-description {
+      color: #ccc;
+      font-size: 0.9em;
+      margin-bottom: 10px;
+    }
+    .tool-category {
+      color: #666;
+      font-size: 0.8em;
+      text-transform: uppercase;
+    }
+    .function-card {
+      border: 1px solid #444;
+      padding: 12px;
+      background: #001100;
+      margin: 8px 0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .function-card:hover {
+      border-color: #0f0;
+      background: #002200;
+    }
+    .function-card.selected {
+      border-color: #00ff00;
+      background: #003300;
+      box-shadow: 0 0 5px #0f0;
+    }
+    .function-name {
+      font-weight: bold;
+      color: #00ff00;
+      margin-bottom: 5px;
+    }
+    .function-description {
+      color: #ccc;
+      font-size: 0.9em;
+      margin-bottom: 5px;
+    }
+    .function-params {
+      color: #888;
+      font-size: 0.8em;
+      font-style: italic;
+    }
+    .parameter-form {
+      background: #001100;
+      border: 1px solid #333;
+      padding: 15px;
+      margin-top: 10px;
+    }
+    .parameter-group {
+      margin-bottom: 15px;
+    }
+    .parameter-label {
+      display: block;
+      color: #00ff00;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .parameter-required {
+      color: #ff0000;
+    }
+    .parameter-optional {
+      color: #ffff00;
+    }
+    input, textarea, select {
+      background: #000;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 10px;
+      width: 100%;
+      box-sizing: border-box;
+      font-family: monospace;
+    }
+    button {
+      background: #003300;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-family: monospace;
+      margin: 5px;
+    }
+    button:hover {
+      background: #005500;
+    }
+    button:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+    }
+    .result-display {
+      background: #000;
+      border: 1px solid #333;
+      padding: 15px;
+      margin: 15px 0;
+      white-space: pre-wrap;
+      font-family: monospace;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .result-success {
+      border-color: #00ff00;
+      color: #00ff00;
+    }
+    .result-error {
+      border-color: #ff0000;
+      color: #ff0000;
+    }
+    .execution-history {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #333;
+      background: #000;
+    }
+    .history-item {
+      padding: 10px;
+      border-bottom: 1px solid #222;
+      font-size: 0.9em;
+    }
+    .history-success {
+      border-left: 3px solid #00ff00;
+    }
+    .history-error {
+      border-left: 3px solid #ff0000;
+    }
+    .openai-functions {
+      background: #000011;
+      border: 1px solid #333;
+      padding: 15px;
+      margin: 15px 0;
+      font-family: monospace;
+      font-size: 0.9em;
+    }
+    .character-selector {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .character-btn {
+      padding: 8px 15px;
+      background: #000033;
+      color: #00ffff;
+      border: 1px solid #0066ff;
+      cursor: pointer;
+      font-family: monospace;
+    }
+    .character-btn.active {
+      background: #0066ff;
+      color: #fff;
+    }
+    .json-display {
+      white-space: pre;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .loading {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+    }
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .tab {
+      padding: 10px 20px;
+      background: #003300;
+      border: 1px solid #0f0;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: #005500;
+      box-shadow: 0 0 10px #0f0;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <a href="/admin/simple">← Simple Admin</a>
+    <a href="/admin/advanced">Advanced Admin</a>
+    <a href="/admin/conversations">🔍 Debug Conversations</a>
+    <a href="/admin">Main Admin</a>
+  </div>
+
+  <h1>🔧 Tool Testing & Specification Interface</h1>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('testing')">Tool Testing</div>
+    <div class="tab" onclick="switchTab('specifications')">LLM Function Specs</div>
+    <div class="tab" onclick="switchTab('character-tools')">Character Tools</div>
+  </div>
+
+  <!-- Tool Testing Tab -->
+  <div id="tab-testing" class="tab-content active">
+    <div class="grid-2">
+      <!-- Tool Selection -->
+      <div class="panel">
+        <h2>🛠️ Available Tools</h2>
+        <div id="tools-list" class="loading">Loading tools...</div>
+      </div>
+
+      <!-- Tool Details & Execution -->
+      <div class="panel">
+        <h2>⚡ Tool Execution</h2>
+        <div id="tool-details">
+          <div style="color: #666; text-align: center;">Select a tool to test</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Execution Results -->
+    <div class="panel">
+      <h2>📊 Execution Results</h2>
+      <div class="grid-2">
+        <div>
+          <h3>Latest Result</h3>
+          <div id="latest-result" class="result-display">
+            No executions yet
+          </div>
+        </div>
+        <div>
+          <h3>Execution History</h3>
+          <div id="execution-history" class="execution-history">
+            <div style="color: #666; text-align: center; padding: 20px;">No history yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LLM Function Specifications Tab -->
+  <div id="tab-specifications" class="tab-content">
+    <div class="panel">
+      <h2>🤖 OpenAI Function Specifications</h2>
+      <p style="color: #ccc;">Generate function calling specifications for LLM integration</p>
+      
+      <div style="margin-bottom: 15px;">
+        <label>Select specific tools (leave empty for all):</label>
+        <input type="text" id="function-tools" placeholder="tool_1,tool_2,test_tool (comma separated)">
+      </div>
+      
+      <button onclick="generateFunctionSpecs()">Generate Function Specifications</button>
+      
+      <div id="function-specs" class="openai-functions">
+        Click "Generate Function Specifications" to see OpenAI function calling schemas
+      </div>
+    </div>
+  </div>
+
+  <!-- Character Tools Tab -->
+  <div id="tab-character-tools" class="tab-content">
+    <div class="panel">
+      <h2>👤 Character-Specific Tools</h2>
+      <p style="color: #ccc;">View tool aggregations for different character personalities</p>
+      
+      <div class="character-selector">
+        <button class="character-btn" onclick="loadCharacterTools('buddy')">BUDDY</button>
+        <button class="character-btn" onclick="loadCharacterTools('jax')">Jax</button>
+        <button class="character-btn" onclick="loadCharacterTools('lomi')">LOMI</button>
+        <button class="character-btn" onclick="loadCharacterTools('neutral')">Neutral</button>
+        <button class="character-btn" onclick="loadCharacterTools('playful')">Playful</button>
+        <button class="character-btn" onclick="loadCharacterTools('contemplative')">Contemplative</button>
+        <button class="character-btn" onclick="loadCharacterTools('mysterious')">Mysterious</button>
+      </div>
+      
+      <div id="character-tools" class="openai-functions">
+        Select a character to see their available tools and function specifications
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let availableTools = [];
+    let selectedTool = null;
+    let selectedFunction = null;
+    let executionHistory = [];
+
+    // Tab switching
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+    }
+
+    // Initialize
+    window.onload = function() {
+      loadTools();
+    };
+
+    // Load available tools
+    async function loadTools() {
+      try {
+        const response = await fetch('/admin/api/tools');
+        const data = await response.json();
+        
+        if (data.success) {
+          availableTools = data.tools;
+          renderToolsList();
+        } else {
+          document.getElementById('tools-list').innerHTML = `<div class="result-error">Error: ${data.error}</div>`;
+        }
+      } catch (err) {
+        document.getElementById('tools-list').innerHTML = `<div class="result-error">Failed to load tools: ${err.message}</div>`;
+      }
+    }
+
+    // Render tools list
+    function renderToolsList() {
+      const toolsList = document.getElementById('tools-list');
+      
+      if (availableTools.length === 0) {
+        toolsList.innerHTML = '<div style="color: #666;">No tools found</div>';
+        return;
+      }
+
+      toolsList.innerHTML = availableTools.map(tool => `
+        <div class="tool-card" onclick="selectTool('${tool.name}')">
+          <div class="tool-name">${tool.display_name}</div>
+          <div class="tool-description">${tool.description}</div>
+          <div class="tool-category">${tool.category}</div>
+        </div>
+      `).join('');
+    }
+
+    // Select a tool
+    function selectTool(toolName) {
+      const tool = availableTools.find(t => t.name === toolName);
+      if (!tool) return;
+
+      selectedTool = tool;
+      
+      // Update visual selection
+      document.querySelectorAll('.tool-card').forEach(card => card.classList.remove('selected'));
+      event.target.classList.add('selected');
+      
+      renderToolDetails();
+    }
+
+    // Render tool details and parameter form
+    function renderToolDetails() {
+      const detailsDiv = document.getElementById('tool-details');
+      
+      if (!selectedTool) {
+        detailsDiv.innerHTML = '<div style="color: #666;">Select a tool to test</div>';
+        return;
+      }
+
+      const requiredParams = selectedTool.parameters.required || [];
+      const optionalParams = selectedTool.parameters.optional || [];
+
+      // Check if this tool has action-based structure
+      const actionParam = [...requiredParams, ...optionalParams].find(p => p.name === 'action' && p.enum);
+      
+      if (actionParam && actionParam.actions_detail) {
+        renderActionBasedTool(selectedTool, actionParam);
+      } else {
+        renderSimpleTool(selectedTool, requiredParams, optionalParams);
+      }
+    }
+
+    // Render tool with action-based structure (like lighting_control)
+    function renderActionBasedTool(tool, actionParam) {
+      const detailsDiv = document.getElementById('tool-details');
+      
+      detailsDiv.innerHTML = `
+        <h3>${tool.display_name}</h3>
+        <p style="color: #ccc; margin-bottom: 20px;">${tool.description}</p>
+        
+        <div style="margin-bottom: 20px;">
+          <h4 style="color: #00ff00; margin-bottom: 15px;">Available Functions</h4>
+          <div id="function-cards">
+            ${actionParam.enum.map(action => {
+              const actionDetail = actionParam.actions_detail[action];
+              return `
+                <div class="function-card" onclick="selectFunction('${action}')" data-action="${action}">
+                  <div class="function-name">${action.toUpperCase()}</div>
+                  <div class="function-description">${actionDetail?.description || `Execute ${action} action`}</div>
+                  ${actionDetail?.parameters?.length > 0 ? 
+                    `<div class="function-params">Parameters: ${actionDetail.parameters.map(p => p.name).join(', ')}</div>` 
+                    : '<div class="function-params">No additional parameters</div>'
+                  }
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+        
+        <div id="function-parameters" style="display: none;">
+          <h4 style="color: #ffff00; margin-bottom: 15px;">Function Parameters</h4>
+          <div id="dynamic-parameters"></div>
+          
+          <div style="margin-top: 20px;">
+            <button onclick="executeFunction()">🚀 Execute Function</button>
+            <button onclick="clearFunctionParameters()">🗑️ Clear Parameters</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render simple tool (like test_tool)
+    function renderSimpleTool(tool, requiredParams, optionalParams) {
+      const detailsDiv = document.getElementById('tool-details');
+      
+      detailsDiv.innerHTML = `
+        <h3>${tool.display_name}</h3>
+        <p style="color: #ccc; margin-bottom: 15px;">${tool.description}</p>
+        
+        <div class="parameter-form">
+          ${requiredParams.length > 0 ? '<h4 style="color: #ff0000;">Required Parameters</h4>' : ''}
+          ${requiredParams.map(param => renderParameterControl(param, true)).join('')}
+          
+          ${optionalParams.length > 0 ? '<h4 style="color: #ffff00;">Optional Parameters</h4>' : ''}
+          ${optionalParams.map(param => renderParameterControl(param, false)).join('')}
+          
+          <div style="margin-top: 20px;">
+            <button onclick="executeTool()">🚀 Execute Tool</button>
+            <button onclick="clearParameters()">🗑️ Clear Parameters</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render appropriate control for parameter based on type and constraints
+    function renderParameterControl(param, isRequired) {
+      const labelClass = isRequired ? 'parameter-required' : 'parameter-optional';
+      const requiredMark = isRequired ? ' *' : '';
+      
+      let control = '';
+      
+      if (param.enum && param.enum.length > 0) {
+        // Dropdown for enum values
+        control = `
+          <select id="param-${param.name}" data-param="${param.name}" data-type="${param.type}">
+            <option value="">-- Select ${param.name} --</option>
+            ${param.enum.map(value => `<option value="${value}">${value}</option>`).join('')}
+          </select>
+        `;
+      } else if (param.type === 'boolean') {
+        // Checkbox for boolean
+        control = `
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="param-${param.name}" data-param="${param.name}" data-type="boolean">
+            <span style="color: #ccc;">Enable ${param.name}</span>
+          </div>
+        `;
+      } else if (param.type === 'integer') {
+        // Number input for integer
+        control = `
+          <input type="number" id="param-${param.name}" data-param="${param.name}" data-type="integer" 
+                 placeholder="Enter ${param.name} (integer)">
+        `;
+      } else if (param.type === 'object' || param.type === 'array') {
+        // Textarea for complex types
+        control = `
+          <textarea id="param-${param.name}" data-param="${param.name}" data-type="${param.type}" rows="3"
+                    placeholder="Enter ${param.name} as JSON ${param.examples ? '\\nExamples: ' + param.examples.join(', ') : ''}"></textarea>
+        `;
+      } else {
+        // Text input for string and other types
+        const placeholder = param.examples ? 
+          `Enter ${param.name} (examples: ${param.examples.slice(0, 2).join(', ')})` : 
+          `Enter ${param.name}`;
+        control = `
+          <input type="text" id="param-${param.name}" data-param="${param.name}" data-type="${param.type}"
+                 placeholder="${placeholder}">
+        `;
+      }
+      
+      return `
+        <div class="parameter-group">
+          <label class="parameter-label ${labelClass}">
+            ${param.name}${requiredMark} (${param.type})
+            ${param.description ? `<div style="color: #999; font-size: 0.9em; margin-top: 3px;">${param.description}</div>` : ''}
+            ${param.examples ? `<div style="color: #666; font-size: 0.8em; margin-top: 3px;">Examples: ${param.examples.join(', ')}</div>` : ''}
+          </label>
+          ${control}
+        </div>
+      `;
+    }
+
+    // Execute selected tool
+    async function executeTool() {
+      if (!selectedTool) {
+        alert('Please select a tool first');
+        return;
+      }
+
+      // Collect parameters
+      const parameters = {};
+      const paramInputs = document.querySelectorAll('[data-param]');
+      
+      paramInputs.forEach(input => {
+        const paramName = input.dataset.param;
+        const paramType = input.dataset.type;
+        const value = input.value.trim();
+        
+        if (value) {
+          // Try to parse based on type
+          if (paramType === 'object' || paramType === 'array') {
+            try {
+              parameters[paramName] = JSON.parse(value);
+            } catch (e) {
+              parameters[paramName] = value; // Keep as string if parsing fails
+            }
+          } else if (paramType === 'integer') {
+            parameters[paramName] = parseInt(value) || 0;
+          } else if (paramType === 'boolean') {
+            parameters[paramName] = value.toLowerCase() === 'true';
+          } else {
+            parameters[paramName] = value;
+          }
+        }
+      });
+
+      // Show loading
+      const resultDiv = document.getElementById('latest-result');
+      resultDiv.innerHTML = '⏳ Executing tool...';
+      resultDiv.className = 'result-display';
+
+      try {
+        const response = await fetch(`/admin/api/tools/${selectedTool.name}/execute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parameters })
+        });
+
+        const result = await response.json();
+        displayResult(result);
+        addToHistory(result);
+      } catch (err) {
+        const errorResult = {
+          success: false,
+          error: err.message,
+          tool_name: selectedTool.name,
+          parameters
+        };
+        displayResult(errorResult);
+        addToHistory(errorResult);
+      }
+    }
+
+    // Display execution result
+    function displayResult(result) {
+      const resultDiv = document.getElementById('latest-result');
+      
+      if (result.success) {
+        resultDiv.className = 'result-display result-success';
+        resultDiv.innerHTML = `✅ SUCCESS
+Tool: ${result.tool_name}
+Execution Time: ${result.execution_time_ms}ms
+Result:
+${JSON.stringify(result.result, null, 2)}
+
+Parameters Used:
+${JSON.stringify(result.parameters, null, 2)}`;
+      } else {
+        resultDiv.className = 'result-display result-error';
+        resultDiv.innerHTML = `❌ ERROR
+Tool: ${result.tool_name}
+Error: ${result.error}
+
+Parameters Attempted:
+${JSON.stringify(result.parameters, null, 2)}
+
+${result.backtrace ? 'Stack Trace:\n' + result.backtrace.join('\n') : ''}`;
+      }
+    }
+
+    // Add to execution history
+    function addToHistory(result) {
+      executionHistory.unshift({
+        ...result,
+        timestamp: new Date().toLocaleTimeString()
+      });
+      
+      // Keep only last 20 executions
+      if (executionHistory.length > 20) {
+        executionHistory = executionHistory.slice(0, 20);
+      }
+      
+      renderHistory();
+    }
+
+    // Render execution history
+    function renderHistory() {
+      const historyDiv = document.getElementById('execution-history');
+      
+      if (executionHistory.length === 0) {
+        historyDiv.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No history yet</div>';
+        return;
+      }
+
+      historyDiv.innerHTML = executionHistory.map(item => `
+        <div class="history-item ${item.success ? 'history-success' : 'history-error'}">
+          <div style="display: flex; justify-content: space-between; font-weight: bold;">
+            <span>${item.tool_name}</span>
+            <span>${item.timestamp}</span>
+          </div>
+          <div style="margin-top: 5px; color: #ccc; font-size: 0.8em;">
+            ${item.success ? '✅ Success' : '❌ Error: ' + item.error}
+            ${item.execution_time_ms ? ` (${item.execution_time_ms}ms)` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Clear parameter inputs
+    function clearParameters() {
+      document.querySelectorAll('[data-param]').forEach(input => {
+        input.value = '';
+      });
+    }
+
+    // Function selection for action-based tools
+    function selectFunction(action) {
+      selectedFunction = action;
+      
+      // Update visual selection
+      document.querySelectorAll('.function-card').forEach(card => card.classList.remove('selected'));
+      document.querySelector(`[data-action="${action}"]`).classList.add('selected');
+      
+      // Show function parameters
+      const functionParamsDiv = document.getElementById('function-parameters');
+      const dynamicParamsDiv = document.getElementById('dynamic-parameters');
+      
+      functionParamsDiv.style.display = 'block';
+      
+      // Get action details
+      const requiredParams = selectedTool.parameters.required || [];
+      const optionalParams = selectedTool.parameters.optional || [];
+      const actionParam = [...requiredParams, ...optionalParams].find(p => p.name === 'action');
+      
+      if (actionParam && actionParam.actions_detail && actionParam.actions_detail[action]) {
+        const actionDetail = actionParam.actions_detail[action];
+        const actionParameters = actionDetail.parameters || [];
+        
+        // Render dynamic parameters for this action
+        dynamicParamsDiv.innerHTML = `
+          <div style="margin-bottom: 15px; padding: 10px; border: 1px solid #666; background: #000011;">
+            <h5 style="color: #00ffff; margin: 0 0 10px 0;">Function: ${action.toUpperCase()}</h5>
+            <div style="color: #999; font-size: 0.9em;">${actionDetail.description}</div>
+          </div>
+          
+          ${actionParameters.length > 0 ? 
+            actionParameters.map(param => renderActionParameterControl(param)).join('') :
+            '<div style="color: #666; font-style: italic;">No additional parameters required</div>'
+          }
+          
+          ${renderCommonParameters()}
+        `;
+      }
+    }
+
+    // Render parameter control for action-specific parameters
+    function renderActionParameterControl(param) {
+      // Use similar logic to renderParameterControl but for action params
+      return `
+        <div class="parameter-group">
+          <label class="parameter-label ${param.required ? 'parameter-required' : 'parameter-optional'}">
+            ${param.name}${param.required ? ' *' : ''} (string)
+            <div style="color: #999; font-size: 0.9em; margin-top: 3px;">${param.description}</div>
+          </label>
+          <input type="text" id="action-param-${param.name}" data-action-param="${param.name}" 
+                 placeholder="Enter ${param.name}">
+        </div>
+      `;
+    }
+
+    // Render common parameters that might be needed (like target, color, etc.)
+    function renderCommonParameters() {
+      if (!selectedTool) return '';
+      
+      const requiredParams = selectedTool.parameters.required || [];
+      const optionalParams = selectedTool.parameters.optional || [];
+      
+      // Find params parameter which might have properties
+      const paramsParam = [...requiredParams, ...optionalParams].find(p => p.name === 'params');
+      
+      if (paramsParam && paramsParam.properties) {
+        return `
+          <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
+            <h5 style="color: #ffff00; margin-bottom: 10px;">Additional Parameters</h5>
+            ${Object.entries(paramsParam.properties).map(([name, prop]) => {
+              return renderParameterControlFromProperty(name, prop);
+            }).join('')}
+          </div>
+        `;
+      }
+      
+      return '';
+    }
+
+    // Render parameter control from property definition
+    function renderParameterControlFromProperty(name, prop) {
+      let control = '';
+      
+      if (prop.enum && prop.enum.length > 0) {
+        control = `
+          <select id="common-param-${name}" data-common-param="${name}" data-type="${prop.type}">
+            <option value="">-- Select ${name} --</option>
+            ${prop.enum.map(value => `<option value="${value}">${value}</option>`).join('')}
+          </select>
+        `;
+      } else if (prop.type === 'boolean') {
+        control = `
+          <input type="checkbox" id="common-param-${name}" data-common-param="${name}" data-type="boolean">
+        `;
+      } else {
+        const placeholder = prop.examples ? 
+          `Enter ${name} (examples: ${prop.examples.slice(0, 2).join(', ')})` : 
+          `Enter ${name}`;
+        control = `
+          <input type="text" id="common-param-${name}" data-common-param="${name}" data-type="${prop.type}"
+                 placeholder="${placeholder}">
+        `;
+      }
+      
+      return `
+        <div class="parameter-group">
+          <label class="parameter-label parameter-optional">
+            ${name} (${prop.type})
+            ${prop.description ? `<div style="color: #999; font-size: 0.9em; margin-top: 3px;">${prop.description}</div>` : ''}
+            ${prop.examples ? `<div style="color: #666; font-size: 0.8em; margin-top: 3px;">Examples: ${prop.examples.join(', ')}</div>` : ''}
+          </label>
+          ${control}
+        </div>
+      `;
+    }
+
+    // Execute function (for action-based tools)
+    async function executeFunction() {
+      if (!selectedTool || !selectedFunction) {
+        alert('Please select a tool and function first');
+        return;
+      }
+
+      // Collect action parameters
+      const actionParams = {};
+      document.querySelectorAll('[data-action-param]').forEach(input => {
+        const paramName = input.dataset.actionParam;
+        const value = input.value.trim();
+        if (value) actionParams[paramName] = value;
+      });
+
+      // Collect common parameters
+      const commonParams = {};
+      document.querySelectorAll('[data-common-param]').forEach(input => {
+        const paramName = input.dataset.commonParam;
+        const paramType = input.dataset.type;
+        const value = input.type === 'checkbox' ? input.checked : input.value.trim();
+        
+        if (value !== '' && value !== false) {
+          if (paramType === 'boolean') {
+            commonParams[paramName] = value;
+          } else {
+            commonParams[paramName] = value;
+          }
+        }
+      });
+
+      // Merge action-specific and common parameters
+      const allParams = { ...actionParams, ...commonParams };
+
+      // Build the parameters for tool execution
+      const toolParams = {
+        action: selectedFunction,
+        params: JSON.stringify(allParams)
+      };
+
+      await executeToolWithParams(toolParams);
+    }
+
+    // Execute tool with specific parameters
+    async function executeToolWithParams(parameters) {
+      const resultDiv = document.getElementById('latest-result');
+      resultDiv.innerHTML = '⏳ Executing tool...';
+      resultDiv.className = 'result-display';
+
+      try {
+        const response = await fetch(`/admin/api/tools/${selectedTool.name}/execute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parameters })
+        });
+
+        const result = await response.json();
+        displayResult(result);
+        addToHistory(result);
+      } catch (err) {
+        const errorResult = {
+          success: false,
+          error: err.message,
+          tool_name: selectedTool.name,
+          parameters
+        };
+        displayResult(errorResult);
+        addToHistory(errorResult);
+      }
+    }
+
+    // Clear function parameters
+    function clearFunctionParameters() {
+      document.querySelectorAll('[data-action-param], [data-common-param]').forEach(input => {
+        if (input.type === 'checkbox') {
+          input.checked = false;
+        } else {
+          input.value = '';
+        }
+      });
+    }
+
+    // Generate OpenAI function specifications
+    async function generateFunctionSpecs() {
+      const toolNames = document.getElementById('function-tools').value.trim();
+      const specsDiv = document.getElementById('function-specs');
+      
+      specsDiv.innerHTML = '⏳ Generating function specifications...';
+
+      try {
+        let url = '/admin/api/tools/openai-functions';
+        if (toolNames) {
+          url += `?tools=${encodeURIComponent(toolNames)}`;
+        }
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+          specsDiv.innerHTML = `<div class="json-display">${JSON.stringify(data.functions, null, 2)}</div>`;
+        } else {
+          specsDiv.innerHTML = `<div class="result-error">Error: ${data.error}</div>`;
+        }
+      } catch (err) {
+        specsDiv.innerHTML = `<div class="result-error">Failed to generate specs: ${err.message}</div>`;
+      }
+    }
+
+    // Load character-specific tools
+    async function loadCharacterTools(character) {
+      // Update visual selection
+      document.querySelectorAll('.character-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const toolsDiv = document.getElementById('character-tools');
+      toolsDiv.innerHTML = `⏳ Loading tools for ${character}...`;
+
+      try {
+        const response = await fetch(`/admin/api/tools/openai-functions?character=${character}`);
+        const data = await response.json();
+
+        if (data.success) {
+          toolsDiv.innerHTML = `
+            <h3>Tools for Character: ${character.toUpperCase()}</h3>
+            <p style="color: #ccc; margin-bottom: 15px;">
+              Found ${data.functions.length} tools configured for this character
+            </p>
+            <div class="json-display">${JSON.stringify(data.functions, null, 2)}</div>
+          `;
+        } else {
+          toolsDiv.innerHTML = `<div class="result-error">Error: ${data.error}</div>`;
+        }
+      } catch (err) {
+        toolsDiv.innerHTML = `<div class="result-error">Failed to load character tools: ${err.message}</div>`;
+      }
+    }
+  </script>
+</body>
+</html>

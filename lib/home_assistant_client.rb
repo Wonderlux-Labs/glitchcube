@@ -6,8 +6,11 @@ require 'uri'
 require 'timeout'
 require_relative 'services/circuit_breaker_service'
 require_relative 'services/logger_service'
+require_relative 'helpers/log_helper'
+require_relative 'modules/error_handling'
 
 class HomeAssistantClient
+  include ErrorHandling
   class Error < StandardError; end
   class AuthenticationError < Error; end
   class NotFoundError < Error; end
@@ -95,7 +98,9 @@ class HomeAssistantClient
 
     # Use tts.speak service with Home Assistant cloud TTS only
     begin
-      call_service('tts', 'speak', {
+      LogHelper.log("🔊 TTS Request: '#{message}' to #{target_entity}")
+      
+      result = call_service('tts', 'speak', {
                      target: {
                        entity_id: 'tts.home_assistant_cloud'
                      },
@@ -104,10 +109,21 @@ class HomeAssistantClient
                        message: message
                      }
                    })
+      
+      LogHelper.success("TTS Success: Response = #{result.inspect}")
       true
     rescue Error => e
-      puts "⚠️  Home Assistant TTS failed: #{e.message}"
-      puts '🔇 Continuing without TTS'
+      LogHelper.error("Home Assistant TTS failed: #{e.message}")
+      LogHelper.error("   Entity: #{target_entity}")
+      LogHelper.error("   Message: #{message}")
+      LogHelper.error("   Error Class: #{e.class}")
+      LogHelper.warning('Continuing without TTS')
+      false
+    rescue StandardError => e
+      LogHelper.error("Unexpected TTS error: #{e.class} - #{e.message}")
+      LogHelper.error("   Entity: #{target_entity}")  
+      LogHelper.error("   Message: #{message}")
+      LogHelper.error("   Backtrace: #{e.backtrace.first(3).join("\n   ")}")
       false
     end
   end
@@ -133,10 +149,10 @@ class HomeAssistantClient
     }
     data[:icon] = icon if icon
 
-    call_service('script', 'awtrix_send_custom_app', data)
-  rescue Error => e
-    puts "⚠️  Failed to send text to AWTRIX: #{e.message}"
-    false
+    with_error_handling('awtrix_display_text', fallback: false, reraise_unexpected: false) do
+      call_service('script', 'awtrix_send_custom_app', data)
+      true
+    end
   end
 
   def awtrix_notify(text, color: '#FFFFFF', duration: 8, sound: nil, icon: nil, wakeup: true, stack: true)
@@ -150,27 +166,27 @@ class HomeAssistantClient
     data[:sound] = sound if sound
     data[:icon] = icon if icon
 
-    call_service('script', 'awtrix_send_notification', data)
-  rescue Error => e
-    puts "⚠️  Failed to send notification to AWTRIX: #{e.message}"
-    false
+    with_error_handling('awtrix_notify', fallback: false, reraise_unexpected: false) do
+      call_service('script', 'awtrix_send_notification', data)
+      true
+    end
   end
 
   def awtrix_clear_display
-    call_service('script', 'awtrix_clear_display', {})
-  rescue Error => e
-    puts "⚠️  Failed to clear AWTRIX display: #{e.message}"
-    false
+    with_error_handling('awtrix_clear_display', fallback: false, reraise_unexpected: false) do
+      call_service('script', 'awtrix_clear_display', {})
+      true
+    end
   end
 
   def awtrix_mood_light(color, brightness: 100)
-    call_service('script', 'awtrix_set_mood_light', {
-                   color: color,
-                   brightness: brightness
-                 })
-  rescue Error => e
-    puts "⚠️  Failed to set AWTRIX mood light: #{e.message}"
-    false
+    with_error_handling('awtrix_mood_light', fallback: false, reraise_unexpected: false) do
+      call_service('script', 'awtrix_set_mood_light', {
+                     color: color,
+                     brightness: brightness
+                   })
+      true
+    end
   end
 
   # Sensor readings

@@ -2,10 +2,11 @@
 
 require 'httparty'
 require 'json'
+require_relative 'base_tool'
 
 # Tool for interacting with Home Assistant
 # Allows the AI to control lights, check sensors, and interact with the physical cube
-class HomeAssistantTool
+class HomeAssistantTool < BaseTool
   def self.name
     'home_assistant'
   end
@@ -14,61 +15,51 @@ class HomeAssistantTool
     'Control Home Assistant devices and check sensors. For sensor readings use action: "get_sensors". For lights use action: "set_light" with params like {"brightness": 50, "rgb_color": [255,0,0]}. For speaking use action: "speak" with params {"message": "text"}. Args: action (string), params (string) - JSON parameters'
   end
 
+  def self.parameters
+    {
+      'action' => {
+        type: 'string',
+        description: 'Action to perform',
+        enum: %w[get_sensors set_light speak run_script]
+      },
+      'params' => {
+        type: 'object',
+        description: 'Parameters for the action (JSON object)'
+      }
+    }
+  end
+
+  def self.required_parameters
+    %w[action]
+  end
+
+  def self.category
+    'system_integration'
+  end
+
   def self.call(action:, params: '{}')
-    # Parse params if it's a string
-    params = JSON.parse(params) if params.is_a?(String)
-
-    # Use mock HA in development if enabled
-    base_url = if GlitchCube.config.home_assistant.mock_enabled && !GlitchCube.config.test?
-                 "http://localhost:#{GlitchCube.config.port}/mock_ha"
-               elsif GlitchCube.config.home_assistant.mock_enabled && GlitchCube.config.test?
-                 # In tests, we'll use a stub instead of HTTP calls
-                 return mock_ha_response(action, params)
-               else
-                 GlitchCube.config.home_assistant.url
-               end
-
-    token = GlitchCube.config.home_assistant.mock_enabled ? 'mock-token-123' : GlitchCube.config.home_assistant.token
-
-    return 'Error: Home Assistant not configured. Set HOME_ASSISTANT_URL and HOME_ASSISTANT_TOKEN in .env' unless base_url && token
-
-    client = HomeAssistantClient.new(base_url: base_url, token: token)
+    validate_required_params({ 'action' => action }, ['action'])
+    params = parse_json_params(params)
 
     case action
     when 'get_sensors'
-      get_all_sensors(client)
+      get_all_sensors
     when 'set_light'
-      set_light_state(client, params)
+      set_light_state(params)
     when 'speak'
-      speak_message(client, params)
+      speak_message(params)
     when 'run_script'
-      run_ha_script(client, params)
+      run_ha_script(params)
     else
-      "Unknown action: #{action}. Available actions: get_sensors, set_light, speak, run_script"
+      format_response(false, "Unknown action: #{action}. Available actions: get_sensors, set_light, speak, run_script")
     end
+  rescue ValidationError => e
+    format_response(false, "Validation error: #{e.message}")
   rescue StandardError => e
-    "Error: #{e.message}"
+    format_response(false, "Error: #{e.message}")
   end
 
-  def self.mock_ha_response(action, params)
-    case action
-    when 'get_sensors'
-      'Battery Level: 85%, Temperature: 22.5°C, Humidity: 45%, Light Level: 250lux, Motion Detector: off, Sound Level: 42dB'
-    when 'set_light'
-      entity_id = params['entity_id'] || 'light.glitch_cube'
-      "Set #{entity_id} with brightness: #{params['brightness']}, color: #{params['rgb_color']}"
-    when 'speak'
-      message = params['message'] || 'Hello from Glitch Cube!'
-      "Speaking: \"#{message}\""
-    when 'run_script'
-      script_name = params['script_name']
-      "Executed script: #{script_name}"
-    else
-      "Unknown action: #{action}"
-    end
-  end
-
-  def self.get_all_sensors(client)
+  def self.get_all_sensors
     sensor_ids = %w[
       sensor.battery_level
       sensor.temperature
@@ -80,13 +71,13 @@ class HomeAssistantTool
 
     results = {}
     sensor_ids.each do |sensor_id|
-      state = client.state(sensor_id)
-      next unless state
+      state = get_ha_state(sensor_id)
+      next unless state.is_a?(Hash)
 
       results[sensor_id] = {
-        value: state['state'],
-        unit: state.dig('attributes', 'unit_of_measurement'),
-        friendly_name: state.dig('attributes', 'friendly_name')
+        value: state[:state],
+        unit: state[:attributes]['unit_of_measurement'],
+        friendly_name: state[:attributes]['friendly_name']
       }
     end
 
@@ -106,12 +97,11 @@ class HomeAssistantTool
     end
   end
 
-  def self.set_light_state(client, params)
+  def self.set_light_state(params)
     entity_id = params['entity_id'] || 'light.glitch_cube'
 
     if params['state'] == 'off'
-      response = client.call_service('light', 'turn_off', { entity_id: entity_id })
-      return "Turned off #{entity_id}" if response
+      call_ha_service('light', 'turn_off', { entity_id: entity_id })
     else
       # Turn on with optional parameters
       service_data = { entity_id: entity_id }
@@ -119,33 +109,28 @@ class HomeAssistantTool
       service_data[:rgb_color] = params['rgb_color'] if params['rgb_color']
       service_data[:transition] = params['transition'] || 2
 
-      response = client.call_service('light', 'turn_on', service_data)
-      return "Set #{entity_id} with brightness: #{params['brightness']}, color: #{params['rgb_color']}" if response
+      call_ha_service('light', 'turn_on', service_data)
     end
-
-    'Failed to control light'
   end
 
-  def self.speak_message(client, params)
+  def self.speak_message(params)
     message = params['message'] || 'Hello from Glitch Cube!'
     entity_id = params['entity_id'] || 'media_player.square_voice'
 
-    # Use the unified HomeAssistantClient.speak method
-    success = client.speak(message, entity_id: entity_id)
+    # Use TTS service through HA
+    result = call_ha_service('tts', 'speak', {
+      entity_id: entity_id,
+      message: message
+    })
 
-    success ? "Speaking: \"#{message}\"" : 'Failed to speak message'
+    result.include?('✅') ? "Speaking: \"#{message}\"" : 'Failed to speak message'
   end
 
-  def self.run_ha_script(client, params)
+  def self.run_ha_script(params)
     script_name = params['script_name']
-    return 'Error: script_name required' unless script_name
+    return format_response(false, 'script_name required') unless script_name
 
     variables = params['variables'] || {}
-    response = client.call_service('script', script_name, variables)
-
-    response ? "Executed script: #{script_name}" : 'Failed to run script'
+    call_ha_script(script_name, variables)
   end
 end
-
-# Use the main HomeAssistantClient from ../home_assistant_client.rb
-require_relative '../home_assistant_client'

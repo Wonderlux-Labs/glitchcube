@@ -13,20 +13,21 @@ require_relative '../services/conversation_feedback_service'
 require_relative '../home_assistant_client'
 require_relative 'conversation_responses'
 require_relative 'conversation_enhancements'
+require_relative 'error_handling'
 
 class ConversationModule
   include ConversationEnhancements
+  include ErrorHandling
 
   def call(message:, context: {}, persona: nil, mood: nil)
     # Use persona from context or default, also support legacy mood parameter
     persona ||= mood || context[:persona] || context[:mood] || 'neutral'
 
     # Set LED feedback to listening state at start of conversation
-    begin
-      Services::ConversationFeedbackService.set_listening if context[:visual_feedback] != false
-    rescue StandardError => e
-      # Don't let LED feedback failures break conversations
-      puts "⚠️  LED feedback failed: #{e.message}"
+    if context[:visual_feedback] != false
+      with_error_handling('set_led_listening', fallback: nil, reraise_unexpected: false) do
+        Services::ConversationFeedbackService.set_listening
+      end
     end
 
     # Initialize conversation tracer
@@ -579,10 +580,6 @@ class ConversationModule
     start_time = Time.now
 
     begin
-      # Speak through TTSService for consistent testability
-      tts_service = Services::TTSService.new
-      tts_service.speak(response_text, context.merge(cache: true))
-
       # Use Home Assistant client directly for all TTS
       home_assistant = HomeAssistantClient.new
 

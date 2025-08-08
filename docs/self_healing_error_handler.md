@@ -146,7 +146,7 @@ STATISTICS:
 bundle exec rspec spec/services/error_handling_llm*
 
 # Test the system safely
-./test_self_healing.rb
+./scripts/testing_scripts/test_self_healing.rb
 
 # Check Redis for tracking
 redis-cli keys 'glitchcube:error_count:*'

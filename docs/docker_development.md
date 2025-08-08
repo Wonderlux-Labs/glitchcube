@@ -86,7 +86,7 @@ docker-compose exec -e COVERAGE=true glitchcube bundle exec rspec
 ### Testing Home Assistant Integration
 ```bash
 # Test real HA connection (disable mock)
-docker-compose exec -e MOCK_HOME_ASSISTANT=false glitchcube bundle exec ruby test_ha_connection.rb
+docker-compose exec -e MOCK_HOME_ASSISTANT=false glitchcube bundle exec ruby scripts/testing_scripts/test_ha_connection.rb
 
 # Test mock HA endpoints
 curl http://localhost:4567/mock_ha/api/states

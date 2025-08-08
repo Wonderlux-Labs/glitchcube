@@ -3,10 +3,10 @@
 source 'https://rubygems.org'
 
 # Core
-gem 'puma', '~> 6.6'
 gem 'rake', '~> 13.3'
 gem 'sinatra', '~> 4.1'
 gem 'sinatra-contrib', '~> 4.1'
+gem 'webrick', '~> 1.8'  # Simple server for single-user art installation
 
 # AI & API
 gem 'open_router', '~> 0.3'
@@ -47,7 +47,6 @@ gem 'json', '~> 2.13'
 
 # Development and Test
 group :development, :test do
-  gem 'foreman', '~> 0.88', require: false # Process management for Procfile
   gem 'pry', '~> 0.15'
   gem 'rack-test', '~> 2.2'
   gem 'rspec', '~> 3.13'

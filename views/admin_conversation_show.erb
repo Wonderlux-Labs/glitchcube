@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Conversation Debug View - <%= @session_id %></title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .panel {
+      border: 1px solid #0f0;
+      padding: 20px;
+      background: #001100;
+      margin-bottom: 20px;
+    }
+    h1, h2, h3 {
+      color: #00ff00;
+      text-shadow: 0 0 10px #0f0;
+    }
+    .nav {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #333;
+      background: #001100;
+    }
+    .nav a {
+      color: #00ff00;
+      text-decoration: none;
+      margin-right: 20px;
+    }
+    .nav a:hover {
+      text-shadow: 0 0 10px #0f0;
+    }
+    .message {
+      margin: 20px 0;
+      padding: 15px;
+      border-left: 4px solid #0f0;
+      background: #001100;
+    }
+    .user-message {
+      border-left-color: #00ff00;
+      background: #001100;
+    }
+    .assistant-message {
+      border-left-color: #00ffff;
+      background: #000011;
+    }
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    .message-content {
+      white-space: pre-wrap;
+      margin: 10px 0;
+      line-height: 1.4;
+    }
+    .message-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #333;
+      font-size: 0.9em;
+      color: #888;
+    }
+    .trace-link {
+      color: #ff00ff;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .trace-link:hover {
+      color: #ff99ff;
+    }
+    .analytics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .metric {
+      text-align: center;
+      padding: 15px;
+      border: 1px solid #333;
+      background: #002200;
+    }
+    .metric-value {
+      font-size: 1.5em;
+      font-weight: bold;
+      color: #00ff00;
+    }
+    .metric-label {
+      font-size: 0.9em;
+      color: #888;
+      margin-top: 5px;
+    }
+    .tool-calls, .memory-injections {
+      margin-top: 15px;
+    }
+    .tool-call {
+      background: #110011;
+      border: 1px solid #ff00ff;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 3px;
+    }
+    .memory-injection {
+      background: #111100;
+      border: 1px solid #ffff00;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 3px;
+    }
+    .memory-list {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #333;
+      padding: 10px;
+    }
+    .memory-item {
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #444;
+      background: #001111;
+    }
+    .memory-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .error {
+      color: #ff0000;
+      background: #330000;
+      border: 1px solid #ff0000;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .loading {
+      text-align: center;
+      color: #666;
+      font-style: italic;
+    }
+    .expand-toggle {
+      cursor: pointer;
+      color: #888;
+      font-size: 0.9em;
+      margin-left: 10px;
+    }
+    .expand-toggle:hover {
+      color: #fff;
+    }
+    .expandable {
+      display: none;
+    }
+    .expandable.expanded {
+      display: block;
+    }
+    input, select {
+      background: #000;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 5px;
+      font-family: monospace;
+    }
+    button {
+      background: #003300;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 8px 15px;
+      cursor: pointer;
+      font-family: monospace;
+      margin: 5px;
+    }
+    button:hover {
+      background: #005500;
+    }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <a href="/admin/simple">← Simple Admin</a>
+    <a href="/admin/advanced">Advanced Admin</a>
+    <a href="/admin">Main Admin</a>
+    <a href="/admin/conversations">All Conversations</a>
+  </div>
+
+  <h1>🔍 Conversation Debug View</h1>
+  <h2 style="color: #00ffff;">Session: <%= @session_id %></h2>
+
+  <!-- Session Lookup -->
+  <div class="panel">
+    <h3>Session Lookup</h3>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <input type="text" id="session-lookup" placeholder="Enter session ID" value="<%= @session_id %>">
+      <button onclick="loadSession()">Load Session</button>
+      <button onclick="refreshSession()">Refresh Current</button>
+    </div>
+  </div>
+
+  <!-- Analytics Overview -->
+  <div class="panel">
+    <h3>📊 Analytics</h3>
+    <div id="analytics" class="analytics">
+      <div class="loading">Loading analytics...</div>
+    </div>
+  </div>
+
+  <!-- Conversation Flow -->
+  <div class="panel">
+    <h3>💬 Conversation Flow</h3>
+    <div id="conversation-flow">
+      <div class="loading">Loading conversation...</div>
+    </div>
+  </div>
+
+  <!-- Related Memories -->
+  <div class="panel">
+    <h3>🧠 Related Memories</h3>
+    <div id="memories" class="memory-list">
+      <div class="loading">Loading memories...</div>
+    </div>
+  </div>
+
+  <!-- Conversation Traces -->
+  <div class="panel">
+    <h3>🔍 Execution Traces</h3>
+    <div id="traces">
+      <div class="loading">Loading traces...</div>
+    </div>
+  </div>
+
+  <script>
+    let currentSession = '<%= @session_id %>';
+    let conversationData = null;
+
+    async function loadSession() {
+      const sessionId = document.getElementById('session-lookup').value.trim();
+      if (!sessionId) {
+        alert('Please enter a session ID');
+        return;
+      }
+      
+      if (sessionId !== currentSession) {
+        window.location.href = `/admin/conversations/${encodeURIComponent(sessionId)}`;
+        return;
+      }
+      
+      await loadConversationData();
+    }
+
+    async function refreshSession() {
+      await loadConversationData();
+    }
+
+    async function loadConversationData() {
+      try {
+        const response = await fetch(`/admin/api/conversations/${encodeURIComponent(currentSession)}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+          showError('Failed to load conversation: ' + (data.error || 'Unknown error'));
+          return;
+        }
+        
+        conversationData = data;
+        renderAnalytics(data.analytics);
+        renderConversationFlow(data.messages, data.traces);
+        renderMemories(data.memories);
+        renderTraces(data.traces);
+      } catch (err) {
+        showError('Error loading conversation: ' + err.message);
+      }
+    }
+
+    function renderAnalytics(analytics) {
+      const analyticsDiv = document.getElementById('analytics');
+      analyticsDiv.innerHTML = `
+        <div class="metric">
+          <div class="metric-value">${analytics.total_messages}</div>
+          <div class="metric-label">Messages</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">$${analytics.total_cost.toFixed(6)}</div>
+          <div class="metric-label">Total Cost</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">${analytics.total_tokens.toLocaleString()}</div>
+          <div class="metric-label">Total Tokens</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">${analytics.total_prompt_tokens.toLocaleString()}</div>
+          <div class="metric-label">Prompt Tokens</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">${analytics.total_completion_tokens.toLocaleString()}</div>
+          <div class="metric-label">Completion Tokens</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">$${analytics.avg_cost_per_message.toFixed(6)}</div>
+          <div class="metric-label">Avg Cost/Message</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">${Math.round(analytics.conversation_duration / 60)}m</div>
+          <div class="metric-label">Duration</div>
+        </div>
+      `;
+    }
+
+    function renderConversationFlow(messages, traces) {
+      const flowDiv = document.getElementById('conversation-flow');
+      
+      if (!messages || messages.length === 0) {
+        flowDiv.innerHTML = '<div style="color: #666;">No messages found in this conversation.</div>';
+        return;
+      }
+
+      // Group traces by message for easier lookup
+      const tracesByTimestamp = {};
+      traces.forEach(trace => {
+        const time = new Date(trace.started_at).getTime();
+        tracesByTimestamp[time] = trace;
+      });
+
+      flowDiv.innerHTML = messages.map(msg => {
+        const messageTime = new Date(msg.created_at).getTime();
+        
+        // Find the closest trace for this message
+        let closestTrace = null;
+        let minDiff = Infinity;
+        Object.entries(tracesByTimestamp).forEach(([time, trace]) => {
+          const diff = Math.abs(parseInt(time) - messageTime);
+          if (diff < minDiff && diff < 60000) { // Within 1 minute
+            minDiff = diff;
+            closestTrace = trace;
+          }
+        });
+
+        const isUser = msg.role === 'user';
+        const className = isUser ? 'user-message' : 'assistant-message';
+        
+        // Extract tool calls and memory injections from trace
+        let toolCalls = [];
+        let memoryInjections = [];
+        
+        if (closestTrace && closestTrace.traces) {
+          toolCalls = closestTrace.traces.filter(t => t.service === 'ToolExecutor');
+          memoryInjections = closestTrace.traces.filter(t => t.service === 'MemoryRecallService');
+        }
+
+        return `
+          <div class="message ${className}">
+            <div class="message-header">
+              <span style="color: ${isUser ? '#00ff00' : '#00ffff'};">
+                ${msg.role.toUpperCase()} ${msg.persona ? `(${msg.persona})` : ''}
+              </span>
+              <span style="color: #666; font-size: 0.9em;">
+                ${new Date(msg.created_at).toLocaleString()}
+                ${closestTrace ? `| <span class="trace-link" onclick="viewTrace('${closestTrace.trace_id}')">View Trace</span>` : ''}
+              </span>
+            </div>
+            
+            <div class="message-content">${escapeHtml(msg.content)}</div>
+            
+            <div class="message-meta">
+              ${!isUser ? `<div>Model: ${msg.model || 'unknown'}</div>` : ''}
+              ${!isUser && msg.cost ? `<div>Cost: $${msg.cost.toFixed(6)}</div>` : ''}
+              ${!isUser && msg.prompt_tokens ? `<div>Tokens: ${msg.prompt_tokens}/${msg.completion_tokens}</div>` : ''}
+              ${!isUser ? `<div>Continue: ${msg.continue_conversation ? 'Yes' : 'No'}</div>` : ''}
+            </div>
+            
+            ${toolCalls.length > 0 ? `
+              <div class="tool-calls">
+                <div style="font-weight: bold; color: #ff00ff; margin-bottom: 5px;">
+                  🛠️ Tool Calls (${toolCalls.length})
+                  <span class="expand-toggle" onclick="toggleExpand(this, 'tools-${msg.id}')">▶ Show</span>
+                </div>
+                <div id="tools-${msg.id}" class="expandable">
+                  ${toolCalls.map(tool => `
+                    <div class="tool-call">
+                      <strong>${tool.action}</strong>
+                      ${tool.data ? `<div style="margin-top: 5px; color: #ccc; font-size: 0.9em;">${JSON.stringify(tool.data, null, 2)}</div>` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+            
+            ${memoryInjections.length > 0 ? `
+              <div class="memory-injections">
+                <div style="font-weight: bold; color: #ffff00; margin-bottom: 5px;">
+                  🧠 Memory Injections (${memoryInjections.length})
+                  <span class="expand-toggle" onclick="toggleExpand(this, 'memories-${msg.id}')">▶ Show</span>
+                </div>
+                <div id="memories-${msg.id}" class="expandable">
+                  ${memoryInjections.map(memory => `
+                    <div class="memory-injection">
+                      <strong>Memory Recall</strong>
+                      ${memory.data ? `<div style="margin-top: 5px; color: #ccc; font-size: 0.9em;">${JSON.stringify(memory.data, null, 2)}</div>` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderMemories(memories) {
+      const memoriesDiv = document.getElementById('memories');
+      
+      if (!memories || memories.length === 0) {
+        memoriesDiv.innerHTML = '<div style="color: #666;">No related memories found.</div>';
+        return;
+      }
+
+      memoriesDiv.innerHTML = memories.map(memory => `
+        <div class="memory-item">
+          <div class="memory-header">
+            <span style="color: #ffff00;">${memory.category || 'Unknown'}</span>
+            <span style="color: #666;">${new Date(memory.created_at).toLocaleString()}</span>
+          </div>
+          <div style="margin: 10px 0;">${escapeHtml(memory.content)}</div>
+          ${memory.data && Object.keys(memory.data).length > 0 ? `
+            <div style="font-size: 0.9em; color: #888;">
+              ${Object.entries(memory.data).map(([key, value]) => 
+                `<span>${key}: ${JSON.stringify(value)}</span>`
+              ).join(' | ')}
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+
+    function renderTraces(traces) {
+      const tracesDiv = document.getElementById('traces');
+      
+      if (!traces || traces.length === 0) {
+        tracesDiv.innerHTML = '<div style="color: #666;">No traces found for this conversation.</div>';
+        return;
+      }
+
+      tracesDiv.innerHTML = traces.map(trace => `
+        <div class="memory-item" style="cursor: pointer;" onclick="viewTrace('${trace.trace_id}')">
+          <div class="memory-header">
+            <span style="color: #ff00ff;">Trace: ${trace.trace_id}</span>
+            <span style="color: #666;">${new Date(trace.started_at).toLocaleString()}</span>
+          </div>
+          <div style="color: #888;">
+            Duration: ${trace.total_duration_ms}ms | Steps: ${trace.total_steps}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function viewTrace(traceId) {
+      window.open(`/admin/advanced#trace-${traceId}`, '_blank');
+    }
+
+    function toggleExpand(toggle, targetId) {
+      const target = document.getElementById(targetId);
+      const isExpanded = target.classList.contains('expanded');
+      
+      if (isExpanded) {
+        target.classList.remove('expanded');
+        toggle.textContent = '▶ Show';
+      } else {
+        target.classList.add('expanded');
+        toggle.textContent = '▼ Hide';
+      }
+    }
+
+    function showError(message) {
+      const errorDiv = `<div class="error">${escapeHtml(message)}</div>`;
+      document.getElementById('analytics').innerHTML = errorDiv;
+      document.getElementById('conversation-flow').innerHTML = errorDiv;
+      document.getElementById('memories').innerHTML = errorDiv;
+      document.getElementById('traces').innerHTML = errorDiv;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Load data when page loads
+    window.onload = function() {
+      loadConversationData();
+    };
+  </script>
+</body>
+</html>

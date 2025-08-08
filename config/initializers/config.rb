@@ -236,3 +236,14 @@ rescue StandardError => e
   puts "❌ Configuration error: #{e.message}"
   raise if ENV['RACK_ENV'] == 'production'
 end
+
+# TODO: Fix base_tool implementation before enabling
+# Initialize tool registry
+# begin
+#   require_relative '../../lib/services/tool_registry_service'
+#   Services::ToolRegistryService.initialize!
+# rescue StandardError => e
+#   puts "⚠️  Tool registry initialization failed: #{e.message}"
+#   # Don't fail startup if tools can't load in dev
+#   raise if ENV['RACK_ENV'] == 'production'
+# end

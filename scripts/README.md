@@ -2,6 +2,9 @@
 
 ## Essential Scripts
 
+### Testing Scripts
+Development and debugging scripts are organized in `testing_scripts/`. See [testing_scripts/README.md](testing_scripts/README.md) for details.
+
 ### Deployment Scripts
 All deployment scripts have been moved to the `deploy/` subdirectory. See [deploy/README.md](deploy/README.md) for details.
 

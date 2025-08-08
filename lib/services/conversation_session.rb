@@ -15,12 +15,20 @@ module Services
       def find_or_create(session_id: nil, context: {})
         session_id ||= SecureRandom.uuid
 
-        # Use ActiveRecord to find or create
+        # Use ActiveRecord to find or create with explicit save
         conversation = ::Conversation.find_or_create_by(session_id: session_id) do |c|
           c.source = context[:source] || 'api'
           c.persona = context[:persona] || 'neutral'
           c.started_at = Time.current
           c.metadata = context.except(:session_id, :source, :persona)
+        end
+
+        # Ensure the record is persisted (find_or_create_by should do this, but let's be explicit)
+        conversation.save! if conversation.new_record?
+        
+        # Verify it's in the database
+        unless ::Conversation.exists?(session_id: session_id)
+          raise "Failed to persist conversation with session_id: #{session_id}"
         end
 
         new(conversation)

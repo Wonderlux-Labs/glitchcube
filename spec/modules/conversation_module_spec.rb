@@ -127,11 +127,20 @@ RSpec.describe ConversationModule do
       end
 
       it 'still speaks the fallback response' do
-        tts_service_double = instance_double(Services::TTSService)
-        allow(Services::TTSService).to receive(:new).and_return(tts_service_double)
-        expect(tts_service_double).to receive(:speak).with(
+        # The code now uses HomeAssistantClient directly for TTS
+        ha_client_double = instance_double(HomeAssistantClient)
+        allow(HomeAssistantClient).to receive(:new).and_return(ha_client_double)
+        
+        # Mock all the methods that might be called
+        allow(ha_client_double).to receive(:state).and_return(nil)
+        allow(ha_client_double).to receive(:call_service).and_return(true)
+        allow(ha_client_double).to receive(:awtrix_display_text).and_return(true)
+        allow(ha_client_double).to receive(:awtrix_mood_light).and_return(true)
+        
+        # Expect the HomeAssistantClient to speak the fallback response
+        expect(ha_client_double).to receive(:speak).with(
           a_string_matching(/offline|capabilities|present|moment|spirit|connectivity|unavailable/i),
-          hash_including(mood: 'neutral', cache: true)
+          entity_id: 'media_player.square_voice'
         ).and_return(true)
 
         module_instance.call(message: message, context: context, mood: mood)

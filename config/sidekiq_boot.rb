@@ -3,19 +3,7 @@
 # Sidekiq boot file - ensures proper environment setup for workers
 # This file is loaded by Sidekiq to initialize the worker environment
 
-# Set environment
-ENV['RACK_ENV'] ||= 'development'
-
-# Load environment variables in correct order
-# Priority (lowest to highest): .env.defaults < .env.{environment} < .env < ENV vars
-# Dotenv.load uses reverse order - first file wins, so we list from most to least specific
-require 'dotenv'
-Dotenv.load(
-  '.env', # User overrides (highest file priority)
-  ".env.#{ENV.fetch('RACK_ENV', nil)}", # Environment-specific settings
-  '.env.defaults' # Base defaults (lowest file priority)
-)
-# Manually set ENV vars always have highest priority (not overwritten by Dotenv)
+require_relative '../config/environment'
 
 # CRITICAL: Load and configure database BEFORE loading app
 # This ensures Sidekiq uses the correct database configuration

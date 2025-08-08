@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Glitch Cube Admin - Simple</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #000;
+      color: #0f0;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .panel {
+      border: 1px solid #0f0;
+      padding: 20px;
+      margin-bottom: 20px;
+      background: #001100;
+    }
+    h1, h2 { color: #00ff00; }
+    input, textarea, select {
+      background: #000;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 10px;
+      width: 100%;
+      box-sizing: border-box;
+      font-family: monospace;
+    }
+    button {
+      background: #003300;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-family: monospace;
+      margin: 5px;
+    }
+    button:hover {
+      background: #005500;
+    }
+    #conversation-display {
+      background: #000;
+      border: 1px solid #333;
+      padding: 10px;
+      min-height: 400px;
+      max-height: 600px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .message {
+      margin: 10px 0;
+      padding: 10px;
+      border-left: 3px solid #0f0;
+    }
+    .user { border-left-color: #00ff00; }
+    .assistant { border-left-color: #00ffff; }
+    .error { color: #ff0000; }
+    .status { color: #999; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <div style="margin-bottom: 20px;">
+    <a href="/admin" style="color: #00ff00; text-decoration: none;">← Main Admin</a> |
+    <a href="/admin/advanced" style="color: #ff00ff; text-decoration: none;">Advanced Admin</a> |
+    <a href="/admin/conversations" style="color: #00ffff; text-decoration: none;">🔍 Debug Conversations</a> |
+    <a href="/admin/tools" style="color: #ffff00; text-decoration: none;">🔧 Tools</a>
+  </div>
+
+  <h1>🎲 GLITCH CUBE ADMIN - SIMPLE</h1>
+  
+  <div class="panel">
+    <h2>Conversation Test</h2>
+    
+    <div>
+      <label>Session ID (leave blank for new):</label>
+      <input type="text" id="session-id" placeholder="auto-generate">
+    </div>
+    
+    <div>
+      <label>Persona:</label>
+      <select id="persona">
+        <option value="neutral">Neutral</option>
+        <option value="buddy">BUDDY</option>
+        <option value="jax">Jax</option>
+        <option value="lomi">LOMI</option>
+        <option value="playful">Playful</option>
+        <option value="contemplative">Contemplative</option>
+        <option value="mysterious">Mysterious</option>
+      </select>
+    </div>
+    
+    <div>
+      <label>Message:</label>
+      <textarea id="message" rows="3" placeholder="Type your message..."></textarea>
+    </div>
+    
+    <div>
+      <button onclick="sendMessage()">Send Message</button>
+      <button onclick="clearDisplay()">Clear Display</button>
+      <button onclick="newSession()">New Session</button>
+      <button onclick="proactiveSpeak()">Proactive Speak</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Conversation Display</h2>
+    <div id="conversation-display"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Quick Actions</h2>
+    <button onclick="checkStatus()">Check System Status</button>
+    <button onclick="extractMemories()">Extract Memories</button>
+    <button onclick="testTTS()">Test TTS</button>
+  </div>
+
+  <script>
+    let currentSessionId = null;
+    
+    function generateSessionId() {
+      return 'admin_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+    
+    function newSession() {
+      currentSessionId = generateSessionId();
+      document.getElementById('session-id').value = currentSessionId;
+      addToDisplay('New session: ' + currentSessionId, 'status');
+    }
+    
+    async function sendMessage() {
+      const message = document.getElementById('message').value;
+      if (!message.trim()) return;
+      
+      const sessionId = document.getElementById('session-id').value || currentSessionId || generateSessionId();
+      const persona = document.getElementById('persona').value;
+      
+      if (!currentSessionId) {
+        currentSessionId = sessionId;
+        document.getElementById('session-id').value = sessionId;
+      }
+      
+      addToDisplay('USER: ' + message, 'user');
+      
+      try {
+        const response = await fetch('/api/v1/conversation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: message,
+            context: {
+              session_id: sessionId,
+              persona: persona,
+              source: 'admin_simple'
+            }
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          addToDisplay('ASSISTANT: ' + (data.data.response || 'No response'), 'assistant');
+          addToDisplay(`[${data.data.model || 'unknown'} | tokens: ${data.data.tokens?.total || '?'} | cost: $${(data.data.cost || 0).toFixed(6)}]`, 'status');
+        } else {
+          addToDisplay('ERROR: ' + (data.error || 'Unknown error'), 'error');
+        }
+        
+        document.getElementById('message').value = '';
+      } catch (err) {
+        addToDisplay('ERROR: ' + err.message, 'error');
+      }
+    }
+    
+    async function proactiveSpeak() {
+      const persona = document.getElementById('persona').value;
+      
+      try {
+        const response = await fetch('/admin/proactive_conversation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ character: persona })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          addToDisplay('PROACTIVE (' + persona + '): ' + data.message, 'assistant');
+          currentSessionId = data.session_id;
+          document.getElementById('session-id').value = currentSessionId;
+        } else {
+          addToDisplay('ERROR: ' + data.error, 'error');
+        }
+      } catch (err) {
+        addToDisplay('ERROR: ' + err.message, 'error');
+      }
+    }
+    
+    async function checkStatus() {
+      try {
+        const response = await fetch('/admin/status');
+        const data = await response.json();
+        addToDisplay('SYSTEM STATUS:\n' + JSON.stringify(data, null, 2), 'status');
+      } catch (err) {
+        addToDisplay('ERROR checking status: ' + err.message, 'error');
+      }
+    }
+    
+    async function extractMemories() {
+      if (!currentSessionId) {
+        addToDisplay('No session to extract memories from', 'error');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/admin/extract_memories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: currentSessionId })
+        });
+        
+        const data = await response.json();
+        addToDisplay('Memory extraction: ' + (data.success ? 'Started' : 'Failed: ' + data.error), data.success ? 'status' : 'error');
+      } catch (err) {
+        addToDisplay('ERROR extracting memories: ' + err.message, 'error');
+      }
+    }
+    
+    async function testTTS() {
+      const message = document.getElementById('message').value || 'Hello, this is a test';
+      
+      try {
+        const response = await fetch('/admin/test_tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: message })
+        });
+        
+        const data = await response.json();
+        addToDisplay('TTS test: ' + (data.success ? 'Success' : 'Failed: ' + data.error), data.success ? 'status' : 'error');
+      } catch (err) {
+        addToDisplay('ERROR testing TTS: ' + err.message, 'error');
+      }
+    }
+    
+    function addToDisplay(text, className = '') {
+      const display = document.getElementById('conversation-display');
+      const div = document.createElement('div');
+      div.className = 'message ' + className;
+      div.textContent = text;
+      display.appendChild(div);
+      display.scrollTop = display.scrollHeight;
+      
+      // Add debug link if we have a current session
+      if (currentSessionId && className === 'status' && text.includes('session:')) {
+        const debugLink = document.createElement('div');
+        debugLink.innerHTML = `<a href="/admin/conversations/${currentSessionId}" target="_blank" style="color: #00ffff;">🔍 Debug this session</a>`;
+        display.appendChild(debugLink);
+      }
+    }
+    
+    function clearDisplay() {
+      document.getElementById('conversation-display').innerHTML = '';
+      addToDisplay('Display cleared', 'status');
+    }
+    
+    // Allow Enter key to send message
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('message').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

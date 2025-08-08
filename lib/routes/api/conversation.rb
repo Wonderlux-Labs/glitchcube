@@ -1,11 +1,15 @@
 # frozen_string_literal: true
 
 require_relative '../../services/conversation_session'
+require_relative '../../services/logger_service'
+require_relative '../../modules/error_handling'
 
 module GlitchCube
   module Routes
     module Api
       module Conversation
+        extend ErrorHandling
+        
         def self.registered(app)
           # Basic conversation test endpoint
           app.post '/api/v1/test' do
@@ -28,6 +32,10 @@ module GlitchCube
                      timestamp: Time.now.iso8601
                    })
             rescue StandardError => e
+              # Log the error
+              puts "❌ Error in /api/v1/test: #{e.class.name} - #{e.message}"
+              ::Services::LoggerService.track_error('api', e.message) if defined?(::Services::LoggerService)
+              
               status 500
               json({
                      success: false,
@@ -104,9 +112,9 @@ module GlitchCube
                             })
               end
 
-              # Find existing session with eager loading and row-level lock to prevent N+1 and race conditions
-              conversation = ::Conversation.includes(:messages).where(session_id: session_id).lock(true).first
-              unless conversation
+              # Use service layer to find existing session
+              session = ::Services::ConversationSession.find(session_id)
+              unless session
                 status 404
                 return json({
                               success: false,
@@ -114,9 +122,6 @@ module GlitchCube
                               timestamp: Time.now.iso8601
                             })
               end
-              
-              # Wrap in service object for consistent interface
-              session = ::Services::ConversationSession.new(conversation)
 
               # Process message in a DB transaction for session consistency
               result = nil
@@ -346,27 +351,56 @@ module GlitchCube
               # Process HA webhook events
               case request_body['event_type']
               when 'conversation_started'
-                # HA started a conversation - just acknowledge it
-                context = {
-                  ha_conversation_id: request_body['conversation_id'],
-                  device_id: request_body['device_id'],
-                  session_id: request_body['session_id'] || SecureRandom.uuid,
-                  voice_interaction: true
-                }
+                # HA started a conversation - create or find session using service layer
+                session_id = request_body['session_id'] || SecureRandom.uuid
+                session = ::Services::ConversationSession.find_or_create(
+                  session_id: session_id,
+                  context: {
+                    source: 'home_assistant_webhook',
+                    ha_conversation_id: request_body['conversation_id'],
+                    device_id: request_body['device_id'],
+                    voice_interaction: true
+                  }
+                )
 
                 json({
                        success: true,
-                       session_id: context[:session_id],
-                       ha_conversation_id: context[:ha_conversation_id]
+                       session_id: session.session_id,
+                       ha_conversation_id: request_body['conversation_id']
                      })
 
               when 'conversation_continued'
-                # HA is continuing a conversation - process through module directly
+                # HA is continuing a conversation - use existing session or create one
+                session_id = request_body['session_id']
+                
+                # Find existing session or create new one if not found
+                session = if session_id
+                            ::Services::ConversationSession.find(session_id) ||
+                            ::Services::ConversationSession.find_or_create(
+                              session_id: session_id,
+                              context: {
+                                source: 'home_assistant_webhook',
+                                ha_conversation_id: request_body['conversation_id'],
+                                device_id: request_body['device_id'],
+                                voice_interaction: true
+                              }
+                            )
+                          else
+                            ::Services::ConversationSession.find_or_create(
+                              context: {
+                                source: 'home_assistant_webhook',
+                                ha_conversation_id: request_body['conversation_id'],
+                                device_id: request_body['device_id'],
+                                voice_interaction: true
+                              }
+                            )
+                          end
+                
                 context = {
                   ha_conversation_id: request_body['conversation_id'],
                   device_id: request_body['device_id'],
                   voice_interaction: true,
-                  session_id: request_body['session_id'] || SecureRandom.uuid
+                  session_id: session.session_id
                 }
 
                 # Process the message through conversation module

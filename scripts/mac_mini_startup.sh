@@ -6,13 +6,26 @@
 
 set -e
 
+# LESSON LEARNED: Use absolute paths - LaunchAgent processes don't inherit shell configs
+# Define absolute paths for all tools
+BREW="/opt/homebrew/bin/brew"
+REDIS_CLI="/opt/homebrew/bin/redis-cli"
+PG_ISREADY="/opt/homebrew/bin/pg_isready"
+CURL="/usr/bin/curl"
+
 # Configuration
 GLITCHCUBE_DIR="/Users/eristmini/glitch/glitchcube"
-HASS_VM_IP="192.168.1.100"  # Update with actual VM IP
-HASS_VM_NAME="Home Assistant"  # VMware VM name
+
+# Set up Ruby environment early
+cd "$GLITCHCUBE_DIR"
+export ASDF_DATA_DIR="$HOME/.asdf"
+ASDF="/opt/homebrew/bin/asdf"
+"$ASDF" set ruby 3.4.1
+"$ASDF" reshim ruby
 LOG_FILE="/Users/eristmini/glitch/startup.log"
-MAX_RETRIES=30
-RETRY_DELAY=10
+INITIAL_WAIT=60  # Wait 60 seconds before first attempt
+MAX_RETRIES=30  # 30 attempts after initial wait
+RETRY_DELAY=10  # 10 seconds between attempts
 
 # Colors for output
 RED='\033[0;31m'
@@ -46,11 +59,11 @@ log "========================================="
 log_info "Checking Redis..."
 if ! pgrep -x "redis-server" > /dev/null; then
     log "Redis not running. Starting Redis..."
-    brew services start redis
+    "$BREW" services start redis
     sleep 3
     
     # Verify Redis started
-    if redis-cli ping > /dev/null 2>&1; then
+    if "$REDIS_CLI" ping > /dev/null 2>&1; then
         log_success "Redis started successfully"
     else
         log_error "Failed to start Redis"
@@ -62,14 +75,14 @@ fi
 
 # 2. Check and start PostgreSQL
 log_info "Checking PostgreSQL..."
-if ! pg_isready -q 2>/dev/null; then
+if ! "$PG_ISREADY" -q 2>/dev/null; then
     log "PostgreSQL not running. Starting PostgreSQL..."
-    brew services start postgresql@14  # Adjust version if needed
+    "$BREW" services start postgresql@14  # Adjust version if needed
     sleep 5
     
     # Wait for PostgreSQL to be ready
     for i in {1..10}; do
-        if pg_isready -q 2>/dev/null; then
+        if "$PG_ISREADY" -q 2>/dev/null; then
             log_success "PostgreSQL started successfully"
             break
         fi
@@ -84,48 +97,39 @@ else
 fi
 
 # 3. Start VMware Fusion (if not running)
-log_info "Checking VMware Fusion..."
+log_info "Starting VMware Fusion..."
 if ! pgrep -x "vmware-vmx" > /dev/null; then
-    log "Starting VMware Fusion..."
+    log "VMware not running, starting VMware Fusion..."
     open -a "VMware Fusion"
-    sleep 10
-fi
-
-# 4. Start Home Assistant VM if not running
-log_info "Checking Home Assistant VM..."
-# Check if VM is running using vmrun
-VMRUN="/Applications/VMware Fusion.app/Contents/Library/vmrun"
-if [ -f "$VMRUN" ]; then
-    # List running VMs and check for Home Assistant
-    if ! "$VMRUN" list | grep -q "$HASS_VM_NAME"; then
-        log "Starting Home Assistant VM..."
-        # Find the VM file (adjust path as needed)
-        VM_PATH="/Users/eristmini/Virtual Machines.localized/${HASS_VM_NAME}.vmwarevm/${HASS_VM_NAME}.vmx"
-        if [ -f "$VM_PATH" ]; then
-            "$VMRUN" start "$VM_PATH" nogui
-            sleep 20
-        else
-            log_error "VM file not found at $VM_PATH"
-            log "Please update VM_PATH in this script"
-        fi
-    else
-        log_success "Home Assistant VM already running"
-    fi
+    sleep 15
+    log_success "VMware Fusion started (VMs should auto-start)"
+else
+    log_success "VMware already running"
 fi
 
 # 5. Wait for Home Assistant to be accessible
-log_info "Waiting for Home Assistant to respond..."
+log_info "Checking if Home Assistant is responding..."
 HASS_UP=false
-for i in $(seq 1 $MAX_RETRIES); do
-    if curl -s -o /dev/null -w "%{http_code}" "http://${HASS_VM_IP}:8123" | grep -q "200\|401"; then
-        HASS_UP=true
-        log_success "Home Assistant is responding at ${HASS_VM_IP}:8123"
-        break
-    fi
+
+# First check if HA is already up
+if "$CURL" -s -o /dev/null -w "%{http_code}" "http://glitch.local:8123" | grep -q "200\|401"; then
+    HASS_UP=true
+    log_success "Home Assistant is already responding at glitch.local:8123"
+else
+    log_info "Home Assistant not ready, waiting $INITIAL_WAIT seconds..."
+    sleep $INITIAL_WAIT
     
-    log "Attempt $i/$MAX_RETRIES: Home Assistant not ready yet..."
-    sleep $RETRY_DELAY
-done
+    for i in $(seq 1 $MAX_RETRIES); do
+        if "$CURL" -s -o /dev/null -w "%{http_code}" "http://glitch.local:8123" | grep -q "200\|401"; then
+            HASS_UP=true
+            log_success "Home Assistant is responding at glitch.local:8123"
+            break
+        fi
+        
+        log "Attempt $i/$MAX_RETRIES: Home Assistant not ready yet..."
+        sleep $RETRY_DELAY
+    done
+fi
 
 if [ "$HASS_UP" = false ]; then
     log_error "Home Assistant failed to respond after $MAX_RETRIES attempts"
@@ -143,33 +147,38 @@ cd "$GLITCHCUBE_DIR"
 # Ensure dependencies are installed
 if [ -f "Gemfile" ]; then
     log "Checking Ruby dependencies..."
-    bundle check || bundle install
+    "$ASDF" exec bundle check || "$ASDF" exec bundle install
 fi
 
-# Kill any existing foreman processes
+# Kill any existing Ruby/Sidekiq processes
 log "Stopping any existing Glitch Cube processes..."
-pkill -f "foreman start" || true
+pkill -f "ruby app.rb" || true
+pkill -f "sidekiq" || true
 sleep 2
 
-# Start the application with foreman
-log_info "Starting Glitch Cube with foreman..."
+# Start the application directly (no foreman needed for single user)
+log_info "Starting Glitch Cube application..."
 export RACK_ENV=production
-export HASS_VM_IP=$HASS_VM_IP
 
-# Start foreman in background
-nohup foreman start > "$GLITCHCUBE_DIR/logs/foreman.log" 2>&1 &
-FOREMAN_PID=$!
+# Start Sinatra app directly
+RACK_ENV=production "$ASDF" exec bundle exec ruby app.rb > "$GLITCHCUBE_DIR/logs/sinatra.log" 2>&1 &
+SINATRA_PID=$!
+
+# Start Sidekiq in background
+log_info "Starting Sidekiq worker..."
+RACK_ENV=production "$ASDF" exec bundle exec sidekiq > "$GLITCHCUBE_DIR/logs/sidekiq.log" 2>&1 &
+SIDEKIQ_PID=$!
 
 # Give it time to start
 sleep 10
 
 # Check if Sinatra is responding
-if curl -s -o /dev/null -w "%{http_code}" "http://localhost:4567/health" | grep -q "200"; then
+if "$CURL" -s -o /dev/null -w "%{http_code}" "http://localhost:4567/health" | grep -q "200"; then
     log_success "Glitch Cube API is running on port 4567"
-    log_success "Foreman PID: $FOREMAN_PID"
+    log_success "Sinatra PID: $SINATRA_PID, Sidekiq PID: $SIDEKIQ_PID"
 else
     log_error "Glitch Cube API failed to start"
-    log "Check logs at $GLITCHCUBE_DIR/logs/foreman.log"
+    log "Check logs at $GLITCHCUBE_DIR/logs/sinatra.log"
 fi
 
 # 7. Final status check
@@ -178,17 +187,17 @@ log "Service Status Summary:"
 log "========================================="
 
 # Redis status
-redis-cli ping > /dev/null 2>&1 && log_success "Redis: Running" || log_error "Redis: Not running"
+"$REDIS_CLI" ping > /dev/null 2>&1 && log_success "Redis: Running" || log_error "Redis: Not running"
 
 # PostgreSQL status
-pg_isready -q 2>/dev/null && log_success "PostgreSQL: Running" || log_error "PostgreSQL: Not running"
+"$PG_ISREADY" -q 2>/dev/null && log_success "PostgreSQL: Running" || log_error "PostgreSQL: Not running"
 
 # Home Assistant status
-curl -s -o /dev/null -w "%{http_code}" "http://${HASS_VM_IP}:8123" | grep -q "200\|401" && \
-    log_success "Home Assistant: Running at ${HASS_VM_IP}" || log_error "Home Assistant: Not responding"
+"$CURL" -s -o /dev/null -w "%{http_code}" "http://glitch.local:8123" | grep -q "200\|401" && \
+    log_success "Home Assistant: Running at glitch.local" || log_error "Home Assistant: Not responding"
 
 # Glitch Cube API status
-curl -s -o /dev/null -w "%{http_code}" "http://localhost:4567/health" | grep -q "200" && \
+"$CURL" -s -o /dev/null -w "%{http_code}" "http://localhost:4567/health" | grep -q "200" && \
     log_success "Glitch Cube API: Running on port 4567" || log_error "Glitch Cube API: Not responding"
 
 log "========================================="

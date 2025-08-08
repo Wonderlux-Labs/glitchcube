@@ -1,21 +1,10 @@
 # frozen_string_literal: true
 
+require_relative 'config/environment'
+
 require 'sinatra'
 require 'sinatra/json'
 require 'sinatra/reloader' if development?
-
-# Load environment variables BEFORE ActiveRecord
-# Priority (lowest to highest): .env.defaults < .env.{environment} < .env < ENV vars
-# Dotenv.load uses reverse order - first file wins, so list from most to least specific
-if development? || test?
-  require 'dotenv'
-  if test?
-    Dotenv.load('.env', '.env.test', '.env.defaults')
-  else
-    env_file = ".env.#{ENV['RACK_ENV'] || 'development'}"
-    Dotenv.load('.env', env_file, '.env.defaults')
-  end
-end
 
 require 'sinatra/activerecord'
 
@@ -71,10 +60,10 @@ Dir[File.join(__dir__, 'lib', 'routes', '**', '*.rb')].each { |file| require fil
 
 class GlitchCubeApp < Sinatra::Base
   configure do
-    set :server, :puma
+    set :server, :webrick
     set :bind, '0.0.0.0'
     set :port, GlitchCube.config.port
-    # Let Puma handle binding via BIND_ALL environment variable
+    # Simple webrick server for single-user art installation
     enable :sessions
     set :session_secret, GlitchCube.config.session_secret
 
@@ -264,4 +253,7 @@ if ENV['RACK_ENV'] == 'production'
   InitialHostRegistrationWorker.perform_in(5) # 5 seconds
 end
 
-GlitchCubeApp.run! if __FILE__ == $PROGRAM_NAME
+# Start the server when running directly (not via rackup)
+if __FILE__ == $0
+  GlitchCubeApp.run!
+end
