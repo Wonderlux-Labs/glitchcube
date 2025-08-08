@@ -21,7 +21,17 @@ module GlitchCube
             }
           end
           
-          erb :admin_test
+          # Use improved view if it exists
+          if File.exist?('views/admin_test_improved.erb')
+            erb :admin_test_improved
+          else
+            erb :admin_test
+          end
+        end
+        
+        # Continuous conversation flow tester
+        app.get '/admin/test/flow' do
+          erb :admin_test_flow
         end
 
         # Handle conversation test form submission
@@ -32,21 +42,34 @@ module GlitchCube
             session_id = params[:session_id].to_s.strip
             session_id = nil if session_id.empty?
 
-            # Call the main conversation endpoint
+            # Call the main conversation endpoint with tool tracking
             conversation = ConversationModule.new(persona: persona)
+            
+            # Enable verbose logging for admin testing
+            start_time = Time.now
+            
             @conversation_response = conversation.call(
               message: message,
               context: { 
                 session_id: session_id,
-                source: 'admin_test'
+                source: 'admin_test',
+                include_tool_calls: true,  # Request tool call info
+                verbose: true               # Enable verbose mode
               }
             )
             
-            # Store session ID for next request
+            # Store session ID and other details for next request
             @session_id = @conversation_response[:session_id]
+            @selected_persona = persona
+            @last_message = message
+            
+            # Calculate response time
+            @response_time = ((Time.now - start_time) * 1000).round
             
           rescue StandardError => e
             @error = "Conversation failed: #{e.message}"
+            puts "ERROR in conversation: #{e.message}"
+            puts e.backtrace.first(5).join("\n") if GlitchCube.config.debug?
           end
           
           # Reload recent conversations
@@ -60,7 +83,12 @@ module GlitchCube
             }
           end
           
-          erb :admin_test
+          # Use improved view if it exists
+          if File.exist?('views/admin_test_improved.erb')
+            erb :admin_test_improved
+          else
+            erb :admin_test
+          end
         end
 
         # Handle TTS test form submission

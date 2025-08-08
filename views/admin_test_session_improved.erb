@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Session Details - <%= @session_id %></title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    .back-nav {
+      margin-bottom: 20px;
+    }
+    
+    .back-nav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 8px;
+      text-decoration: none;
+      color: #4a5568;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+    
+    .back-nav a:hover {
+      background: white;
+      transform: translateX(-5px);
+    }
+    
+    .session-header {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    h1 {
+      color: #2d3748;
+      font-size: 24px;
+      margin-bottom: 20px;
+      font-family: monospace;
+      word-break: break-all;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+    }
+    
+    .stat-card {
+      background: #f7fafc;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #667eea;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #718096;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .conversation-timeline {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    
+    .timeline-header h2 {
+      color: #2d3748;
+      font-size: 20px;
+    }
+    
+    .timeline-controls {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .control-btn {
+      padding: 8px 12px;
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.3s;
+    }
+    
+    .control-btn:hover {
+      background: #edf2f7;
+      border-color: #cbd5e0;
+    }
+    
+    .control-btn.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+    
+    .messages-container {
+      max-height: 600px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+    
+    .message {
+      margin-bottom: 20px;
+      animation: fadeIn 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .message-wrapper {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+    }
+    
+    .message-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: white;
+      flex-shrink: 0;
+    }
+    
+    .avatar-user {
+      background: linear-gradient(135deg, #667eea 0%, #4299e1 100%);
+    }
+    
+    .avatar-assistant {
+      background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    }
+    
+    .avatar-tool {
+      background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+    }
+    
+    .message-content {
+      flex: 1;
+      background: white;
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .message-role {
+      font-weight: 600;
+      color: #2d3748;
+      text-transform: capitalize;
+    }
+    
+    .message-time {
+      font-size: 12px;
+      color: #a0aec0;
+    }
+    
+    .message-text {
+      color: #4a5568;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    .message-metadata {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      font-size: 12px;
+      color: #718096;
+    }
+    
+    .metadata-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .metadata-icon {
+      font-size: 14px;
+    }
+    
+    .continue-section {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      padding: 25px;
+      margin-top: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .continue-form {
+      display: flex;
+      gap: 15px;
+      align-items: flex-end;
+    }
+    
+    .continue-form textarea {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 60px;
+    }
+    
+    .continue-form textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .btn-send {
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .btn-send:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .error-message {
+      background: #fff5f5;
+      border: 2px solid #feb2b2;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      color: #c53030;
+    }
+    
+    .loading-indicator {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      color: #718096;
+    }
+    
+    .loading-indicator.active {
+      display: block;
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Scrollbar styling */
+    .messages-container::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .messages-container::-webkit-scrollbar-track {
+      background: #f7fafc;
+      border-radius: 4px;
+    }
+    
+    .messages-container::-webkit-scrollbar-thumb {
+      background: #cbd5e0;
+      border-radius: 4px;
+    }
+    
+    .messages-container::-webkit-scrollbar-thumb:hover {
+      background: #a0aec0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="back-nav">
+      <a href="/admin/test">← Back to Test Interface</a>
+      <a href="/admin/test/sessions" style="margin-left: 10px;">All Sessions</a>
+    </div>
+    
+    <% if @error %>
+      <div class="error-message">
+        <strong>Error:</strong> <%= @error %>
+      </div>
+    <% end %>
+    
+    <% if @conversation %>
+      <div class="session-header">
+        <h1>Session: <%= @session_id %></h1>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value"><%= @messages&.count || 0 %></div>
+            <div class="stat-label">Messages</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value">$<%= @total_cost || 0 %></div>
+            <div class="stat-label">Total Cost</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value"><%= @total_tokens || 0 %></div>
+            <div class="stat-label">Tokens</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value"><%= @conversation.persona %></div>
+            <div class="stat-label">Persona</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="conversation-timeline">
+        <div class="timeline-header">
+          <h2>Conversation Timeline</h2>
+          <div class="timeline-controls">
+            <button class="control-btn" onclick="exportConversation()">Export</button>
+            <button class="control-btn" onclick="toggleMetadata()">Toggle Details</button>
+            <button class="control-btn" onclick="scrollToBottom()">Latest ↓</button>
+          </div>
+        </div>
+        
+        <div class="messages-container" id="messagesContainer">
+          <% if @messages && @messages.any? %>
+            <% @messages.each do |msg| %>
+              <div class="message">
+                <div class="message-wrapper">
+                  <div class="message-avatar avatar-<%= msg[:role] %>">
+                    <%= msg[:role] == 'user' ? 'U' : msg[:role] == 'assistant' ? 'A' : 'T' %>
+                  </div>
+                  <div class="message-content">
+                    <div class="message-header">
+                      <span class="message-role"><%= msg[:persona] || msg[:role] %></span>
+                      <span class="message-time"><%= msg[:created_at] %></span>
+                    </div>
+                    <div class="message-text"><%= msg[:content] %></div>
+                    <% if msg[:cost] || msg[:metadata] %>
+                      <div class="message-metadata">
+                        <% if msg[:cost] %>
+                          <div class="metadata-item">
+                            <span class="metadata-icon">💰</span>
+                            <span>$<%= msg[:cost] %></span>
+                          </div>
+                        <% end %>
+                        <% if msg[:metadata] && msg[:metadata]['continue_conversation'] %>
+                          <div class="metadata-item">
+                            <span class="metadata-icon">🔄</span>
+                            <span>Continue: <%= msg[:metadata]['continue_conversation'] %></span>
+                          </div>
+                        <% end %>
+                        <% if msg[:metadata] && msg[:metadata]['tool_calls'] && msg[:metadata]['tool_calls'].any? %>
+                          <div class="metadata-item">
+                            <span class="metadata-icon">🔧</span>
+                            <span>Tools: <%= msg[:metadata]['tool_calls'].join(', ') %></span>
+                          </div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          <% else %>
+            <div style="text-align: center; color: #718096; padding: 40px;">
+              No messages in this session yet
+            </div>
+          <% end %>
+        </div>
+      </div>
+      
+      <div class="continue-section">
+        <h2 style="margin-bottom: 15px; color: #2d3748;">Continue This Conversation</h2>
+        <form class="continue-form" action="/admin/test/conversation" method="POST">
+          <input type="hidden" name="session_id" value="<%= @session_id %>">
+          <input type="hidden" name="persona" value="<%= @conversation.persona %>">
+          <textarea name="message" placeholder="Type your message to continue..." required></textarea>
+          <button type="submit" class="btn-send">Send Message</button>
+        </form>
+      </div>
+    <% end %>
+  </div>
+  
+  <script>
+    function scrollToBottom() {
+      const container = document.getElementById('messagesContainer');
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    function toggleMetadata() {
+      const metadataElements = document.querySelectorAll('.message-metadata');
+      metadataElements.forEach(el => {
+        el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+      });
+    }
+    
+    function exportConversation() {
+      const messages = [];
+      <% if @messages %>
+        <% @messages.each do |msg| %>
+          messages.push({
+            role: '<%= msg[:role] %>',
+            content: '<%= msg[:content].gsub("'", "\\'").gsub("\n", "\\n") %>',
+            created_at: '<%= msg[:created_at] %>',
+            persona: '<%= msg[:persona] %>'
+          });
+        <% end %>
+      <% end %>
+      
+      const dataStr = JSON.stringify(messages, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      const exportLink = document.createElement('a');
+      exportLink.setAttribute('href', dataUri);
+      exportLink.setAttribute('download', 'session_<%= @session_id %>.json');
+      document.body.appendChild(exportLink);
+      exportLink.click();
+      document.body.removeChild(exportLink);
+    }
+    
+    // Auto-scroll to bottom on load
+    window.onload = () => {
+      scrollToBottom();
+    };
+  </script>
+</body>
+</html>
