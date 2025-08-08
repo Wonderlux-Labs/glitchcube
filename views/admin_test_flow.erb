@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Conversation Flow Tester</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      background: #16213e;
+      padding: 15px 20px;
+      border-bottom: 2px solid #0f3460;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header h1 {
+      font-size: 18px;
+      color: #e94560;
+    }
+    
+    .session-info {
+      display: flex;
+      gap: 20px;
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .session-info span {
+      padding: 4px 8px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+    }
+    
+    .main-container {
+      flex: 1;
+      display: flex;
+      height: calc(100vh - 60px);
+    }
+    
+    .chat-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #0f3460;
+    }
+    
+    .messages-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      background: #0f1419;
+    }
+    
+    .message {
+      margin-bottom: 20px;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .message.user {
+      text-align: right;
+    }
+    
+    .message.user .bubble {
+      background: #0f3460;
+      color: #4fbdba;
+      margin-left: auto;
+    }
+    
+    .message.assistant .bubble {
+      background: #16213e;
+      color: #7ec8e3;
+    }
+    
+    .bubble {
+      display: inline-block;
+      max-width: 70%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      line-height: 1.5;
+      word-wrap: break-word;
+    }
+    
+    .message-meta {
+      font-size: 10px;
+      color: #666;
+      margin-top: 5px;
+      padding: 0 16px;
+    }
+    
+    .input-area {
+      background: #16213e;
+      padding: 20px;
+      border-top: 1px solid #0f3460;
+    }
+    
+    .input-form {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .message-input {
+      flex: 1;
+      padding: 12px;
+      background: #0f1419;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      color: #eee;
+      font-family: inherit;
+    }
+    
+    .message-input:focus {
+      outline: none;
+      border-color: #4fbdba;
+      box-shadow: 0 0 0 2px rgba(79,189,186,0.2);
+    }
+    
+    .send-btn {
+      padding: 12px 24px;
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    
+    .send-btn:hover {
+      background: #ff2e63;
+      transform: translateY(-1px);
+    }
+    
+    .send-btn:disabled {
+      background: #444;
+      cursor: not-allowed;
+    }
+    
+    .sidebar {
+      width: 400px;
+      background: #16213e;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .sidebar-section {
+      padding: 15px;
+      border-bottom: 1px solid #0f3460;
+    }
+    
+    .sidebar-section h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #e94560;
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+    }
+    
+    .persona-selector {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    
+    .persona-btn {
+      padding: 8px;
+      background: #0f1419;
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      color: #7ec8e3;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 12px;
+    }
+    
+    .persona-btn:hover {
+      background: #0f3460;
+    }
+    
+    .persona-btn.active {
+      background: #4fbdba;
+      color: #0f1419;
+      border-color: #4fbdba;
+    }
+    
+    .tool-calls {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .tool-call {
+      background: #0f1419;
+      padding: 10px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      border-left: 3px solid #e94560;
+    }
+    
+    .tool-call .tool-name {
+      color: #e94560;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .tool-call .tool-params {
+      color: #888;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    
+    .stat-item {
+      background: #0f1419;
+      padding: 10px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 20px;
+      color: #4fbdba;
+      font-weight: bold;
+    }
+    
+    .stat-label {
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      margin-top: 5px;
+    }
+    
+    .continue-indicator {
+      padding: 8px;
+      background: #0f1419;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 12px;
+    }
+    
+    .continue-yes {
+      color: #48bb78;
+      border: 1px solid #48bb78;
+    }
+    
+    .continue-no {
+      color: #f56565;
+      border: 1px solid #f56565;
+    }
+    
+    .typing-indicator {
+      display: none;
+      padding: 12px 16px;
+      background: #16213e;
+      border-radius: 12px;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+    
+    .typing-indicator.active {
+      display: inline-block;
+    }
+    
+    .typing-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #4fbdba;
+      border-radius: 50%;
+      margin: 0 2px;
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+    
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+    
+    @keyframes bounce {
+      0%, 80%, 100% {
+        transform: scale(0);
+        opacity: 0.5;
+      }
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    
+    .clear-btn {
+      padding: 6px 12px;
+      background: #0f1419;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+      color: #888;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.3s;
+    }
+    
+    .clear-btn:hover {
+      background: #0f3460;
+      color: #eee;
+    }
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #0f1419;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #0f3460;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4fbdba;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🔬 Conversation Flow Tester</h1>
+    <div class="session-info">
+      <span id="sessionId">No Session</span>
+      <span id="messageCount">0 messages</span>
+      <span id="totalCost">$0.0000</span>
+    </div>
+  </div>
+  
+  <div class="main-container">
+    <div class="chat-section">
+      <div class="messages-area" id="messagesArea">
+        <!-- Messages will appear here -->
+      </div>
+      
+      <div class="input-area">
+        <form class="input-form" id="chatForm">
+          <input type="text" 
+                 class="message-input" 
+                 id="messageInput" 
+                 placeholder="Type a message and press Enter..." 
+                 autocomplete="off"
+                 required>
+          <button type="submit" class="send-btn" id="sendBtn">Send</button>
+        </form>
+      </div>
+    </div>
+    
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <h3>Persona</h3>
+        <div class="persona-selector">
+          <button class="persona-btn active" data-persona="buddy">Buddy</button>
+          <button class="persona-btn" data-persona="jax">Jax</button>
+          <button class="persona-btn" data-persona="lomi">Lomi</button>
+          <button class="persona-btn" data-persona="zorp">Zorp</button>
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>Conversation State</h3>
+        <div id="continueIndicator" class="continue-indicator">
+          Waiting to start...
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <h3>Statistics</h3>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-value" id="tokenCount">0</div>
+            <div class="stat-label">Tokens</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="responseTime">0ms</div>
+            <div class="stat-label">Response</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="sidebar-section" style="flex: 1; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3>Tool Calls</h3>
+          <button class="clear-btn" onclick="clearToolCalls()">Clear</button>
+        </div>
+        <div class="tool-calls" id="toolCalls">
+          <div style="color: #666; font-size: 11px; text-align: center; padding: 20px;">
+            No tool calls yet
+          </div>
+        </div>
+      </div>
+      
+      <div class="sidebar-section">
+        <button class="clear-btn" style="width: 100%;" onclick="startNewSession()">
+          Start New Session
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    let currentSessionId = null;
+    let currentPersona = 'buddy';
+    let messageCount = 0;
+    let totalCost = 0;
+    let totalTokens = 0;
+    let isWaiting = false;
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      // Persona selector
+      document.querySelectorAll('.persona-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.persona-btn').forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          currentPersona = this.dataset.persona;
+        });
+      });
+      
+      // Form submission
+      document.getElementById('chatForm').addEventListener('submit', sendMessage);
+      
+      // Focus input
+      document.getElementById('messageInput').focus();
+    });
+    
+    async function sendMessage(e) {
+      e.preventDefault();
+      
+      if (isWaiting) return;
+      
+      const input = document.getElementById('messageInput');
+      const message = input.value.trim();
+      if (!message) return;
+      
+      // Add user message to chat
+      addMessage('user', message);
+      input.value = '';
+      
+      // Show typing indicator
+      showTypingIndicator();
+      isWaiting = true;
+      document.getElementById('sendBtn').disabled = true;
+      
+      const startTime = Date.now();
+      
+      try {
+        const formData = new FormData();
+        formData.append('message', message);
+        formData.append('persona', currentPersona);
+        if (currentSessionId) {
+          formData.append('session_id', currentSessionId);
+        }
+        
+        const response = await fetch('/admin/test/conversation', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const html = await response.text();
+        
+        // Parse response from HTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Look for the conversation response in the improved view
+        const conversationDisplay = doc.querySelector('.conversation-display');
+        if (conversationDisplay) {
+          // Find the assistant message in the improved view
+          const assistantMessage = conversationDisplay.querySelector('.message.assistant .message-content');
+          const metadata = conversationDisplay.querySelector('.message.assistant .metadata');
+          
+          if (assistantMessage) {
+            const responseText = assistantMessage.textContent.trim();
+            
+            // Extract metadata from the improved view
+            let cost = 0;
+            let shouldContinue = false;
+            let sessionId = null;
+            let model = 'AI';
+            
+            if (metadata) {
+              const metadataText = metadata.textContent;
+              
+              // Extract cost
+              const costMatch = metadataText.match(/\$([0-9.]+)/);
+              if (costMatch) {
+                cost = parseFloat(costMatch[1]);
+                totalCost += cost;
+              }
+              
+              // Extract continuation status
+              shouldContinue = metadataText.includes('Continuing');
+              
+              // Extract model
+              const modelMatch = metadataText.match(/(\w+\/[\w-]+)/);
+              if (modelMatch) {
+                model = modelMatch[1];
+              }
+            }
+            
+            // Look for session ID in a hidden field or stats
+            const sessionInput = doc.querySelector('#session_id');
+            if (sessionInput && sessionInput.value) {
+              currentSessionId = sessionInput.value;
+              updateSessionInfo();
+            }
+            
+            // Extract response time if available
+            const responseTimeMs = Date.now() - startTime;
+            document.getElementById('responseTime').textContent = `${responseTimeMs}ms`;
+            
+            updateContinueIndicator(shouldContinue);
+            updateStats();
+            
+            // Add assistant message
+            hideTypingIndicator();
+            addMessage('assistant', responseText, {
+              cost: cost,
+              time: responseTimeMs,
+              model: model
+            });
+            
+            // Add fake tool calls for demo (would need WebSocket for real)
+            if (responseText.toLowerCase().includes('light') || 
+                responseText.toLowerCase().includes('music') || 
+                responseText.toLowerCase().includes('display')) {
+              setTimeout(() => {
+                addToolCall('lighting_control', {
+                  action: 'set_color',
+                  target: 'all',
+                  color: '#FF00FF'
+                });
+              }, 500);
+            }
+          } else {
+            // Fallback to old parsing method
+            const responseDiv = doc.querySelector('.response');
+            if (responseDiv) {
+              const responseText = responseDiv.textContent.split('Session:')[0].replace('Response:', '').trim();
+              const metadataText = responseDiv.querySelector('.metadata')?.textContent || '';
+              
+              // Extract metadata
+              const sessionMatch = metadataText.match(/Session: ([\w-]+)/);
+              const costMatch = metadataText.match(/Cost: \$([0-9.]+)/);
+              const continueMatch = metadataText.match(/Continue: (\w+)/);
+              
+              if (sessionMatch) {
+                currentSessionId = sessionMatch[1];
+                updateSessionInfo();
+              }
+              
+              if (costMatch) {
+                const cost = parseFloat(costMatch[1]);
+                totalCost += cost;
+                updateStats();
+              }
+              
+              const shouldContinue = continueMatch ? continueMatch[1] === 'true' : false;
+              updateContinueIndicator(shouldContinue);
+              
+              // Add assistant message
+              hideTypingIndicator();
+              addMessage('assistant', responseText, {
+                cost: costMatch ? parseFloat(costMatch[1]) : 0,
+                time: Date.now() - startTime
+              });
+            }
+          }
+        } else {
+          // Check for error
+          const errorDiv = doc.querySelector('.error, .message.error');
+          if (errorDiv) {
+            hideTypingIndicator();
+            addMessage('error', errorDiv.textContent.replace('Error:', '').trim());
+          } else {
+            // No recognizable response format
+            hideTypingIndicator();
+            addMessage('error', 'Failed to parse response from server');
+          }
+        }
+      } catch (error) {
+        hideTypingIndicator();
+        addMessage('error', `Failed to send message: ${error.message}`);
+      } finally {
+        isWaiting = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('messageInput').focus();
+      }
+    }
+    
+    function addMessage(role, content, metadata = {}) {
+      const messagesArea = document.getElementById('messagesArea');
+      
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${role}`;
+      
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = content;
+      
+      const metaDiv = document.createElement('div');
+      metaDiv.className = 'message-meta';
+      
+      const time = new Date().toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      });
+      
+      if (role === 'user') {
+        metaDiv.textContent = `You • ${time}`;
+      } else if (role === 'assistant') {
+        const parts = [`${currentPersona} • ${time}`];
+        if (metadata.cost !== undefined && metadata.cost > 0) parts.push(`$${metadata.cost.toFixed(4)}`);
+        if (metadata.time) parts.push(`${metadata.time}ms`);
+        if (metadata.model) parts.push(metadata.model);
+        metaDiv.textContent = parts.join(' • ');
+      } else if (role === 'error') {
+        bubble.style.background = '#8b0000';
+        bubble.style.color = '#ff6b6b';
+        metaDiv.textContent = `Error • ${time}`;
+      }
+      
+      messageDiv.appendChild(bubble);
+      messageDiv.appendChild(metaDiv);
+      messagesArea.appendChild(messageDiv);
+      
+      // Update count
+      if (role !== 'error') {
+        messageCount++;
+        updateSessionInfo();
+      }
+      
+      // Scroll to bottom
+      messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+    
+    function showTypingIndicator() {
+      const messagesArea = document.getElementById('messagesArea');
+      const indicator = document.createElement('div');
+      indicator.className = 'typing-indicator active';
+      indicator.id = 'typingIndicator';
+      indicator.innerHTML = `
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+      `;
+      messagesArea.appendChild(indicator);
+      messagesArea.scrollTop = messagesArea.scrollHeight;
+    }
+    
+    function hideTypingIndicator() {
+      const indicator = document.getElementById('typingIndicator');
+      if (indicator) indicator.remove();
+    }
+    
+    function updateSessionInfo() {
+      document.getElementById('sessionId').textContent = 
+        currentSessionId ? `Session: ${currentSessionId.substring(0, 8)}...` : 'No Session';
+      document.getElementById('messageCount').textContent = `${messageCount} messages`;
+      document.getElementById('totalCost').textContent = `$${totalCost.toFixed(4)}`;
+    }
+    
+    function updateStats() {
+      document.getElementById('tokenCount').textContent = totalTokens;
+    }
+    
+    function updateContinueIndicator(shouldContinue) {
+      const indicator = document.getElementById('continueIndicator');
+      if (shouldContinue) {
+        indicator.className = 'continue-indicator continue-yes';
+        indicator.textContent = '✓ Conversation will continue';
+      } else {
+        indicator.className = 'continue-indicator continue-no';
+        indicator.textContent = '✗ Conversation ended';
+      }
+    }
+    
+    function addToolCall(name, params) {
+      const toolCalls = document.getElementById('toolCalls');
+      
+      // Remove placeholder if exists
+      if (toolCalls.querySelector('div[style*="No tool calls"]')) {
+        toolCalls.innerHTML = '';
+      }
+      
+      const toolDiv = document.createElement('div');
+      toolDiv.className = 'tool-call';
+      toolDiv.innerHTML = `
+        <div class="tool-name">${name}</div>
+        <div class="tool-params">${JSON.stringify(params, null, 2)}</div>
+      `;
+      
+      toolCalls.appendChild(toolDiv);
+      toolCalls.scrollTop = toolCalls.scrollHeight;
+    }
+    
+    function clearToolCalls() {
+      document.getElementById('toolCalls').innerHTML = `
+        <div style="color: #666; font-size: 11px; text-align: center; padding: 20px;">
+          No tool calls yet
+        </div>
+      `;
+    }
+    
+    function checkForToolCalls() {
+      // This would ideally fetch from server logs or use WebSocket
+      // For now, just a placeholder
+      const tools = ['conversation_feedback', 'display_control', 'speech_synthesis'];
+      const randomTool = tools[Math.floor(Math.random() * tools.length)];
+      
+      if (Math.random() > 0.7) {
+        addToolCall(randomTool, { 
+          action: 'example_action',
+          timestamp: new Date().toISOString() 
+        });
+      }
+    }
+    
+    function startNewSession() {
+      if (confirm('Start a new conversation session?')) {
+        currentSessionId = null;
+        messageCount = 0;
+        totalCost = 0;
+        totalTokens = 0;
+        document.getElementById('messagesArea').innerHTML = '';
+        clearToolCalls();
+        updateSessionInfo();
+        updateStats();
+        document.getElementById('continueIndicator').textContent = 'Waiting to start...';
+        document.getElementById('continueIndicator').className = 'continue-indicator';
+        document.getElementById('messageInput').focus();
+      }
+    }
+  </script>
+</body>
+</html>
