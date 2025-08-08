@@ -305,7 +305,7 @@ module Services
 
       # Discover all tool files in lib/tools/
       def discover_tool_files
-        tools_dir = if defined?(Rails)
+        tools_dir = if defined?(Rails) && Rails.root
                       Rails.root.join('lib', 'tools')
                     else
                       File.expand_path('../../tools', __FILE__)

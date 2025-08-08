@@ -136,7 +136,7 @@ module Services
 
     def structured_output_section
       # Only add structured output instructions if we're using structured responses
-      return '' unless context[:response_format] || context[:structured_output]
+      return '' unless context && (context[:response_format] || context[:structured_output])
       
       <<~STRUCTURED
         RESPONSE FORMAT:
