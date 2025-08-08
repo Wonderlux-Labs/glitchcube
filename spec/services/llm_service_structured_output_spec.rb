@@ -20,7 +20,7 @@ RSpec.describe Services::LLMService, 'structured output support' do
           response = described_class.complete(
             system_prompt: 'You are a helpful assistant. Respond in JSON format.',
             user_message: 'Hello, how are you?',
-            model: 'openai/o3-mini',
+            model: 'google/gemini-2.5-flash',
             temperature: 0.7,
             max_tokens: 300,
             response_format: formatted_schema
@@ -161,7 +161,7 @@ RSpec.describe Services::LLMService, 'structured output support' do
             response = described_class.complete(
               system_prompt: 'You are a helpful assistant. Respond in JSON format.',
               user_message: msg,
-              model: 'openai/o3-mini',
+              model: 'google/gemini-2.5-flash',
               temperature: 0.8,
               max_tokens: 400,
               response_format: schema
