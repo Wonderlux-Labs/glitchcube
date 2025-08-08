@@ -136,8 +136,8 @@ RSpec.describe "Conversation Service Integration", vcr: {
 
     it 'prevents race conditions in concurrent session updates' do
       # Create initial session
-      post '/api/v1/conversation/start',
-           {}.to_json,
+      post '/api/v1/conversation',
+           { message: 'Start session' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
       expect(last_response).to be_ok
@@ -147,10 +147,10 @@ RSpec.describe "Conversation Service Integration", vcr: {
       # Make concurrent requests to the same session
       # Note: Rack::Test doesn't support true threading, so simulate with sequential requests
       results = 10.times.map do |i|
-        post '/api/v1/conversation/continue',
+        post '/api/v1/conversation',
              {
-               session_id: actual_session_id,
-               message: "concurrent message #{i}"
+               message: "concurrent message #{i}",
+               context: { session_id: actual_session_id }
              }.to_json,
              { 'CONTENT_TYPE' => 'application/json' }
 
@@ -185,10 +185,10 @@ RSpec.describe "Conversation Service Integration", vcr: {
       allow_any_instance_of(ConversationModule).to receive(:call)
         .and_raise(StandardError, 'Unexpected error')
 
-      post '/api/v1/conversation/continue',
+      post '/api/v1/conversation',
            {
-             session_id: session.session_id,
-             message: 'trigger cleanup test'
+             message: 'trigger cleanup test',
+             context: { session_id: session.session_id }
            }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
@@ -237,10 +237,10 @@ RSpec.describe "Conversation Service Integration", vcr: {
       # Track database connections
       initial_connections = ActiveRecord::Base.connection_pool.connections.size
 
-      post '/api/v1/conversation/continue',
+      post '/api/v1/conversation',
            {
-             session_id: session.session_id,
-             message: 'resource cleanup test'
+             message: 'resource cleanup test',
+             context: { session_id: session.session_id }
            }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
@@ -280,10 +280,10 @@ RSpec.describe "Conversation Service Integration", vcr: {
 
       # Track SQL queries
       queries_before = count_sql_queries do
-        post '/api/v1/conversation/continue',
+        post '/api/v1/conversation',
              {
-               session_id: session.session_id,
-               message: 'test message history loading'
+               message: 'test message history loading',
+               context: { session_id: session.session_id }
              }.to_json,
              { 'CONTENT_TYPE' => 'application/json' }
       end

@@ -138,13 +138,16 @@ module GlitchCube
             data = JSON.parse(request.body.read)
             message = data['message'] || 'Test message from admin panel'
             entity_id = data['entity_id']
+            character = data['character']&.to_sym || :default
 
-            ha_client = HomeAssistantClient.new
-            success = ha_client.speak(message, entity_id: entity_id)
+            # Use CharacterService for consistent TTS path
+            character_service = ::Services::CharacterService.new(character: character)
+            success = character_service.speak(message, entity_id: entity_id)
 
             {
               success: success,
               message: message,
+              character: character,
               entity_id: entity_id || 'media_player.square_voice',
               timestamp: Time.now.iso8601
             }.to_json

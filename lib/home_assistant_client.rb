@@ -443,23 +443,49 @@ class HomeAssistantClient
         response.body
       end
 
-      error_msg = if error_body.is_a?(Hash)
-                    error_body['message'] || error_body['error'] || response.body
-                  else
-                    response.body
-                  end
-
-      # Log the full request for debugging 400 errors
-      if request
-        puts '❌ Home Assistant 400 Error Details:'
-        puts "  Endpoint: #{response.uri}"
-        puts "  Request Body: #{request.body}"
-        puts "  Response Status: #{response.code}"
-        puts "  Response Body: #{response.body}"
-        puts "  Parsed Error: #{error_msg}"
+      # Extract meaningful error information
+      error_details = []
+      
+      if error_body.is_a?(Hash)
+        # Common Home Assistant error fields
+        error_details << error_body['message'] if error_body['message']
+        error_details << error_body['error'] if error_body['error']
+        error_details << "Code: #{error_body['code']}" if error_body['code']
+        
+        # Service-specific errors
+        if error_body['error_code']
+          error_details << "Error Code: #{error_body['error_code']}"
+        end
+        
+        # Validation errors
+        if error_body['errors']
+          error_details << "Validation: #{error_body['errors']}"
+        end
+      end
+      
+      # Fallback to raw response
+      if error_details.empty?
+        error_details << response.body
       end
 
-      raise Error, "Bad Request (400): #{error_msg}"
+      # Enhanced logging for debugging
+      if request
+        puts '❌ Home Assistant 400 Error:'
+        puts "  Endpoint: #{response.uri}"
+        puts "  Method: #{request.method}"
+        puts "  Headers: #{request.each_header.to_h}"
+        puts "  Request Body: #{request.body}"
+        puts "  Response Status: #{response.code}"
+        puts "  Response Headers: #{response.each_header.to_h}"
+        puts "  Response Body: #{response.body}"
+        error_details.each { |detail| puts "  Error: #{detail}" }
+      end
+
+      # Create comprehensive error message
+      error_summary = error_details.join(' | ')
+      endpoint_info = request ? " (#{request.method} #{response.uri})" : ""
+      
+      raise Error, "Bad Request (400)#{endpoint_info}: #{error_summary}"
     when 500
       # Parse 500 error details for better debugging
       error_body = begin

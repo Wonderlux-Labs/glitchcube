@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>All Sessions</title>
+  <style>
+    body {
+      font-family: monospace;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 { color: #333; }
+    .nav {
+      margin-bottom: 20px;
+      padding: 10px;
+      background: white;
+      border: 1px solid #ddd;
+    }
+    .nav a {
+      margin-right: 15px;
+      color: #2196F3;
+      text-decoration: none;
+    }
+    table {
+      width: 100%;
+      background: white;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border: 1px solid #ddd;
+    }
+    th {
+      background: #f0f0f0;
+      font-weight: bold;
+    }
+    tr:hover {
+      background: #f9f9f9;
+    }
+    a {
+      color: #2196F3;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="/admin/test">← Back to Test Interface</a>
+  <a href="/admin/test/memories">Memories</a>
+  <a href="/admin/test/tools">Tools</a>
+</div>
+
+<h1>All Conversation Sessions</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Session ID</th>
+      <th>Persona</th>
+      <th>Messages</th>
+      <th>Started</th>
+      <th>Last Message</th>
+      <th>Cost</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @conversations.each do |conv| %>
+      <tr>
+        <td><%= conv[:session_id][0..15] %>...</td>
+        <td><%= conv[:persona] %></td>
+        <td><%= conv[:message_count] %></td>
+        <td><%= conv[:started_at] %></td>
+        <td><%= conv[:last_message] || 'N/A' %></td>
+        <td>$<%= conv[:total_cost] %></td>
+        <td><a href="/admin/test/sessions/<%= conv[:session_id] %>">View</a></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<% if @conversations.empty? %>
+  <p>No conversations found.</p>
+<% end %>
+
+</body>
+</html>

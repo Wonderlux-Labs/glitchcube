@@ -21,7 +21,8 @@ module Services
         base_prompt,
         tools_section,
         environment_section,
-        context_section
+        context_section,
+        structured_output_section
       ].compact.reject(&:empty?)
 
       prompt_parts.join("\n\n")
@@ -131,6 +132,27 @@ module Services
 
     def tool_description(tool)
       Services::ToolRegistryService.get_tool_prompt(tool.to_s)
+    end
+
+    def structured_output_section
+      # Only add structured output instructions if we're using structured responses
+      return '' unless context[:response_format] || context[:structured_output]
+      
+      <<~STRUCTURED
+        RESPONSE FORMAT:
+        You must respond with valid JSON matching the provided schema. Key fields:
+        
+        - response: Your main text response to the visitor
+        - continue_conversation: Boolean indicating if you want to continue the dialogue
+          * Set to true when you're curious and want to hear more
+          * Set to true when you ask a question or invite further sharing  
+          * Set to true when the conversation feels engaging and ongoing
+          * Set to false when the conversation reaches a natural conclusion
+          * Set to false when the visitor says goodbye or thank you
+        
+        Use your judgment to create natural conversational flow. The continue_conversation 
+        flag controls whether the voice system stays active for the next response.
+      STRUCTURED
     end
 
     def default_glitch_cube_prompt

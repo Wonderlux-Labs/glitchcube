@@ -31,7 +31,7 @@ RSpec.describe GlitchCubeApp do
   describe 'POST /api/v1/test' do
     context 'with valid message' do
       it 'processes the message through the conversation module' do
-        VCR.use_cassette('app_test_valid_message', record: :new_episodes) do
+        VCR.use_cassette('app_test_valid_message') do
           post '/api/v1/test',
                { message: 'Hello Glitch Cube!' }.to_json,
                { 'CONTENT_TYPE' => 'application/json' }
@@ -49,7 +49,7 @@ RSpec.describe GlitchCubeApp do
 
     context 'with empty body' do
       it 'uses default message', :pending do
-        VCR.use_cassette('app_test_empty_body', record: :new_episodes) do
+        VCR.use_cassette('app_test_empty_body') do
           post '/api/v1/test',
                {}.to_json,
                { 'CONTENT_TYPE' => 'application/json' }
@@ -77,7 +77,7 @@ RSpec.describe GlitchCubeApp do
 
   describe 'POST /api/v1/conversation' do
     it 'processes conversation with AI module' do
-      VCR.use_cassette('app_conversation_test', record: :new_episodes) do
+      VCR.use_cassette('app_conversation_test') do
         post '/api/v1/conversation',
              { message: 'Test conversation' }.to_json,
              { 'CONTENT_TYPE' => 'application/json' }

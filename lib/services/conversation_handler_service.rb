@@ -6,8 +6,6 @@ module Services
   class ConversationHandlerService
     def initialize
       @conversation_module = nil
-      @tool_agent = nil
-      @home_assistant_agent = nil
     end
 
     # Get or create conversation module instance
@@ -15,17 +13,6 @@ module Services
       @conversation_module ||= ConversationModule.new
     end
 
-    # Get or create tool agent - deprecated, use ConversationModule directly instead
-    def tool_agent
-      # Desiru removed - use ConversationModule directly
-      nil
-    end
-
-    # Get or create home assistant agent - deprecated, use ConversationModule directly instead
-    def home_assistant_agent
-      # Desiru removed - use ConversationModule directly
-      nil
-    end
 
     # Determine if conversation should continue based on response content
     def should_continue_conversation?(result)
@@ -93,15 +80,6 @@ module Services
       # Check if result contains explicit media actions
       media_actions.concat(result[:media_actions]) if result[:media_actions]
 
-      # DEPRECATED: TTS should use main 'response' field instead
-      if result[:tts_message]
-        media_actions << {
-          type: 'tts',
-          message: result[:tts_message],
-          entity_id: 'media_player.square_voice',
-          deprecated: true
-        }
-      end
 
       # Sound effects and background audio
       if result[:sound_effect_url]

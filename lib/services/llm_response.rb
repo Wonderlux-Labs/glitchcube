@@ -124,7 +124,7 @@ module Services
 
     # For conversation responses - check if should continue
     #
-    # @return [Boolean] Whether to continue conversation
+    # @return [Boolean, nil] Whether to continue conversation, or nil if not specified
     def continue_conversation?
       if parsed_content.is_a?(Hash)
         # Explicit value if present
@@ -132,8 +132,8 @@ module Services
         return parsed_content[:continue_conversation] if parsed_content.key?(:continue_conversation)
       end
 
-      # Default to true for engagement
-      true
+      # Return nil when not specified, let ConversationModule decide the safe default
+      nil
     end
 
     # Get the main response text (handles structured and unstructured)
