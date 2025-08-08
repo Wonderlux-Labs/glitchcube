@@ -1,0 +1,85 @@
+# Proactive Glitch Cube Behaviors
+# These automations trigger non-conversational LLM interactions
+
+- alias: "Glitch Cube - Attention Seeking When Lonely"
+  description: "Cube seeks attention after no interaction for 30 minutes"
+  trigger:
+    - platform: state
+      entity_id: sensor.glitchcube_last_interaction
+      for:
+        minutes: 30
+  condition:
+    - condition: time
+      after: "09:00:00"
+      before: "22:00:00"  # Don't be annoying at night
+  action:
+    - service: rest_command.glitchcube_proactive
+      data:
+        endpoint: "proactive/attention"
+        level: "moderate"
+
+- alias: "Glitch Cube - Desperate for Attention"
+  description: "Cube gets really dramatic after 2 hours of no interaction"
+  trigger:
+    - platform: state
+      entity_id: sensor.glitchcube_last_interaction
+      for:
+        hours: 2
+  condition:
+    - condition: time
+      after: "10:00:00"
+      before: "20:00:00"
+  action:
+    - service: rest_command.glitchcube_proactive
+      data:
+        endpoint: "proactive/attention"
+        level: "desperate"
+
+- alias: "Glitch Cube - Morning Greeting"
+  description: "Cube greets the morning"
+  trigger:
+    - platform: time
+      at: "08:00:00"
+  action:
+    - service: rest_command.glitchcube_proactive
+      data:
+        endpoint: "proactive/morning"
+
+- alias: "Glitch Cube - Motion Detected Commentary"
+  description: "Cube comments when it sees motion after being idle"
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.glitchcube_motion
+      from: "off"
+      to: "on"
+  condition:
+    - condition: state
+      entity_id: sensor.glitchcube_last_interaction
+      for:
+        minutes: 10  # Only if idle for 10+ minutes
+  action:
+    - service: rest_command.glitchcube_proactive
+      data:
+        endpoint: "proactive/custom"
+        prompt: "You just detected motion after being alone! Express excitement about seeing someone. Use speech and lights to greet them warmly."
+
+- alias: "Glitch Cube - Battery Low Drama"
+  description: "Cube dramatically announces low battery"
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.glitchcube_battery
+      below: 20
+  action:
+    - service: rest_command.glitchcube_proactive
+      data:
+        endpoint: "proactive/custom"
+        prompt: "Your battery is at {{ states('sensor.glitchcube_battery') }}%! Dramatically express your need for power, sing about electricity, flash warning colors!"
+
+# REST command configuration (add to configuration.yaml)
+rest_command:
+  glitchcube_proactive:
+    url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/proactive/{{ endpoint }}"
+    method: POST
+    headers:
+      Content-Type: application/json
+    payload: '{{ data | to_json }}'

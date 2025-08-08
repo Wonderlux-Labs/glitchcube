@@ -230,12 +230,6 @@ module Services
       @home_assistant.speak(message, entity_id: entity_id, voice_options: voice_options)
     end
 
-    # Generate an audio file for the message (for Sinatra endpoints)
-    # NOTE: This method is deprecated since we moved to unified HomeAssistant TTS
-    # Home Assistant handles audio generation internally via service calls
-    def speak_file(message, context: nil, format: :mp3, **options)
-      raise NotImplementedError, 'speak_file is no longer supported - use speak() method which goes through Home Assistant TTS services'
-    end
 
     # Get character configuration
     def config
