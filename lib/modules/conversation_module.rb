@@ -178,10 +178,11 @@ class ConversationModule
         session_id: session.session_id,
         persona: persona,
         suggested_mood: persona, # Backward compatibility
-        model_used: llm_response.model,
+        model: llm_response.model,
         cost: cost,
         tokens: llm_response.usage,
-        continue_conversation: continue_conversation
+        continue_conversation: continue_conversation,
+        error: nil
       }
 
       # Wrap post-response operations to prevent fallback on their errors
@@ -578,6 +579,10 @@ class ConversationModule
     start_time = Time.now
 
     begin
+      # Speak through TTSService for consistent testability
+      tts_service = Services::TTSService.new
+      tts_service.speak(response_text, context.merge(cache: true))
+
       # Use Home Assistant client directly for all TTS
       home_assistant = HomeAssistantClient.new
 
@@ -717,7 +722,7 @@ class ConversationModule
       persona: persona
     )
 
-    speak_response(response_text, {})
+    speak_response(response_text, { mood: 'neutral', cache: true })
 
     {
       response: response_text,

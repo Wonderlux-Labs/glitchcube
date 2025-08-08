@@ -169,6 +169,10 @@ RSpec.describe Services::ConversationService do
 
   describe 'integration with system prompt' do
     it 'passes context through to system prompt generation' do
+      # Set up expected context values
+      service.add_context(:location, 'Test Gallery')
+      service.add_context(:event_name, 'RSpec Test')
+
       # Mock the LLM service to avoid real API calls
       mock_llm_response = double('LLMResponse',
                                  response_text: 'Hello! Test response',
@@ -180,8 +184,11 @@ RSpec.describe Services::ConversationService do
                                  usage: { prompt_tokens: 100, completion_tokens: 50 })
 
       # Mock database operations to avoid foreign key issues
+      mock_messages = double('Messages', count: 1)
       mock_session = double('ConversationSession')
       allow(mock_session).to receive(:add_message)
+      allow(mock_session).to receive(:messages).and_return(mock_messages)
+      allow(mock_session).to receive(:created_at).and_return(Time.now - 1.minute)
       allow(mock_session).to receive_messages(messages_for_llm: [], session_id: 'test-session-123')
       allow(Services::ConversationSession).to receive(:find_or_create).and_return(mock_session)
 

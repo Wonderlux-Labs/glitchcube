@@ -24,6 +24,7 @@ gem 'geocoder', '~> 1.8'
 gem 'grape', '~> 2.4'
 gem 'ostruct'
 gem 'rack-cors', '~> 3.0'
+gem 'rack-timeout'
 
 # Environment and Configuration
 gem 'dotenv', '~> 3.1'

@@ -104,9 +104,9 @@ module GlitchCube
                             })
               end
 
-              # Find existing session
-              session = ::Services::ConversationSession.find(session_id)
-              unless session
+              # Find existing session with eager loading and row-level lock to prevent N+1 and race conditions
+              conversation = ::Conversation.includes(:messages).where(session_id: session_id).lock(true).first
+              unless conversation
                 status 404
                 return json({
                               success: false,
@@ -114,14 +114,20 @@ module GlitchCube
                               timestamp: Time.now.iso8601
                             })
               end
+              
+              # Wrap in service object for consistent interface
+              session = ::Services::ConversationSession.new(conversation)
 
-              # Process message
-              conversation_module = ConversationModule.new
-              result = conversation_module.call(
-                message: request_body['message'],
-                context: { session_id: session_id }.merge(request_body['context'] || {}),
-                persona: request_body['persona'] || session.metadata[:last_persona]
-              )
+              # Process message in a DB transaction for session consistency
+              result = nil
+              ActiveRecord::Base.transaction do
+                conversation_module = ConversationModule.new
+                result = conversation_module.call(
+                  message: request_body['message'],
+                  context: { session_id: session_id }.merge(request_body['context'] || {}),
+                  persona: request_body['persona'] || session.metadata[:last_persona]
+                )
+              end
 
               json({
                      success: true,
@@ -196,6 +202,24 @@ module GlitchCube
               context = request_body['context'] || {}
               context[:session_id] ||= request.session[:session_id] || SecureRandom.uuid
 
+              # Memory/resource guard: reject oversize context payloads
+              if context['conversation_history']&.is_a?(Array) && context['conversation_history'].size > 100
+                status 413
+                return json({ success: false, error: 'conversation_history too large (max 100 entries)' })
+              end
+              if context['metadata']&.is_a?(Hash)
+                metadata_size = context['metadata'].to_json.bytesize
+                if metadata_size > 100 * 1024
+                  status 413
+                  return json({ success: false, error: 'metadata too large (max 100KB)' })
+                end
+              end
+              context_size = context.to_json.bytesize
+              if context_size > 200 * 1024
+                status 413
+                return json({ success: false, error: 'context payload too large (max 200KB)' })
+              end
+
               # Log conversation request with context
               log.with_context(
                 request_id: SecureRandom.hex(8),
@@ -220,6 +244,14 @@ module GlitchCube
                   context: context
                 )
 
+                # Sanitize response to prevent XSS
+                if response_data.is_a?(Hash) && response_data[:response].is_a?(String)
+                  # Remove script tags and common XSS vectors
+                  sanitized = response_data[:response].gsub(%r{<script.*?>.*?</script>}im, '')
+                  sanitized = sanitized.gsub(/alert\s*\(/i, '')
+                  response_data[:response] = sanitized
+                end
+
                 # Log performance
                 duration = ((Time.now - start_time) * 1000).round
                 log.performance(
@@ -234,6 +266,16 @@ module GlitchCube
                        timestamp: Time.now.iso8601
                      })
               end
+            rescue CircuitBreaker::CircuitOpenError => e
+              log.error('⛔️ LLM circuit breaker is open',
+                        error: e.message,
+                        backtrace: e.backtrace&.first(3))
+
+              status 503
+              json({
+                     success: false,
+                     error: 'LLM temporarily unavailable (circuit breaker open)'
+                   })
             rescue StandardError => e
               log.error('❌ Conversation processing failed',
                         error: e.message,

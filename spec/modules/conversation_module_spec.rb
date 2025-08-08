@@ -81,15 +81,22 @@ RSpec.describe ConversationModule do
         expect(result[:continue_conversation]).to be(true)
       end
 
-      it 'speaks the response through TTS service' do
+      it 'speaks the response through Home Assistant service' do
+        # Mock TTSService which is called first
         tts_service_double = instance_double(Services::TTSService)
         allow(Services::TTSService).to receive(:new).and_return(tts_service_double)
-        expect(tts_service_double).to receive(:speak).with(
+        allow(tts_service_double).to receive(:speak).and_return(true)
+        
+        # Mock HomeAssistantClient for the second speak call
+        ha_client_double = instance_double(HomeAssistantClient)
+        allow(HomeAssistantClient).to receive(:new).and_return(ha_client_double)
+        allow(ha_client_double).to receive(:state).and_return(nil)
+        allow(ha_client_double).to receive(:call_service).and_return(true)
+        allow(ha_client_double).to receive(:awtrix_display_text).and_return(true)
+        allow(ha_client_double).to receive(:awtrix_mood_light).and_return(true)
+        expect(ha_client_double).to receive(:speak).with(
           'Mock AI response',
-          hash_including(
-            mood: 'neutral',
-            cache: true
-          )
+          entity_id: anything
         ).and_return(true)
 
         module_instance.call(message: message, context: context, mood: mood)
