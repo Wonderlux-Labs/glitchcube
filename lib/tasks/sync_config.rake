@@ -98,8 +98,8 @@ namespace :config do
     puts '✅ Configuration push completed!'
     puts '🔄 Reloading all Home Assistant YAML configurations...'
 
-    # Use the new reload_all service that reloads everything at once
-    system("ssh #{REMOTE_HOST} 'ha core reload'")
+
+    system("ssh #{REMOTE_HOST} 'ha core restart'")
   end
 
   desc 'Show status of local vs remote configuration'
