@@ -98,7 +98,6 @@ namespace :config do
     puts '✅ Configuration push completed!'
     puts '🔄 Reloading all Home Assistant YAML configurations...'
 
-
     system("ssh #{REMOTE_HOST} 'ha core restart'")
   end
 
