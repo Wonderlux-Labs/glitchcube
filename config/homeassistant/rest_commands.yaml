@@ -110,3 +110,11 @@ refresh_glitchcube_entities:
       "source": "home_assistant_batch"
     }
   timeout: 10
+
+# Proactive behavior commands
+glitchcube_proactive:
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/proactive/{{ endpoint }}"
+  method: POST
+  headers:
+    Content-Type: application/json
+  payload: '{{ data | to_json }}'
