@@ -174,7 +174,7 @@ namespace :health do
 
     # Show process status (update based on current deployment method)
     puts "\nService Status:"
-    puts "TODO: Add service status check for current deployment"
+    puts 'TODO: Add service status check for current deployment'
   end
 end
 

@@ -8,7 +8,7 @@
 
 begin
   require 'dotenv'
-  
+
   if ENV['RACK_ENV'] == 'test'
     Dotenv.load('.env', '.env.test', '.env.defaults')
   else
