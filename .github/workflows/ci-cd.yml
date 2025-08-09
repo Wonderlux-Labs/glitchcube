@@ -127,20 +127,27 @@ jobs:
         run: |
           echo "🚀 Tests passed! Triggering deployment..."
           
+          # Prepare commit message (escape special characters for JSON)
+          COMMIT_MESSAGE=$(echo '${{ github.event.head_commit.message }}' | \
+            sed 's/\\/\\\\/g' | \
+            sed 's/"/\\"/g' | \
+            sed 's/\t/ /g' | \
+            sed 's/\r//g' | \
+            sed 's/\n/ /g' | \
+            head -c 200)
+          
           # Send deployment webhook to Home Assistant
           # HA will trigger the host system to pull and deploy
           curl -X POST "$HASS_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -d '{
-              "event": "deployment_ready",
-              "source": "github_actions",
-              "commit": "${{ github.sha }}",
-              "branch": "${{ github.ref_name }}",
-              "actor": "${{ github.actor }}",
-              "message": "${{ github.event.head_commit.message }}",
-              "repository": "${{ github.repository }}",
-              "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
-            }'
+            -d "{
+              \"commit\": \"${{ github.sha }}\",
+              \"branch\": \"${{ github.ref_name }}\",
+              \"actor\": \"${{ github.actor }}\",
+              \"message\": \"${COMMIT_MESSAGE}\",
+              \"repository\": \"${{ github.repository }}\",
+              \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
+            }"
           
           echo "✅ Deployment webhook sent to Home Assistant"
       
