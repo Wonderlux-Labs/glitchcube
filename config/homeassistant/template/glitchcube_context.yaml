@@ -1,0 +1,51 @@
+---
+# GlitchCube Context Sensor - Real-time context for persona
+# This sensor aggregates various context attributes for the GlitchCube persona
+
+- sensor:
+    - name: "GlitchCube Context"
+      unique_id: "glitchcube_context"
+      state: "active"
+      icon: "mdi:brain"
+      attributes:
+        # Weather summaries from Claude (stored in weather_context_storage sensor)
+        weather_24h: >-
+          {{ state_attr('sensor.weather_context_storage', 'weather_24h') | default('Weather data not yet loaded') }}
+        weather_5day: >-
+          {{ state_attr('sensor.weather_context_storage', 'weather_5day') | default('Forecast not yet loaded') }}
+        
+        # Current conditions
+        current_temp: >-
+          {{ states('sensor.playaweather_temperature') }}
+        current_condition: >-
+          {{ states('sensor.playaweather_weather') }}
+        current_humidity: >-
+          {{ states('sensor.playaweather_humidity') }}
+        current_wind: >-
+          {{ states('sensor.playaweather_wind_speed') }}
+        
+        # System status
+        deployment_status: >-
+          {{ 'in_progress' if is_state('input_boolean.deployment_in_progress', 'on') else 'idle' }}
+        last_deployment: >-
+          {{ states('input_text.last_deployment_time') }}
+        
+        # Time context
+        time_of_day: >-
+          {% set hour = now().hour %}
+          {% if hour < 6 %} late night
+          {% elif hour < 12 %} morning
+          {% elif hour < 17 %} afternoon
+          {% elif hour < 21 %} evening
+          {% else %} night
+          {% endif %}
+        day_of_week: >-
+          {{ now().strftime('%A') }}
+        
+        # Location context (when available)
+        current_location: >-
+          {{ states('sensor.glitchcube_current_location') if states('sensor.glitchcube_current_location') != 'unknown' else 'Black Rock City' }}
+        
+        # Additional context attributes can be added here
+        last_updated: >-
+          {{ now().isoformat() }}

@@ -1,0 +1,33 @@
+# Automation to periodically update weather context for GlitchCube persona
+
+- id: update_weather_context_periodic
+  alias: "Update Weather Context Periodically"
+  description: "Updates weather summaries every 30 minutes for persona context"
+  trigger:
+    - platform: time_pattern
+      minutes: "0"  # Every hour on the hour
+    - platform: homeassistant
+      event: start  # On HA startup
+    - platform: state
+      entity_id: weather.playaweather
+      attribute: temperature  # When weather updates
+  condition: []
+  action:
+    - service: script.update_all_weather_context
+    - service: system_log.write
+      data:
+        message: "Weather context updated for GlitchCube persona"
+        level: info
+
+- id: update_weather_context_on_demand
+  alias: "Update Weather Context On Demand"
+  description: "Updates weather context when requested by button"
+  trigger:
+    - platform: state
+      entity_id: input_button.update_weather_context
+  action:
+    - service: script.update_all_weather_context
+    - service: notify.persistent_notification
+      data:
+        title: "🌤️ Weather Context Updated"
+        message: "Weather summaries have been refreshed for GlitchCube"
