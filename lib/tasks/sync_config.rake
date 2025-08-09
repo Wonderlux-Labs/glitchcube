@@ -118,7 +118,7 @@ namespace :config do
     system("ssh #{REMOTE_HOST} 'ha core restart' 2>/dev/null")
 
     puts '✅ All YAML configurations reloaded!'
-    puts "💡 Note: All configuration changes, including those to configuration.yaml and custom_components, are now applied automatically by restarting Home Assistant core."
+    puts '💡 Note: All configuration changes, including those to configuration.yaml and custom_components, are now applied automatically by restarting Home Assistant core.'
   end
 
   desc 'Show status of local vs remote configuration'
