@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/modules/error_handling'
-require_relative '../../lib/services/logger_service'
 
 RSpec.describe ErrorHandling do
   let(:test_class) do

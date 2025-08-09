@@ -3,7 +3,6 @@
 
 # Debug script to test conversation endpoint without VCR
 
-require_relative 'spec/spec_helper'
 require 'rack/test'
 
 class TestApp

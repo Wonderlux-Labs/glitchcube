@@ -3,7 +3,7 @@
 
 # Script to update Home Assistant entities documentation
 require 'bundler/setup'
-require_relative '../app'
+
 require 'json'
 require 'time'
 

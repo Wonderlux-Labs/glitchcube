@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 require 'open_router'
-require_relative 'logger_service'
-require_relative 'simple_logger'
-require_relative 'circuit_breaker_service'
-require_relative 'llm_response'
 
 module Services
   # Clean LLM wrapper service using OpenRouter gem directly

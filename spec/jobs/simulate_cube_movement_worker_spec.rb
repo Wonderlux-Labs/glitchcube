@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/jobs/simulate_cube_movement_worker'
 
 RSpec.describe Jobs::SimulateCubeMovementWorker do
   let(:worker) { described_class.new }

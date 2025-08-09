@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../services/logger_service'
-
 module ErrorHandling
   # Expected operational errors that we handle gracefully
   class OperationalError < StandardError; end

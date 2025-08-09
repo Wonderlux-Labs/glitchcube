@@ -11,7 +11,6 @@ require 'json'
 Dotenv.load
 
 # Load the app and dependencies
-require_relative 'app'
 
 puts '=' * 50
 puts 'TTS Voice Discovery'

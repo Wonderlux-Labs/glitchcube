@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../../config/constants'
-
 module Utils
   module LocationHelper
     # Get current coordinates

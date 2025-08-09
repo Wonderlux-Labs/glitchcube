@@ -41,7 +41,6 @@ module GlitchCube
 
               # Check database
               db_ok = begin
-                require_relative '../../../models/memory'
                 Memory.connection.active?
               rescue StandardError
                 false

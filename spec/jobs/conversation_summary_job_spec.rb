@@ -2,8 +2,6 @@
 
 require 'spec_helper'
 require 'sidekiq/testing'
-require_relative '../../lib/jobs/conversation_summary_job'
-require_relative '../../lib/jobs/memory_consolidation_job'
 
 RSpec.describe Jobs::ConversationSummaryJob do
   before do

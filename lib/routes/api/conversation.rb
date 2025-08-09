@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../../services/conversation_session'
-require_relative '../../services/logger_service'
-require_relative '../../modules/error_handling'
-
 module GlitchCube
   module Routes
     module Api

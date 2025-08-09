@@ -3,10 +3,6 @@
 require 'sidekiq'
 require 'json'
 require 'fileutils'
-require_relative '../cube/settings'
-require_relative '../utils/location_helper'
-require_relative '../services/gps_tracking_service'
-require_relative '../home_assistant_client'
 
 module Jobs
   class SimulateCubeMovementWorker

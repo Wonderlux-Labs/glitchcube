@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_tool'
-require_relative '../services/logger_service'
-
 # Tool for controlling AWTRIX LED matrix display system
 # Provides text display, notifications, mood lighting
 class DisplayTool < BaseTool

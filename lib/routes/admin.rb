@@ -167,7 +167,7 @@ module GlitchCube
 
             # Log if it failed
             unless success
-              require_relative '../helpers/log_helper'
+
               LogHelper.error("TTS failed for character #{character}: message='#{message}', entity_id='#{entity_id}'")
             end
 
@@ -500,7 +500,6 @@ module GlitchCube
           content_type :json
 
           begin
-            require_relative '../services/tool_registry_service'
             tools = ::Services::ToolRegistryService.discover_tools
 
             # Format for frontend consumption
@@ -545,7 +544,6 @@ module GlitchCube
             data = JSON.parse(request.body.read)
             parameters = data['parameters'] || {}
 
-            require_relative '../services/tool_registry_service'
             result = ::Services::ToolRegistryService.execute_tool_directly(tool_name, parameters)
 
             result.to_json
@@ -572,7 +570,6 @@ module GlitchCube
 
           begin
             tool_names = params[:tools]&.split(',')&.map(&:strip)
-            require_relative '../services/tool_registry_service'
 
             functions = ::Services::ToolRegistryService.get_tool_methods_as_functions(tool_names)
 
@@ -595,8 +592,6 @@ module GlitchCube
           begin
             character = params[:character]
             tool_names = params[:tools]&.split(',')&.map(&:strip)
-
-            require_relative '../services/tool_registry_service'
 
             functions = if character
                           ::Services::ToolRegistryService.get_tools_for_character(character)

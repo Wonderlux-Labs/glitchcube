@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/tools/speech_tool'
 
 RSpec.describe SpeechTool do
   describe 'tool interface' do

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../../lib/cube/settings'
 
 RSpec.describe Cube::Settings do
   describe 'Feature Toggles' do

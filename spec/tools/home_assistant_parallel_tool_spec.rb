@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/tools/home_assistant_parallel_tool'
 
 RSpec.describe HomeAssistantParallelTool do
   describe '.call' do

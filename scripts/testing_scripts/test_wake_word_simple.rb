@@ -4,9 +4,7 @@
 # Simplified wake word test using default conversation agent
 
 require 'bundler/setup'
-require_relative 'config/environment'
-require_relative 'config/initializers/config'
-require_relative 'lib/home_assistant_client'
+
 require 'json'
 
 puts '🎤 Simple Wake Word Test (Using Default Agent)'

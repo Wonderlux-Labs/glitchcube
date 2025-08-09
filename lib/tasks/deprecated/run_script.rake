@@ -3,7 +3,7 @@
 desc 'Run a script with full app environment loaded'
 task :run_script, [:script_path] do |_task, args|
   # Load the app environment manually
-  require_relative '../../config/initializers/config'
+
   script_path = args[:script_path]
 
   unless script_path

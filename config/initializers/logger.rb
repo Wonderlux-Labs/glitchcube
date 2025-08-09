@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 # Initialize the simple logger service
-require_relative '../../lib/services/simple_logger'
 
 # Create convenient global methods for logging
 module Kernel

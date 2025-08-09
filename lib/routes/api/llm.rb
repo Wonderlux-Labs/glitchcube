@@ -2,7 +2,6 @@
 
 require 'sinatra/base'
 require 'json'
-require_relative '../../helpers/log_helper'
 
 module GlitchCube
   module Routes

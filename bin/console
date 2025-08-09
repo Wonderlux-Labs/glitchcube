@@ -15,7 +15,6 @@ Dotenv.load('.env', '.env.defaults')
 ENV['RACK_ENV'] ||= 'development'
 
 # Require the main app and all dependencies
-require_relative '../app'
 
 # Load all lib files
 Dir[File.join(__dir__, '../lib/**/*.rb')].each { |f| require f }

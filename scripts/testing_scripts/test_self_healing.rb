@@ -4,9 +4,6 @@
 # Test script to demonstrate the self-healing error handler
 # WARNING: Only run in development environment!
 
-require_relative 'config/initializers/config'
-require_relative 'lib/services/error_handling_llm'
-require_relative 'lib/error_handler_integration'
 require 'redis'
 
 puts '🧬 Self-Healing Error Handler Test'

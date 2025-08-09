@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/services/character_service'
 
 RSpec.describe Services::CharacterService do
   let(:mock_home_assistant) { instance_double(HomeAssistantClient) }

@@ -183,4 +183,3 @@ rescue StandardError => e
 end
 
 # Tool registry no longer needs initialization - tools are loaded explicitly
-require_relative '../../lib/services/tool_registry_service'

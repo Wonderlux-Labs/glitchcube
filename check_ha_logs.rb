@@ -4,9 +4,7 @@
 # Script to check Home Assistant logs for errors
 
 require 'bundler/setup'
-require_relative 'config/environment'
-require_relative 'config/initializers/config'
-require_relative 'lib/home_assistant_client'
+
 require 'json'
 require 'time'
 

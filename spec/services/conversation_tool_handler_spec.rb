@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/services/conversation_tool_handler'
 
 RSpec.describe Services::ConversationToolHandler do
   let(:mock_session) do

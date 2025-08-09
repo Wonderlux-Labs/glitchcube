@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/services/conversation_service'
-require_relative '../../lib/services/system_prompt_service'
-require_relative '../../lib/modules/conversation_module'
+
+
+
 
 RSpec.describe 'Conversation with Persistence Integration', :vcr do
   before do

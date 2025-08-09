@@ -15,7 +15,7 @@ The service provides:
 ### Basic Usage
 
 ```ruby
-require_relative 'lib/services/system_prompt_service'
+
 
 # Default prompt
 service = Services::SystemPromptService.new

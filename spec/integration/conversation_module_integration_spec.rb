@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/modules/conversation_module'
 
 RSpec.describe 'ConversationModule Integration', :vcr do
   let(:module_instance) { ConversationModule.new }

@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
 require 'open_router'
-require_relative '../logger_service'
-require_relative '../circuit_breaker_service'
-require_relative 'llm_response'
 
 module Services
   module LLM
@@ -234,7 +231,7 @@ module Services
           response_model = safe_extract(response) { |r| r[:model] || r['model'] } || model
 
           # Return LLMResponse object for cleaner API
-          LLMResponse.new(
+          LLM::LLMResponse.new(
             raw_response: response,
             model: response_model,
             content: extract_content(response),

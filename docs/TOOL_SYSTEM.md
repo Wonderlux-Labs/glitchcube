@@ -191,7 +191,7 @@ buddy: {
 
 ```ruby
 # lib/tools/my_new_tool.rb
-require_relative 'base_tool'
+
 
 class MyNewTool < BaseTool
   def self.name

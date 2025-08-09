@@ -2,7 +2,6 @@
 
 require 'spec_helper'
 require 'tzinfo'
-require_relative '../../lib/services/system_prompt_service'
 
 RSpec.describe Services::SystemPromptService do
   describe '#generate' do
@@ -226,7 +225,7 @@ RSpec.describe Services::SystemPromptService do
       # This is more of a documentation spec
       module_file = File.read(File.join(__dir__, '../../lib/modules/conversation_module.rb'))
 
-      expect(module_file).to include("require_relative '../services/system_prompt_service'")
+      expect(module_file).to include('')
       expect(module_file).to include('Services::SystemPromptService.new')
     end
   end

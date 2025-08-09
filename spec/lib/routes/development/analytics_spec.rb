@@ -95,7 +95,6 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
   describe 'GET /api/v1/analytics/conversations' do
     before do
       # Create test conversation sessions
-      require_relative '../../../../lib/services/conversation_session'
 
       # Clear existing sessions
       Conversation.destroy_all

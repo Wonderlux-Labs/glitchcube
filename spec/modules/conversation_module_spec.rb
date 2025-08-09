@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/modules/conversation_module'
 
 RSpec.describe ConversationModule do
   let(:module_instance) { described_class.new }

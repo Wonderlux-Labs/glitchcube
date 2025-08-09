@@ -8,8 +8,6 @@ require 'dotenv'
 Dotenv.load
 
 # Load the app and dependencies
-require_relative 'app'
-require_relative 'lib/services/tts_service'
 
 puts '=' * 50
 puts 'TTS Service Test - Production Debugging'

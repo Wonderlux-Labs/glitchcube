@@ -6,11 +6,6 @@ require 'bundler/setup'
 require 'dotenv'
 Dotenv.load
 
-require_relative 'config/initializers/config'
-require_relative 'lib/services/llm_service'
-require_relative 'lib/services/llm_response'
-require_relative 'lib/schemas/conversation_response_schema'
-
 puts 'Testing Structured Output Support'
 puts '=' * 50
 

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../helpers/session_storage'
 require 'securerandom'
 
 # Session management for conversations using flexible storage backend

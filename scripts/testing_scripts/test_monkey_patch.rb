@@ -44,10 +44,6 @@ module OpenRouter
   end
 end
 
-require_relative 'config/initializers/config'
-require_relative 'lib/services/llm_service'
-require_relative 'lib/schemas/conversation_response_schema'
-
 schema = GlitchCube::Schemas::ConversationResponseSchema.simple_response
 formatted_schema = GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(schema)
 

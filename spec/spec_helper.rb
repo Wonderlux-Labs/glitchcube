@@ -409,4 +409,3 @@ else
 end
 
 # Zero-Leak VCR Configuration
-require_relative 'support/vcr_setup'

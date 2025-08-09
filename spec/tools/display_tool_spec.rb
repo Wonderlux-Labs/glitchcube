@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/tools/display_tool'
 
 RSpec.describe DisplayTool do
   describe 'tool interface' do

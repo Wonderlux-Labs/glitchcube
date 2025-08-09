@@ -2,7 +2,6 @@
 # frozen_string_literal: true
 
 # Quick test script to verify BUDDY persona with tools
-require_relative 'lib/modules/conversation_module'
 
 puts '🤖 Testing BUDDY conversation with tools...'
 puts '=' * 50

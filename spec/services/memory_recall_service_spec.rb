@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/services/memory_recall_service'
 
 RSpec.describe Services::MemoryRecallService do
   describe '.get_relevant_memories' do

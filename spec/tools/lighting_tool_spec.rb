@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/tools/lighting_tool'
 
 RSpec.describe LightingTool do
   describe 'tool interface' do

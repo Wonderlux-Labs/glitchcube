@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../../app'
 
 RSpec.describe 'Request Logging', type: :request do
   def app

@@ -4,7 +4,7 @@
 
 # Load the app if not already loaded
 unless defined?(GlitchCubeApp)
-  require_relative 'app'
+
   Dir[File.join(__dir__, 'lib/**/*.rb')].each { |f| require f }
 end
 

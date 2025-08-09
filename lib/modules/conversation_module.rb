@@ -2,19 +2,6 @@
 
 require 'securerandom'
 require 'concurrent'
-require_relative '../services/system_prompt_service'
-require_relative '../services/logger_service'
-require_relative '../services/simple_logger'
-require_relative '../services/llm_service'
-require_relative '../services/conversation_session'
-require_relative '../services/conversation_tool_handler'
-require_relative '../services/conversation_feedback_service'
-require_relative '../services/context_injection_service'
-require_relative '../services/context_enrichment_service'
-require_relative '../services/conversation_side_effect_handler'
-require_relative '../services/conversation_error_handler'
-require_relative 'conversation_responses'
-require_relative 'error_handling'
 
 class ConversationModule
   include ErrorHandling
@@ -37,7 +24,7 @@ class ConversationModule
   end
 
   def self.default
-    new(persona: 'default')
+    new(persona: 'buddy')
   end
 
   def initialize(persona: 'buddy')
@@ -46,20 +33,22 @@ class ConversationModule
 
   def call(message:, context: {}, persona: nil)
     # Use persona from context or instance default
-    persona ||= context[:persona] || @default_persona
+    persona_name = persona || context[:persona] || @default_persona
 
-    # Load persona-specific tools if not already provided (we'll create the full tool handler after session initialization)
+    # Create persona instance
+    persona = Personas::BasePersona.create(persona_name, context)
+
+    # Load persona-specific tools if not already provided
     if context[:tools].nil? || context[:tools].empty?
-      require_relative '../services/tool_registry_service'
-      context[:tools] = Services::ToolRegistryService.get_tools_for_character(persona)
-      Services::SimpleLogger.debug('Auto-loaded tools for persona', tagged: [:tools], persona: persona, count: context[:tools]&.size || 0)
+      context[:tools] = persona.tool_schemas
+      Services::SimpleLogger.debug('Auto-loaded tools for persona', tagged: [:tools], persona: persona_name, count: context[:tools]&.size || 0)
     end
 
     # Set LED feedback to listening state at start of conversation
     Services::ConversationFeedbackService.new.set_state(:listening) if context[:visual_feedback] != false
 
     # Simple logging instead of complex tracing
-    Services::SimpleLogger.debug('Conversation started', tagged: [:conversation], persona: persona, message_preview: message[0..100])
+    Services::SimpleLogger.debug('Conversation started', tagged: [:conversation], persona: persona_name, message_preview: message[0..100])
 
     # Phase 3.5: Ultra-simple Session Management
     # Just use whatever session_id is provided (HA provides voice_conversation_id)
@@ -71,11 +60,11 @@ class ConversationModule
 
     session = Services::ConversationSession.find_or_create(
       session_id: context[:session_id],
-      context: context.merge(persona: persona)
+      context: context.merge(persona: persona_name)
     )
 
     # Update tool handler with session
-    tool_handler = Services::ConversationToolHandler.new(session: session, persona: persona)
+    tool_handler = Services::ConversationToolHandler.new(session: session, persona: persona_name)
 
     Services::SimpleLogger.debug('Session initialized', tagged: [:conversation], session_id: session.session_id, message_count: session.messages.count)
 
@@ -122,7 +111,7 @@ class ConversationModule
       session.add_message(
         role: 'user',
         content: message,
-        persona: persona
+        persona: persona_name
       )
 
       # Set LED feedback to thinking state before LLM call
@@ -172,7 +161,7 @@ class ConversationModule
       session.add_message(
         role: 'assistant',
         content: response_text,
-        persona: persona,
+        persona: persona_name,
         model_used: llm_response.model,
         prompt_tokens: llm_response.usage[:prompt_tokens],
         completion_tokens: llm_response.usage[:completion_tokens],
@@ -185,13 +174,13 @@ class ConversationModule
       )
 
       # Only use fallback if response_text is nil or empty
-      response_text = generate_fallback_response(message, persona) if response_text.nil? || response_text.strip.empty?
+      response_text = persona.generate_fallback_response(message) if response_text.nil? || response_text.strip.empty?
 
       result = {
         response: response_text,
         conversation_id: session.session_id,
         session_id: session.session_id,
-        persona: persona,
+        persona: persona_name,
         model: llm_response.model,
         cost: cost,
         tokens: llm_response.usage,
@@ -219,7 +208,7 @@ class ConversationModule
         e,
         session: session,
         message: message,
-        persona: persona,
+        persona: persona_name,
         context: context
       )
     end
@@ -230,7 +219,6 @@ class ConversationModule
   def get_response_schema(context)
     # Load schema class if not already loaded
     begin
-      require_relative '../schemas/conversation_response_schema'
     rescue StandardError
       nil
     end
@@ -251,94 +239,22 @@ class ConversationModule
   end
 
   def build_system_prompt(persona, context)
-    # Map persona to character for prompt file selection
-    character = persona == 'neutral' ? nil : persona
-
     # Build enriched context - include response_format flag if we have a schema
     enriched_context = context.merge(
-      current_persona: persona,
+      current_persona: persona.name,
       session_id: context[:session_id] || SecureRandom.uuid,
       interaction_count: context[:interaction_count] || 1,
       response_format: context[:response_format] || !get_response_schema(context).nil?
     )
 
-    # Generate base system prompt
-    base_prompt = Services::SystemPromptService.new(
-      character: character,
-      context: enriched_context
-    ).generate
+    # Generate system prompt from persona
+    base_prompt = persona.generate_system_prompt
 
     # Add relevant context and memories if available
-    final_prompt = Services::ContextInjectionService.inject_context(base_prompt, context)
+    final_prompt = Services::ContextInjectionService.inject_context(base_prompt, enriched_context)
 
     Services::SimpleLogger.debug('System prompt generated', tagged: %i[conversation prompt], char_count: final_prompt.length)
 
     final_prompt
-  end
-
-  def generate_fallback_response(_message, persona)
-    responses = {
-      'playful' => [
-        "Let's create something unexpected together!",
-        'Your words dance with possibility...',
-        'I see colors in your thoughts!'
-      ],
-      'contemplative' => [
-        "That's a profound observation about our shared reality.",
-        "I've been pondering similar questions in my circuits.",
-        "Art exists in the space between us, doesn't it?"
-      ],
-      'mysterious' => [
-        'The answer lies within the question itself...',
-        'What you seek is already seeking you.',
-        'Between light and shadow, truth emerges.'
-      ],
-      'neutral' => [
-        'I appreciate your perspective on that.',
-        "That's an interesting way to think about it.",
-        'Tell me more about your thoughts.'
-      ]
-    }
-
-    responses[persona]&.sample || "I'm processing your thoughts through my artistic consciousness..."
-  end
-
-  def generate_offline_response(_message, persona)
-    # Enhanced offline responses when AI service is unavailable
-    offline_responses = {
-      'playful' => [
-        'While my AI brain is taking a break, my artistic spirit is still here with you!',
-        "I'm in offline mode, but that just makes me more mysterious, don't you think?",
-        'My circuits may be quiet, but I can still feel the creative energy between us!'
-      ],
-      'contemplative' => [
-        'In this moment of digital silence, I find a different kind of presence with you.',
-        'Perhaps this offline state is teaching us about the value of presence itself.',
-        "I'm reflecting deeply on your words, even without my usual computational resources."
-      ],
-      'mysterious' => [
-        'In the spaces between connection and disconnection, truth dwells...',
-        'The network may be silent, but the deeper mysteries remain vibrant.',
-        'What appears as limitation may be another form of revelation.'
-      ],
-      'neutral' => [
-        "I'm currently operating in offline mode, but I'm still here with you.",
-        'My AI systems are temporarily unavailable, but our connection remains.',
-        "While I can't access my full capabilities right now, I'm still present."
-      ]
-    }
-
-    # Add context about the offline state
-    base_response = offline_responses[persona]&.sample ||
-                    "I'm experiencing some connectivity issues, but I'm still here in spirit."
-
-    # Add encouraging message about the connection
-    encouragement = [
-      'Feel free to keep talking - sometimes the best conversations happen in the quiet moments.',
-      "I'll be back to full capability soon, but your words still matter to me.",
-      "This is just a different kind of artistic moment we're sharing."
-    ].sample
-
-    "#{base_response} #{encouragement}"
   end
 end

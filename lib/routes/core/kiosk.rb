@@ -15,7 +15,6 @@ module GlitchCube
             content_type :json
 
             begin
-              require_relative '../../services/kiosk_service'
               kiosk_service = ::Services::KioskService.new
 
               json(kiosk_service.get_status)

@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 require 'sidekiq'
-require_relative '../services/llm_service'
-require_relative '../services/logger_service'
-require_relative '../home_assistant_client'
-require_relative '../modules/error_handling'
 
 module Jobs
   class PersonalityMemoryJob

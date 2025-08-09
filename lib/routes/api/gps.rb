@@ -37,8 +37,6 @@ module GlitchCube
           app.get '/api/v1/gps/location' do
             content_type :json
 
-            require_relative '../../services/gps_cache_service'
-
             begin
               # Use cached location data (1-minute TTL)
               location = ::Services::GpsCacheService.cached_location
@@ -96,7 +94,6 @@ module GlitchCube
           app.get '/api/v1/gps/home' do
             content_type :json
 
-            require_relative '../../cube/settings'
             home_coords = Cube::Settings.home_camp_coordinates
             json(home_coords)
           end
@@ -113,7 +110,7 @@ module GlitchCube
                   history_data = JSON.parse(File.read(history_file))
 
                   # Format history for display
-                  require_relative '../../services/gps_tracking_service'
+
                   gps_service = ::Services::GpsTrackingService.new
 
                   formatted_history = history_data.map do |point|
@@ -223,7 +220,7 @@ module GlitchCube
                    })
             rescue StandardError => e
               # Fallback to hardcoded landmarks if database unavailable
-              require_relative '../../utils/burning_man_landmarks'
+
               landmarks = Utils::BurningManLandmarks.all_landmarks
 
               json({

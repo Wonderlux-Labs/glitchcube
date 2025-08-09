@@ -150,11 +150,11 @@ class VCRMigration
     end
 
     # Add Zero-Leak VCR require at the end of file
-    unless updated_content.include?("require_relative 'support/vcr_setup'")
+    unless updated_content.include?('')
       updated_content += <<~RUBY
 
         # Zero-Leak VCR Configuration
-        require_relative 'support/vcr_setup'
+
       RUBY
     end
 

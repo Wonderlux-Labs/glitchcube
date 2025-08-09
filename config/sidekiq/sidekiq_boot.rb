@@ -3,11 +3,8 @@
 # Sidekiq boot file - ensures proper environment setup for workers
 # This file is loaded by Sidekiq to initialize the worker environment
 
-require_relative '../config/environment'
-
 # CRITICAL: Load and configure database BEFORE loading app
 # This ensures Sidekiq uses the correct database configuration
-require_relative 'database_config'
 
 # Configure database with our centralized config
 puts '🗄️  Configuring Sidekiq database...'
@@ -24,9 +21,7 @@ puts "   Username: #{config['username']}"
 puts "   Pool: #{config['pool']}"
 
 # Now load the main application
-require_relative '../app'
 
 # Load Sidekiq configuration
-require_relative 'sidekiq'
 
 puts '✅ Sidekiq environment loaded successfully'

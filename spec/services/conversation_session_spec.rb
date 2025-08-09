@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/services/conversation_session'
 
 RSpec.describe Services::ConversationSession do
   let(:session_id) { 'test-session-123' }

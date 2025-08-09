@@ -2,7 +2,6 @@
 # frozen_string_literal: true
 
 # Test script to verify the new method-based tool system
-require_relative 'lib/services/tool_registry_service'
 
 puts '🧪 Testing new method-based tool system...'
 puts '=' * 50

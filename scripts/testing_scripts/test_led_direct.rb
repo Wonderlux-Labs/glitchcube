@@ -1,10 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative 'config/initializers/config'
-require_relative 'lib/home_assistant_client'
-require_relative 'lib/services/conversation_feedback_service'
-
 puts '🔵 Direct LED test with debug output...'
 
 # Test entity exists first

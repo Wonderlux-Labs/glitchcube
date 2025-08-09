@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/home_assistant_client'
-require_relative '../../lib/services/conversation_session'
 
 RSpec.describe 'Home Assistant Conversation Integration', :vcr do
   let(:client) { HomeAssistantClient.new }

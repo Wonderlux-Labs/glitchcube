@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/services/gps_tracking_service'
-require_relative '../../lib/home_assistant_client'
 
 RSpec.describe Services::GpsTrackingService do
   let(:service) { described_class.new }

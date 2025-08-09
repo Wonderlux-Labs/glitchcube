@@ -189,7 +189,6 @@ module GlitchCube
 
         # Test tools
         app.get '/admin/test/tools' do
-          require_relative '../services/tool_registry_service'
           @tools = ::Services::ToolRegistryService.discover_tools.map do |name, info|
             {
               name: name,
@@ -215,7 +214,6 @@ module GlitchCube
               tool_params[key.to_sym] = value unless value.to_s.strip.empty?
             end
 
-            require_relative '../services/tool_registry_service'
             @tool_result = ::Services::ToolRegistryService.execute_tool_directly(tool_name, tool_params)
           rescue StandardError => e
             @tool_result = { success: false, error: e.message }

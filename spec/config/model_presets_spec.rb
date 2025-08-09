@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../config/model_presets'
 
 RSpec.describe GlitchCube::ModelPresets do
   describe '.get_model' do

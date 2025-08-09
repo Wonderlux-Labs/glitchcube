@@ -23,7 +23,7 @@ module GlitchCube
               # Optionally trigger entity list refresh if significant change
               if should_trigger_refresh?(request_body)
                 # Queue background job to refresh entity documentation
-                require_relative '../../jobs/entity_documentation_job'
+
                 Jobs::EntityDocumentationJob.perform_async({
                                                              trigger: 'entity_change',
                                                              changed_entity: request_body['entity_id'],
@@ -66,7 +66,7 @@ module GlitchCube
                        source: request_body['source'])
 
               # Queue background job to refresh entity documentation
-              require_relative '../../jobs/entity_documentation_job'
+
               job_id = Jobs::EntityDocumentationJob.perform_async({
                                                                     trigger: 'manual_refresh',
                                                                     batch_update: request_body['batch_update'],

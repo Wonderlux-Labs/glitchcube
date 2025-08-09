@@ -7,8 +7,6 @@ require 'bundler/setup'
 require 'dotenv'
 Dotenv.load
 
-require_relative 'app'
-
 client = HomeAssistantClient.new
 
 formats_to_test = [

@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_tool'
-require_relative '../services/logger_service'
-
 # Tool for controlling RGB lighting hardware on the Glitch Cube
 # Provides simple, direct control of lights with known entity mappings
 class LightingTool < BaseTool

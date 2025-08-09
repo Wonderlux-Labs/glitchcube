@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_tool'
-require_relative '../services/logger_service'
-
 # Tool for controlling Music Assistant and media playback
 # Provides music control, playlist management, and audio routing
 class MusicTool < BaseTool

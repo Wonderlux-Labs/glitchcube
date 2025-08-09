@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'sidekiq'
-require_relative '../services/conversation_summarizer'
 
 module Jobs
   class ConversationSummaryJob

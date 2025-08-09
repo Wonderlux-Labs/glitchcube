@@ -4,9 +4,7 @@
 # Test script to check conversation agent configuration
 
 require 'bundler/setup'
-require_relative 'config/environment'
-require_relative 'config/initializers/config'
-require_relative 'lib/home_assistant_client'
+
 require 'json'
 
 puts '🔍 Checking Conversation Agent Configuration'
@@ -116,7 +114,6 @@ end
 # Test 6: Direct webhook test
 puts "\n6. Testing webhook endpoint..."
 begin
-  require_relative 'lib/services/home_assistant_webhook_service'
   webhook_service = Services::HomeAssistantWebhookService.new
 
   result = webhook_service.send_update({
