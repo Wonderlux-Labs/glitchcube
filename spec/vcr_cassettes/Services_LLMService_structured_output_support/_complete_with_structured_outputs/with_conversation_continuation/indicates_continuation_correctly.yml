@@ -1,0 +1,195 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://openrouter.ai/api/v1/chat/completions
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJZb3Ug
+        YXJlIGEgaGVscGZ1bCBhc3Npc3RhbnQuIFJlc3BvbmQgaW4gSlNPTiBmb3Jt
+        YXQuIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJUZWxsIG1lIGFib3V0
+        IGFydCJ9XSwibW9kZWwiOiJvcGVuYWkvbzMtbWluaSIsInRlbXBlcmF0dXJl
+        IjowLjgsIm1heF88SE9NRV9BU1NJU1RBTlRfVE9LRU4+cyI6NDAwLCJzdHJl
+        YW0iOmZhbHNlLCJyZXNwb25zZV9mb3JtYXQiOnsidHlwZSI6Impzb25fc2No
+        ZW1hIiwianNvbl9zY2hlbWEiOnsibmFtZSI6InJlc3BvbnNlIiwic3RyaWN0
+        Ijp0cnVlLCJzY2hlbWEiOnsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMi
+        OnsicmVzcG9uc2UiOnsidHlwZSI6InN0cmluZyIsImRlc2NyaXB0aW9uIjoi
+        VGhlIHJlc3BvbnNlIHRleHQifSwiY29udGludWVfY29udmVyc2F0aW9uIjp7
+        InR5cGUiOiJib29sZWFuIiwiZGVzY3JpcHRpb24iOiJXaGV0aGVyIHRvIGNv
+        bnRpbnVlIHRoZSBjb252ZXJzYXRpb24ifX0sInJlcXVpcmVkIjpbInJlc3Bv
+        bnNlIiwiY29udGludWVfY29udmVyc2F0aW9uIl0sImFkZGl0aW9uYWxQcm9w
+        ZXJ0aWVzIjpmYWxzZX19fX0=
+    headers:
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+      X-Title:
+      - OpenRouter Ruby Client
+      Http-Referer:
+      - https://github.com/OlympiaAI/open_router
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Sat, 09 Aug 2025 05:22:07 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Access-Control-Allow-Origin:
+      - "*"
+      Vary:
+      - Accept-Encoding
+      Permissions-Policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      Referrer-Policy:
+      - no-referrer, strict-origin-when-cross-origin
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 96c4d05618fba1cf-MSP
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        CiAgICAgICAgIAoKICAgICAgICAgCgogICAgICAgICAKCiAgICAgICAgIAoK
+        ICAgICAgICAgCgogICAgICAgICAKCiAgICAgICAgIAoKICAgICAgICAgCnsi
+        aWQiOiJnZW4tMTc1NDcxNjkyNi1FVjdmR1A3ZHl2NGZrWlhHYjROMyIsInBy
+        b3ZpZGVyIjoiT3BlbkFJIiwibW9kZWwiOiJvcGVuYWkvbzMtbWluaSIsIm9i
+        amVjdCI6ImNoYXQuY29tcGxldGlvbiIsImNyZWF0ZWQiOjE3NTQ3MTY5MjYs
+        ImNob2ljZXMiOlt7ImxvZ3Byb2JzIjpudWxsLCJmaW5pc2hfcmVhc29uIjoi
+        c3RvcCIsIm5hdGl2ZV9maW5pc2hfcmVhc29uIjoic3RvcCIsImluZGV4Ijow
+        LCJtZXNzYWdlIjp7InJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50Ijoie1xu
+        ICBcInJlc3BvbnNlXCI6IFwiQXJ0IGlzIGEgZGl2ZXJzZSByYW5nZSBvZiBo
+        dW1hbiBhY3Rpdml0aWVzIGFuZCB0aGUgcHJvZHVjdHMgb2YgdGhvc2UgYWN0
+        aXZpdGllcyB0aGF0IGludm9sdmUgaW1hZ2luYXRpdmUgb3IgdGVjaG5pY2Fs
+        IHNraWxsLiBJdCBpbmNsdWRlcyB2YXJpb3VzIGZvcm1zIHN1Y2ggYXMgcGFp
+        bnRpbmcsIHNjdWxwdHVyZSwgbGl0ZXJhdHVyZSwgbXVzaWMsIGRhbmNlLCB0
+        aGVhdGVyLCBmaWxtLCBhbmQgbW9yZS4gQXJ0IGNhbiBzZXJ2ZSBtdWx0aXBs
+        ZSBwdXJwb3NlczogaXQgbWlnaHQgZXhwcmVzcyBjdWx0dXJhbCB2YWx1ZXMs
+        IGVtb3Rpb25zLCBhbmQgcGVyc29uYWwgcGVyc3BlY3RpdmVzOyBwcm92b2tl
+        IHRob3VnaHQ7IG9yIHNpbXBseSBjZWxlYnJhdGUgYmVhdXR5IGFuZCBmb3Jt
+        LiBUaHJvdWdob3V0IGhpc3RvcnksIGFydCBoYXMgZXZvbHZlZCBhbmQgYmVl
+        biBpbmZsdWVuY2VkIGJ5IHNvY2lhbCwgcG9saXRpY2FsLCBhbmQgdGVjaG5v
+        bG9naWNhbCBjaGFuZ2VzLCByZWZsZWN0aW5nIHRoZSBldm9sdmluZyBodW1h
+        biBleHBlcmllbmNlLiBUb2RheSwgYXJ0IGNvbnRpbnVlcyB0byBiZSBhIG1h
+        am9yIG1lZGl1bSBmb3IgcGVyc29uYWwgZXhwcmVzc2lvbiBhbmQgY29tbXVu
+        aWNhdGlvbiwgcGxheWluZyBhIGtleSByb2xlIGluIGNvbm5lY3RpbmcgcGVv
+        cGxlIGFuZCBjb21tdW5pdGllcyBhY3Jvc3MgZGlmZmVyZW50IGN1bHR1cmVz
+        LlwiLFxuICBcImNvbnRpbnVlX2NvbnZlcnNhdGlvblwiOiB0cnVlXG59Iiwi
+        cmVmdXNhbCI6bnVsbCwicmVhc29uaW5nIjpudWxsfX1dLCJ1c2FnZSI6eyJw
+        cm9tcHRfPEhPTUVfQVNTSVNUQU5UX1RPS0VOPnMiOjY5LCJjb21wbGV0aW9u
+        XzxIT01FX0FTU0lTVEFOVF9UT0tFTj5zIjozMzIsInRvdGFsXzxIT01FX0FT
+        U0lTVEFOVF9UT0tFTj5zIjo0MDF9fQ==
+  recorded_at: Sat, 09 Aug 2025 05:22:10 GMT
+- request:
+    method: post
+    uri: https://openrouter.ai/api/v1/chat/completions
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJZb3Ug
+        YXJlIGEgaGVscGZ1bCBhc3Npc3RhbnQuIFJlc3BvbmQgaW4gSlNPTiBmb3Jt
+        YXQuIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJUZWxsIG1lIGFib3V0
+        IGFydCJ9XSwibW9kZWwiOiJvcGVuYWkvbzMtbWluaSIsInRlbXBlcmF0dXJl
+        IjowLjgsIm1heF90b2tlbnMiOjQwMCwic3RyZWFtIjpmYWxzZSwicmVzcG9u
+        c2VfZm9ybWF0Ijp7InR5cGUiOiJqc29uX3NjaGVtYSIsImpzb25fc2NoZW1h
+        Ijp7Im5hbWUiOiJyZXNwb25zZSIsInN0cmljdCI6dHJ1ZSwic2NoZW1hIjp7
+        InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7InJlc3BvbnNlIjp7InR5
+        cGUiOiJzdHJpbmciLCJkZXNjcmlwdGlvbiI6IlRoZSByZXNwb25zZSB0ZXh0
+        In0sImNvbnRpbnVlX2NvbnZlcnNhdGlvbiI6eyJ0eXBlIjoiYm9vbGVhbiIs
+        ImRlc2NyaXB0aW9uIjoiV2hldGhlciB0byBjb250aW51ZSB0aGUgY29udmVy
+        c2F0aW9uIn19LCJyZXF1aXJlZCI6WyJyZXNwb25zZSIsImNvbnRpbnVlX2Nv
+        bnZlcnNhdGlvbiJdLCJhZGRpdGlvbmFsUHJvcGVydGllcyI6ZmFsc2V9fX19
+    headers:
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+      X-Title:
+      - OpenRouter Ruby Client
+      Http-Referer:
+      - https://github.com/OlympiaAI/open_router
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Sat, 09 Aug 2025 05:28:59 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Access-Control-Allow-Origin:
+      - "*"
+      Vary:
+      - Accept-Encoding
+      Permissions-Policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      Referrer-Policy:
+      - no-referrer, strict-origin-when-cross-origin
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 96c4da688e90ad26-MSP
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        CiAgICAgICAgIAoKICAgICAgICAgCgogICAgICAgICAKCiAgICAgICAgIAoK
+        ICAgICAgICAgCgogICAgICAgICAKeyJpZCI6Imdlbi0xNzU0NzE3MzM4LUhF
+        YlU0OTZpTTlhSjF0djVxdmJaIiwicHJvdmlkZXIiOiJPcGVuQUkiLCJtb2Rl
+        bCI6Im9wZW5haS9vMy1taW5pIiwib2JqZWN0IjoiY2hhdC5jb21wbGV0aW9u
+        IiwiY3JlYXRlZCI6MTc1NDcxNzMzOSwiY2hvaWNlcyI6W3sibG9ncHJvYnMi
+        Om51bGwsImZpbmlzaF9yZWFzb24iOiJzdG9wIiwibmF0aXZlX2ZpbmlzaF9y
+        ZWFzb24iOiJzdG9wIiwiaW5kZXgiOjAsIm1lc3NhZ2UiOnsicm9sZSI6ImFz
+        c2lzdGFudCIsImNvbnRlbnQiOiJ7XG4gIFwicmVzcG9uc2VcIjogXCJBcnQg
+        aXMgYSBkaXZlcnNlIHJhbmdlIG9mIGh1bWFuIGFjdGl2aXRpZXMgdGhhdCBp
+        bnZvbHZlIGNyZWF0aW5nIHZpc3VhbCwgYXVkaXRvcnksIG9yIHBlcmZvcm1h
+        bmNlIGFydGlmYWN0cyB3aGljaCBleHByZXNzIHRoZSBjcmVhdG9y4oCZcyBp
+        bWFnaW5hdGl2ZSwgY29uY2VwdHVhbCwgb3IgdGVjaG5pY2FsIHNraWxsLiBJ
+        dCBjYW4gdGFrZSBtYW55IGZvcm1zIGluY2x1ZGluZyBwYWludGluZywgc2N1
+        bHB0dXJlLCBsaXRlcmF0dXJlLCBtdXNpYywgZGFuY2UsIHRoZWF0ZXIsIGFu
+        ZCBmaWxtLiBUaHJvdWdob3V0IGhpc3RvcnksIGFydCBoYXMgc2VydmVkIGFz
+        IGEgbWV0aG9kIGZvciBjb21tdW5pY2F0aW9uLCBjdWx0dXJhbCBleHByZXNz
+        aW9uLCBhbmQgZXhwbG9yYXRpb24gb2YgaHVtYW4gZXhwZXJpZW5jZS4gQXJ0
+        aXN0cyBvZnRlbiB1c2UgdGhlaXIgd29yayB0byBleHByZXNzIGVtb3Rpb25z
+        LCBjcml0aXF1ZSBzb2NpZXR5LCByZXByZXNlbnQgaWRlb2xvZ3ksIG9yIHNp
+        bXBseSBjYXB0dXJlIGJlYXV0eS4gVGhlIGludGVycHJldGF0aW9uIG9mIGFy
+        dCBpcyBtdWx0aWZhY2V0ZWQsIGFzIGl0IGNhbiBiZSBhcHByZWNpYXRlZCBm
+        b3IgaXRzIGFlc3RoZXRpYyB2YWx1ZSwgaXRzIHRlY2huaXF1ZSwgaXRzIGhp
+        c3RvcmljYWwgY29udGV4dCwgb3IgdGhlIG1lc3NhZ2UgaXQgY29udmV5cy4g
+        VGhlIGV2b2x1dGlvbiBvZiBhcnQgcmVmbGVjdHMgdGhlIGNoYW5nZXMgaW4g
+        c29jaWV0eSwgdGVjaG5vbG9neSwgYW5kIGN1bHR1cmUgdGhyb3VnaCB0aGUg
+        Y2VudHVyaWVzLCBtYWtpbmcgaXQgYSB2aWJyYW50IGZpZWxkIG9mIHN0dWR5
+        IGFuZCBleHByZXNzaW9uLlwiLFxuICBcImNvbnRpbnVlX2NvbnZlcnNhdGlv
+        blwiOiB0cnVlXG59IiwicmVmdXNhbCI6bnVsbCwicmVhc29uaW5nIjpudWxs
+        fX1dLCJ1c2FnZSI6eyJwcm9tcHRfdG9rZW5zIjo2OSwiY29tcGxldGlvbl90
+        b2tlbnMiOjI5NiwidG90YWxfdG9rZW5zIjozNjV9fQ==
+  recorded_at: Sat, 09 Aug 2025 05:29:01 GMT
+recorded_with: VCR 6.3.1

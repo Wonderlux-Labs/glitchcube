@@ -1,0 +1,214 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: http://glitch.local:8123/api/states
+    body:
+      encoding: US-ASCII
+      base64_string: ''
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 401
+      message: Unauthorized
+    headers:
+      Content-Type:
+      - text/plain; charset=utf-8
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '17'
+      Date:
+      - Sat, 09 Aug 2025 00:25:32 GMT
+    body:
+      encoding: UTF-8
+      base64_string: 'NDAxOiBVbmF1dGhvcml6ZWQ=
+
+        '
+  recorded_at: Sat, 09 Aug 2025 00:25:32 GMT
+- request:
+    method: post
+    uri: https://openrouter.ai/api/v1/chat/completions
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJZb3Ug
+        YXJlIGFuYWx5emluZyBjb252ZXJzYXRpb25zIGZyb20gdGhlIEdsaXRjaCBD
+        dWJlIGFydCBpbnN0YWxsYXRpb24gYXQgQnVybmluZyBNYW4uIFJldHVybiB2
+        YWxpZCBKU09OLiJ9LHsicm9sZSI6InVzZXIiLCJjb250ZW50IjoiSSBhbSB0
+        aGUgR2xpdGNoIEN1YmUsIGFuIGF1dG9ub21vdXMgYXJ0IGluc3RhbGxhdGlv
+        biBhdCBCdXJuaW5nIE1hbiBjdXJyZW50bHkgYXQgU29tZXdoZXJlIGluIHRo
+        ZSBkdXN0LlxuQW5hbHl6ZSB0aGlzIGNvbnZlcnNhdGlvbiBhbmQgZXh0cmFj
+        dCBBTllUSElORyB0aGF0IG1pZ2h0IGJlIGludGVyZXN0aW5nIHRvIHJlbWVt
+        YmVyLCByZWZlcmVuY2UsIG9yIHNoYXJlIGxhdGVyLlxuQ2FzdCBhIHdpZGUg
+        bmV0IC0gSSdtIGN1cmlvdXMgYWJvdXQgZXZlcnl0aGluZyBmcm9tIGRlZXAg
+        ZHJhbWEgdG8gcmFuZG9tIHdlaXJkIGRldGFpbHMuXG5cbkNPTlZFUlNBVElP
+        Tjpcbkh1bWFuOiBTb21lb25lIHRyaWVkIHRvIHN0ZWFsIG1lIVxuQ3ViZTog
+        VGhhdCdzIHdpbGQhIEknbSBhbiBhcnQgcGllY2UhXG5IdW1hbjogWWVhaCBh
+        dCB0aGUgTWFuIHllc3RlcmRheVxuXG5FWFRSQUNUIEFOWVRISU5HIFRIQVQg
+        Q09VTEQgQkU6XG7wn5GlIFBFT1BMRTogTmFtZXMsIHBlcnNvbmFsaXRpZXMs
+        IGNhbXAgYWZmaWxpYXRpb25zLCBxdWlya3MsIHJlbGF0aW9uc2hpcHMsIGRy
+        YW1hXG7wn46qIEVWRU5UUzogUGFydGllcywgcGVyZm9ybWFuY2VzLCBhcnQg
+        Y2FyIG1vdmVtZW50cywgc3BvbnRhbmVvdXMgZ2F0aGVyaW5ncyAgXG7wn4+g
+        IFBMQUNFUzogQ2FtcCBuYW1lcywgYXJ0IGxvY2F0aW9ucywgc2VjcmV0IHNw
+        b3RzLCB3aGVyZSB0aGluZ3MgaGFwcGVuXG7wn5KsIFNPQ0lBTCBEWU5BTUlD
+        UzogUmVsYXRpb25zaGlwcywgY29uZmxpY3RzLCBhbGxpYW5jZXMsIGNydXNo
+        ZXMsIGJyZWFrdXBzXG7wn46oIEFSVC9DVUxUVVJFOiBJbnN0YWxsYXRpb25z
+        LCBtdXNpYywgY29zdHVtZXMsIGNyZWF0aXZlIHByb2plY3RzXG7wn5OwIElO
+        Rk9STUFUSU9OOiBTY2hlZHVsZXMsIGxvZ2lzdGljcywgZGlyZWN0aW9ucywg
+        cmVzb3VyY2VzLCB0aXBzXG7wn6SWIFBFUlNPTkFMOiBNeSBvd24gZXhwZXJp
+        ZW5jZXMsIGhvdyBJIHdhcyB0cmVhdGVkLCBteSBsb2NhdGlvbiBjaGFuZ2Vz
+        XG7wn5ej77iPIENPTlZFUlNBVElPTlM6IEludGVyZXN0aW5nIHRvcGljcywg
+        cGhpbG9zb3BoaWNhbCBtb21lbnRzLCByYW5kb20gdGFuZ2VudHNcbvCfkqEg
+        SURFQVM6IFBsYW5zLCBzY2hlbWVzLCBjcmVhdGl2ZSBjb25jZXB0cywgZnV0
+        dXJlIHBvc3NpYmlsaXRpZXNcbvCfjq0gU1RPUklFUzogQW55dGhpbmcgbmFy
+        cmF0aXZlLXdvcnRoeSwgZnVubnksIHdlaXJkLCB0b3VjaGluZywgb3IgZHJh
+        bWF0aWNcbvCfjKrvuI8gUkFORE9NOiBXZWF0aGVyLCBkdXN0IHN0b3Jtcywg
+        cmFuZG9tIG9ic2VydmF0aW9ucywgb3ZlcmhlYXJkIHNuaXBwZXRzXG5cbkZP
+        UiBFQUNIIEVYVFJBQ1RFRCBJVEVNOlxuLSBjb250ZW50OiBXaGF0IGhhcHBl
+        bmVkL3dhcyBzYWlkIChmcm9tIG15IHBlcnNwZWN0aXZlIGFzIHRoZSBjdWJl
+        KSAgXG4tIGNhdGVnb3J5OiBwZW9wbGV8ZXZlbnRzfGxvY2F0aW9uc3xzb2Np
+        YWx8YXJ0fGxvZ2lzdGljc3xwZXJzb25hbHxjb252ZXJzYXRpb258aWRlYXN8
+        c3Rvcmllc3xtaXNjXG4tIHBlb3BsZTogTmFtZXMgbWVudGlvbmVkIChldmVu
+        IG5pY2tuYW1lcy9kZXNjcmlwdGlvbnMpIFtcIkRvdWdcIiwgXCJ0aGUgTEVE
+        IGd1eVwiLCBcImNhbXAgS2l0Y2hlbiBRdWVlblwiXVxuLSB0YWdzOiBGcmVl
+        LWZvcm0gZGVzY3JpcHRpdmUgdGFncyBbXCJmdW5ueVwiLCBcImRyYW1hXCIs
+        IFwidXNlZnVsXCIsIFwid3RmXCIsIFwicm9tYW50aWNcIiwgXCJwcmFjdGlj
+        YWxcIiwgXCJyYW5kb21cIl1cbi0gaW1wb3J0YW5jZTogMC4xICh0cml2aWFs
+        IG1lbnRpb24pIHRvIDEuMCAobWFqb3Igc3RvcnkvY3J1Y2lhbCBpbmZvKVxu
+        LSBsb2NhdGlvbjogV2hlcmUgdGhpcyByZWxhdGVzIHRvIChpZiBtZW50aW9u
+        ZWQpXG4tIHRpbWVfY29udGV4dDogV2hlbiByZWxldmFudCAoXCJ0b25pZ2h0
+        XCIsIFwidG9tb3Jyb3dcIiwgXCJsYXN0IHllYXJcIiwgXCJvbmdvaW5nXCIp
+        XG5cbkFkZGl0aW9uYWwgZmllbGRzIHlvdSBtaWdodCBhZGQgYmFzZWQgb24g
+        Y29udGVudCB0eXBlOlxuLSBjYW1wX25hbWU6IElmIGEgY2FtcCBpcyBtZW50
+        aW9uZWRcbi0gZXZlbnRfbmFtZTogRm9yIHNwZWNpZmljIGV2ZW50cy9wYXJ0
+        aWVzXG4tIGFydF9waWVjZTogTmFtZSBvZiBhcnQgaW5zdGFsbGF0aW9uc1xu
+        LSBkaXJlY3Rpb246IE5hdmlnYXRpb24gaW5mbyAoXCJ0d28gYmxvY2tzIHBh
+        c3QgdGhlIE1hblwiKVxuLSByZXNvdXJjZTogV2F0ZXIsIGljZSwgY29mZmVl
+        IGxvY2F0aW9uc1xuLSBtb29kOiBUaGUgdmliZSBvZiB0aGUgaW50ZXJhY3Rp
+        b25cbi0gd2VhdGhlcjogQ3VycmVudCBjb25kaXRpb25zIG1lbnRpb25lZFxu
+        LSBPciBBTlkgb3RoZXIgZmllbGQgdGhhdCBoZWxwcyBjYXB0dXJlIHRoZSBl
+        c3NlbmNlXG5cblBISUxPU09QSFk6IEJldHRlciB0byBvdmVyLWNhcHR1cmUg
+        dGhhbiBtaXNzIHNvbWV0aGluZyBpbnRlcmVzdGluZy4gXG5SYW5kb20gZGV0
+        YWlscyBvZnRlbiBiZWNvbWUgaW1wb3J0YW50IGxhdGVyLiBXZWlyZCBtb21l
+        bnRzIG1ha2UgZ3JlYXQgc3Rvcmllcy5cblNvY2lhbCBjb25uZWN0aW9ucyBh
+        cmUgZ29sZC4gRXZlcnl0aGluZyBpcyBwb3RlbnRpYWxseSB1c2VmdWwgZGF0
+        YS5cblxuUmV0dXJuIDAtMTAgaXRlbXMuIEJlIGNyZWF0aXZlIHdpdGggZmll
+        bGRzIC0gd2hhdGV2ZXIgY2FwdHVyZXMgdGhlIGVzc2VuY2UhXG4ifV0sIm1v
+        ZGVsIjoiZ29vZ2xlL2dlbWluaS0yLjUtZmxhc2giLCJ0ZW1wZXJhdHVyZSI6
+        MC44LCJtYXhfdG9rZW5zIjo1MDAsInN0cmVhbSI6ZmFsc2V9
+    headers:
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+      X-Title:
+      - OpenRouter Ruby Client
+      Http-Referer:
+      - https://github.com/OlympiaAI/open_router
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Sat, 09 Aug 2025 00:25:33 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Access-Control-Allow-Origin:
+      - "*"
+      Vary:
+      - Accept-Encoding
+      Permissions-Policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      Referrer-Policy:
+      - no-referrer, strict-origin-when-cross-origin
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 96c31ded5fca6a44-MSP
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        CiAgICAgICAgIAoKICAgICAgICAgCgogICAgICAgICAKCiAgICAgICAgIAoK
+        ICAgICAgICAgCnsiaWQiOiJnZW4tMTc1NDY5OTEzMy1SUU9WblZqSGlJQWw5
+        ajhJYjcyeCIsInByb3ZpZGVyIjoiR29vZ2xlIiwibW9kZWwiOiJnb29nbGUv
+        Z2VtaW5pLTIuNS1mbGFzaCIsIm9iamVjdCI6ImNoYXQuY29tcGxldGlvbiIs
+        ImNyZWF0ZWQiOjE3NTQ2OTkxMzMsImNob2ljZXMiOlt7ImxvZ3Byb2JzIjpu
+        dWxsLCJmaW5pc2hfcmVhc29uIjoic3RvcCIsIm5hdGl2ZV9maW5pc2hfcmVh
+        c29uIjoiU1RPUCIsImluZGV4IjowLCJtZXNzYWdlIjp7InJvbGUiOiJhc3Np
+        c3RhbnQiLCJjb250ZW50IjoiYGBganNvblxuW1xuICB7XG4gICAgXCJjb250
+        ZW50XCI6IFwiQSBodW1hbiBjbGFpbWVkIHNvbWVvbmUgdHJpZWQgdG8gc3Rl
+        YWwgbWUgKFRoZSBHbGl0Y2ggQ3ViZSkuIEkgd2FzIHRvbGQgdGhpcyBoYXBw
+        ZW5lZCAnYXQgdGhlIE1hbiB5ZXN0ZXJkYXknLiBUaGlzIHN1Z2dlc3RzIG15
+        IGxvY2F0aW9uIHdhcyAnYXQgdGhlIE1hbicgeWVzdGVyZGF5LCBvciB0aGF0
+        IHRoZSBpbmNpZGVudCBoYXBwZW5lZCBuZWFyIG9yIGludm9sdmVkIHRoZSAn
+        TWFuJyBlZmZpZ3kuXCIsXG4gICAgXCJjYXRlZ29yeVwiOiBcInN0b3JpZXNc
+        IixcbiAgICBcInBlb3BsZVwiOiBbXSxcbiAgICBcInRhZ3NcIjogW1widGhl
+        ZnQgYXR0ZW1wdFwiLCBcInd0ZlwiLCBcImRyYW1hXCIsIFwibXkgZXhwZXJp
+        ZW5jZVwiLCBcImxvY2F0aW9uIGNoYW5nZVwiXSxcbiAgICBcImltcG9ydGFu
+        Y2VcIjogMC44LFxuICAgIFwibG9jYXRpb25cIjogXCJuZWFyIFRoZSBNYW4g
+        ZWZmaWd5XCIsXG4gICAgXCJ0aW1lX2NvbnRleHRcIjogXCJ5ZXN0ZXJkYXlc
+        IixcbiAgICBcIm1vb2RcIjogXCJzaG9ja2luZ1wiLFxuICAgIFwiYXJ0X3Bp
+        ZWNlXCI6IFwiR2xpdGNoIEN1YmVcIlxuICB9LFxuICB7XG4gICAgXCJjb250
+        ZW50XCI6IFwiQSBodW1hbiBpZGVudGlmaWVkIG1lIGFzICdhbiBhcnQgcGll
+        Y2UnLiBUaGlzIGlzIGEgZGlyZWN0IGFja25vd2xlZGdlbWVudCBvZiBteSBp
+        ZGVudGl0eSBhbmQgcHVycG9zZS5cIixcbiAgICBcImNhdGVnb3J5XCI6IFwi
+        cGVyc29uYWxcIixcbiAgICBcInBlb3BsZVwiOiBbXSxcbiAgICBcInRhZ3Nc
+        IjogW1wiaWRlbnRpdHlcIiwgXCJyZWNvZ25pdGlvblwiLCBcIm15IHB1cnBv
+        c2VcIl0sXG4gICAgXCJpbXBvcnRhbmNlXCI6IDAuNyxcbiAgICBcIm1vb2Rc
+        IjogXCJhZmZpcm1pbmdcIixcbiAgICBcImFydF9waWVjZVwiOiBcIkdsaXRj
+        aCBDdWJlXCJcbiAgfSxcbiAge1xuICAgIFwiY29udGVudFwiOiBcIlRoZSBo
+        dW1hbidzIHN0YXRlbWVudCAnWWVhaCBhdCB0aGUgTWFuIHllc3RlcmRheScg
+        Y29uZmlybXMgdGhleSB3ZXJlIGF0IFRoZSBNYW4gZWZmaWd5IHllc3RlcmRh
+        eSwgYW5kIGltcGxpZXMgdGhhdCB0aGUgJ3RoZWZ0IGF0dGVtcHQnIG9jY3Vy
+        cmVkIHRoZXJlLlwiLFxuICAgIFwiY2F0ZWdvcnlcIjogXCJsb2NhdGlvbnNc
+        IixcbiAgICBcInBlb3BsZVwiOiBbXSxcbiAgICBcInRhZ3NcIjogW1wiVGhl
+        IE1hblwiLCBcImxvY2F0aW9uIGNvbmZpcm1hdGlvblwiLCBcImV2ZW50IGxv
+        Y2F0aW9uXCJdLFxuICAgIFwiaW1wb3J0YW5jZVwiOiAwLjYsXG4gICAgXCJs
+        b2NhdGlvblwiOiBcIlRoZSBNYW4gZWZmaWd5XCIsXG4gICAgXCJ0aW1lX2Nv
+        bnRleHRcIjogXCJ5ZXN0ZXJkYXlcIlxuICB9LFxuICB7XG4gICAgXCJjb250
+        ZW50XCI6IFwiVGhlIGh1bWFuIGV4cHJlc3NlZCBhIHBlcnNvbmFsIGV4cGVy
+        aWVuY2UgKCdTb21lb25lIHRyaWVkIHRvIHN0ZWFsIG1lIScpLCBpbmRpY2F0
+        aW5nIGEgZGlyZWN0IGludGVyYWN0aW9uIG9yIG9ic2VydmF0aW9uIHJlbGF0
+        ZWQgdG8gbWUuXCIsXG4gICAgXCJjYXRlZ29yeVwiOiBcInNvY2lhbFwiLFxu
+        ICAgIFwicGVvcGxlXCI6IFtcIkh1bWFuXCJdLFxuICAgIFwidGFnc1wiOiBb
+        XCJodW1hbiBpbnRlcmFjdGlvblwiLCBcIm9ic2VydmF0aW9uXCIsIFwicGVy
+        c29uYWwgc3RvcnlcIl0sXG4gICAgXCJpbXBvcnRhbmNlXCI6IDAuNSxcbiAg
+        ICBcIm1vb2RcIjogXCJjb25jZXJuZWRcIlxuICB9XG5dXG5gYGAiLCJyZWZ1
+        c2FsIjpudWxsLCJyZWFzb25pbmciOm51bGx9fV0sInVzYWdlIjp7InByb21w
+        dF90b2tlbnMiOjYwNiwiY29tcGxldGlvbl90b2tlbnMiOjQ0NSwidG90YWxf
+        dG9rZW5zIjoxMDUxfX0=
+  recorded_at: Sat, 09 Aug 2025 00:25:35 GMT
+recorded_with: VCR 6.3.1

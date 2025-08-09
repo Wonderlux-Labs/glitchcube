@@ -1,0 +1,94 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: http://glitch.local:8123/api/services/script/awtrix_send_custom_app
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJhcHBfbmFtZSI6ImdsaXRjaGN1YmUiLCJ0ZXh0Ijoi8J+SrSBidWRkeS4u
+        LiIsImNvbG9yIjpbMjU1LDI1NSwyNTVdLCJkdXJhdGlvbiI6NSwicmFpbmJv
+        dyI6ZmFsc2V9
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 401
+      message: Unauthorized
+    headers:
+      Content-Type:
+      - text/plain; charset=utf-8
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '17'
+      Date:
+      - Sat, 09 Aug 2025 01:57:11 GMT
+    body:
+      encoding: UTF-8
+      base64_string: 'NDAxOiBVbmF1dGhvcml6ZWQ=
+
+        '
+  recorded_at: Sat, 09 Aug 2025 01:57:11 GMT
+- request:
+    method: get
+    uri: http://glitch.local:8123/api/states/sensor.glitchcube_location
+    body:
+      encoding: US-ASCII
+      base64_string: ''
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 401
+      message: Unauthorized
+    headers:
+      Content-Type:
+      - text/plain; charset=utf-8
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '17'
+      Date:
+      - Sat, 09 Aug 2025 01:57:11 GMT
+    body:
+      encoding: UTF-8
+      base64_string: 'NDAxOiBVbmF1dGhvcml6ZWQ=
+
+        '
+  recorded_at: Sat, 09 Aug 2025 01:57:11 GMT
+recorded_with: VCR 6.3.1

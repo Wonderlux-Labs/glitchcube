@@ -1,0 +1,94 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: http://glitch.local:8123/api/services/script/glitchcube_elevenlabs_speak
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJtZXNzYWdlIjoiVGhpcyBpcyBhIHRlc3QgVFRTIG1lc3NhZ2UgZnJvbSBS
+        U3BlYyIsInZvaWNlIjoiVHhHRXFuSFdyZldGVGZHVzlYalgiLCJtZWRpYV9w
+        bGF5ZXIiOiJtZWRpYV9wbGF5ZXIuc3F1YXJlX3ZvaWNlIiwibW9kZWwiOiJl
+        bGV2ZW5fbXVsdGlsaW5ndWFsX3YyIn0=
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '2018'
+      Date:
+      - Sat, 09 Aug 2025 07:28:37 GMT
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        W3siZW50aXR5X2lkIjoic2NyaXB0LmdsaXRjaGN1YmVfZWxldmVubGFic19z
+        cGVhayIsInN0YXRlIjoib24iLCJhdHRyaWJ1dGVzIjp7Imxhc3RfdHJpZ2dl
+        cmVkIjoiMjAyNS0wOC0wOVQwNzoyODozMS44NTI5NTQrMDA6MDAiLCJtb2Rl
+        IjoicXVldWVkIiwiY3VycmVudCI6MSwibWF4IjoyNSwiZnJpZW5kbHlfbmFt
+        ZSI6IkdsaXRjaEN1YmUgRWxldmVuTGFicyBUVFMgKFF1ZXVlZCkifSwibGFz
+        dF9jaGFuZ2VkIjoiMjAyNS0wOC0wOVQwNzoyODozMS44NTI5OTMrMDA6MDAi
+        LCJsYXN0X3JlcG9ydGVkIjoiMjAyNS0wOC0wOVQwNzoyODozMS44NTI5OTMr
+        MDA6MDAiLCJsYXN0X3VwZGF0ZWQiOiIyMDI1LTA4LTA5VDA3OjI4OjMxLjg1
+        Mjk5MyswMDowMCIsImNvbnRleHQiOnsiaWQiOiIwMUsyNlZQQzNDWjRTQjQ5
+        UE5KRU1BUFhZSyIsInBhcmVudF9pZCI6bnVsbCwidXNlcl9pZCI6ImM5NWQz
+        NTAyM2M3MjQ3MzQ5NDYxYmYxZWZmMTVmNmI2In19LHsiZW50aXR5X2lkIjoi
+        c2NyaXB0LmdsaXRjaGN1YmVfZWxldmVubGFic19zcGVhayIsInN0YXRlIjoi
+        b24iLCJhdHRyaWJ1dGVzIjp7Imxhc3RfdHJpZ2dlcmVkIjoiMjAyNS0wOC0w
+        OVQwNzoyODozMS44NTI5NTQrMDA6MDAiLCJtb2RlIjoicXVldWVkIiwiY3Vy
+        cmVudCI6MSwibWF4IjoyNSwibGFzdF9hY3Rpb24iOiJ3YWl0IHRlbXBsYXRl
+        IiwiZnJpZW5kbHlfbmFtZSI6IkdsaXRjaEN1YmUgRWxldmVuTGFicyBUVFMg
+        KFF1ZXVlZCkifSwibGFzdF9jaGFuZ2VkIjoiMjAyNS0wOC0wOVQwNzoyODoz
+        MS44NTI5OTMrMDA6MDAiLCJsYXN0X3JlcG9ydGVkIjoiMjAyNS0wOC0wOVQw
+        NzoyODozMS44NTQwNzYrMDA6MDAiLCJsYXN0X3VwZGF0ZWQiOiIyMDI1LTA4
+        LTA5VDA3OjI4OjMxLjg1NDA3NiswMDowMCIsImNvbnRleHQiOnsiaWQiOiIw
+        MUsyNlZQQzNDWjRTQjQ5UE5KRU1BUFhZSyIsInBhcmVudF9pZCI6bnVsbCwi
+        dXNlcl9pZCI6ImM5NWQzNTAyM2M3MjQ3MzQ5NDYxYmYxZWZmMTVmNmI2In19
+        LHsiZW50aXR5X2lkIjoic2NyaXB0LmdsaXRjaGN1YmVfZWxldmVubGFic19z
+        cGVhayIsInN0YXRlIjoib24iLCJhdHRyaWJ1dGVzIjp7Imxhc3RfdHJpZ2dl
+        cmVkIjoiMjAyNS0wOC0wOVQwNzoyODozMS44NTI5NTQrMDA6MDAiLCJtb2Rl
+        IjoicXVldWVkIiwiY3VycmVudCI6MSwibWF4IjoyNSwibGFzdF9hY3Rpb24i
+        OiJkZWxheSAwOjAwOjAwLjIwMDAwMCIsImZyaWVuZGx5X25hbWUiOiJHbGl0
+        Y2hDdWJlIEVsZXZlbkxhYnMgVFRTIChRdWV1ZWQpIn0sImxhc3RfY2hhbmdl
+        ZCI6IjIwMjUtMDgtMDlUMDc6Mjg6MzEuODUyOTkzKzAwOjAwIiwibGFzdF9y
+        ZXBvcnRlZCI6IjIwMjUtMDgtMDlUMDc6Mjg6MzEuODU0NDc2KzAwOjAwIiwi
+        bGFzdF91cGRhdGVkIjoiMjAyNS0wOC0wOVQwNzoyODozMS44NTQ0NzYrMDA6
+        MDAiLCJjb250ZXh0Ijp7ImlkIjoiMDFLMjZWUEMzQ1o0U0I0OVBOSkVNQVBY
+        WUsiLCJwYXJlbnRfaWQiOm51bGwsInVzZXJfaWQiOiJjOTVkMzUwMjNjNzI0
+        NzM0OTQ2MWJmMWVmZjE1ZjZiNiJ9fSx7ImVudGl0eV9pZCI6InNjcmlwdC5n
+        bGl0Y2hjdWJlX2VsZXZlbmxhYnNfc3BlYWsiLCJzdGF0ZSI6Im9uIiwiYXR0
+        cmlidXRlcyI6eyJsYXN0X3RyaWdnZXJlZCI6IjIwMjUtMDgtMDlUMDc6Mjg6
+        MzEuODUyOTU0KzAwOjAwIiwibW9kZSI6InF1ZXVlZCIsImN1cnJlbnQiOjEs
+        Im1heCI6MjUsImxhc3RfYWN0aW9uIjoid2FpdCB0ZW1wbGF0ZSIsImZyaWVu
+        ZGx5X25hbWUiOiJHbGl0Y2hDdWJlIEVsZXZlbkxhYnMgVFRTIChRdWV1ZWQp
+        In0sImxhc3RfY2hhbmdlZCI6IjIwMjUtMDgtMDlUMDc6Mjg6MzEuODUyOTkz
+        KzAwOjAwIiwibGFzdF9yZXBvcnRlZCI6IjIwMjUtMDgtMDlUMDc6Mjg6MzIu
+        MDYwMDc4KzAwOjAwIiwibGFzdF91cGRhdGVkIjoiMjAyNS0wOC0wOVQwNzoy
+        ODozMi4wNjAwNzgrMDA6MDAiLCJjb250ZXh0Ijp7ImlkIjoiMDFLMjZWUEMz
+        Q1o0U0I0OVBOSkVNQVBYWUsiLCJwYXJlbnRfaWQiOm51bGwsInVzZXJfaWQi
+        OiJjOTVkMzUwMjNjNzI0NzM0OTQ2MWJmMWVmZjE1ZjZiNiJ9fV0=
+  recorded_at: Sat, 09 Aug 2025 07:28:37 GMT
+recorded_with: VCR 6.3.1

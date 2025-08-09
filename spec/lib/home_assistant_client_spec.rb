@@ -68,8 +68,7 @@ RSpec.describe HomeAssistantClient do
         }
 
         result = client.speak(message, entity_id: entity_id, voice_options: voice_options_without_provider)
-        # Expecting false since we get 401 in test environment
-        expect(result).to be(false)
+        expect(result).to be(true)
       end
     end
 
@@ -84,8 +83,7 @@ RSpec.describe HomeAssistantClient do
 
       it 'successfully makes ElevenLabs TTS call to Home Assistant via script', :vcr do
         result = client.speak(message, entity_id: entity_id, voice_options: voice_options)
-        # Expecting false since we get 401 in test environment
-        expect(result).to be(false)
+        expect(result).to be(true)
       end
     end
 
@@ -94,8 +92,7 @@ RSpec.describe HomeAssistantClient do
         voice_options = { tts: :cloud, voice: 'JennyNeural' }
 
         result = client.speak(message, voice_options: voice_options)
-        # Expecting false since we get 401 in test environment
-        expect(result).to be(false)
+        expect(result).to be(true)
       end
     end
   end

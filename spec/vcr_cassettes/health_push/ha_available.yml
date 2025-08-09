@@ -1,0 +1,99 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: http://glitch.local:8123/api/states/sensor.health_monitoring
+    body:
+      encoding: US-ASCII
+      base64_string: ''
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 401
+      message: Unauthorized
+    headers:
+      Content-Type:
+      - text/plain; charset=utf-8
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '17'
+      Date:
+      - Sat, 09 Aug 2025 00:25:05 GMT
+    body:
+      encoding: UTF-8
+      base64_string: 'NDAxOiBVbmF1dGhvcml6ZWQ=
+
+        '
+  recorded_at: Sat, 09 Aug 2025 00:25:05 GMT
+- request:
+    method: get
+    uri: https://status.wlux.casa/api/push/Bf8nrx6ykq?msg=HA:DOWN%20%7C%20API:OK%20%7C%20Up:1.0h&ping=1&status=up
+    body:
+      encoding: US-ASCII
+      base64_string: ''
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Sat, 09 Aug 2025 00:25:05 GMT
+      Content-Type:
+      - application/json; charset=utf-8
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Server:
+      - cloudflare
+      X-Frame-Options:
+      - SAMEORIGIN
+      Etag:
+      - W/"b-Ai2R8hgEarLmHKwesT1qcY913ys"
+      Strict-Transport-Security:
+      - max-age=63072000; preload
+      X-Served-By:
+      - status.wlux.casa
+      Cf-Cache-Status:
+      - DYNAMIC
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Kmpa0iY2r66R6rOsdyOsobefVbtOAAnDQ8uhHeaXrGJXI8HznwZODxriXTkKNMHMYiBcRiZFqs7PVnYgzaJSQ7mKV3a%2FTcI1WELOy5%2B4"}]}'
+      Cf-Ray:
+      - 96c31d43cf6ca218-MSP
+      Alt-Svc:
+      - h3=":443"; ma=86400
+    body:
+      encoding: ASCII-8BIT
+      base64_string: 'eyJvayI6dHJ1ZX0=
+
+        '
+  recorded_at: Sat, 09 Aug 2025 00:25:05 GMT
+recorded_with: VCR 6.3.1

@@ -1,0 +1,115 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: http://glitch.local:8123/api/services/script/awtrix_send_custom_app
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJhcHBfbmFtZSI6ImdsaXRjaGN1YmUiLCJ0ZXh0Ijoi8J+SrSBidWRkeS4u
+        LiIsImNvbG9yIjpbMjU1LDI1NSwyNTVdLCJkdXJhdGlvbiI6NSwicmFpbmJv
+        dyI6ZmFsc2V9
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '910'
+      Date:
+      - Sat, 09 Aug 2025 06:56:04 GMT
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        W3siZW50aXR5X2lkIjoic2NyaXB0LmF3dHJpeF9zZW5kX2N1c3RvbV9hcHAi
+        LCJzdGF0ZSI6Im9uIiwiYXR0cmlidXRlcyI6eyJsYXN0X3RyaWdnZXJlZCI6
+        IjIwMjUtMDgtMDlUMDY6NTY6MDQuNzMzNzY3KzAwOjAwIiwibW9kZSI6InNp
+        bmdsZSIsImN1cnJlbnQiOjEsImZyaWVuZGx5X25hbWUiOiJBV1RSSVggU2Vu
+        ZCBDdXN0b20gQXBwIn0sImxhc3RfY2hhbmdlZCI6IjIwMjUtMDgtMDlUMDY6
+        NTY6MDQuNzMzODU0KzAwOjAwIiwibGFzdF9yZXBvcnRlZCI6IjIwMjUtMDgt
+        MDlUMDY6NTY6MDQuNzMzODU0KzAwOjAwIiwibGFzdF91cGRhdGVkIjoiMjAy
+        NS0wOC0wOVQwNjo1NjowNC43MzM4NTQrMDA6MDAiLCJjb250ZXh0Ijp7Imlk
+        IjoiMDFLMjZTVFlLV1QwOTg1REIzTVdEMFoyQTkiLCJwYXJlbnRfaWQiOm51
+        bGwsInVzZXJfaWQiOiJjOTVkMzUwMjNjNzI0NzM0OTQ2MWJmMWVmZjE1ZjZi
+        NiJ9fSx7ImVudGl0eV9pZCI6InNjcmlwdC5hd3RyaXhfc2VuZF9jdXN0b21f
+        YXBwIiwic3RhdGUiOiJvZmYiLCJhdHRyaWJ1dGVzIjp7Imxhc3RfdHJpZ2dl
+        cmVkIjoiMjAyNS0wOC0wOVQwNjo1NjowNC43MzM3NjcrMDA6MDAiLCJtb2Rl
+        Ijoic2luZ2xlIiwiY3VycmVudCI6MCwiZnJpZW5kbHlfbmFtZSI6IkFXVFJJ
+        WCBTZW5kIEN1c3RvbSBBcHAifSwibGFzdF9jaGFuZ2VkIjoiMjAyNS0wOC0w
+        OVQwNjo1NjowNC43NDI1MzkrMDA6MDAiLCJsYXN0X3JlcG9ydGVkIjoiMjAy
+        NS0wOC0wOVQwNjo1NjowNC43NDI1MzkrMDA6MDAiLCJsYXN0X3VwZGF0ZWQi
+        OiIyMDI1LTA4LTA5VDA2OjU2OjA0Ljc0MjUzOSswMDowMCIsImNvbnRleHQi
+        OnsiaWQiOiIwMUsyNlNUWUtXVDA5ODVEQjNNV0QwWjJBOSIsInBhcmVudF9p
+        ZCI6bnVsbCwidXNlcl9pZCI6ImM5NWQzNTAyM2M3MjQ3MzQ5NDYxYmYxZWZm
+        MTVmNmI2In19XQ==
+  recorded_at: Sat, 09 Aug 2025 06:56:04 GMT
+- request:
+    method: post
+    uri: http://glitch.local:8123/api/services/assist_satellite/start_conversation
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJlbnRpdHlfaWQiOiJhc3Npc3Rfc2F0ZWxsaXRlLmhvbWVfYXNzaXN0YW50
+        X3ZvaWNlXzA5NzM5ZF9hc3Npc3Rfc2F0ZWxsaXRlIn0=
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 400
+      message: Bad Request
+    headers:
+      Content-Type:
+      - text/plain; charset=utf-8
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '16'
+      Date:
+      - Sat, 09 Aug 2025 06:56:04 GMT
+    body:
+      encoding: UTF-8
+      base64_string: 'NDAwOiBCYWQgUmVxdWVzdA==
+
+        '
+  recorded_at: Sat, 09 Aug 2025 06:56:04 GMT
+recorded_with: VCR 6.3.1

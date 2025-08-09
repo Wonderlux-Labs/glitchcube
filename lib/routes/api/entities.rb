@@ -21,7 +21,7 @@ module GlitchCube
                        source: request_body['source'])
 
               # Optionally trigger entity list refresh if significant change
-              if self.class.should_trigger_refresh?(request_body)
+              if should_trigger_refresh?(request_body)
                 # Queue background job to refresh entity documentation
                 require_relative '../../jobs/entity_documentation_job'
                 Jobs::EntityDocumentationJob.perform_async({
@@ -170,10 +170,8 @@ module GlitchCube
             end
           end
 
-          private
-
-          # Determine if entity change should trigger documentation refresh
-          def self.should_trigger_refresh?(change_data)
+          # Helper method: Determine if entity change should trigger documentation refresh
+          def should_trigger_refresh?(change_data)
             change_data['entity_id']
             domain = change_data['domain']
 

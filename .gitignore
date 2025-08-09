@@ -18,8 +18,8 @@ node_modules/
 /test/version_tmp/
 /tmp/
 
-# VCR cassettes
-/spec/vcr_cassettes/
+# VCR cassettes - needed for CI
+# /spec/vcr_cassettes/
 
 # Bundler
 /.bundle/

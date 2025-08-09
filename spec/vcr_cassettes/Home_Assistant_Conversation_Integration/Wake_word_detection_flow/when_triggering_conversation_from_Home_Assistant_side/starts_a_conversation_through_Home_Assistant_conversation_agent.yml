@@ -1,0 +1,130 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: http://glitch.local:8123/api/services/script/awtrix_set_mood_light
+    body:
+      encoding: UTF-8
+      base64_string: 'eyJjb2xvciI6WzI1NSwyNTUsMjU1XSwiYnJpZ2h0bmVzcyI6ODB9
+
+        '
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '906'
+      Date:
+      - Sat, 09 Aug 2025 06:56:04 GMT
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        W3siZW50aXR5X2lkIjoic2NyaXB0LmF3dHJpeF9zZXRfbW9vZF9saWdodCIs
+        InN0YXRlIjoib24iLCJhdHRyaWJ1dGVzIjp7Imxhc3RfdHJpZ2dlcmVkIjoi
+        MjAyNS0wOC0wOVQwNjo1NjowNC43NzI5NTQrMDA6MDAiLCJtb2RlIjoic2lu
+        Z2xlIiwiY3VycmVudCI6MSwiZnJpZW5kbHlfbmFtZSI6IkFXVFJJWCBTZXQg
+        TW9vZCBMaWdodCJ9LCJsYXN0X2NoYW5nZWQiOiIyMDI1LTA4LTA5VDA2OjU2
+        OjA0Ljc3Mjk4MCswMDowMCIsImxhc3RfcmVwb3J0ZWQiOiIyMDI1LTA4LTA5
+        VDA2OjU2OjA0Ljc3Mjk4MCswMDowMCIsImxhc3RfdXBkYXRlZCI6IjIwMjUt
+        MDgtMDlUMDY6NTY6MDQuNzcyOTgwKzAwOjAwIiwiY29udGV4dCI6eyJpZCI6
+        IjAxSzI2U1RZTjNDQkhLUllUV1ZXSk04MlJDIiwicGFyZW50X2lkIjpudWxs
+        LCJ1c2VyX2lkIjoiYzk1ZDM1MDIzYzcyNDczNDk0NjFiZjFlZmYxNWY2YjYi
+        fX0seyJlbnRpdHlfaWQiOiJzY3JpcHQuYXd0cml4X3NldF9tb29kX2xpZ2h0
+        Iiwic3RhdGUiOiJvZmYiLCJhdHRyaWJ1dGVzIjp7Imxhc3RfdHJpZ2dlcmVk
+        IjoiMjAyNS0wOC0wOVQwNjo1NjowNC43NzI5NTQrMDA6MDAiLCJtb2RlIjoi
+        c2luZ2xlIiwiY3VycmVudCI6MCwiZnJpZW5kbHlfbmFtZSI6IkFXVFJJWCBT
+        ZXQgTW9vZCBMaWdodCJ9LCJsYXN0X2NoYW5nZWQiOiIyMDI1LTA4LTA5VDA2
+        OjU2OjA0Ljc3OTI5MiswMDowMCIsImxhc3RfcmVwb3J0ZWQiOiIyMDI1LTA4
+        LTA5VDA2OjU2OjA0Ljc3OTI5MiswMDowMCIsImxhc3RfdXBkYXRlZCI6IjIw
+        MjUtMDgtMDlUMDY6NTY6MDQuNzc5MjkyKzAwOjAwIiwiY29udGV4dCI6eyJp
+        ZCI6IjAxSzI2U1RZTjNDQkhLUllUV1ZXSk04MlJDIiwicGFyZW50X2lkIjpu
+        dWxsLCJ1c2VyX2lkIjoiYzk1ZDM1MDIzYzcyNDczNDk0NjFiZjFlZmYxNWY2
+        YjYifX1d
+  recorded_at: Sat, 09 Aug 2025 06:56:04 GMT
+- request:
+    method: post
+    uri: http://glitch.local:8123/api/services/conversation/process?return_response
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJ0ZXh0IjoiSGVsbG8gR2xpdGNoIEN1YmUsIGFyZSB5b3UgdGhlcmU/Iiwi
+        YWdlbnRfaWQiOiJjb252ZXJzYXRpb24uZ2xpdGNoY3ViZSIsImxhbmd1YWdl
+        IjoiZW4ifQ==
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '744'
+      Date:
+      - Sat, 09 Aug 2025 06:56:04 GMT
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        eyJjaGFuZ2VkX3N0YXRlcyI6W3siZW50aXR5X2lkIjoiY29udmVyc2F0aW9u
+        LmdsaXRjaGN1YmUiLCJzdGF0ZSI6IjIwMjUtMDgtMDlUMDY6NTY6MDQuNzg1
+        MTA0KzAwOjAwIiwiYXR0cmlidXRlcyI6eyJmcmllbmRseV9uYW1lIjoiR2xp
+        dGNoIEN1YmUgKGxvY2FsaG9zdDo0NTY3KSIsInN1cHBvcnRlZF9mZWF0dXJl
+        cyI6MH0sImxhc3RfY2hhbmdlZCI6IjIwMjUtMDgtMDlUMDY6NTY6MDQuNzg1
+        MTcxKzAwOjAwIiwibGFzdF9yZXBvcnRlZCI6IjIwMjUtMDgtMDlUMDY6NTY6
+        MDQuNzg1MTcxKzAwOjAwIiwibGFzdF91cGRhdGVkIjoiMjAyNS0wOC0wOVQw
+        Njo1NjowNC43ODUxNzErMDA6MDAiLCJjb250ZXh0Ijp7ImlkIjoiMDFLMjZT
+        VFlORzM1VENTMDlLNjFWNzEzWFAiLCJwYXJlbnRfaWQiOm51bGwsInVzZXJf
+        aWQiOiJjOTVkMzUwMjNjNzI0NzM0OTQ2MWJmMWVmZjE1ZjZiNiJ9fV0sInNl
+        cnZpY2VfcmVzcG9uc2UiOnsicmVzcG9uc2UiOnsic3BlZWNoIjp7InBsYWlu
+        Ijp7InNwZWVjaCI6IkkgY2FuJ3QgY29ubmVjdCB0byBteSBicmFpbiByaWdo
+        dCBub3cuIFBsZWFzZSB0cnkgYWdhaW4uIiwiZXh0cmFfZGF0YSI6bnVsbH19
+        LCJjYXJkIjp7fSwibGFuZ3VhZ2UiOiJlbiIsInJlc3BvbnNlX3R5cGUiOiJh
+        Y3Rpb25fZG9uZSIsImRhdGEiOnsidGFyZ2V0cyI6W10sInN1Y2Nlc3MiOltd
+        LCJmYWlsZWQiOltdfX0sImNvbnZlcnNhdGlvbl9pZCI6bnVsbCwiY29udGlu
+        dWVfY29udmVyc2F0aW9uIjpmYWxzZX19
+  recorded_at: Sat, 09 Aug 2025 06:56:04 GMT
+recorded_with: VCR 6.3.1

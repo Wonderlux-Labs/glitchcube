@@ -23,7 +23,7 @@ jobs:
     
     strategy:
       matrix:
-        ruby-version: ['3.3']
+        ruby-version: ['3.4']
       # Ensure all matrix jobs fail if any fail
     
     services:
@@ -99,5 +99,7 @@ jobs:
           --format progress \
           --format RspecJunitFormatter \
           --out tmp/rspec_results.xml \
-          --format documentation || exit $?
+          --format documentation \
+          --color \
+          --tty || exit $?
       

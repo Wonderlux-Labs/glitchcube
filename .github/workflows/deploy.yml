@@ -54,7 +54,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.3'
+          ruby-version: '3.4'
           bundler-cache: true
       
       - name: Wait for PostgreSQL to be ready
@@ -77,7 +77,7 @@ jobs:
           bundle exec rake db:migrate
       
       - name: Run tests
-        run: bundle exec rspec
+        run: bundle exec rspec --format documentation --color --tty
       
       - name: Check if deployment needed
         if: success() && github.ref == 'refs/heads/main'

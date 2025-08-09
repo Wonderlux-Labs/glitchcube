@@ -1,0 +1,68 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: http://glitch.local:8123/api/services/script/awtrix_set_mood_light
+    body:
+      encoding: UTF-8
+      base64_string: 'eyJjb2xvciI6WzI1NSwyNTUsMjU1XSwiYnJpZ2h0bmVzcyI6ODB9
+
+        '
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '906'
+      Date:
+      - Sat, 09 Aug 2025 07:28:43 GMT
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        W3siZW50aXR5X2lkIjoic2NyaXB0LmF3dHJpeF9zZXRfbW9vZF9saWdodCIs
+        InN0YXRlIjoib24iLCJhdHRyaWJ1dGVzIjp7Imxhc3RfdHJpZ2dlcmVkIjoi
+        MjAyNS0wOC0wOVQwNzoyODo0My4wMzkzOTIrMDA6MDAiLCJtb2RlIjoic2lu
+        Z2xlIiwiY3VycmVudCI6MSwiZnJpZW5kbHlfbmFtZSI6IkFXVFJJWCBTZXQg
+        TW9vZCBMaWdodCJ9LCJsYXN0X2NoYW5nZWQiOiIyMDI1LTA4LTA5VDA3OjI4
+        OjQzLjAzOTQ1MyswMDowMCIsImxhc3RfcmVwb3J0ZWQiOiIyMDI1LTA4LTA5
+        VDA3OjI4OjQzLjAzOTQ1MyswMDowMCIsImxhc3RfdXBkYXRlZCI6IjIwMjUt
+        MDgtMDlUMDc6Mjg6NDMuMDM5NDUzKzAwOjAwIiwiY29udGV4dCI6eyJpZCI6
+        IjAxSzI2VlBRMFlUMTA0SFMzTlZCMFc3QktFIiwicGFyZW50X2lkIjpudWxs
+        LCJ1c2VyX2lkIjoiYzk1ZDM1MDIzYzcyNDczNDk0NjFiZjFlZmYxNWY2YjYi
+        fX0seyJlbnRpdHlfaWQiOiJzY3JpcHQuYXd0cml4X3NldF9tb29kX2xpZ2h0
+        Iiwic3RhdGUiOiJvZmYiLCJhdHRyaWJ1dGVzIjp7Imxhc3RfdHJpZ2dlcmVk
+        IjoiMjAyNS0wOC0wOVQwNzoyODo0My4wMzkzOTIrMDA6MDAiLCJtb2RlIjoi
+        c2luZ2xlIiwiY3VycmVudCI6MCwiZnJpZW5kbHlfbmFtZSI6IkFXVFJJWCBT
+        ZXQgTW9vZCBMaWdodCJ9LCJsYXN0X2NoYW5nZWQiOiIyMDI1LTA4LTA5VDA3
+        OjI4OjQzLjA0NzE2NyswMDowMCIsImxhc3RfcmVwb3J0ZWQiOiIyMDI1LTA4
+        LTA5VDA3OjI4OjQzLjA0NzE2NyswMDowMCIsImxhc3RfdXBkYXRlZCI6IjIw
+        MjUtMDgtMDlUMDc6Mjg6NDMuMDQ3MTY3KzAwOjAwIiwiY29udGV4dCI6eyJp
+        ZCI6IjAxSzI2VlBRMFlUMTA0SFMzTlZCMFc3QktFIiwicGFyZW50X2lkIjpu
+        dWxsLCJ1c2VyX2lkIjoiYzk1ZDM1MDIzYzcyNDczNDk0NjFiZjFlZmYxNWY2
+        YjYifX1d
+  recorded_at: Sat, 09 Aug 2025 07:28:43 GMT
+recorded_with: VCR 6.3.1

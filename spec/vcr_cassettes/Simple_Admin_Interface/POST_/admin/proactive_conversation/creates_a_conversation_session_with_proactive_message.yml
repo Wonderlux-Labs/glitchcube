@@ -1,0 +1,51 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: http://glitch.local:8123/api/services/script/glitchcube_cloud_speak
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJtZXNzYWdlIjoiSEVZIEZSSUVORCEgSS1JJ20gaGVyZSB0byBmKioqaW5n
+        IGhlbHAhIFdoYXQgZG8geW91IG5lZWQ/Iiwidm9pY2UiOiJEYXZpc05ldXJh
+        bCIsImxhbmd1YWdlIjoiZW4tVVMiLCJtZWRpYV9wbGF5ZXIiOiJtZWRpYV9w
+        bGF5ZXIuc3F1YXJlX3ZvaWNlIn0=
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 401
+      message: Unauthorized
+    headers:
+      Content-Type:
+      - text/plain; charset=utf-8
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '17'
+      Date:
+      - Sat, 09 Aug 2025 01:57:47 GMT
+    body:
+      encoding: UTF-8
+      base64_string: 'NDAxOiBVbmF1dGhvcml6ZWQ=
+
+        '
+  recorded_at: Sat, 09 Aug 2025 01:57:47 GMT
+recorded_with: VCR 6.3.1

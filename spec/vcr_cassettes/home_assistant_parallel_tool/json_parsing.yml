@@ -1,0 +1,47 @@
+---
+http_interactions:
+- request:
+    method: get
+    uri: http://glitch.local:8123/api/states/sensor.test
+    body:
+      encoding: US-ASCII
+      base64_string: ''
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 404
+      message: Not Found
+    headers:
+      Content-Type:
+      - application/json
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '31'
+      Date:
+      - Sat, 09 Aug 2025 07:28:55 GMT
+    body:
+      encoding: ASCII-8BIT
+      base64_string: 'eyJtZXNzYWdlIjoiRW50aXR5IG5vdCBmb3VuZC4ifQ==
+
+        '
+  recorded_at: Sat, 09 Aug 2025 07:28:55 GMT
+recorded_with: VCR 6.3.1

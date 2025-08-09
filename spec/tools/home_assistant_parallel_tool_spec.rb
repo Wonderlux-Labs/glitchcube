@@ -17,10 +17,10 @@ RSpec.describe HomeAssistantParallelTool do
       it 'executes all actions in parallel', vcr: 'home_assistant_parallel_tool/executes_all_actions' do
         result = described_class.call(actions: actions)
 
-        # With auth failures, only TTS succeeds
-        expect(result).to include('✅ Completed 1 actions:')
+        # TTS and light control succeed now
+        expect(result).to include('✅ Completed 2 actions:')
         expect(result).to include('Spoke: "Hello world"')
-        expect(result).to include('⚠️ Failed 2 actions:')
+        expect(result).to include('⚠️ Failed 1 actions:')
       end
 
       it 'handles partial failures gracefully', vcr: 'home_assistant_parallel_tool/handles_failures' do
@@ -64,9 +64,9 @@ RSpec.describe HomeAssistantParallelTool do
       it 'parses JSON string actions', vcr: 'home_assistant_parallel_tool/json_parsing' do
         result = described_class.call(actions: actions_json)
 
-        # With auth error, sensor request fails
+        # Sensor request fails with entity not found
         expect(result).to include('⚠️ Failed 1 actions:')
-        expect(result).to include('Invalid token')
+        expect(result).to include('Entity or service not found')
       end
     end
 
