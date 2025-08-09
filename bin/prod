@@ -33,7 +33,7 @@ export APP_ENV=production
 
 # Start Sidekiq in background
 echo "🚀 Starting Sidekiq..."
-bundle exec sidekiq -C config/sidekiq.yml -r ./config/sidekiq_boot.rb &
+bundle exec sidekiq -C config/sidekiq/sidekiq.yml -r ./config/sidekiq/sidekiq_boot.rb &
 SIDEKIQ_PID=$!
 echo "Sidekiq started with PID: $SIDEKIQ_PID"
 

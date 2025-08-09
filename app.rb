@@ -14,7 +14,7 @@ require 'redis'
 require 'active_record'
 
 # Load Sidekiq configuration with cron job logging
-require_relative 'config/sidekiq' if defined?(Sidekiq)
+require_relative 'config/sidekiq/sidekiq' if defined?(Sidekiq)
 
 # Load services
 
@@ -76,7 +76,8 @@ class GlitchCubeApp < Sinatra::Base
   end
 
   configure :development do
-    register Sinatra::Reloader
+    # NOTE: Using rerun instead of Sinatra::Reloader for auto-reloading
+    # Run with: bundle exec rerun -- bundle exec ruby app.rb
   end
 
   # Register route modules
@@ -91,6 +92,7 @@ class GlitchCubeApp < Sinatra::Base
   register GlitchCube::Routes::Api::System
   register GlitchCube::Routes::Api::Entities
   register GlitchCube::Routes::Api::Proactive
+  register GlitchCube::Routes::Api::LLM
 
   # Mount context generation route
   use Routes::Api::ContextGeneration

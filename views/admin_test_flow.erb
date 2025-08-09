@@ -377,6 +377,20 @@
     
     <div class="sidebar">
       <div class="sidebar-section">
+        <h3>Model</h3>
+        <select id="modelSelect" class="model-select" style="width: 100%; padding: 8px; background: #0f1419; border: 1px solid #0f3460; border-radius: 6px; color: #7ec8e3; font-size: 12px;">
+          <option value="">Default Model</option>
+          <option value="deepseek/deepseek-chat-v3-0324">DeepSeek Chat v3</option>
+          <option value="openai/gpt-oss-120b">GPT OSS 120B</option>
+          <option value="cohere/command-r">Cohere Command-R</option>
+          <option value="anthropic/claude-4-sonnet">Claude 4 Sonnet</option>
+          <option value="anthropic/claude-3-haiku">Claude 3 Haiku</option>
+          <option value="openai/gpt-4.1-mini">GPT 4.1 Mini</option>
+          <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku</option>
+        </select>
+      </div>
+      
+      <div class="sidebar-section">
         <h3>Persona</h3>
         <div class="persona-selector">
           <button class="persona-btn active" data-persona="buddy">Buddy</button>
@@ -397,12 +411,20 @@
         <h3>Statistics</h3>
         <div class="stats-grid">
           <div class="stat-item">
+            <div class="stat-value" id="currentModel" style="font-size: 12px;">Default</div>
+            <div class="stat-label">Model</div>
+          </div>
+          <div class="stat-item">
             <div class="stat-value" id="tokenCount">0</div>
             <div class="stat-label">Tokens</div>
           </div>
           <div class="stat-item">
             <div class="stat-value" id="responseTime">0ms</div>
             <div class="stat-label">Response</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="totalCost">$0.0000</div>
+            <div class="stat-label">Cost</div>
           </div>
         </div>
       </div>
@@ -481,6 +503,12 @@
           formData.append('session_id', currentSessionId);
         }
         
+        // Add selected model
+        const modelSelect = document.getElementById('modelSelect');
+        if (modelSelect && modelSelect.value) {
+          formData.append('model', modelSelect.value);
+        }
+        
         const response = await fetch('/admin/test/conversation', {
           method: 'POST',
           body: formData
@@ -538,6 +566,13 @@
             // Extract response time if available
             const responseTimeMs = Date.now() - startTime;
             document.getElementById('responseTime').textContent = `${responseTimeMs}ms`;
+            
+            // Update model display
+            const modelSelect = document.getElementById('modelSelect');
+            if (modelSelect && modelSelect.value) {
+              const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+              document.getElementById('currentModel').textContent = selectedOption.text.split(' ')[0]; // First word of model name
+            }
             
             updateContinueIndicator(shouldContinue);
             updateStats();
@@ -693,6 +728,7 @@
     
     function updateStats() {
       document.getElementById('tokenCount').textContent = totalTokens;
+      document.getElementById('totalCost').textContent = `$${totalCost.toFixed(4)}`;
     }
     
     function updateContinueIndicator(shouldContinue) {

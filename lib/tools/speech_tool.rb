@@ -22,6 +22,38 @@ class SpeechTool < BaseTool
     'Speak text using speak_text(). Configure voice with set_voice(). Check available voices with list_voices().'
   end
 
+  # List of available tool methods for this class
+  def self.available_tools
+    %w[speak_text get_tts_status]
+  end
+
+  # Prompt description for LLM
+  def self.prompt_description
+    'Text-to-speech synthesis for speaking responses and notifications'
+  end
+
+  # Tool schemas for each method
+  def self.tool_schemas
+    {
+      'speak_text' => {
+        'type' => 'object',
+        'properties' => {
+          'text' => { 'type' => 'string' },
+          'entity_id' => { 'type' => 'string' },
+          'language' => { 'type' => 'string' },
+          'voice' => { 'type' => 'string' }
+        },
+        'required' => ['text']
+      },
+      'get_tts_status' => {
+        'type' => 'object',
+        'properties' => {
+          'entity_id' => { 'type' => 'string' }
+        }
+      }
+    }
+  end
+
   # Default TTS entity for the Glitch Cube
   DEFAULT_ENTITY = 'media_player.square_voice'
 

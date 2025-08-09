@@ -14,8 +14,8 @@ RSpec.describe 'Self-Healing Error Handler Integration' do
     # Clean up any existing proposed fixes
     FileUtils.rm_rf('log/proposed_fixes')
 
-    # Clear all OpenRouter service state to prevent mock leaking
-    OpenRouterService.instance_variable_set(:@client, nil) if defined?(OpenRouterService)
+    # Clear all LLM service state to prevent mock leaking
+    Services::LLM::LLMService.clear_cache! if defined?(Services::LLM::LLMService)
   end
 
   after do

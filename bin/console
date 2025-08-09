@@ -58,8 +58,13 @@ module ConsoleHelpers
     @tts[character] ||= Services::CharacterService.new(character: character)
   end
 
+  def llm_service
+    @llm_service ||= Services::LLM::LLMService.new
+  end
+
+  # Keep openrouter method for backward compatibility during transition
   def openrouter
-    @openrouter ||= Services::OpenRouterService.new
+    @openrouter ||= llm_service
   end
 
   def config
@@ -93,12 +98,14 @@ module ConsoleHelpers
   end
 
   def test_models
-    puts 'Testing OpenRouter connection...'
-    models = openrouter.available_models
-    puts "✅ Found #{models.count} models"
-    models.first(5).each do |model|
-      puts "  - #{model['id']}: $#{model['pricing']['prompt']} per token"
-    end
+    puts 'Testing LLM Service connection...'
+    # NOTE: LLMService doesn't expose available_models directly
+    # Test with a simple completion instead
+    response = llm_service.complete_cheap_no_tools(
+      'Say "Hello from LLM Service!"',
+      model: 'openai/gpt-4o-mini'
+    )
+    puts "✅ LLM Service working! Response: #{response.content&.strip}"
   rescue StandardError => e
     puts "❌ Error: #{e.message}"
   end
@@ -122,13 +129,14 @@ module ConsoleHelpers
         app           - Sinatra application instance
         ha            - HomeAssistantClient instance
         tts(char)     - TTS service for character (default: :default)
-        openrouter    - OpenRouterService instance
+        llm_service   - LLM Service instance
+        openrouter    - LLM Service instance (backward compatibility)
         config        - GlitchCube configuration
 
       Testing:
         test_speak(msg, char)  - Test TTS with message and character
         test_conversation(msg) - Test conversation handler
-        test_models           - Test OpenRouter connection
+        test_models           - Test LLM Service connection
         test_ha              - Test Home Assistant connection
 
       Characters:
@@ -197,8 +205,8 @@ BANNER
 # end
 
 # begin
-#   print "🤖 Checking OpenRouter... "
-#   openrouter.available_models
+#   print "🤖 Checking LLM Service... "
+#   llm_service.complete_cheap_no_tools('test', model: 'openai/gpt-4o-mini')
 #   puts "✅"
 # rescue => e
 #   puts "❌ (#{e.class})"

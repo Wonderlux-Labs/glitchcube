@@ -7,19 +7,9 @@ module GlitchCube
   module Routes
     module Admin
       def self.registered(app)
-        # Main admin interface - conversation development focused
+        # Main admin interface
         app.get '/admin' do
-          erb :admin_simple
-        end
-
-        # Keep simple admin as main interface
-        app.get '/admin/simple' do
-          erb :admin_simple
-        end
-
-        # Keep advanced for complex debugging when needed
-        app.get '/admin/advanced' do
-          erb :admin_advanced
+          erb :admin
         end
 
         # Comprehensive conversation show view for debugging
@@ -573,6 +563,28 @@ module GlitchCube
               error_type: e.class.to_s,
               backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil
             }.compact.to_json
+          end
+        end
+
+        # Get all tool methods as individual functions
+        app.get '/admin/api/tools/methods' do
+          content_type :json
+
+          begin
+            tool_names = params[:tools]&.split(',')&.map(&:strip)
+            require_relative '../services/tool_registry_service'
+
+            functions = ::Services::ToolRegistryService.get_tool_methods_as_functions(tool_names)
+
+            {
+              success: true,
+              functions: functions,
+              count: functions.size,
+              tool_names: tool_names
+            }.to_json
+          rescue StandardError => e
+            status 500
+            { success: false, error: e.message }.to_json
           end
         end
 

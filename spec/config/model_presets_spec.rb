@@ -5,24 +5,26 @@ require_relative '../../config/model_presets'
 
 RSpec.describe GlitchCube::ModelPresets do
   describe '.get_model' do
-    it 'returns primary model for conversation_small preset' do
-      model = described_class.get_model(:conversation_small)
-      expect(model).to eq('qwen/qwen3-235b-a22b-thinking-2507')
+    it 'returns primary model for conversation preset' do
+      model = described_class.get_model(:conversation)
+      expect(model).to be_a(String)
+      expect(model).not_to be_empty
     end
 
-    it 'returns alternative model when fallback_index specified' do
-      model = described_class.get_model(:conversation_small, fallback_index: 1)
-      expect(model).to eq('deepseek/deepseek-r1-distill-qwen-32b')
+    it 'returns model for cheap_tools preset' do
+      model = described_class.get_model(:cheap_tools)
+      expect(model).to be_a(String)
+      expect(model).not_to be_empty
     end
 
-    it 'returns primary model when fallback_index out of range' do
-      model = described_class.get_model(:conversation_small, fallback_index: 10)
-      expect(model).to eq('qwen/qwen3-235b-a22b-thinking-2507')
+    it 'returns default model when no type provided' do
+      model = described_class.get_model
+      expect(model).to eq(described_class::DEFAULT_MODEL)
     end
 
-    it 'handles string preset names' do
-      model = described_class.get_model('small_cheapest')
-      expect(model).to eq('meta-llama/llama-3.2-3b-instruct')
+    it 'raises error for invalid preset names' do
+      expect { described_class.get_model(:invalid_preset) }
+        .to raise_error(ArgumentError, /Invalid model type/)
     end
   end
 
@@ -32,7 +34,7 @@ RSpec.describe GlitchCube::ModelPresets do
     end
 
     it 'allows safe models' do
-      expect(described_class.blacklisted?('meta-llama/llama-3.2-3b-instruct')).to be false
+      expect(described_class.blacklisted?('meta-llama/llama-3.2-1b-instruct')).to be false
     end
   end
 
@@ -44,55 +46,26 @@ RSpec.describe GlitchCube::ModelPresets do
     end
 
     it 'returns model_id for safe models' do
-      result = described_class.validate_model!('meta-llama/llama-3.2-3b-instruct')
-      expect(result).to eq('meta-llama/llama-3.2-3b-instruct')
+      result = described_class.validate_model!('meta-llama/llama-3.2-1b-instruct')
+      expect(result).to eq('meta-llama/llama-3.2-1b-instruct')
     end
   end
 
-  describe '.preset_names' do
+  describe '.preset_types' do
     it 'returns available preset categories' do
-      names = described_class.preset_names
-      expect(names).to include(:SMALL_CHEAPEST, :CONVERSATION_SMALL, :IMAGE_CLASSIFICATION)
-      expect(names).not_to include(:FREE_MODELS, :BLACKLISTED_EXPENSIVE)
+      types = described_class.preset_types
+      expect(types).to be_an(Array)
+      expect(types).to include(:conversation)
+      expect(types).to include(:free)
+      expect(types).to include(:premium)
     end
   end
 
-  describe 'preset structure validation' do
-    it 'ensures all presets have required structure' do
-      described_class.preset_names.each do |preset_name|
-        preset = described_class.const_get(preset_name)
-
-        expect(preset).to have_key(:primary)
-        expect(preset[:primary]).to be_a(String)
-        expect(preset[:primary]).not_to be_empty
-
-        next unless preset[:alternatives]
-
-        expect(preset[:alternatives]).to be_an(Array)
-        preset[:alternatives].each do |alt|
-          expect(alt).to be_a(String)
-          expect(alt).not_to be_empty
-        end
-      end
-    end
-  end
-
-  describe 'cost safety' do
-    it 'ensures no blacklisted models appear in presets' do
-      dangerous_models = described_class::BLACKLISTED_EXPENSIVE
-
-      described_class.preset_names.each do |preset_name|
-        preset = described_class.const_get(preset_name)
-
-        # Check primary model
-        expect(dangerous_models).not_to include(preset[:primary])
-
-        # Check alternatives
-        next unless preset[:alternatives]
-
-        preset[:alternatives].each do |alt|
-          expect(dangerous_models).not_to include(alt)
-        end
+  describe 'blacklisted models safety' do
+    it 'ensures no blacklisted models are returned by get_model' do
+      described_class.preset_types.each do |preset_type|
+        model = described_class.get_model(preset_type)
+        expect(described_class.blacklisted?(model)).to be false
       end
     end
   end

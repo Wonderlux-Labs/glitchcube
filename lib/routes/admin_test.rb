@@ -21,12 +21,7 @@ module GlitchCube
             }
           end
 
-          # Use improved view if it exists
-          if File.exist?('views/admin_test_improved.erb')
-            erb :admin_test_improved
-          else
-            erb :admin_test
-          end
+          erb :admin_test_improved
         end
 
         # Continuous conversation flow tester
@@ -42,26 +37,48 @@ module GlitchCube
             session_id = params[:session_id].to_s.strip
             session_id = nil if session_id.empty?
 
+            # Get model selection from params or session
+            selected_model = params[:model].to_s.strip
+            if !selected_model.empty?
+              # Store the selected model in the session for persistence
+              session[:selected_model] = selected_model
+              puts "💾 Storing model in session: #{selected_model}" if GlitchCube.config.debug?
+            elsif session[:selected_model]
+              # Use previously selected model from session
+              selected_model = session[:selected_model]
+              puts "📖 Using model from session: #{selected_model}" if GlitchCube.config.debug?
+            else
+              selected_model = nil
+              puts '📖 Using default model' if GlitchCube.config.debug?
+            end
+
             # Call the main conversation endpoint with tool tracking
             conversation = ConversationModule.new(persona: persona)
 
             # Enable verbose logging for admin testing
             start_time = Time.now
 
+            # Build context with optional model override
+            conversation_context = {
+              session_id: session_id,
+              source: 'admin_test',
+              include_tool_calls: true, # Request tool call info
+              verbose: true # Enable verbose mode
+            }
+
+            # Add model override if selected
+            conversation_context[:model] = selected_model if selected_model
+
             @conversation_response = conversation.call(
               message: message,
-              context: {
-                session_id: session_id,
-                source: 'admin_test',
-                include_tool_calls: true, # Request tool call info
-                verbose: true # Enable verbose mode
-              }
+              context: conversation_context
             )
 
             # Store session ID and other details for next request
             @session_id = @conversation_response[:session_id]
             @selected_persona = persona
             @last_message = message
+            @selected_model = selected_model
 
             # Calculate response time
             @response_time = ((Time.now - start_time) * 1000).round
@@ -82,12 +99,7 @@ module GlitchCube
             }
           end
 
-          # Use improved view if it exists
-          if File.exist?('views/admin_test_improved.erb')
-            erb :admin_test_improved
-          else
-            erb :admin_test
-          end
+          erb :admin_test_improved
         end
 
         # Handle TTS test form submission
@@ -111,7 +123,7 @@ module GlitchCube
             }
           end
 
-          erb :admin_test
+          erb :admin_test_improved
         end
 
         # View session details
@@ -186,7 +198,8 @@ module GlitchCube
             }
           end
 
-          erb :admin_test_tools
+          # Redirect to the main tools explorer
+          redirect '/admin/tools'
         end
 
         # Execute tool form submission
@@ -217,7 +230,8 @@ module GlitchCube
             }
           end
 
-          erb :admin_test_tools
+          # Redirect to the main tools explorer
+          redirect '/admin/tools'
         end
       end
     end

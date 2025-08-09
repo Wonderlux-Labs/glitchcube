@@ -1,0 +1,92 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: http://glitch.local:8123/api/services/script/glitchcube_cloud_speak
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJtZXNzYWdlIjoiSGVsbG8gd29ybGQiLCJ2b2ljZSI6Ikplbm55TmV1cmFs
+        IiwibGFuZ3VhZ2UiOiJlbi1VUyIsIm1lZGlhX3BsYXllciI6Im1lZGlhX3Bs
+        YXllci5zcXVhcmVfdm9pY2UifQ==
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '1978'
+      Date:
+      - Sat, 09 Aug 2025 20:24:38 GMT
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        W3siZW50aXR5X2lkIjoic2NyaXB0LmdsaXRjaGN1YmVfY2xvdWRfc3BlYWsi
+        LCJzdGF0ZSI6Im9uIiwiYXR0cmlidXRlcyI6eyJsYXN0X3RyaWdnZXJlZCI6
+        IjIwMjUtMDgtMDlUMjA6MjQ6MzMuNTE3MzgxKzAwOjAwIiwibW9kZSI6InF1
+        ZXVlZCIsImN1cnJlbnQiOjEsIm1heCI6MjUsImZyaWVuZGx5X25hbWUiOiJH
+        bGl0Y2hDdWJlIENsb3VkIFRUUyAoUXVldWVkKSJ9LCJsYXN0X2NoYW5nZWQi
+        OiIyMDI1LTA4LTA5VDIwOjI0OjMzLjUxNzQzNyswMDowMCIsImxhc3RfcmVw
+        b3J0ZWQiOiIyMDI1LTA4LTA5VDIwOjI0OjMzLjUxNzQzNyswMDowMCIsImxh
+        c3RfdXBkYXRlZCI6IjIwMjUtMDgtMDlUMjA6MjQ6MzMuNTE3NDM3KzAwOjAw
+        IiwiY29udGV4dCI6eyJpZCI6IjAxSzI4ODNBRkM0M1dCMVBWRFBXWDBTU0Yz
+        IiwicGFyZW50X2lkIjpudWxsLCJ1c2VyX2lkIjoiYzk1ZDM1MDIzYzcyNDcz
+        NDk0NjFiZjFlZmYxNWY2YjYifX0seyJlbnRpdHlfaWQiOiJzY3JpcHQuZ2xp
+        dGNoY3ViZV9jbG91ZF9zcGVhayIsInN0YXRlIjoib24iLCJhdHRyaWJ1dGVz
+        Ijp7Imxhc3RfdHJpZ2dlcmVkIjoiMjAyNS0wOC0wOVQyMDoyNDozMy41MTcz
+        ODErMDA6MDAiLCJtb2RlIjoicXVldWVkIiwiY3VycmVudCI6MSwibWF4Ijoy
+        NSwibGFzdF9hY3Rpb24iOiJ3YWl0IHRlbXBsYXRlIiwiZnJpZW5kbHlfbmFt
+        ZSI6IkdsaXRjaEN1YmUgQ2xvdWQgVFRTIChRdWV1ZWQpIn0sImxhc3RfY2hh
+        bmdlZCI6IjIwMjUtMDgtMDlUMjA6MjQ6MzMuNTE3NDM3KzAwOjAwIiwibGFz
+        dF9yZXBvcnRlZCI6IjIwMjUtMDgtMDlUMjA6MjQ6MzMuNTE4NDkwKzAwOjAw
+        IiwibGFzdF91cGRhdGVkIjoiMjAyNS0wOC0wOVQyMDoyNDozMy41MTg0OTAr
+        MDA6MDAiLCJjb250ZXh0Ijp7ImlkIjoiMDFLMjg4M0FGQzQzV0IxUFZEUFdY
+        MFNTRjMiLCJwYXJlbnRfaWQiOm51bGwsInVzZXJfaWQiOiJjOTVkMzUwMjNj
+        NzI0NzM0OTQ2MWJmMWVmZjE1ZjZiNiJ9fSx7ImVudGl0eV9pZCI6InNjcmlw
+        dC5nbGl0Y2hjdWJlX2Nsb3VkX3NwZWFrIiwic3RhdGUiOiJvbiIsImF0dHJp
+        YnV0ZXMiOnsibGFzdF90cmlnZ2VyZWQiOiIyMDI1LTA4LTA5VDIwOjI0OjMz
+        LjUxNzM4MSswMDowMCIsIm1vZGUiOiJxdWV1ZWQiLCJjdXJyZW50IjoxLCJt
+        YXgiOjI1LCJsYXN0X2FjdGlvbiI6ImRlbGF5IDA6MDA6MDAuMjAwMDAwIiwi
+        ZnJpZW5kbHlfbmFtZSI6IkdsaXRjaEN1YmUgQ2xvdWQgVFRTIChRdWV1ZWQp
+        In0sImxhc3RfY2hhbmdlZCI6IjIwMjUtMDgtMDlUMjA6MjQ6MzMuNTE3NDM3
+        KzAwOjAwIiwibGFzdF9yZXBvcnRlZCI6IjIwMjUtMDgtMDlUMjA6MjQ6MzMu
+        NTE4NzgxKzAwOjAwIiwibGFzdF91cGRhdGVkIjoiMjAyNS0wOC0wOVQyMDoy
+        NDozMy41MTg3ODErMDA6MDAiLCJjb250ZXh0Ijp7ImlkIjoiMDFLMjg4M0FG
+        QzQzV0IxUFZEUFdYMFNTRjMiLCJwYXJlbnRfaWQiOm51bGwsInVzZXJfaWQi
+        OiJjOTVkMzUwMjNjNzI0NzM0OTQ2MWJmMWVmZjE1ZjZiNiJ9fSx7ImVudGl0
+        eV9pZCI6InNjcmlwdC5nbGl0Y2hjdWJlX2Nsb3VkX3NwZWFrIiwic3RhdGUi
+        OiJvbiIsImF0dHJpYnV0ZXMiOnsibGFzdF90cmlnZ2VyZWQiOiIyMDI1LTA4
+        LTA5VDIwOjI0OjMzLjUxNzM4MSswMDowMCIsIm1vZGUiOiJxdWV1ZWQiLCJj
+        dXJyZW50IjoxLCJtYXgiOjI1LCJsYXN0X2FjdGlvbiI6IndhaXQgdGVtcGxh
+        dGUiLCJmcmllbmRseV9uYW1lIjoiR2xpdGNoQ3ViZSBDbG91ZCBUVFMgKFF1
+        ZXVlZCkifSwibGFzdF9jaGFuZ2VkIjoiMjAyNS0wOC0wOVQyMDoyNDozMy41
+        MTc0MzcrMDA6MDAiLCJsYXN0X3JlcG9ydGVkIjoiMjAyNS0wOC0wOVQyMDoy
+        NDozMy43MjQyNDYrMDA6MDAiLCJsYXN0X3VwZGF0ZWQiOiIyMDI1LTA4LTA5
+        VDIwOjI0OjMzLjcyNDI0NiswMDowMCIsImNvbnRleHQiOnsiaWQiOiIwMUsy
+        ODgzQUZDNDNXQjFQVkRQV1gwU1NGMyIsInBhcmVudF9pZCI6bnVsbCwidXNl
+        cl9pZCI6ImM5NWQzNTAyM2M3MjQ3MzQ5NDYxYmYxZWZmMTVmNmI2In19XQ==
+  recorded_at: Sat, 09 Aug 2025 20:24:38 GMT
+recorded_with: VCR 6.3.1

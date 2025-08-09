@@ -202,7 +202,7 @@ Based on entity scan, we have rich environmental data available:
 
 ### Existing Job Infrastructure  
 - **Sidekiq job system** - Already configured and running
-- **Cron scheduling** - Via `config/sidekiq_cron.yml`
+- **Cron scheduling** - Via `config/sidekiq/sidekiq_cron.yml`
 - **Memory consolidation** - `PersonalityMemoryJob` (every 30 minutes)
 - **System monitoring** - Various health check jobs
 

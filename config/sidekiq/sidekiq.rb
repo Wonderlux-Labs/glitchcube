@@ -8,7 +8,7 @@ Sidekiq.configure_server do |config|
   config.redis = { url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0') }
 
   # Load cron jobs with startup logging
-  schedule_file = 'config/sidekiq_cron.yml'
+  schedule_file = 'config/sidekiq/sidekiq_cron.yml'
 
   if File.exist?(schedule_file) && Sidekiq.server?
     cron_schedule = YAML.load_file(schedule_file)

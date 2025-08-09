@@ -19,7 +19,7 @@ Glitch Cube uses Sidekiq for background job processing with Redis as the queue b
 
 ## Database Configuration
 
-Sidekiq workers load database configuration via `/config/sidekiq_boot.rb` which ensures proper PostgreSQL credentials are used before loading the application.
+Sidekiq workers load database configuration via `/config/sidekiq/sidekiq_boot.rb` which ensures proper PostgreSQL credentials are used before loading the application.
 
 ### Boot Sequence
 1. Set RACK_ENV (defaults to development)
@@ -30,7 +30,7 @@ Sidekiq workers load database configuration via `/config/sidekiq_boot.rb` which 
 
 ## Scheduled Jobs (Cron)
 
-Jobs are defined in `/config/sidekiq_cron.yml`:
+Jobs are defined in `/config/sidekiq/sidekiq_cron.yml`:
 
 | Job | Schedule | Queue | Purpose |
 |-----|----------|-------|---------|
@@ -60,7 +60,7 @@ Jobs are defined in `/config/sidekiq_cron.yml`:
 foreman start -f Procfile.dev
 
 # Or directly
-bundle exec sidekiq -r ./config/sidekiq_boot.rb -C config/sidekiq.yml
+bundle exec sidekiq -r ./config/sidekiq/sidekiq_boot.rb -C config/sidekiq/sidekiq.yml
 ```
 
 ### Production (Mac Mini)
@@ -69,7 +69,7 @@ bundle exec sidekiq -r ./config/sidekiq_boot.rb -C config/sidekiq.yml
 foreman start
 
 # The Procfile runs:
-# worker: bundle exec sidekiq -r ./config/sidekiq_boot.rb -C config/sidekiq.yml
+# worker: bundle exec sidekiq -r ./config/sidekiq/sidekiq_boot.rb -C config/sidekiq/sidekiq.yml
 ```
 
 ## Redis Configuration

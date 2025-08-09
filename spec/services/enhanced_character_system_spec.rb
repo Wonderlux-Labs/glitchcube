@@ -4,40 +4,44 @@ require 'spec_helper'
 
 RSpec.describe 'Enhanced Character System' do
   describe 'character-specific tools' do
-    it 'buddy gets customer service tools' do
+    it 'buddy gets speech and display tools' do
+      # Use our actual tool system instead of fake tools
+      tools = Services::ToolRegistryService.get_tools_for_character('buddy')
       service = Services::SystemPromptService.new(
         character: 'buddy',
-        context: { available_tools: %w[customer_satisfaction_survey technical_support booking_system] }
+        context: { tools: tools }
       )
       prompt = service.generate
 
-      expect(prompt).to include('AVAILABLE TOOLS')
-      expect(prompt).to include('Customer Satisfaction Survey')
-      expect(prompt).to include('Technical Support')
+      # Buddy should get SpeechTool and DisplayTool based on our persona mapping
+      expect(prompt).to include('speak_text')
+      expect(prompt).to include('display_text')
     end
 
-    it 'lomi gets performance and aesthetic tools' do
+    it 'lomi gets speech and display tools' do
+      tools = Services::ToolRegistryService.get_tools_for_character('lomi')
       service = Services::SystemPromptService.new(
         character: 'lomi',
-        context: { available_tools: %w[runway_lighting music_control shade_generator] }
+        context: { tools: tools }
       )
       prompt = service.generate
 
-      expect(prompt).to include('AVAILABLE TOOLS')
-      expect(prompt).to include('Runway Lighting')
-      expect(prompt).to include('Shade Generator')
+      # Lomi should get SpeechTool and DisplayTool based on our persona mapping
+      expect(prompt).to include('speak_text')
+      expect(prompt).to include('display_text')
     end
 
-    it 'jax gets bartending and music tools' do
+    it 'jax gets speech and lighting tools' do
+      tools = Services::ToolRegistryService.get_tools_for_character('jax')
       service = Services::SystemPromptService.new(
         character: 'jax',
-        context: { available_tools: %w[classic_music_player life_advice_dispenser electronic_music_killer] }
+        context: { tools: tools }
       )
       prompt = service.generate
 
-      expect(prompt).to include('AVAILABLE TOOLS')
-      expect(prompt).to include('Classic Music Player')
-      expect(prompt).to include('Electronic Music Killer')
+      # Jax should get SpeechTool and LightingTool based on our persona mapping
+      expect(prompt).to include('speak_text')
+      expect(prompt).to include('set_state')
     end
   end
 

@@ -61,16 +61,26 @@ module Services
     def tools_section
       return '' if context.nil?
 
-      available_tools = context[:available_tools]
+      # Support both old format (available_tools) and new format (tools)
+      available_tools = context[:available_tools] || context[:tools]
       return '' if available_tools.nil? || available_tools.empty?
 
       tools_lines = ['AVAILABLE TOOLS AND CAPABILITIES:']
       tools_lines << 'You have access to the following tools that match your character abilities:'
       tools_lines << ''
 
-      available_tools.each do |tool|
-        formatted_tool = tool.to_s.split('_').map(&:capitalize).join(' ')
-        tools_lines << "- #{formatted_tool}: #{tool_description(tool)}"
+      if available_tools.first.is_a?(Hash) && available_tools.first['function']
+        # New format - OpenAI function schemas
+        available_tools.each do |tool_schema|
+          function = tool_schema['function']
+          tools_lines << "- #{function['name']}: #{function['description']}"
+        end
+      else
+        # Old format - simple string array
+        available_tools.each do |tool|
+          formatted_tool = tool.to_s.split('_').map(&:capitalize).join(' ')
+          tools_lines << "- #{formatted_tool}: #{tool_description(tool)}"
+        end
       end
 
       tools_lines.join("\n")

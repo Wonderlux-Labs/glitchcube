@@ -86,18 +86,14 @@ module Services
 
       prompt = build_criticality_prompt(error, context)
 
-      response = OpenRouterService.complete(
+      response = Services::LLM::LLMService.complete_cheap_tools(
         prompt,
         model: 'openai/gpt-4o-mini',
         response_format: { type: 'json_object' }
       )
 
-      # Extract content from OpenRouter response
-      content = if response.is_a?(Hash)
-                  response.dig('choices', 0, 'message', 'content') || '{}'
-                else
-                  response.to_s
-                end
+      # Extract content from LLM response object
+      content = response.content || '{}'
       parse_criticality_response(content)
     rescue StandardError => e
       {
@@ -391,17 +387,13 @@ module Services
                  )
                else
                  # Fallback to direct LLM call if Task agent not available
-                 response = OpenRouterService.complete(
+                 response = Services::LLM::LLMService.complete_cheap_tools(
                    prompt,
                    model: 'openai/gpt-4o-mini',
                    response_format: { type: 'json_object' }
                  )
-                 # Extract content from OpenRouter response
-                 if response.is_a?(Hash)
-                   response.dig('choices', 0, 'message', 'content') || '{}'
-                 else
-                   response.to_s
-                 end
+                 # Extract content from LLM response object
+                 response.content || '{}'
                end
 
       parse_agent_response(result)

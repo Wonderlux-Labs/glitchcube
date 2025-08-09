@@ -3,6 +3,13 @@
 
 set -e
 
+# Kill any existing Sinatra and Sidekiq processes
+echo "🧹 Cleaning up existing processes..."
+lsof -ti:4567 | xargs kill -9 2>/dev/null || true
+pkill -f sidekiq 2>/dev/null || true
+pkill -f "ruby app.rb" 2>/dev/null || true
+sleep 1
+
 echo "🎲 Starting GlitchCube in development mode..."
 echo "================================"
 echo "App: http://localhost:4567"
@@ -28,7 +35,7 @@ fi
 
 # Start Sidekiq in background
 echo "🚀 Starting Sidekiq..."
-bundle exec sidekiq -C config/sidekiq.yml -r ./config/sidekiq_boot.rb &
+bundle exec sidekiq -C config/sidekiq/sidekiq.yml -r ./config/sidekiq/sidekiq_boot.rb &
 SIDEKIQ_PID=$!
 
 # Give Sidekiq a moment to start

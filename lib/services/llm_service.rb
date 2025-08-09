@@ -2,6 +2,7 @@
 
 require 'open_router'
 require_relative 'logger_service'
+require_relative 'simple_logger'
 require_relative 'circuit_breaker_service'
 require_relative 'llm_response'
 
@@ -14,8 +15,7 @@ module Services
     class AuthenticationError < LLMError; end
     class ModelNotFoundError < LLMError; end
 
-    DEFAULT_MODEL = 'openrouter/auto'
-    DEFAULT_TEMPERATURE = 0.7
+    DEFAULT_TEMPERATURE = 0.8
     DEFAULT_MAX_TOKENS = 500
 
     class << self
@@ -51,9 +51,7 @@ module Services
         # Parse and return response
         parse_response(response, model)
       rescue StandardError => e
-        puts "DEBUG: Original error class: #{e.class}" if GlitchCube.config.debug?
-        puts "DEBUG: Original error message: #{e.message}" if GlitchCube.config.debug?
-        puts "DEBUG: Original error backtrace: #{e.backtrace.first(3).join("\n")}" if GlitchCube.config.debug?
+        Services::SimpleLogger.log_error(error: e, message: 'LLM service initialization error', tagged: %i[llm error], backtrace: 3)
         handle_error(e)
       end
 
@@ -156,8 +154,7 @@ module Services
         # Log the request
         log_api_request(params)
 
-        puts "DEBUG: Calling complete with model: #{params[:model]}" if GlitchCube.config.debug?
-        puts "DEBUG: Extras: #{params[:extras].inspect}" if GlitchCube.config.debug?
+        Services::SimpleLogger.debug('LLM complete call', tagged: %i[llm api], model: params[:model], extras: params[:extras].inspect)
 
         # Make the actual API call using the gem's signature:
         # complete(messages, model: 'model', extras: { all other params })
@@ -167,8 +164,7 @@ module Services
           extras: params[:extras]
         )
 
-        puts "DEBUG: Response class: #{response.class}" if GlitchCube.config.debug?
-        puts "DEBUG: Response: #{response.inspect[0..500]}" if GlitchCube.config.debug?
+        Services::SimpleLogger.debug('LLM API response', tagged: %i[llm api], response_class: response.class.name, response_preview: response.inspect[0..500])
 
         # Log the response
         duration = ((Time.now - start_time) * 1000).round

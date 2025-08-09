@@ -23,12 +23,12 @@ module DatabaseConfig
 
     # Get the current environment
     def environment
-      ENV['RACK_ENV'] || ENV['RAILS_ENV'] || 'development'
+      ENV['RACK_ENV'] || ENV['APP_ENV'] || 'development'
     end
 
     # Check if we're in CI
     def ci?
-      ENV['CI'] == 'true'
+      ENV.fetch('CI', nil).present?
     end
 
     # Check if we're in test

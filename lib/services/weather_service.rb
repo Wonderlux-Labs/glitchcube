@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Weather summarization service using Home Assistant data and Gemini Flash Lite
-require_relative 'openrouter_service'
+require_relative 'llm/llm_service'
 
 class WeatherService
   def initialize
@@ -55,14 +55,14 @@ class WeatherService
   def generate_weather_summary(weather_data)
     prompt = build_weather_prompt(weather_data)
 
-    response = OpenRouterService.complete(
+    response = Services::LLM::LLMService.complete_cheap_no_tools(
       prompt,
       model: 'google/gemini-2.0-flash-thinking-exp:free',
       max_tokens: 100,
       temperature: 0.3
     )
 
-    response.dig('choices', 0, 'message', 'content')&.strip || 'Summary unavailable'
+    response.content&.strip || 'Summary unavailable'
   end
 
   # Build the prompt for weather summarization
