@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Development script to run app with auto-reload and sidekiq
+
+set -e
+
+echo "🎲 Starting GlitchCube in development mode..."
+echo "================================"
+echo "App: http://localhost:4567"
+echo "Press Ctrl-C to stop all services"
+echo ""
+
+# Function to kill all background processes on exit
+cleanup() {
+    echo ""
+    echo "🛑 Shutting down services..."
+    kill $(jobs -p) 2>/dev/null || true
+    exit 0
+}
+
+# Set up trap to cleanup on Ctrl-C
+trap cleanup INT TERM
+
+# Check if rerun is installed
+if ! gem list rerun -i > /dev/null 2>&1; then
+    echo "⚠️  Installing rerun gem..."
+    bundle install
+fi
+
+# Start Sidekiq in background
+echo "🚀 Starting Sidekiq..."
+bundle exec sidekiq &
+SIDEKIQ_PID=$!
+
+# Give Sidekiq a moment to start
+sleep 2
+
+# Start the app with rerun (in foreground)
+echo "🚀 Starting app with auto-reload..."
+bundle exec rerun --background --dir . --pattern '**/*.{rb,yml,erb}' -- rake run
+
+# This will only be reached if rerun fails to start
+wait $SIDEKIQ_PID

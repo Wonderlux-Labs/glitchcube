@@ -49,6 +49,7 @@ gem 'json', '~> 2.13'
 group :development, :test do
   gem 'pry', '~> 0.15'
   gem 'rack-test', '~> 2.2'
+  gem 'rerun', '~> 0.14' # Auto-reload in development (replaces deprecated sinatra/reloader)
   gem 'rspec', '~> 3.13'
   gem 'rspec_junit_formatter', '~> 0.6' # For CI test reporting
   gem 'rubocop', '~> 1.79'

@@ -17,6 +17,8 @@ Cleaned up deprecated DevOps configurations and deployment infrastructure as the
 
 ### 3. Configuration Updates
 - **config/environment.rb**: Simplified dotenv loading, made debug output conditional
+- **app.rb**: Removed deprecated sinatra/reloader
+- **Gemfile**: Added rerun gem for development auto-reload
 - **Rakefile**: 
   - Removed docker namespace tasks
   - Removed puma task

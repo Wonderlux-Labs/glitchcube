@@ -4,7 +4,7 @@ require_relative 'config/environment'
 
 require 'sinatra'
 require 'sinatra/json'
-require 'sinatra/reloader' if development?
+# Note: sinatra/reloader is deprecated - use 'rerun' gem in development instead
 
 require 'sinatra/activerecord'
 

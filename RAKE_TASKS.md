@@ -3,6 +3,7 @@
 ## Core Application Tasks
 
 ### Running the Application
+- `bin/dev` or `rake dev` - **Recommended for development** - Starts app with auto-reload AND Sidekiq
 - `rake run` - Run the application directly (uses WEBrick)
 - `rake sidekiq` - Start Sidekiq background job processor
 - `rake console` or `rake c` - Open interactive console with app loaded

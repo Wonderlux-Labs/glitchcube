@@ -25,6 +25,11 @@ task :run do
   exec 'bundle exec ruby app.rb'
 end
 
+desc 'Start development server with auto-reload and Sidekiq'
+task :dev do
+  exec './bin/dev'
+end
+
 desc 'Start Sidekiq'
 task :sidekiq do
   exec 'bundle exec sidekiq'
