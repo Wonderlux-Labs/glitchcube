@@ -54,5 +54,5 @@ log_error() {
 }
 
 log_info() {
-    echo -e "\033[1;33m➜\033[0m $1"
+    echo -e "\033[1;33m➜\033[0m $1" | tee -a "$LOG_FILE"
 }
