@@ -2,6 +2,7 @@
 
 # Zero-Leak VCR Configuration
 # Bulletproof VCR setup that prevents API leaks while keeping usage simple
+# rubocop:disable Metrics/ModuleLength
 module ZeroLeakVCR
   class << self
     def configure!
@@ -241,3 +242,4 @@ module ZeroLeakVCR
     end
   end
 end
+# rubocop:enable Metrics/ModuleLength

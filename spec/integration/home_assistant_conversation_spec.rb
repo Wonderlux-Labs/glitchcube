@@ -39,21 +39,20 @@ RSpec.describe 'Home Assistant Conversation Integration', :vcr do
       it 'triggers conversation through satellite', :vcr do
         # This is the modern way - using assist_satellite.start_conversation
         # which is what satellite devices use to initiate conversations
-        begin
-          result = client.call_service(
-            'assist_satellite',
-            'start_conversation',
-            {
-              entity_id: 'assist_satellite.home_assistant_voice_09739d_assist_satellite'
-            }
-          )
-          expect(result).to be_truthy
-        rescue HomeAssistantClient::Error => e
-          # Service might not exist or entity might not be configured
-          # This is acceptable for testing - the important thing is we can make the call
-          expect(e.message).to include('Bad Request')
-          expect(true).to be true
-        end
+
+        result = client.call_service(
+          'assist_satellite',
+          'start_conversation',
+          {
+            entity_id: 'assist_satellite.home_assistant_voice_09739d_assist_satellite'
+          }
+        )
+        expect(result).to be_truthy
+      rescue HomeAssistantClient::Error => e
+        # Service might not exist or entity might not be configured
+        # This is acceptable for testing - the important thing is we can make the call
+        expect(e.message).to include('Bad Request')
+        expect(true).to be true
       end
     end
 
@@ -119,24 +118,23 @@ RSpec.describe 'Home Assistant Conversation Integration', :vcr do
       # This is useful for CI/CD testing
       # NOTE: This would need to be done via config entry in real HA
       # For testing, we fire the event directly
-      begin
-        result = client.call_service(
-          'event',
-          'fire',
-          {
-            event_type: 'test_wake_word',
-            event_data: {
-              message: 'Hello from simulated wake word'
-            }
+
+      result = client.call_service(
+        'event',
+        'fire',
+        {
+          event_type: 'test_wake_word',
+          event_data: {
+            message: 'Hello from simulated wake word'
           }
-        )
-        expect(result).to be_truthy
-      rescue HomeAssistantClient::Error => e
-        # Event firing might not be allowed in this HA configuration
-        # This is acceptable for testing - the important thing is we can make the call
-        expect(e.message).to include('Bad Request')
-        expect(true).to be true
-      end
+        }
+      )
+      expect(result).to be_truthy
+    rescue HomeAssistantClient::Error => e
+      # Event firing might not be allowed in this HA configuration
+      # This is acceptable for testing - the important thing is we can make the call
+      expect(e.message).to include('Bad Request')
+      expect(true).to be true
     end
   end
 
