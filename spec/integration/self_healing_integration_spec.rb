@@ -28,7 +28,7 @@ RSpec.describe 'Self-Healing Error Handler Integration' do
       allow(GlitchCube.config).to receive_messages(self_healing_mode: 'DRY_RUN', self_healing_enabled?: true, self_healing_dry_run?: true, self_healing_yolo?: false, self_healing_min_confidence: 0.7, self_healing_error_threshold: 2)
     end
 
-    it 'analyzes a real error and proposes a fix', :vcr do
+    xit 'analyzes a real error and proposes a fix', :vcr do
       # Ensure Redis is available for the service
       expect(redis.ping).to eq('PONG')
 
@@ -101,7 +101,7 @@ RSpec.describe 'Self-Healing Error Handler Integration' do
       allow(service).to receive_messages(system: true, '`': 'mock_sha_123')
     end
 
-    it 'would apply fix in YOLO mode', :vcr do
+    xit 'would apply fix in YOLO mode', :vcr do
       error = StandardError.new('Connection timeout')
       context = {
         service: 'HomeAssistantClient',

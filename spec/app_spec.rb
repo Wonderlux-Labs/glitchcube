@@ -18,6 +18,9 @@ RSpec.describe GlitchCubeApp do
 
   describe 'GET /health' do
     it 'returns health status', :vcr do
+      # Reset all circuit breakers to ensure clean state
+      Services::CircuitBreakerService.reset_all
+
       get '/health'
       expect(last_response).to be_ok
 
@@ -25,6 +28,11 @@ RSpec.describe GlitchCubeApp do
       expect(body['status']).to eq('healthy')
       expect(body['timestamp']).not_to be_nil
       expect(body['circuit_breakers']).to be_an(Array)
+
+      # Verify all breakers are closed
+      body['circuit_breakers'].each do |breaker|
+        expect(breaker['state']).to eq('closed')
+      end
     end
   end
 

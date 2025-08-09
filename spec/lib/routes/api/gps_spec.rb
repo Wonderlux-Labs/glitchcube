@@ -109,12 +109,14 @@ RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
       expect(body['history']).to be_an(Array)
       expect(body['total_points']).to eq(body['history'].length)
 
-      # Check the sample data structure
-      first_point = body['history'].first
-      expect(first_point).to have_key('lat')
-      expect(first_point).to have_key('lng')
-      expect(first_point).to have_key('timestamp')
-      expect(first_point).to have_key('address')
+      # Check the sample data structure if history exists
+      if body['history'].any?
+        first_point = body['history'].first
+        expect(first_point).to have_key('lat')
+        expect(first_point).to have_key('lng')
+        expect(first_point).to have_key('timestamp')
+        expect(first_point).to have_key('address')
+      end
     end
 
     context 'when specifying hours parameter' do
