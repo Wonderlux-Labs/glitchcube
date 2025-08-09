@@ -42,7 +42,7 @@ export CURRENT_HASS_HOST=$(get_reachable_host "$HASS_HOST" "$HASS_HOST_FALLBACK"
 
 # Common logging function
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
 log_success() {
