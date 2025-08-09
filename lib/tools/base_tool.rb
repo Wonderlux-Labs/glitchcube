@@ -17,8 +17,8 @@ class BaseTool
       class_name = to_s
       # Convert CamelCase to snake_case
       class_name.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
-        .gsub(/([a-z\d])([A-Z])/, '\1_\2')
-        .downcase
+                .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+                .downcase
 
       # Don't remove 'tool' suffix for base classes
     end

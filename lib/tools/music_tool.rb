@@ -95,7 +95,6 @@ class MusicTool < BaseTool
       media_players = states.select { |state| state['entity_id'].start_with?('media_player.') }
 
       if verbose
-        # rubocop:disable Metrics/BlockLength
         media_players.each do |player|
           entity_id = player['entity_id']
           player_name = entity_id.split('.').last

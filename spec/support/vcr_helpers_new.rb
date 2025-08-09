@@ -10,17 +10,17 @@ module ZeroLeakVCRHelpers
 
     # Create clean, filesystem-safe name from test description
     description = example.full_description
-      .downcase
-      .gsub(/[^a-z0-9\s_-]/, '') # Remove special chars
-      .gsub(/\s+/, '_')            # Spaces to underscores
-      .squeeze('_')                # Remove duplicate underscores
-      .slice(0, 100)               # Limit length
+                         .downcase
+                         .gsub(/[^a-z0-9\s_-]/, '') # Remove special chars
+                         .gsub(/\s+/, '_')            # Spaces to underscores
+                         .squeeze('_')                # Remove duplicate underscores
+                         .slice(0, 100)               # Limit length
 
     # Organize by spec file for easy navigation
     spec_file = example.file_path
-      .gsub(%r{^.*/spec/}, '')     # Remove spec/ prefix
-      .gsub(/_spec\.rb$/, '')      # Remove _spec.rb suffix
-      .gsub('/', '_')              # Slashes to underscores
+                       .gsub(%r{^.*/spec/}, '')     # Remove spec/ prefix
+                       .gsub(/_spec\.rb$/, '')      # Remove _spec.rb suffix
+                       .gsub('/', '_')              # Slashes to underscores
 
     "#{spec_file}/#{description}"
   end

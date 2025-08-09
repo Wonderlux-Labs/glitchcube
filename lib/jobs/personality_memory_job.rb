@@ -18,9 +18,9 @@ module Jobs
 
       # Get messages from last 30 minutes
       recent_messages = Message.joins(:conversation)
-        .where(created_at: 30.minutes.ago..Time.now)
-        .where(role: %w[user assistant])
-        .order(:created_at)
+                               .where(created_at: 30.minutes.ago..Time.now)
+                               .where(role: %w[user assistant])
+                               .order(:created_at)
 
       if recent_messages.count < 3
         logger.info "Not enough messages to extract memories (only #{recent_messages.count})"

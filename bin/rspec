@@ -5,12 +5,12 @@
 
 if ARGV.delete('--vcr-none')
   ENV['VCR_NONE'] = 'true'
-  puts "🛡️ VCR None mode activated (CI emulation)"
+  puts '🛡️ VCR None mode activated (CI emulation)'
 end
 
 if ARGV.delete('--vcr-override')
   ENV['VCR_OVERRIDE'] = 'true'
-  puts "🔄 VCR Override mode activated"
+  puts '🔄 VCR Override mode activated'
 end
 
 # Load and run RSpec with remaining args

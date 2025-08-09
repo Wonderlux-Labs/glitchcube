@@ -20,13 +20,13 @@ module Services
 
     class << self
       # Simple completion with system prompt and user message
-      def complete(system_prompt:, user_message:, model: nil, **options)
+      def complete(system_prompt:, user_message:, model: nil, **)
         messages = [
           { role: 'system', content: system_prompt },
           { role: 'user', content: user_message }
         ]
 
-        complete_with_messages(messages: messages, model: model, **options)
+        complete_with_messages(messages: messages, model: model, **)
       end
 
       # Completion with full message history

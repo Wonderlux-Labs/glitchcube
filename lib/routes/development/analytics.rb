@@ -45,9 +45,9 @@ module GlitchCube
 
             # Use Conversation ActiveRecord model
             sessions = Conversation
-              .order(updated_at: :desc)
-              .limit(limit)
-              .map do |conversation|
+                       .order(updated_at: :desc)
+                       .limit(limit)
+                       .map do |conversation|
               {
                 session_id: conversation.session_id,
                 started_at: conversation.created_at,
