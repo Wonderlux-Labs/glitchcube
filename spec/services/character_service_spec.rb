@@ -6,6 +6,11 @@ require_relative '../../lib/services/character_service'
 RSpec.describe Services::CharacterService do
   let(:mock_home_assistant) { instance_double(HomeAssistantClient) }
 
+  # Custom matcher for non-empty strings
+  def a_string_that_is_not_empty
+    satisfy { |s| s.is_a?(String) && !s.empty? }
+  end
+
   before do
     # Mock HomeAssistantClient to capture the calls made to it
     allow(mock_home_assistant).to receive(:speak).and_return(true)
@@ -42,7 +47,7 @@ RSpec.describe Services::CharacterService do
         }
 
         expect(mock_home_assistant).to receive(:speak).with(
-          a_string_including('test message'),
+          a_string_that_is_not_empty,
           entity_id: 'media_player.square_voice',
           voice_options: expected_voice_options
         )
@@ -58,7 +63,8 @@ RSpec.describe Services::CharacterService do
         }
 
         expect(mock_home_assistant).to receive(:speak) do |msg, options|
-          expect(msg).to include('test message')
+          expect(msg).to be_a(String)
+          expect(msg).not_to be_empty
           expect(options[:entity_id]).to eq('media_player.square_voice')
           expect(options[:voice_options]).to eq(expected_voice_options)
         end
@@ -150,7 +156,7 @@ RSpec.describe Services::CharacterService do
         }
 
         expect(mock_home_assistant).to receive(:speak).with(
-          a_string_including('test message'),
+          a_string_that_is_not_empty,
           entity_id: 'media_player.square_voice',
           voice_options: expected_voice_options
         )

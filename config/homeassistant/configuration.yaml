@@ -113,7 +113,8 @@ rest_command: !include rest_commands.yaml
 
 # Shell commands for deployment and SSH key management
 shell_command:
-  deploy_glitchcube: '/home/eric/glitchcube/scripts/pull-from-github.sh'
+  deploy_glitchcube: 'ssh eristmini@speedygonzo.pumpkinseed-smoot.ts.net "/Users/eristmini/glitch/glitchcube/scripts/mac_deploy.sh" || ssh eristmini@speedygonzo.local "/Users/eristmini/glitch/glitchcube/scripts/mac_deploy.sh"'
+  deploy_hass_config: 'ssh eristmini@speedygonzo.pumpkinseed-smoot.ts.net "/Users/eristmini/glitch/glitchcube/scripts/deploy_hass_config.sh" || ssh eristmini@speedygonzo.local "/Users/eristmini/glitch/glitchcube/scripts/deploy_hass_config.sh"'
   rollback_glitchcube: 'cd /home/eric/glitchcube && docker tag glitchcube:last-known-good glitchcube:latest && docker-compose up -d glitchcube sidekiq'
   
   # SSH key setup for git operations
