@@ -9,6 +9,7 @@
       webhook_id: deployment_ready
       allowed_methods:
         - POST
+      local_only: false
   condition: []
   action:
     # Log the deployment request
@@ -22,6 +23,20 @@
       target:
         entity_id: input_boolean.deployment_in_progress
     
+    # Update deployment timestamp
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.last_deployment_time
+      data:
+        value: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+    
+    # Update deployment commit
+    - service: input_text.set_value
+      target:
+        entity_id: input_text.last_deployment_commit
+      data:
+        value: "{{ trigger.json.commit[:7] if trigger.json.commit else 'unknown' }}"
+    
     # Notify that deployment is starting
     - service: notify.persistent_notification
       data:
@@ -33,7 +48,7 @@
           Actor: {{ trigger.json.actor }}
     
     # Execute deployment on host via SSH
-    - service: shell_command.deploy_host
+    - service: shell_command.deploy_glitchcube
     
     # Wait for host to be ready
     - delay:
