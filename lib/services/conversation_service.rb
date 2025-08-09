@@ -16,15 +16,13 @@ module Services
       @context[:interaction_count] = (@context[:interaction_count] || 0) + 1
 
       # Call the conversation module with message and current context
-      result = conversation_module.call(
+      conversation_module.call(
         message: message,
         context: @context,
         persona: mood
       )
 
       # No need to track mood changes - personas are scheduled
-
-      result
     end
 
     def reset_context

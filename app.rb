@@ -4,7 +4,7 @@ require_relative 'config/environment'
 
 require 'sinatra'
 require 'sinatra/json'
-require 'sinatra/reloader' if development?
+# Note: sinatra/reloader is deprecated - use 'rerun' gem in development instead
 
 require 'sinatra/activerecord'
 
@@ -257,6 +257,4 @@ if ENV['RACK_ENV'] == 'production'
 end
 
 # Start the server when running directly (not via rackup)
-if __FILE__ == $0
-  GlitchCubeApp.run!
-end
+GlitchCubeApp.run! if __FILE__ == $PROGRAM_NAME

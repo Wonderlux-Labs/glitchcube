@@ -19,7 +19,7 @@ class DisplayTool < BaseTool
   end
 
   def self.tool_prompt
-    "Control 32x8 LED matrix with display_text(), send_notification(), set_mood_light(), clear_display()."
+    'Control 32x8 LED matrix with display_text(), send_notification(), set_mood_light(), clear_display().'
   end
 
   # AWTRIX entities based on our hardware scan
@@ -32,7 +32,6 @@ class DisplayTool < BaseTool
 
   # List all available display entities and their capabilities
   def self.list_available_displays(verbose: true)
-
     result = []
     result << '=== AVAILABLE DISPLAYS ==='
 
@@ -242,7 +241,7 @@ class DisplayTool < BaseTool
   end
 
   # Clear all custom apps from display
-  def self.clear_display()
+  def self.clear_display
     success = ha_client.awtrix_clear_display
 
     Services::LoggerService.log_api_call(

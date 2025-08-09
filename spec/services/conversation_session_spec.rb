@@ -53,8 +53,8 @@ RSpec.describe Services::ConversationSession do
           'persona=': nil,
           'started_at=': nil,
           'metadata=': nil,
-          'new_record?': false,
-          'save!': true
+          new_record?: false,
+          save!: true
         )
         allow(Conversation).to receive(:exists?).with(session_id: anything).and_return(true)
       end

@@ -17,10 +17,10 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
         # Just verify the routes work by calling them
         get '/api/v1/logs/errors'
         expect(last_response).to be_ok
-        
+
         get '/api/v1/logs/circuit_breakers'
         expect(last_response).to be_ok
-        
+
         get '/api/v1/analytics/conversations'
         expect(last_response).to be_ok
       end
@@ -96,11 +96,11 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
     before do
       # Create test conversation sessions
       require_relative '../../../../lib/services/conversation_session'
-      
+
       # Clear existing sessions
       Conversation.destroy_all
       Message.destroy_all
-      
+
       # Create test sessions with messages
       conversation1 = Conversation.create!(
         session_id: 'abc123',
@@ -115,7 +115,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
         role: 'assistant',
         content: 'Hi there!'
       )
-      
+
       conversation2 = Conversation.create!(
         session_id: 'def456',
         persona: 'buddy',
@@ -141,7 +141,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
 
     it 'accepts custom limit parameter' do
       get '/api/v1/analytics/conversations?limit=1'
-      
+
       body = JSON.parse(last_response.body)
       expect(body['count']).to eq(1)
     end

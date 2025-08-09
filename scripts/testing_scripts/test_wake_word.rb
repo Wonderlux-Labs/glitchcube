@@ -10,16 +10,16 @@ require_relative 'config/initializers/config'
 require_relative 'lib/home_assistant_client'
 require 'json'
 
-puts "🎤 Wake Word Detection Test"
-puts "=" * 50
+puts '🎤 Wake Word Detection Test'
+puts '=' * 50
 
 client = HomeAssistantClient.new
 
 # Test different conversation triggers
 tests = [
   {
-    name: "Basic Wake Word",
-    service_call: -> {
+    name: 'Basic Wake Word',
+    service_call: lambda {
       client.call_service(
         'conversation',
         'process',
@@ -32,8 +32,8 @@ tests = [
     }
   },
   {
-    name: "Multi-turn Conversation",
-    service_call: -> {
+    name: 'Multi-turn Conversation',
+    service_call: lambda {
       # First turn
       result1 = client.call_service(
         'conversation',
@@ -44,13 +44,17 @@ tests = [
           language: 'en'
         }
       )
-      
-      puts "  First response: #{result1['response']['speech']['plain']['speech'] rescue result1}"
-      
+
+      puts "  First response: #{begin
+        result1['response']['speech']['plain']['speech']
+      rescue StandardError
+        result1
+      end}"
+
       # Continue conversation
       if result1 && result1['conversation_id']
         sleep 2 # Give time for TTS to complete
-        
+
         client.call_service(
           'conversation',
           'process',
@@ -67,8 +71,8 @@ tests = [
     }
   },
   {
-    name: "Assist Pipeline (Modern HA)",
-    service_call: -> {
+    name: 'Assist Pipeline (Modern HA)',
+    service_call: lambda {
       client.call_service(
         'assist_pipeline',
         'start',
@@ -86,8 +90,8 @@ tests = [
     }
   },
   {
-    name: "Event-based Trigger (Automation Style)",
-    service_call: -> {
+    name: 'Event-based Trigger (Automation Style)',
+    service_call: lambda {
       # Fire an event that could trigger an automation
       client.call_service(
         'event',
@@ -108,44 +112,43 @@ tests = [
 # Run tests
 tests.each_with_index do |test, index|
   puts "\n#{index + 1}. Testing: #{test[:name]}"
-  puts "-" * 40
-  
+  puts '-' * 40
+
   begin
     result = test[:service_call].call
-    
+
     if result
       # Try to extract the response text
       response_text = case result
-      when Hash
-        if result['response'] && result['response']['speech']
-          result['response']['speech']['plain']['speech']
-        elsif result['pipeline_run'] && result['pipeline_run']['tts']
-          result['pipeline_run']['tts']['tts_output']
-        elsif result['data'] && result['data']['response']
-          result['data']['response']
-        else
-          result.to_json
-        end
-      else
-        result.to_s
-      end
-      
-      puts "✅ Success!"
+                      when Hash
+                        if result['response'] && result['response']['speech']
+                          result['response']['speech']['plain']['speech']
+                        elsif result['pipeline_run'] && result['pipeline_run']['tts']
+                          result['pipeline_run']['tts']['tts_output']
+                        elsif result['data'] && result['data']['response']
+                          result['data']['response']
+                        else
+                          result.to_json
+                        end
+                      else
+                        result.to_s
+                      end
+
+      puts '✅ Success!'
       puts "Response: #{response_text}" if response_text
     else
-      puts "⚠️  No response received"
+      puts '⚠️  No response received'
     end
-    
-  rescue => e
+  rescue StandardError => e
     puts "❌ Error: #{e.message}"
     puts e.backtrace.first(3).join("\n") if ENV['DEBUG']
   end
-  
+
   sleep 1 # Brief pause between tests
 end
 
-puts "\n" + "=" * 50
-puts "🎤 Wake Word Detection Test Complete"
+puts "\n#{'=' * 50}"
+puts '🎤 Wake Word Detection Test Complete'
 
 # Show how to use in Home Assistant automation
 puts "\n📝 Example Home Assistant Automation:"
@@ -153,7 +156,7 @@ automation_yaml = <<~YAML
   alias: "Glitch Cube Wake Word Response"
   trigger:
     - platform: conversation
-      command: 
+      command:#{' '}
         - "Hey Glitch Cube"
         - "OK Glitch Cube"
   action:

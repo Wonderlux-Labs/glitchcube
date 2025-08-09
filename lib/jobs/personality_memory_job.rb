@@ -42,11 +42,11 @@ module Jobs
       logger.info "✨ Extracted #{all_memories.count} memories from #{conversations.count} conversations"
     rescue StandardError => e
       # Log the error with full context then re-raise for Sidekiq to handle retries
-      log_error(e, { 
-        job: 'PersonalityMemoryJob',
-        message_count: recent_messages.count,
-        conversation_count: conversations.count
-      })
+      log_error(e, {
+                  job: 'PersonalityMemoryJob',
+                  message_count: recent_messages.count,
+                  conversation_count: conversations.count
+                })
       # Re-raise so Sidekiq can handle retries properly
       raise
     end
@@ -108,12 +108,12 @@ module Jobs
       end
     rescue StandardError => e
       # Log but don't re-raise - we want to continue processing other conversations
-      log_error(e, { 
-        job: 'PersonalityMemoryJob',
-        method: 'extract_personality_memories',
-        conversation_id: conversation_id,
-        message_count: messages.count
-      }, reraise: false)
+      log_error(e, {
+                  job: 'PersonalityMemoryJob',
+                  method: 'extract_personality_memories',
+                  conversation_id: conversation_id,
+                  message_count: messages.count
+                }, reraise: false)
       []
     end
 

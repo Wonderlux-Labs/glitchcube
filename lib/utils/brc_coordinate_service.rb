@@ -75,7 +75,6 @@ module Utils
         GOLDEN_SPIKE_COORDS
       end
 
-
       private
 
       # Convert distance to BRC concentric street using REAL data

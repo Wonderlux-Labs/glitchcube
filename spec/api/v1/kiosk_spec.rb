@@ -189,15 +189,13 @@ RSpec.describe 'Kiosk Interface API', type: :request do
         has_tool_calls?: false,
         continue_conversation?: true
       )
-      
+
       allow(Services::LLMService).to receive(:complete_with_messages).and_return(mock_response)
-      
+
       # Mock Home Assistant client for TTS and other calls
       mock_ha_client = double('HomeAssistantClient')
       allow(HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
-      allow(mock_ha_client).to receive(:speak).and_return(true)
-      allow(mock_ha_client).to receive(:state).and_return(nil)
-      allow(mock_ha_client).to receive(:call_service).and_return(true)
+      allow(mock_ha_client).to receive_messages(speak: true, state: nil, call_service: true)
 
       allow(Services::LoggerService).to receive(:log_interaction)
       allow(Services::LoggerService).to receive(:log_tts)

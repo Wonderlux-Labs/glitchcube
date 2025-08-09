@@ -5,7 +5,7 @@ require_relative '../../lib/services/conversation_service'
 require_relative '../../lib/services/system_prompt_service'
 require_relative '../../lib/modules/conversation_module'
 
-RSpec.describe "Conversation with Persistence Integration", vcr: { cassette_name: "conversation_persistence" } do
+RSpec.describe 'Conversation with Persistence Integration', vcr: { cassette_name: 'conversation_persistence' } do
   before do
     # Clean database between tests to avoid foreign key conflicts
     Message.destroy_all

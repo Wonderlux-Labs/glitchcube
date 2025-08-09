@@ -58,6 +58,7 @@ Metrics/BlockLength:
     - 'lib/routes/**/*'
     - 'lib/services/gps_tracking_service.rb'
     - 'lib/tasks/**/*'
+    - 'scripts/testing_scripts/test_wake_word.rb'  # Testing script with long blocks
 
 Metrics/ModuleLength:
   Max: 150
@@ -69,6 +70,8 @@ Metrics/ModuleLength:
     - 'lib/routes/admin.rb'                  # Admin interface endpoints
     - 'lib/routes/api/conversation.rb'       # Main conversation endpoints
     - 'lib/routes/api/deployment.rb'         # Deployment management endpoints
+    - 'lib/routes/admin_test.rb'             # Admin test endpoints module
+    - 'lib/routes/development/analytics.rb'  # Development analytics module
 
 # Security
 Security/Eval:

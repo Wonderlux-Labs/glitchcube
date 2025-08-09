@@ -5,7 +5,7 @@ require_relative '../../lib/services/character_service'
 
 RSpec.describe Services::CharacterService do
   let(:mock_home_assistant) { instance_double(HomeAssistantClient) }
-  
+
   before do
     # Mock HomeAssistantClient to capture the calls made to it
     allow(mock_home_assistant).to receive(:speak).and_return(true)
@@ -70,7 +70,7 @@ RSpec.describe Services::CharacterService do
         # Any mood should just use the plain voice
         expected_voice_options = {
           tts: :cloud,
-          voice: 'DavisNeural',  # Plain voice without mood suffix
+          voice: 'DavisNeural', # Plain voice without mood suffix
           language: 'en-US'
         }
 
@@ -107,7 +107,7 @@ RSpec.describe Services::CharacterService do
         # ElevenLabs uses plain voice names
         expected_voice_options = {
           tts: :elevenlabs,
-          voice: 'Josh',  # No mood suffix
+          voice: 'Josh', # No mood suffix
           language: 'en-US'
         }
 
@@ -145,7 +145,7 @@ RSpec.describe Services::CharacterService do
       it 'allows overriding TTS provider at call time' do
         expected_voice_options = {
           tts: :elevenlabs,
-          voice: 'DavisNeural',  # Character's configured voice, but via ElevenLabs
+          voice: 'DavisNeural', # Character's configured voice, but via ElevenLabs
           language: 'en-US'
         }
 
@@ -183,7 +183,7 @@ RSpec.describe Services::CharacterService do
 
       it 'falls back to JennyNeural when preferred voice doesnt support mood' do
         result = service.best_voice_for_mood(:empathetic, 'DavisNeural')
-        expect(result).to eq('AriaNeural||empathetic')  # AriaNeural supports empathetic
+        expect(result).to eq('AriaNeural||empathetic') # AriaNeural supports empathetic
       end
 
       it 'returns base voice when no voice supports the mood' do
@@ -194,8 +194,8 @@ RSpec.describe Services::CharacterService do
   end
 
   describe 'Voice verification for each persona' do
-    let(:mock_ha) { instance_double('HomeAssistantClient') }
-    
+    let(:mock_ha) { instance_double(HomeAssistantClient) }
+
     before do
       allow(HomeAssistantClient).to receive(:new).and_return(mock_ha)
       allow(mock_ha).to receive(:speak).and_return(true)
@@ -209,10 +209,10 @@ RSpec.describe Services::CharacterService do
         jax: 'GuyNeural',
         lomi: 'AriaNeural'
       }
-      
+
       character_voices.each do |character, expected_voice|
         service = described_class.new(character: character)
-        
+
         expect(mock_ha).to receive(:speak).with(
           anything,
           entity_id: 'media_player.square_voice',
@@ -222,14 +222,14 @@ RSpec.describe Services::CharacterService do
             language: 'en-US'
           )
         )
-        
+
         service.speak("Test for #{character}")
       end
     end
-    
+
     it 'never sends voice_id, always sends voice' do
       service = described_class.new(character: :buddy)
-      
+
       expect(mock_ha).to receive(:speak) do |_msg, entity_id:, voice_options:|
         # Verify we send 'voice' not 'voice_id'
         expect(voice_options).to have_key(:voice)
@@ -237,7 +237,7 @@ RSpec.describe Services::CharacterService do
         expect(voice_options[:voice]).to eq('DavisNeural')
         true
       end
-      
+
       service.speak('Test')
     end
   end

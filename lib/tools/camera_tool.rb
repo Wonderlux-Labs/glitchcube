@@ -19,7 +19,7 @@ class CameraTool < BaseTool
   end
 
   def self.tool_prompt
-    "Capture images and analyze scenes with take_snapshot(), check_motion(), analyze_scene()."
+    'Capture images and analyze scenes with take_snapshot(), check_motion(), analyze_scene().'
   end
 
   # List all available cameras with their capabilities
@@ -122,9 +122,9 @@ class CameraTool < BaseTool
     begin
       # Take snapshot using Home Assistant camera service
       call_ha_service('camera', 'snapshot', {
-                            entity_id: entity_id,
-                            filename: "/config/www/snapshots/#{camera}_#{Time.now.to_i}.jpg"
-                          })
+                        entity_id: entity_id,
+                        filename: "/config/www/snapshots/#{camera}_#{Time.now.to_i}.jpg"
+                      })
 
       # Also try the direct snapshot method from HomeAssistantClient
       ha_client.take_snapshot(entity_id: entity_id)
@@ -202,9 +202,9 @@ class CameraTool < BaseTool
     begin
       # Set motion detection sensitivity via Home Assistant select entity
       call_ha_service('select', 'select_option', {
-                            entity_id: 'select.camera_motion_detection_sensitivity',
-                            option: level.to_s
-                          })
+                        entity_id: 'select.camera_motion_detection_sensitivity',
+                        option: level.to_s
+                      })
 
       Services::LoggerService.log_api_call(
         service: 'camera_tool',

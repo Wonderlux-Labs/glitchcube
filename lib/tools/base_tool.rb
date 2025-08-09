@@ -14,14 +14,13 @@ class BaseTool
     def name
       # Default implementation: derive from class name
       # e.g., LightingTool -> lighting_tool, BaseTool -> base_tool
-      class_name = self.to_s
+      class_name = to_s
       # Convert CamelCase to snake_case
-      snake_case = class_name.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+      class_name.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
         .gsub(/([a-z\d])([A-Z])/, '\1_\2')
         .downcase
-      
+
       # Don't remove 'tool' suffix for base classes
-      snake_case
     end
 
     def description
@@ -64,11 +63,9 @@ class BaseTool
     def ha_client
       @ha_client ||= begin
         return mock_ha_client if use_mock_ha?
-        
-        unless GlitchCube.config.home_assistant.url
-          raise ToolError, 'Home Assistant not configured. Set HOME_ASSISTANT_URL in .env'
-        end
-        
+
+        raise ToolError, 'Home Assistant not configured. Set HOME_ASSISTANT_URL in .env' unless GlitchCube.config.home_assistant.url
+
         HomeAssistantClient.new
       end
     rescue StandardError => e
@@ -78,10 +75,10 @@ class BaseTool
     # Helper: Call HA service with consistent error handling
     def call_ha_service(domain, service, data = {}, return_response: false)
       result = ha_client.call_service(domain, service, data, return_response: return_response)
-      
+
       # If return_response is true, return the actual result
       return result if return_response && result
-      
+
       # Otherwise return status message
       if result
         "✅ Service #{domain}.#{service} executed successfully"
@@ -92,10 +89,10 @@ class BaseTool
       "❌ HA Service Error: #{e.message}"
     end
 
-    # Helper: Call HA script with consistent error handling  
+    # Helper: Call HA script with consistent error handling
     def call_ha_script(script_name, variables = {})
       result = ha_client.call_service('script', script_name, variables)
-      
+
       if result
         "✅ Script #{script_name} executed successfully"
       else
@@ -109,7 +106,7 @@ class BaseTool
     def get_ha_state(entity_id)
       state = ha_client.state(entity_id)
       return "Entity #{entity_id} not found" unless state
-      
+
       {
         entity_id: entity_id,
         state: state['state'],
@@ -123,7 +120,7 @@ class BaseTool
     def validate_required_params(params, required)
       missing = required.select { |param| params[param].nil? }
       return if missing.empty?
-      
+
       raise ValidationError, "Missing required parameters: #{missing.join(', ')}"
     end
 
@@ -131,7 +128,7 @@ class BaseTool
     def parse_json_params(params)
       return params if params.is_a?(Hash)
       return {} if params.nil? || params == ''
-      
+
       JSON.parse(params.to_s)
     rescue JSON::ParserError => e
       raise ValidationError, "Invalid JSON parameters: #{e.message}"

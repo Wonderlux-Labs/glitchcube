@@ -13,7 +13,6 @@ module Services
       @conversation_module ||= ConversationModule.new
     end
 
-
     # Determine if conversation should continue based on response content
     def should_continue_conversation?(result)
       # First check if the LLM explicitly indicated continuation
@@ -79,7 +78,6 @@ module Services
 
       # Check if result contains explicit media actions
       media_actions.concat(result[:media_actions]) if result[:media_actions]
-
 
       # Sound effects and background audio
       if result[:sound_effect_url]

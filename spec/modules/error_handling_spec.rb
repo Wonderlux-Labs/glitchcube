@@ -191,5 +191,4 @@ RSpec.describe ErrorHandling do
       end
     end
   end
-
 end

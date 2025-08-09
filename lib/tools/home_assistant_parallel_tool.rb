@@ -48,9 +48,7 @@ class HomeAssistantParallelTool < BaseTool
     actions = [actions] unless actions.is_a?(Array)
 
     # Add resource limit as mentioned in PR review
-    if actions.length > 5
-      return format_response(false, "Too many parallel actions (#{actions.length}). Maximum allowed: 5")
-    end
+    return format_response(false, "Too many parallel actions (#{actions.length}). Maximum allowed: 5") if actions.length > 5
 
     # Execute all actions in parallel
     results = Concurrent::Array.new
@@ -109,7 +107,7 @@ class HomeAssistantParallelTool < BaseTool
     # Access ha_client directly since we inherit from BaseTool
     client = ha_client
     state = client.state(entity_id)
-    
+
     if state
       {
         entity_id: entity_id,
@@ -138,7 +136,7 @@ class HomeAssistantParallelTool < BaseTool
     else
       brightness = params['brightness']
       rgb_color = params['rgb_color']
-      
+
       success = if client.respond_to?(:set_light)
                   client.set_light(entity_id, brightness: brightness, rgb_color: rgb_color)
                   true
@@ -149,7 +147,7 @@ class HomeAssistantParallelTool < BaseTool
                   result = call_ha_service('light', 'turn_on', service_data)
                   result.include?('✅')
                 end
-      
+
       { entity_id: entity_id, state: 'on', brightness: brightness, rgb_color: rgb_color, success: success }
     end
   end
@@ -159,19 +157,19 @@ class HomeAssistantParallelTool < BaseTool
     return { error: 'message required for speak' } unless message
 
     entity_id = params['entity_id'] || 'media_player.square_voice'
-    
+
     # Use ha_client directly
     client = ha_client
     success = if client.respond_to?(:speak)
                 client.speak(message, entity_id: entity_id)
               else
                 result = call_ha_service('tts', 'speak', {
-                  entity_id: entity_id,
-                  message: message
-                })
+                                           entity_id: entity_id,
+                                           message: message
+                                         })
                 result.include?('✅')
               end
-    
+
     { action: 'speak', message: message, success: success }
   end
 
@@ -190,11 +188,11 @@ class HomeAssistantParallelTool < BaseTool
               else
                 # Fallback to service call
                 result = call_ha_service('awtrix', 'display_text', {
-                  text: text,
-                  color: color,
-                  duration: duration,
-                  rainbow: rainbow
-                })
+                                           text: text,
+                                           color: color,
+                                           duration: duration,
+                                           rainbow: rainbow
+                                         })
                 result.include?('✅')
               end
 
@@ -207,7 +205,7 @@ class HomeAssistantParallelTool < BaseTool
 
     variables = params['variables'] || {}
     result = call_ha_script(script_name, variables)
-    
+
     success = result.include?('✅')
     { action: 'run_script', script: script_name, success: success }
   end
@@ -219,7 +217,7 @@ class HomeAssistantParallelTool < BaseTool
 
     service_data = params['data'] || {}
     result = call_ha_service(domain, service, service_data)
-    
+
     success = result.include?('✅')
     { action: 'call_service', service: "#{domain}.#{service}", success: success }
   end

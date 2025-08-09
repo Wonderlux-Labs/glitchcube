@@ -37,7 +37,11 @@ if [ "$ENVIRONMENT" = "production" ]; then
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "🛑 Stopping services..."
-        docker-compose -f docker-compose.yml -f docker-compose.production.yml stop
+        # Stop Glitch Cube service using launchctl
+        launchctl unload ~/Library/LaunchAgents/com.glitchcube.startup.plist 2>/dev/null || true
+        pkill -f "ruby app.rb" 2>/dev/null || true
+        pkill -f sidekiq 2>/dev/null || true
+        sleep 2
         SERVICES_STOPPED=true
     fi
 fi
@@ -46,26 +50,42 @@ fi
 backup_directory "data/$ENVIRONMENT/glitchcube" "glitchcube_data"
 backup_directory "data/$ENVIRONMENT/context_documents" "context_documents"
 
-# Backup Redis if running
-if docker ps | grep -q glitchcube_redis; then
-    echo "📦 Backing up Redis..."
-    docker exec glitchcube_redis redis-cli BGSAVE
-    sleep 2
-    docker cp glitchcube_redis:/data/dump.rdb "$BACKUP_DIR/redis_${ENVIRONMENT}_${TIMESTAMP}.rdb"
-    echo "✅ Redis backed up successfully"
+# Backup Redis if running locally
+if command -v redis-cli &> /dev/null; then
+    if redis-cli ping &> /dev/null; then
+        echo "📦 Backing up Redis..."
+        redis-cli BGSAVE
+        sleep 2
+        # Default Redis dump location on macOS/Linux
+        REDIS_DUMP="/usr/local/var/db/redis/dump.rdb"
+        if [ -f "$REDIS_DUMP" ]; then
+            cp "$REDIS_DUMP" "$BACKUP_DIR/redis_${ENVIRONMENT}_${TIMESTAMP}.rdb"
+            echo "✅ Redis backed up successfully"
+        else
+            echo "⚠️  Redis dump file not found at expected location"
+        fi
+    fi
 fi
 
-# Backup PostgreSQL if running
-if docker ps | grep -q glitchcube_postgres; then
+# Backup PostgreSQL if configured
+if [ -n "$DATABASE_URL" ]; then
     echo "📦 Backing up PostgreSQL..."
-    docker exec glitchcube_postgres pg_dump -U glitchcube glitchcube > "$BACKUP_DIR/postgres_${ENVIRONMENT}_${TIMESTAMP}.sql"
-    echo "✅ PostgreSQL backed up successfully"
+    # Extract connection info from DATABASE_URL if needed
+    pg_dump "$DATABASE_URL" > "$BACKUP_DIR/postgres_${ENVIRONMENT}_${TIMESTAMP}.sql" 2>/dev/null
+    if [ $? -eq 0 ]; then
+        echo "✅ PostgreSQL backed up successfully"
+    else
+        echo "⚠️  PostgreSQL backup skipped (not configured or accessible)"
+    fi
 fi
 
 # Restart services if they were stopped
 if [ "$SERVICES_STOPPED" = true ]; then
     echo "🚀 Restarting services..."
-    docker-compose -f docker-compose.yml -f docker-compose.production.yml start
+    # Restart Glitch Cube service using launchctl
+    launchctl load ~/Library/LaunchAgents/com.glitchcube.startup.plist 2>/dev/null || true
+    # The launchd service will automatically restart the app
+    echo "✅ Services restarted via launchctl"
 fi
 
 # Show backup summary

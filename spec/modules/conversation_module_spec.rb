@@ -85,11 +85,11 @@ RSpec.describe ConversationModule do
         # Since we don't provide tools in the context, it will skip TTS
         # This is expected behavior for tests without full tool setup
         result = module_instance.call(message: message, context: context, persona: mood)
-        
+
         # Just verify the conversation completes successfully
         expect(result[:response]).to eq('Mock AI response')
-        
-        # Note: Actual TTS testing happens in integration tests with full tool context
+
+        # NOTE: Actual TTS testing happens in integration tests with full tool context
       end
 
       # NOTE: This is tested more thoroughly in the integration tests with VCR
@@ -120,7 +120,7 @@ RSpec.describe ConversationModule do
         # Tool-based TTS will be skipped without proper tool context
         # Just verify the fallback response is returned properly
         result = module_instance.call(message: message, context: context, persona: mood)
-        
+
         # Should get an offline response with error flag
         expect(result[:response]).to be_a(String)
         expect(result[:response].downcase).to match(/offline|capabilities|present|moment|spirit|connectivity|unavailable/)

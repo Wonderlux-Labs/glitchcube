@@ -19,7 +19,7 @@ class LightingTool < BaseTool
   end
 
   def self.tool_prompt
-    "Control RGB lighting with set_light(), turn_off_light(), set_effect(). Targets: cube, cart, voice_ring, matrix, indicators, all."
+    'Control RGB lighting with set_light(), turn_off_light(), set_effect(). Targets: cube, cart, voice_ring, matrix, indicators, all.'
   end
 
   # Set light color and brightness
@@ -50,9 +50,9 @@ class LightingTool < BaseTool
     scenes = {
       'party' => { color: [255, 0, 255], brightness: 255, targets: ['all'] },
       'chill' => { color: [0, 100, 255], brightness: 100, targets: ['ambient'] },
-      'alert' => { color: [255, 0, 0], brightness: 255, targets: ['indicators', 'voice_ring'] },
+      'alert' => { color: [255, 0, 0], brightness: 255, targets: %w[indicators voice_ring] },
       'sleep' => { color: [255, 100, 0], brightness: 30, targets: ['ambient'] },
-      'work' => { color: [255, 255, 255], brightness: 200, targets: ['cube', 'cart'] }
+      'work' => { color: [255, 255, 255], brightness: 200, targets: %w[cube cart] }
     }
 
     scene = scenes[mood.downcase]
@@ -61,11 +61,11 @@ class LightingTool < BaseTool
     scene[:targets].each do |target|
       entity_ids = get_entities(target)
       call_ha_service('light', 'turn_on', {
-        entity_id: entity_ids,
-        rgb_color: scene[:color],
-        brightness: scene[:brightness],
-        transition: 2
-      })
+                        entity_id: entity_ids,
+                        rgb_color: scene[:color],
+                        brightness: scene[:brightness],
+                        transition: 2
+                      })
     end
 
     format_response(true, "Set mood: #{mood}")
@@ -82,10 +82,10 @@ class LightingTool < BaseTool
 
     # Simple pulse using HA script
     result = call_ha_script('cube_pulse_effect', {
-      entity_id: entity_ids.first,
-      color: rgb,
-      pulses: pulses
-    })
+                              entity_id: entity_ids.first,
+                              color: rgb,
+                              pulses: pulses
+                            })
 
     if result.include?('✅')
       format_response(true, "Pulsing #{target} #{pulses} times")
@@ -93,17 +93,17 @@ class LightingTool < BaseTool
       # Fallback to manual pulse if script doesn't exist
       pulses.times do
         call_ha_service('light', 'turn_on', {
-          entity_id: entity_ids,
-          rgb_color: rgb,
-          brightness: 255,
-          transition: 0.5
-        })
+                          entity_id: entity_ids,
+                          rgb_color: rgb,
+                          brightness: 255,
+                          transition: 0.5
+                        })
         sleep(0.5)
         call_ha_service('light', 'turn_on', {
-          entity_id: entity_ids,
-          brightness: 30,
-          transition: 0.5
-        })
+                          entity_id: entity_ids,
+                          brightness: 30,
+                          transition: 0.5
+                        })
         sleep(0.5)
       end
       format_response(true, "Pulsed #{target} #{pulses} times")
@@ -116,16 +116,14 @@ class LightingTool < BaseTool
     return format_response(false, "Unknown target: #{target}") if entity_ids.empty?
 
     result = call_ha_service('light', 'turn_off', {
-      entity_id: entity_ids,
-      transition: transition
-    })
+                               entity_id: entity_ids,
+                               transition: transition
+                             })
 
     result.include?('✅') ? format_response(true, "Turned off #{target}") : result
   rescue StandardError => e
     format_response(false, "Failed to turn off #{target}: #{e.message}")
   end
-
-  private
 
   # Known entity mappings for our hardware
   LIGHTS = {
@@ -144,12 +142,12 @@ class LightingTool < BaseTool
     'indicators' => ['light.awtrix_b85e20_indicator_1', 'light.awtrix_b85e20_indicator_2', 'light.awtrix_b85e20_indicator_3']
   }.freeze
 
-
   # Helper to get entity IDs from target name
   def self.get_entities(target)
     return GROUPS[target] if GROUPS.key?(target)
     return [LIGHTS[target]] if LIGHTS.key?(target)
     return [target] if target.start_with?('light.')
+
     []
   end
 
@@ -160,6 +158,7 @@ class LightingTool < BaseTool
       if color.start_with?('#')
         hex = color.gsub('#', '')
         return nil unless hex.match?(/^[0-9A-Fa-f]{6}$/)
+
         [
           hex[0..1].to_i(16),
           hex[2..3].to_i(16),

@@ -20,7 +20,7 @@ RSpec.describe Cube::Settings do
     # Mock Home Assistant functionality removed - using real HA instance
 
     describe '.disable_circuit_breakers?' do
-      after(:each) do
+      after do
         described_class.clear_overrides!
       end
 
