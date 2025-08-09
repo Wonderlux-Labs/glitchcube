@@ -6,7 +6,7 @@ module Services
   class GpsCacheService
     CACHE_TTL = 5 # 5 seconds for real-time cube tracking
 
-    # Thread-safe in-memory cache for Sinatra/Puma
+    # Thread-safe in-memory cache for Sinatra
     @cache = {}
     @cache_timestamps = {}
     @mutex = Mutex.new

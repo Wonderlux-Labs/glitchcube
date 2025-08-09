@@ -49,9 +49,14 @@ fi
 # Stop services
 echo "🛑 Stopping services..."
 if [ "$ENVIRONMENT" = "production" ]; then
-    docker-compose -f docker-compose.yml -f docker-compose.production.yml stop
+    # Stop Ruby application if running
+    pkill -f "ruby app.rb" || true
+    # Stop Sidekiq if running
+    pkill -f sidekiq || true
 else
-    docker-compose stop
+    # Stop development services
+    pkill -f "ruby app.rb" || true
+    pkill -f sidekiq || true
 fi
 
 # Function to restore a directory
@@ -76,28 +81,38 @@ restore_directory "$BACKUP_DIR/context_documents_${ENVIRONMENT}_${TIMESTAMP}.tar
 # Restore Redis if backup exists
 if [ -f "$BACKUP_DIR/redis_${ENVIRONMENT}_${TIMESTAMP}.rdb" ]; then
     echo "📦 Restoring Redis..."
-    docker-compose up -d redis
-    sleep 5
-    docker cp "$BACKUP_DIR/redis_${ENVIRONMENT}_${TIMESTAMP}.rdb" glitchcube_redis:/data/dump.rdb
-    docker-compose restart redis
+    # Stop Redis first
+    brew services stop redis || true
+    # Copy backup to Redis data directory
+    cp "$BACKUP_DIR/redis_${ENVIRONMENT}_${TIMESTAMP}.rdb" /usr/local/var/db/redis/dump.rdb
+    # Start Redis
+    brew services start redis
     echo "✅ Redis restored successfully"
 fi
 
 # Restore PostgreSQL if backup exists
 if [ -f "$BACKUP_DIR/postgres_${ENVIRONMENT}_${TIMESTAMP}.sql" ]; then
     echo "📦 Restoring PostgreSQL..."
-    docker-compose up -d postgres
-    sleep 10
-    docker exec -i glitchcube_postgres psql -U glitchcube glitchcube < "$BACKUP_DIR/postgres_${ENVIRONMENT}_${TIMESTAMP}.sql"
+    # Ensure PostgreSQL is running
+    brew services start postgresql@14 || true
+    sleep 3
+    # Restore the database
+    psql -U postgres -d glitchcube < "$BACKUP_DIR/postgres_${ENVIRONMENT}_${TIMESTAMP}.sql"
     echo "✅ PostgreSQL restored successfully"
 fi
 
 # Start services
 echo "🚀 Starting services..."
 if [ "$ENVIRONMENT" = "production" ]; then
-    docker-compose -f docker-compose.yml -f docker-compose.production.yml up -d
+    # Start production services
+    cd "$SCRIPT_DIR/.."
+    bundle exec ruby app.rb &
+    bundle exec sidekiq &
 else
-    docker-compose up -d
+    # Start development services
+    cd "$SCRIPT_DIR/.."
+    bundle exec ruby app.rb &
+    bundle exec sidekiq &
 fi
 
 # Wait for services
@@ -107,7 +122,7 @@ sleep 10
 # Check service status
 echo ""
 echo "📊 Service Status:"
-docker-compose ps
+ps aux | grep -E "(ruby app.rb|sidekiq)" | grep -v grep
 
 echo ""
 echo "✨ Restoration complete!"

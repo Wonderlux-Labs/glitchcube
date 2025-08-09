@@ -100,12 +100,12 @@ else
     echo -e "${RED}✗${NC} Sidekiq: Not running"
 fi
 
-# 7. Check Puma
-if pgrep -f puma > /dev/null; then
-    puma_pid=$(pgrep -f puma | head -1)
-    echo -e "${GREEN}✓${NC} Puma: Running (PID: $puma_pid)"
+# 7. Check Glitch Cube App Server (WEBrick)
+if pgrep -f "ruby app.rb" > /dev/null; then
+    app_pid=$(pgrep -f "ruby app.rb" | head -1)
+    echo -e "${GREEN}✓${NC} Glitch Cube (WEBrick): Running (PID: $app_pid)"
 else
-    echo -e "${YELLOW}⚠${NC} Puma: Not detected (may be using rackup)"
+    echo -e "${YELLOW}⚠${NC} Glitch Cube: Not running"
 fi
 
 # 8. Check disk space

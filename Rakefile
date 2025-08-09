@@ -25,11 +25,6 @@ task :run do
   exec 'bundle exec ruby app.rb'
 end
 
-desc 'Run the application with Puma'
-task :puma do
-  exec 'bundle exec puma -C config/puma.rb'
-end
-
 desc 'Start Sidekiq'
 task :sidekiq do
   exec 'bundle exec sidekiq'
@@ -144,37 +139,7 @@ task :routes do
   puts "Routes with views: #{routes.count { |r| r[:view] }}"
 end
 
-namespace :docker do
-  desc 'Show service status'
-  task :status do
-    sh 'docker-compose ps'
-  end
-
-  desc 'View logs (optionally specify service: rake docker:logs[glitchcube])'
-  task :logs, [:service] do |_t, args|
-    if args[:service]
-      sh "docker-compose logs -f #{args[:service]}"
-    else
-      sh 'docker-compose logs -f'
-    end
-  end
-
-  desc 'Restart all services'
-  task :restart do
-    sh 'docker-compose restart'
-  end
-
-  desc 'Restart specific service (rake docker:restart_service[homeassistant])'
-  task :restart_service, [:service] do |_t, args|
-    sh "docker-compose restart #{args[:service]}"
-  end
-
-  desc 'Pull latest images and restart'
-  task :update do
-    sh 'docker-compose pull'
-    sh 'docker-compose up -d'
-  end
-end
+# Docker tasks removed - no longer using Docker deployment
 
 namespace :health do
   desc 'Check service health'
@@ -207,9 +172,9 @@ namespace :health do
       puts "❌ Home Assistant: Error (#{e.message})"
     end
 
-    # Show Docker status
-    puts "\nDocker Services:"
-    sh 'docker-compose ps', verbose: false
+    # Show process status (update based on current deployment method)
+    puts "\nService Status:"
+    puts "TODO: Add service status check for current deployment"
   end
 end
 
@@ -256,12 +221,12 @@ namespace :backup do
 end
 
 namespace :deploy do
-  desc 'Push to production - commits local changes, pushes to GitHub, deploys to Raspberry Pi'
+  desc 'Push to production - commits local changes, pushes to GitHub, deploys to Mac Mini'
   task :push, [:message] do |_t, args|
     unless args[:message]
       puts '❌ Error: Commit message required'
       puts 'Usage: rake deploy:push["Your commit message"]'
-      puts 'Flow: Local → GitHub → Raspberry Pi (via SSH)'
+      puts 'Flow: Local → GitHub → Mac Mini (via SSH)'
       exit 1
     end
 
@@ -274,21 +239,13 @@ namespace :deploy do
     sh "./scripts/push-to-production.sh \"Deploy at #{timestamp}\""
   end
 
-  desc 'Rollback to last known good deployment (run on Raspberry Pi)'
-  task :rollback do
-    puts '🔄 Rolling back to last known good deployment...'
-    sh 'docker tag glitchcube:last-known-good glitchcube:latest'
-    sh 'docker-compose up -d glitchcube sidekiq'
-    puts '✅ Rollback complete!'
-  end
-
-  desc 'Manual pull from GitHub (run on Raspberry Pi)'
+  desc 'Manual pull from GitHub (run on Mac Mini)'
   task :pull do
     puts '📥 Manually pulling and deploying from GitHub...'
     sh './scripts/pull-from-github.sh'
   end
 
-  desc 'Check for updates (run on Raspberry Pi)'
+  desc 'Check for updates (run on Mac Mini)'
   task :check do
     puts '🔍 Checking for updates from GitHub...'
     sh './scripts/check-for-updates.sh' do |ok, res|
