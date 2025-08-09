@@ -115,7 +115,7 @@ namespace :config do
     puts '🔄 Reloading all Home Assistant YAML configurations...'
 
     # Use the new reload_all service that reloads everything at once
-    system("ssh #{REMOTE_HOST} 'ha service call homeassistant.reload_all' 2>/dev/null")
+    system("ssh #{REMOTE_HOST} 'ha core restart' 2>/dev/null")
 
     puts '✅ All YAML configurations reloaded!'
     puts "💡 Note: Changes to configuration.yaml or custom_components still require: ssh #{REMOTE_HOST} 'ha core restart'"
