@@ -3,12 +3,13 @@
 # Glitch Cube Health Monitor with Auto-Recovery
 # Runs periodically to check health and trigger restarts if needed
 
+# Source common configuration
+source "$(dirname "$0")/common_config.sh"
+
 # Configuration
-GLITCHCUBE_DIR="/Users/eristmini/glitch/glitchcube"
-HASS_VM_IP="${HASS_VM_IP:-192.168.1.100}"
 API_PORT="${API_PORT:-4567}"
-LOG_FILE="/Users/eristmini/glitch/monitor.log"
-STATE_FILE="/Users/eristmini/glitch/monitor.state"
+LOG_FILE="$LOG_DIR/monitor.log"
+STATE_FILE="$LOG_DIR/monitor.state"
 MAX_FAILURES=3  # Number of consecutive failures before restart
 RESTART_COOLDOWN=300  # Minimum seconds between restarts
 

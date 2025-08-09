@@ -6,6 +6,9 @@
 
 set -e
 
+# Source common configuration
+source "$(dirname "$0")/common_config.sh"
+
 # LESSON LEARNED: Use absolute paths - LaunchAgent processes don't inherit shell configs
 # Define absolute paths for all tools
 BREW="/opt/homebrew/bin/brew"
@@ -13,42 +16,16 @@ REDIS_CLI="/opt/homebrew/bin/redis-cli"
 PG_ISREADY="/opt/homebrew/bin/pg_isready"
 CURL="/usr/bin/curl"
 
-# Configuration
-GLITCHCUBE_DIR="/Users/eristmini/glitch/glitchcube"
-
 # Set up Ruby environment early
 cd "$GLITCHCUBE_DIR"
 export ASDF_DATA_DIR="$HOME/.asdf"
 ASDF="/opt/homebrew/bin/asdf"
 "$ASDF" set ruby 3.4.1
 "$ASDF" reshim ruby
-LOG_FILE="/Users/eristmini/glitch/startup.log"
+LOG_FILE="$LOG_DIR/startup.log"
 INITIAL_WAIT=60  # Wait 60 seconds before first attempt
 MAX_RETRIES=30  # 30 attempts after initial wait
 RETRY_DELAY=10  # 10 seconds between attempts
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-# Logging function
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
-}
-
-log_success() {
-    echo -e "${GREEN}✓${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_error() {
-    echo -e "${RED}✗${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_info() {
-    echo -e "${YELLOW}➜${NC} $1" | tee -a "$LOG_FILE"
-}
 
 # Start logging
 log "========================================="
@@ -111,18 +88,19 @@ fi
 log_info "Checking if Home Assistant is responding..."
 HASS_UP=false
 
-# First check if HA is already up
-if "$CURL" -s -o /dev/null -w "%{http_code}" "http://glitch.local:8123" | grep -q "200\|401"; then
+# First check if HA is already up (try Tailscale first, then .local)
+HASS_URL="http://${CURRENT_HASS_HOST}:8123"
+if "$CURL" -s -o /dev/null -w "%{http_code}" "$HASS_URL" | grep -q "200\|401"; then
     HASS_UP=true
-    log_success "Home Assistant is already responding at glitch.local:8123"
+    log_success "Home Assistant is already responding at $CURRENT_HASS_HOST:8123"
 else
     log_info "Home Assistant not ready, waiting $INITIAL_WAIT seconds..."
     sleep $INITIAL_WAIT
     
     for i in $(seq 1 $MAX_RETRIES); do
-        if "$CURL" -s -o /dev/null -w "%{http_code}" "http://glitch.local:8123" | grep -q "200\|401"; then
+        if "$CURL" -s -o /dev/null -w "%{http_code}" "$HASS_URL" | grep -q "200\|401"; then
             HASS_UP=true
-            log_success "Home Assistant is responding at glitch.local:8123"
+            log_success "Home Assistant is responding at $CURRENT_HASS_HOST:8123"
             break
         fi
         
@@ -189,8 +167,8 @@ log "========================================="
 "$PG_ISREADY" -q 2>/dev/null && log_success "PostgreSQL: Running" || log_error "PostgreSQL: Not running"
 
 # Home Assistant status
-"$CURL" -s -o /dev/null -w "%{http_code}" "http://glitch.local:8123" | grep -q "200\|401" && \
-    log_success "Home Assistant: Running at glitch.local" || log_error "Home Assistant: Not responding"
+"$CURL" -s -o /dev/null -w "%{http_code}" "http://${CURRENT_HASS_HOST}:8123" | grep -q "200\|401" && \
+    log_success "Home Assistant: Running at $CURRENT_HASS_HOST" || log_error "Home Assistant: Not responding"
 
 # Glitch Cube API status
 "$CURL" -s -o /dev/null -w "%{http_code}" "http://localhost:4567/health" | grep -q "200" && \

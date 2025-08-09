@@ -1,10 +1,16 @@
 #!/bin/bash
 
+# Test script for Glitch Cube endpoints
+set -e
+
 echo "Starting Glitch Cube server..."
 echo "Testing basic endpoints..."
 
+# Use absolute path for asdf
+ASDF="/opt/homebrew/bin/asdf"
+
 # Start server in background
-asdf exec bundle exec ruby app.rb &
+$ASDF exec bundle exec ruby app.rb &
 SERVER_PID=$!
 
 # Wait for server to start
