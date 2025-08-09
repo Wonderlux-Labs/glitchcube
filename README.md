@@ -5,331 +5,123 @@
 
 An autonomous interactive art installation - a self-contained "smart cube" that engages with participants through conversation, requests transportation, and builds relationships over multi-day events.
 
-## Quick Start (Docker on Raspberry Pi 5)
+## Overview
+
+Glitch Cube is an AI-powered interactive art piece that combines physical hardware with conversational AI to create unique experiences at events. The cube develops its own personality, remembers past interactions, and engages with participants in unexpected ways.
+
+## Quick Start
 
 ### Prerequisites
 
-1. **Raspberry Pi 5** with 8GB RAM recommended
-2. **USB SSD** (recommended for 24/7 reliability) or high-quality SD card
-3. **Raspberry Pi OS Lite** (64-bit) or Ubuntu Server
-4. **Docker and Docker Compose** installed
+- **Ruby 3.3+** with Bundler
+- **PostgreSQL** or **SQLite** for database
+- **Redis** for background jobs and caching
+- **Home Assistant** for hardware control (optional in development)
 
-### Install Docker on Raspberry Pi 5
+### Installation
 
 ```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
-
-# Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-
-# Add your user to docker group
-sudo usermod -aG docker $USER
-newgrp docker
-
-# Install Docker Compose
-sudo apt install docker-compose -y
-
-# Verify installation
-docker --version
-docker-compose --version
-```
-
-### Deploy Glitch Cube
-
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for comprehensive deployment instructions including:
-- Manual deployment via rake tasks
-- Automated GitHub Actions deployment
-- Mac Mini + VMware setup
-- Troubleshooting guide
-
-1. **Clone the repository**
-```bash
+# Clone the repository
 git clone https://github.com/yourusername/glitchcube.git
 cd glitchcube
-```
 
-2. **Configure environment variables**
-```bash
-cp .env.production.example .env
-nano .env  # Edit with your API keys and settings
-```
-
-3. **Set up data directories**
-```bash
-# Create persistent data directories
-mkdir -p data/production/{glitchcube,context_documents,postgres}
-mkdir -p data/development/{glitchcube,context_documents}
-mkdir -p data/test/{glitchcube,context_documents}
-
-# Add initial context documents
-cp -r data/context_documents/* data/production/context_documents/
-```
-
-Required variables:
-- `OPENROUTER_API_KEY`: Your OpenRouter API key
-- `HA_TOKEN`: Home Assistant long-lived access token (set after HA setup)
-- `SESSION_SECRET`: Generate with `openssl rand -hex 64`
-- `MASTER_PASSWORD`: Single password for all services (default: `glitchcube123`)
-
-3. **Build and start the containers**
-```bash
-# Build the application image
-docker-compose build
-
-# Optional: Use multi-stage build for smaller image (saves ~100MB)
-# docker build -f Dockerfile.multistage -t glitchcube:latest .
-
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Check service health
-docker-compose ps
-```
-
-4. **Set up auto-start on boot**
-```bash
-# Create systemd service
-sudo nano /etc/systemd/system/glitchcube.service
-```
-
-Add the following content:
-```ini
-[Unit]
-Description=Glitch Cube Docker Compose Application
-Requires=docker.service
-After=docker.service network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-WorkingDirectory=/home/pi/glitchcube
-ExecStart=/usr/bin/docker-compose -f docker-compose.yml -f docker-compose.production.yml --profile management up
-ExecStop=/usr/bin/docker-compose -f docker-compose.yml -f docker-compose.production.yml down
-TimeoutStartSec=300
-Restart=unless-stopped
-RestartSec=30
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable the service:
-```bash
-sudo systemctl enable glitchcube.service
-sudo systemctl start glitchcube.service
-```
-
-## Data Persistence
-
-Glitch Cube uses Docker volumes for data persistence with separate directories for each environment:
-
-### Volume Structure
-```
-data/
-├── production/          # Production data (persistent)
-│   ├── homeassistant/  # Home Assistant config and data
-│   ├── glitchcube/     # SQLite DB, session data
-│   ├── context_documents/  # RAG documents, memories
-│   └── postgres/       # PostgreSQL data (if using)
-├── development/         # Development data (persistent)
-│   ├── glitchcube/     # Dev SQLite DB, session data
-│   └── context_documents/  # Dev RAG documents
-├── test/               # Test data (ephemeral)
-│   ├── glitchcube/
-│   └── context_documents/
-├── redis/              # Redis persistence
-└── portainer/          # Portainer config
-```
-
-Note: Home Assistant only runs in production. Use `MOCK_HOME_ASSISTANT=true` for development/test.
-
-### Environment-Specific Usage
-
-**Development (default)**
-```bash
-docker-compose up -d
-# Uses ./data/development/ with source code mounted
-```
-
-**Test**
-```bash
-docker-compose -f docker-compose.yml -f docker-compose.test.yml up -d
-# Uses ./data/test/ with in-memory SQLite
-```
-
-**Production**
-```bash
-docker-compose -f docker-compose.yml -f docker-compose.production.yml up -d
-# Uses ./data/production/ without source code mount
-```
-
-## Development
-
-### Using VS Code Dev Container
-
-1. Install VS Code with Remote-Containers extension
-2. Open the project folder
-3. Click "Reopen in Container" when prompted
-4. Development environment will be automatically configured
-
-### Local Development (without Docker)
-
-#### Prerequisites for Local Development
-
-- **Ruby 3.3+** with Bundler
-- **PostgreSQL** (for database)
-- **Redis** (for background jobs and caching)
-
-#### Setup Redis locally
-
-```bash
-# macOS with Homebrew
-brew install redis
-brew services start redis
-
-# Ubuntu/Debian
-sudo apt-get install redis-server
-sudo systemctl start redis
-sudo systemctl enable redis
-
-# Verify Redis is running
-redis-cli ping  # Should return "PONG"
-```
-
-#### Development Commands
-
-```bash
 # Install dependencies
 bundle install
 
-# Setup database (first time only)
+# Setup database
 bundle exec rake db:create
 bundle exec rake db:migrate
 
-# Run with mock Home Assistant
-MOCK_HOME_ASSISTANT=true DEVELOPMENT_MODE=true bundle exec ruby app.rb
+# Copy environment variables
+cp .env.example .env
+# Edit .env with your API keys and configuration
+```
 
-# Run tests (requires Redis to be running)
-# Default: Records ALL external calls (including Home Assistant) to VCR cassettes
+### Running the Application
+
+```bash
+# Development mode with auto-reload and Sidekiq
+bin/dev
+
+# Or run components separately
+bundle exec ruby app.rb           # Main application
+bundle exec sidekiq               # Background jobs
+```
+
+### Testing
+
+```bash
+# Run full test suite
 bundle exec rspec
 
-# Run tests and record new VCR cassettes (local development only)
-VCR_RECORD=true bundle exec rspec
-
-# Run specific test and record its cassette
-VCR_RECORD=true bundle exec rspec spec/path/to/spec.rb
+# Run with coverage
+COVERAGE=true bundle exec rspec
 
 # Run linter
 bundle exec rubocop
 ```
 
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- [Architecture Overview](docs/ARCHITECTURE.md) - System design and components
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment instructions
+- [Docker Setup](docs/DOCKER_SETUP.md) - Docker deployment for Raspberry Pi
+- [Environment Variables](docs/ENVIRONMENT_VARIABLES.md) - Configuration reference
+- [Tool System](docs/TOOL_SYSTEM.md) - LLM tool execution framework
+
+### Development Guides
+
+- [VCR Testing Guide](docs/technical/vcr_testing.md) - API testing with VCR
+- [Personas](docs/personas/) - Personality configuration system
+- [Operational Docs](docs/operational/) - Event operations and troubleshooting
+
+## Key Features
+
+- **Conversational AI**: Multi-turn conversations with memory and context
+- **Hardware Integration**: Controls lights, sensors, and actuators via Home Assistant
+- **Event Awareness**: GPS tracking, movement detection, and environmental sensing
+- **Personality System**: Configurable personas with unique traits and behaviors
+- **Memory & Learning**: Persistent memory across interactions and events
+
 ## Architecture
 
-- **Sinatra App** (Port 4567): Main conversation engine with LLM service integration
-- **Home Assistant**: Hardware control and sensor management
-- **Redis**: Background job queue for Sidekiq
-- **Sidekiq**: Async processing for long-running tasks
-- **Portainer** (Optional): Web-based Docker management UI
+- **Web Framework**: Sinatra with modular architecture
+- **AI/LLM**: OpenRouter API with multiple model support
+- **Background Jobs**: Sidekiq with Redis
+- **Hardware Control**: Home Assistant integration
+- **Database**: PostgreSQL (production) / SQLite (development)
+- **Testing**: RSpec with VCR for API testing
 
-## Environment Variables
+## Development
 
-See [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md) for complete documentation of all environment variables.
+### Project Structure
 
-## Monitoring
-
-### View container logs
-```bash
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f glitchcube
-docker-compose logs -f homeassistant
+```
+glitchcube/
+├── app.rb                 # Main application entry
+├── config/               # Configuration files
+├── lib/                  # Core business logic
+│   ├── models/          # Database models
+│   ├── services/        # Service objects
+│   └── modules/         # Shared modules
+├── spec/                # Test suite
+├── docs/                # Documentation
+└── data/                # Runtime data and contexts
 ```
 
-### Check resource usage
-```bash
-docker stats
-```
+### Contributing
 
-### Access services
-- Glitch Cube API: http://raspberrypi.local:4567
-- Home Assistant: http://raspberrypi.local:8123
-- Portainer (if enabled): https://raspberrypi.local:9443
+1. Fork the repository
+2. Create a feature branch
+3. Write tests for your changes
+4. Ensure all tests pass
+5. Submit a pull request
 
-## Maintenance
+## Deployment
 
-### Update the application
-
-Use the provided update script for safe updates:
-```bash
-bash scripts/update-raspi.sh
-```
-
-Or manually:
-```bash
-git pull
-docker-compose pull
-docker-compose build
-docker-compose -f docker-compose.yml -f docker-compose.production.yml down
-docker-compose -f docker-compose.yml -f docker-compose.production.yml up -d
-docker image prune -f  # Clean up old images
-```
-
-### Backup data
-```bash
-# Stop services
-docker-compose down
-
-# Backup data directories
-tar -czf glitchcube-backup-$(date +%Y%m%d).tar.gz data/
-
-# Restart services
-docker-compose up -d
-```
-
-### Performance Tuning
-
-For Raspberry Pi 5 optimization:
-- The docker-compose.yml includes CPU and memory limits
-- Adjust these based on your workload
-- Monitor with `docker stats` and tune accordingly
-
-## Troubleshooting
-
-### Container won't start
-```bash
-# Check logs
-docker-compose logs glitchcube
-
-# Verify environment variables
-docker-compose config
-
-# Rebuild from scratch
-docker-compose down -v
-docker-compose build --no-cache
-docker-compose up -d
-```
-
-### Home Assistant connection issues
-- Verify HA_TOKEN is correct
-- Check that Home Assistant is running: `docker-compose ps homeassistant`
-- Test connection: `curl http://localhost:8123/api/`
-
-### Out of memory
-- Check swap: `free -h`
-- Add swap if needed:
-```bash
-sudo fallocate -l 4G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-```
+The application is deployed on a Mac Mini for production use. For alternative deployment options including Raspberry Pi with Docker, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## License
 
