@@ -1,0 +1,13 @@
+# Input text helpers for storing weather context summaries
+
+glitchcube_weather_24h:
+  name: "GlitchCube Weather 24h Summary"
+  initial: "Weather data not yet loaded"
+  max: 200
+  icon: mdi:weather-partly-cloudy
+
+glitchcube_weather_5day:
+  name: "GlitchCube Weather 5 Day Summary"
+  initial: "Weather forecast not yet loaded"
+  max: 200
+  icon: mdi:calendar-week

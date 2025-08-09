@@ -25,8 +25,6 @@ get_reachable_host() {
     local fallback=$2
     
     # Try primary first (Tailscale)
-    if ping -c 1 -W 1 "$primary" >/dev/null 2>&1; then
-        echo "$primary"
     if ping -c 1 -W 5 "$primary" >/dev/null 2>&1; then
         echo "$primary"
     elif ping -c 1 -W 5 "$fallback" >/dev/null 2>&1; then
