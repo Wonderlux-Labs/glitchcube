@@ -86,39 +86,37 @@ namespace :config do
       'custom_components/glitchcube_conversation/'
     ]
 
-    # Push individual files
-    sync_files.each do |file|
-      local_file = "#{LOCAL_CONFIG_PATH}/#{file}"
-      if File.exist?(local_file)
-        puts "  📄 Pushing #{file}..."
-        system("scp -q #{local_file} #{REMOTE_HOST}:#{REMOTE_CONFIG_PATH}/")
-      else
-        puts "    ⚠️  #{file} not found locally, skipping"
-      end
-    end
+    # Use rsync for better file syncing (handles updates and deletions properly)
+    puts '  📡 Syncing configuration with rsync...'
+    rsync_cmd = [
+      'rsync', '-av', '--delete', '--update',
+      # --update skips files that are newer on the destination
+      # Protect these directories from deletion
+      '--exclude=.storage', '--exclude=backups', '--exclude=tts',
+      '--exclude=.cloud', '--exclude=deps', '--exclude=llmvision',
+      '--exclude=home-assistant.log*', '--exclude=*.db*',
+      '--exclude=secrets.yaml', '--exclude=.DS_Store',
+      '--exclude=**/__pycache__/', '--exclude=*.pyc',
+      # Include only YAML files and our custom component
+      '--include=*/', '--include=*.yaml', '--include=*.yml',
+      '--include=custom_components/', '--include=custom_components/glitchcube_conversation/',
+      '--include=custom_components/glitchcube_conversation/**',
+      '--exclude=custom_components/*',
+      '--exclude=*',
+      "#{LOCAL_CONFIG_PATH}/",
+      "#{REMOTE_HOST}:#{REMOTE_CONFIG_PATH}/"
+    ].join(' ')
 
-    # Push directories
-    sync_dirs.each do |dir|
-      local_dir = "#{LOCAL_CONFIG_PATH}/#{dir}"
-      if Dir.exist?(local_dir) && !Dir.empty?(local_dir)
-        puts "  📁 Pushing #{dir}..."
-        # Create directory on remote first
-        system("ssh #{REMOTE_HOST} 'mkdir -p #{REMOTE_CONFIG_PATH}/#{dir}'")
-        # Push all files in directory
-        system("scp -q -r #{local_dir}* #{REMOTE_HOST}:#{REMOTE_CONFIG_PATH}/#{dir}")
-      else
-        puts "    ⚠️  #{dir} not found locally or empty, skipping"
-      end
+    unless system(rsync_cmd)
+      puts '❌ Rsync failed!'
+      exit 1
     end
 
     puts '✅ Configuration push completed!'
     puts '🔄 Reloading all Home Assistant YAML configurations...'
 
     # Use the new reload_all service that reloads everything at once
-    system("ssh #{REMOTE_HOST} 'ha service call homeassistant.reload_all' 2>/dev/null")
-
-    puts '✅ All YAML configurations reloaded!'
-    puts "💡 Note: Changes to configuration.yaml or custom_components still require: ssh #{REMOTE_HOST} 'ha core restart'"
+    system("ssh #{REMOTE_HOST} 'ha core reload'")
   end
 
   desc 'Show status of local vs remote configuration'

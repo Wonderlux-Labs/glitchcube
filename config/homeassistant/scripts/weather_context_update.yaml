@@ -12,10 +12,11 @@ update_weather_24h:
       response_variable: hourly_forecast
     
     # Use Claude to summarize with ALL available weather data
-    - service: conversation.claude_background
+    - service: conversation.process
       data:
-        prompt: >-
-          Summarize weather for next 24h in <200 chars, casual tone:
+        agent_id: conversation.claude_conversation
+        text: >-
+          Summarize weather for next 24h in a casual, conversational tone (aim for 500-800 chars for rich context):
           Current conditions:
           - Temp: {{ states('sensor.playaweather_temperature') }}°F (feels like {{ states('sensor.playaweather_feels_like_temperature') }}°F)
           - Condition: {{ states('sensor.playaweather_weather') }}
@@ -36,12 +37,10 @@ update_weather_24h:
           +18h: {{ hours[18].temperature }}°F {{ hours[18].condition }}
       response_variable: weather_24h
     
-    # Store the summary
-    - service: input_text.set_value
-      target:
-        entity_id: input_text.glitchcube_weather_24h
-      data:
-        value: "{{ weather_24h.response.choices[0].message.content[:200] }}"
+    # Fire event with the summary to store in trigger-based sensor
+    - event: update_weather_24h
+      event_data:
+        summary: "{{ weather_24h.response.speech.plain.speech }}"
 
 update_weather_5day:
   alias: "Update Weather Context - 5 Day Forecast"
@@ -55,22 +54,21 @@ update_weather_5day:
       response_variable: daily_forecast
     
     # Use Claude to summarize
-    - service: conversation.claude_background
+    - service: conversation.process
       data:
-        prompt: >-
-          Summarize 5-day weather forecast in <200 chars, casual tone:
+        agent_id: conversation.claude_conversation
+        text: >-
+          Summarize 5-day weather forecast in a casual, conversational tone (aim for 500-800 chars for rich context):
           {% set days = daily_forecast['weather.playaweather'].forecast[:5] %}
           {% for day in days %}
           Day {{ loop.index }}: {{ day.temperature }}°F/{{ day.templow }}°F, {{ day.condition }}
           {% endfor %}
       response_variable: weather_5day
     
-    # Store the summary
-    - service: input_text.set_value
-      target:
-        entity_id: input_text.glitchcube_weather_5day
-      data:
-        value: "{{ weather_5day.response.choices[0].message.content[:200] }}"
+    # Fire event with the summary to store in trigger-based sensor
+    - event: update_weather_5day
+      event_data:
+        summary: "{{ weather_5day.response.speech.plain.speech }}"
 
 update_all_weather_context:
   alias: "Update All Weather Context"

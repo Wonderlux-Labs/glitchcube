@@ -1,0 +1,10 @@
+set_interaction:
+  sequence:
+  - action: input_datetime.set_datetime
+    metadata: {}
+    data:
+      datetime: '{{ now() }}'
+    target:
+      entity_id: input_datetime.last_interaction_time
+  alias: Set Interaction
+  description: ''

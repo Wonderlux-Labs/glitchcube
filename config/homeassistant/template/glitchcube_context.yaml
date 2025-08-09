@@ -8,11 +8,11 @@
       state: "active"
       icon: "mdi:brain"
       attributes:
-        # Weather summaries from Claude
+        # Weather summaries from Claude (stored in weather_context_storage sensor)
         weather_24h: >-
-          {{ states('input_text.glitchcube_weather_24h') }}
+          {{ state_attr('sensor.weather_context_storage', 'weather_24h') | default('Weather data not yet loaded') }}
         weather_5day: >-
-          {{ states('input_text.glitchcube_weather_5day') }}
+          {{ state_attr('sensor.weather_context_storage', 'weather_5day') | default('Forecast not yet loaded') }}
         
         # Current conditions
         current_temp: >-

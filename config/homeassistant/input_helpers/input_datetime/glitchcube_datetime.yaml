@@ -1,0 +1,43 @@
+# Input datetime helpers for GlitchCube
+
+# Last weather update time
+last_weather_update:
+  name: "Last Weather Update"
+  has_date: true
+  has_time: true
+  icon: mdi:update
+
+# Last deployment time
+last_deployment_datetime:
+  name: "Last Deployment DateTime"
+  has_date: true
+  has_time: true
+  icon: mdi:rocket-launch
+
+# Last interaction time
+last_interaction_time:
+  name: "Last Interaction Time"
+  has_date: true
+  has_time: true
+  icon: mdi:account-voice
+
+# Custom event datetime (can be set to any date/time)
+custom_event_datetime:
+  name: "Custom Event DateTime"
+  has_date: true
+  has_time: true
+  icon: mdi:calendar-clock
+
+# Date only example
+important_date:
+  name: "Important Date"
+  has_date: true
+  has_time: false
+  icon: mdi:calendar-star
+
+# Time only example
+daily_reset_time:
+  name: "Daily Reset Time"
+  has_date: false
+  has_time: true
+  icon: mdi:clock-outline
