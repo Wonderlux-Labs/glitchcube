@@ -5,7 +5,7 @@ require_relative '../../lib/services/conversation_service'
 require_relative '../../lib/services/system_prompt_service'
 require_relative '../../lib/modules/conversation_module'
 
-RSpec.describe 'Conversation with Persistence Integration', vcr: { cassette_name: 'conversation_persistence' } do
+RSpec.describe 'Conversation with Persistence Integration', :vcr do
   before do
     # Clean database between tests to avoid foreign key conflicts
     Message.destroy_all
@@ -44,7 +44,7 @@ RSpec.describe 'Conversation with Persistence Integration', vcr: { cassette_name
       expect(context[:interaction_count]).to eq(1)
     end
 
-    it 'maintains context across multiple interactions', vcr: { cassette_name: 'conversation_persistence' } do
+    it 'maintains context across multiple interactions', :vcr do
       messages = [
         { text: 'Hello!', mood: 'playful' },
         { text: "Let's play a game!", mood: 'playful' },
@@ -135,7 +135,7 @@ RSpec.describe 'Conversation with Persistence Integration', vcr: { cassette_name
     end
   end
 
-  describe 'Analytics', vcr: { cassette_name: 'conversation_analytics' } do
+  describe 'Analytics', :vcr do
     before do
       # Generate some test conversations
       5.times do |i|

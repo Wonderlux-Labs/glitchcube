@@ -12,27 +12,24 @@ RSpec.describe Services::LLMService, 'structured output support' do
 
   describe '.complete with structured outputs' do
     context 'with simple structured response' do
-      it 'returns JSON matching the schema' do
+      it 'returns JSON matching the schema', :vcr do
         schema = GlitchCube::Schemas::ConversationResponseSchema.simple_response
         formatted_schema = GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(schema)
 
-        VCR.use_cassette('llm_service_structured_simple', match_requests_on: %i[method uri]) do
-          response = described_class.complete(
-            system_prompt: 'You are a helpful assistant. Respond in JSON format.',
-            user_message: 'Hello, how are you?',
-            model: 'google/gemini-2.5-flash',
-            temperature: 0.7,
-            max_tokens: 300,
-            response_format: formatted_schema
-          )
-
-          expect(response).to be_a(Services::LLMResponse)
-          expect(response.response_text).to be_a(String)
-          expect(response.parsed_content).to be_a(Hash)
-          expect(response.parsed_content).to have_key('response')
-          expect(response.parsed_content).to have_key('continue_conversation')
-          expect(response.continue_conversation?).to be_in([true, false])
-        end
+        response = described_class.complete(
+          system_prompt: 'You are a helpful assistant. Respond in JSON format.',
+          user_message: 'Hello, how are you?',
+          model: 'google/gemini-2.5-flash',
+          temperature: 0.7,
+          max_tokens: 300,
+          response_format: formatted_schema
+        )
+        expect(response).to be_a(Services::LLMResponse)
+        expect(response.response_text).to be_a(String)
+        expect(response.parsed_content).to be_a(Hash)
+        expect(response.parsed_content).to have_key('response')
+        expect(response.parsed_content).to have_key('continue_conversation')
+        expect(response.continue_conversation?).to be_in([true, false])
       end
     end
 
@@ -59,54 +56,47 @@ RSpec.describe Services::LLMService, 'structured output support' do
         ]
       end
 
-      it 'calls tools when appropriate' do
-        VCR.use_cassette('llm_service_tool_calling', match_requests_on: %i[method uri]) do
-          response = described_class.complete(
-            system_prompt: 'You are a helpful assistant. Use tools when appropriate.',
-            user_message: "What's the weather in San Francisco?",
-            model: 'openai/o3-mini',
-            temperature: 0.7,
-            max_tokens: 300,
-            tools: tools,
-            tool_choice: 'auto'
+      it 'calls tools when appropriate', :vcr do
+        response = described_class.complete(
+          system_prompt: 'You are a helpful assistant. Use tools when appropriate.',
+          user_message: "What's the weather in San Francisco?",
+          model: 'openai/o3-mini',
+          temperature: 0.7,
+          max_tokens: 300,
+          tools: tools,
+          tool_choice: 'auto'
+        )
+        expect(response).to be_a(Services::LLMResponse)
+        expect(response.has_tool_calls?).to be(true)
+        expect(response.tool_calls).to be_an(Array)
+        expect(response.tool_calls.first).to include(
+          id: anything,
+          type: 'function',
+          function: hash_including(
+            name: 'get_weather',
+            arguments: be_a(String)
           )
-
-          expect(response).to be_a(Services::LLMResponse)
-          expect(response.has_tool_calls?).to be(true)
-          expect(response.tool_calls).to be_an(Array)
-          expect(response.tool_calls.first).to include(
-            id: anything,
-            type: 'function',
-            function: hash_including(
-              name: 'get_weather',
-              arguments: be_a(String)
-            )
-          )
-
-          # Parse the function arguments
-          args = response.parse_function_arguments
-          expect(args).to be_a(Hash)
-          expect(args).to have_key('location')
-          expect(args['location']).to include('San Francisco')
-        end
+        )
+        # Parse the function arguments
+        args = response.parse_function_arguments
+        expect(args).to be_a(Hash)
+        expect(args).to have_key('location')
+        expect(args['location']).to include('San Francisco')
       end
 
-      it 'does not call tools when not needed' do
-        VCR.use_cassette('llm_service_no_tool_calling', match_requests_on: %i[method uri]) do
-          response = described_class.complete(
-            system_prompt: 'You are a helpful assistant. Use tools when appropriate.',
-            user_message: 'Tell me a joke',
-            model: 'openai/o3-mini',
-            temperature: 0.7,
-            max_tokens: 300,
-            tools: tools,
-            tool_choice: 'auto'
-          )
-
-          expect(response).to be_a(Services::LLMResponse)
-          expect(response.has_tool_calls?).to be(false)
-          expect(response.response_text).not_to be_empty
-        end
+      it 'does not call tools when not needed', :vcr do
+        response = described_class.complete(
+          system_prompt: 'You are a helpful assistant. Use tools when appropriate.',
+          user_message: 'Tell me a joke',
+          model: 'openai/o3-mini',
+          temperature: 0.7,
+          max_tokens: 300,
+          tools: tools,
+          tool_choice: 'auto'
+        )
+        expect(response).to be_a(Services::LLMResponse)
+        expect(response.has_tool_calls?).to be(false)
+        expect(response.response_text).not_to be_empty
       end
     end
 
@@ -117,39 +107,33 @@ RSpec.describe Services::LLMService, 'structured output support' do
         )
       end
 
-      it 'indicates continuation correctly' do
-        VCR.use_cassette('llm_service_continue_true', match_requests_on: %i[method uri]) do
-          response = described_class.complete(
-            system_prompt: 'You are a helpful assistant. Respond in JSON format.',
-            user_message: 'Tell me about art',
-            model: 'openai/o3-mini',
-            temperature: 0.8,
-            max_tokens: 400,
-            response_format: schema
-          )
-
-          expect(response.continue_conversation?).to be(true)
-          expect(response.parsed_content['continue_conversation']).to be(true)
-        end
+      it 'indicates continuation correctly', :vcr do
+        response = described_class.complete(
+          system_prompt: 'You are a helpful assistant. Respond in JSON format.',
+          user_message: 'Tell me about art',
+          model: 'openai/o3-mini',
+          temperature: 0.8,
+          max_tokens: 400,
+          response_format: schema
+        )
+        expect(response.continue_conversation?).to be(true)
+        expect(response.parsed_content['continue_conversation']).to be(true)
       end
 
-      it 'indicates no continuation correctly' do
-        VCR.use_cassette('llm_service_continue_false', match_requests_on: %i[method uri]) do
-          response = described_class.complete(
-            system_prompt: 'You are a helpful assistant. Respond in JSON format.',
-            user_message: 'Goodbye!',
-            model: 'openai/o3-mini',
-            temperature: 0.8,
-            max_tokens: 400,
-            response_format: schema
-          )
-
-          expect(response.continue_conversation?).to be(false)
-          expect(response.parsed_content['continue_conversation']).to be(false)
-        end
+      it 'indicates no continuation correctly', :vcr do
+        response = described_class.complete(
+          system_prompt: 'You are a helpful assistant. Respond in JSON format.',
+          user_message: 'Goodbye!',
+          model: 'openai/o3-mini',
+          temperature: 0.8,
+          max_tokens: 400,
+          response_format: schema
+        )
+        expect(response.continue_conversation?).to be(false)
+        expect(response.parsed_content['continue_conversation']).to be(false)
       end
 
-      it 'handles edge cases that cause 400 errors' do
+      it 'handles edge cases that cause 400 errors', :vcr do
         # Test the specific messages that were causing 400 errors
         messages = [
           'What do you think about creativity?',

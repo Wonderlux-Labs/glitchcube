@@ -6,43 +6,43 @@ require_relative '../../lib/tools/base_tool'
 RSpec.describe BaseTool do
   describe 'class methods' do
     describe '.name' do
-      it 'returns snake_case version of class name' do
+      it 'returns snake_case version of class name', :vcr do
         expect(described_class.name).to eq('base_tool')
       end
     end
 
     describe '.description' do
-      it 'raises NotImplementedError' do
+      it 'raises NotImplementedError', :vcr do
         expect { described_class.description }.to raise_error(NotImplementedError, 'Tool must implement .description method')
       end
     end
 
     describe '.call' do
-      it 'raises NotImplementedError' do
+      it 'raises NotImplementedError', :vcr do
         expect { described_class.call }.to raise_error(NotImplementedError, 'Tool must implement .call method')
       end
     end
 
     describe '.parameters' do
-      it 'returns empty hash by default' do
+      it 'returns empty hash by default', :vcr do
         expect(described_class.parameters).to eq({})
       end
     end
 
     describe '.required_parameters' do
-      it 'returns empty array by default' do
+      it 'returns empty array by default', :vcr do
         expect(described_class.required_parameters).to eq([])
       end
     end
 
     describe '.examples' do
-      it 'returns empty array by default' do
+      it 'returns empty array by default', :vcr do
         expect(described_class.examples).to eq([])
       end
     end
 
     describe '.category' do
-      it 'returns general by default' do
+      it 'returns general by default', :vcr do
         expect(described_class.category).to eq('general')
       end
     end
@@ -72,7 +72,7 @@ RSpec.describe BaseTool do
     end
 
     describe '.validate_required_params' do
-      it 'raises ValidationError for missing required parameters' do
+      it 'raises ValidationError for missing required parameters', :vcr do
         params = { 'action' => 'test' }
         required = %w[action target]
 
@@ -81,7 +81,7 @@ RSpec.describe BaseTool do
         end.to raise_error(BaseTool::ValidationError, 'Missing required parameters: target')
       end
 
-      it 'raises ValidationError for multiple missing parameters' do
+      it 'raises ValidationError for multiple missing parameters', :vcr do
         params = { 'action' => 'test' }
         required = %w[action target value]
 
@@ -90,7 +90,7 @@ RSpec.describe BaseTool do
         end.to raise_error(BaseTool::ValidationError, 'Missing required parameters: target, value')
       end
 
-      it 'does not raise error when all required parameters are present' do
+      it 'does not raise error when all required parameters are present', :vcr do
         params = { 'action' => 'test', 'target' => 'light' }
         required = %w[action target]
 
@@ -99,7 +99,7 @@ RSpec.describe BaseTool do
         end.not_to raise_error
       end
 
-      it 'handles nil values as missing' do
+      it 'handles nil values as missing', :vcr do
         params = { 'action' => nil }
         required = ['action']
 
@@ -110,40 +110,40 @@ RSpec.describe BaseTool do
     end
 
     describe '.parse_json_params' do
-      it 'returns hash unchanged if already a hash' do
+      it 'returns hash unchanged if already a hash', :vcr do
         params = { 'key' => 'value' }
         expect(test_tool_class.parse_json_params(params)).to eq(params)
       end
 
-      it 'returns empty hash for nil' do
+      it 'returns empty hash for nil', :vcr do
         expect(test_tool_class.parse_json_params(nil)).to eq({})
       end
 
-      it 'returns empty hash for empty string' do
+      it 'returns empty hash for empty string', :vcr do
         expect(test_tool_class.parse_json_params('')).to eq({})
       end
 
-      it 'parses valid JSON string' do
+      it 'parses valid JSON string', :vcr do
         json_string = '{"action":"test","value":123}'
         expected = { 'action' => 'test', 'value' => 123 }
         expect(test_tool_class.parse_json_params(json_string)).to eq(expected)
       end
 
-      it 'parses JSON with nested objects' do
+      it 'parses JSON with nested objects', :vcr do
         json_string = '{"action":"test","params":{"brightness":50,"color":[255,0,0]}}'
         result = test_tool_class.parse_json_params(json_string)
         expect(result['params']['brightness']).to eq(50)
         expect(result['params']['color']).to eq([255, 0, 0])
       end
 
-      it 'raises ValidationError for invalid JSON' do
+      it 'raises ValidationError for invalid JSON', :vcr do
         invalid_json = '{"invalid": json'
         expect do
           test_tool_class.parse_json_params(invalid_json)
         end.to raise_error(BaseTool::ValidationError, /Invalid JSON parameters/)
       end
 
-      it 'raises ValidationError for non-JSON string' do
+      it 'raises ValidationError for non-JSON string', :vcr do
         invalid_string = 'not json at all'
         expect do
           test_tool_class.parse_json_params(invalid_string)
@@ -152,23 +152,23 @@ RSpec.describe BaseTool do
     end
 
     describe '.format_response' do
-      it 'formats success response with checkmark' do
+      it 'formats success response with checkmark', :vcr do
         result = test_tool_class.format_response(true, 'Operation successful')
         expect(result).to eq('✅ Operation successful')
       end
 
-      it 'formats failure response with X' do
+      it 'formats failure response with X', :vcr do
         result = test_tool_class.format_response(false, 'Operation failed')
         expect(result).to eq('❌ Operation failed')
       end
 
-      it 'includes data when provided' do
+      it 'includes data when provided', :vcr do
         data = { 'result' => 'test' }
         result = test_tool_class.format_response(true, 'Success', data)
         expect(result).to eq("✅ Success\nData: {\"result\" => \"test\"}")
       end
 
-      it 'handles nil data gracefully' do
+      it 'handles nil data gracefully', :vcr do
         result = test_tool_class.format_response(true, 'Success', nil)
         expect(result).to eq('✅ Success')
       end
@@ -188,7 +188,7 @@ RSpec.describe BaseTool do
           )
         end
 
-        it 'returns MockHomeAssistantClient instance' do
+        it 'returns MockHomeAssistantClient instance', :vcr do
           client = test_tool_class.ha_client
           expect(client).to be_a(MockHomeAssistantClient)
         end
@@ -205,7 +205,7 @@ RSpec.describe BaseTool do
           )
         end
 
-        it 'raises ToolError with helpful message' do
+        it 'raises ToolError with helpful message', :vcr do
           expect do
             test_tool_class.ha_client
           end.to raise_error(BaseTool::ToolError, /Home Assistant not configured/)
@@ -225,7 +225,7 @@ RSpec.describe BaseTool do
           allow(HomeAssistantClient).to receive(:new).and_return(double('ha_client'))
         end
 
-        it 'returns HomeAssistantClient instance' do
+        it 'returns HomeAssistantClient instance', :vcr do
           client = test_tool_class.ha_client
           expect(client).not_to be_nil
         end
@@ -237,12 +237,12 @@ RSpec.describe BaseTool do
     let(:mock_client) { MockHomeAssistantClient.new }
 
     describe '#call_service' do
-      it 'returns true for any service call' do
+      it 'returns true for any service call', :vcr do
         result = mock_client.call_service('light', 'turn_on', { entity_id: 'light.test' })
         expect(result).to be true
       end
 
-      it 'prints mock message to stdout' do
+      it 'prints mock message to stdout', :vcr do
         expect do
           mock_client.call_service('script', 'test', { param: 'value' })
         end.to output(/Mock HA: script.test/).to_stdout
@@ -250,7 +250,7 @@ RSpec.describe BaseTool do
     end
 
     describe '#state' do
-      it 'returns mock state hash' do
+      it 'returns mock state hash', :vcr do
         state = mock_client.state('sensor.test')
         expect(state).to be_a(Hash)
         expect(state['state']).to eq('mock_state')
@@ -259,12 +259,12 @@ RSpec.describe BaseTool do
     end
 
     describe '#speak' do
-      it 'returns true for TTS' do
+      it 'returns true for TTS', :vcr do
         result = mock_client.speak('Test message')
         expect(result).to be true
       end
 
-      it 'prints TTS message to stdout' do
+      it 'prints TTS message to stdout', :vcr do
         expect do
           mock_client.speak('Hello', entity_id: 'media_player.test')
         end.to output(/Mock TTS: 'Hello' on media_player.test/).to_stdout

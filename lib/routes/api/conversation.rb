@@ -64,9 +64,9 @@ module GlitchCube
               # Otherwise generate a new one
               context = request_body['context'] || {}
 
-              # Preserve session_id from context if provided
+              # Preserve session_id from context if provided (support both string and symbol keys)
               # This allows HA to track multi-turn conversations
-              context[:session_id] ||= SecureRandom.uuid
+              context[:session_id] = context['session_id'] || context[:session_id] || SecureRandom.uuid
 
               # Memory/resource guard: reject oversize context payloads
               if context['conversation_history'].is_a?(Array) && context['conversation_history'].size > 100
@@ -118,6 +118,12 @@ module GlitchCube
                   response_data[:response] = sanitized
                 end
 
+                # Add backward compatibility mapping for end_conversation
+                if response_data.is_a?(Hash) && response_data.key?(:continue_conversation)
+                  # Map continue_conversation to end_conversation for backward compatibility
+                  response_data[:end_conversation] = !response_data[:continue_conversation]
+                end
+
                 # Log performance
                 duration = ((Time.now - start_time) * 1000).round
                 log.performance(
@@ -155,52 +161,9 @@ module GlitchCube
             end
           end
 
-          # RAG-enhanced conversation endpoint
-          app.post '/api/v1/conversation/with_context' do
-            content_type :json
-
-            begin
-              request_body = JSON.parse(request.body.read)
-              message = request_body['message']
-
-              # Use RAG to get relevant context
-              require_relative '../../services/context_retrieval_service'
-              rag = ::Services::SimpleRAG.new
-              rag_result = rag.answer_with_context(message)
-
-              # Enhance the response with context
-              context = request_body['context'] || {}
-              context[:rag_contexts] = rag_result[:contexts_used]
-              # Convert SessionId object to string if needed
-              session_id = request.session[:session_id]
-              session_id = session_id.to_s if session_id.respond_to?(:to_s)
-              # Fix: Check for both nil and empty string before using session_id
-              context[:session_id] ||= session_id.nil? || session_id.empty? ? SecureRandom.uuid : session_id
-
-              # Get conversation response using module directly
-              conversation_module = ConversationModule.new
-              conv_result = conversation_module.call(
-                message: message,
-                context: context
-              )
-
-              # Combine RAG and conversation results
-              json({
-                     success: true,
-                     data: {
-                       response: conv_result[:response],
-                       contexts_used: rag_result[:contexts_used]
-                     },
-                     timestamp: Time.now.iso8601
-                   })
-            rescue StandardError => e
-              status 400
-              json({
-                     success: false,
-                     error: e.message
-                   })
-            end
-          end
+          # NOTE: /api/v1/conversation/with_context endpoint has been removed
+          # as part of Phase 3.5 consolidation. All RAG functionality
+          # is now handled within the main /api/v1/conversation endpoint.
         end
       end
     end

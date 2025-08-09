@@ -27,7 +27,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
 
   describe 'POST /api/v1/test' do
     # Integration test with real conversation module
-    it 'processes basic conversation requests', vcr: { cassette_name: 'conversation_basic_test', match_requests_on: %i[method uri] } do
+    it 'processes basic conversation requests', :vcr do
       post '/api/v1/test',
            { message: 'Hello, test message for Glitch Cube!' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -46,7 +46,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(parsed_body).to have_key('timestamp')
     end
 
-    it 'uses default message when none provided', vcr: { cassette_name: 'conversation_default_message', match_requests_on: %i[method uri] } do
+    it 'uses default message when none provided', :vcr do
       post '/api/v1/test',
            {}.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -56,7 +56,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(parsed_body['response']).to be_present
     end
 
-    it 'handles malformed JSON gracefully' do
+    it 'handles malformed JSON gracefully', :vcr do
       post '/api/v1/test',
            'invalid{json',
            { 'CONTENT_TYPE' => 'application/json' }
@@ -67,7 +67,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
     end
 
     # Test input validation
-    it 'handles extremely large context payloads', vcr: { cassette_name: 'conversation_large_payload' } do
+    it 'handles extremely large context payloads', :vcr do
       large_context = { data: 'x' * (10 * 1024 * 1024) } # 10MB
 
       post '/api/v1/test',
@@ -84,7 +84,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
   end
 
   describe 'POST /api/v1/conversation' do
-    it 'processes full conversation with session management', vcr: { cassette_name: 'conversation_full_session', match_requests_on: %i[method uri] } do
+    it 'processes full conversation with session management', :vcr do
       post '/api/v1/conversation',
            {
              message: 'Tell me about the weather today',
@@ -98,7 +98,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(parsed_body['data']['session_id']).to be_present
     end
 
-    it 'generates session ID when not provided', vcr: { cassette_name: 'conversation_generate_session_id', match_requests_on: %i[method uri] } do
+    it 'generates session ID when not provided', :vcr do
       post '/api/v1/conversation',
            { message: 'Hello' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -108,7 +108,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(parsed_body['data']['session_id']).to match(/^[0-9a-f-]{36}$/)
     end
 
-    it 'preserves existing session ID', vcr: { cassette_name: 'conversation_preserve_session_id', match_requests_on: %i[method uri] } do
+    it 'preserves existing session ID', :vcr do
       existing_session_id = SecureRandom.uuid
 
       post '/api/v1/conversation',
@@ -133,7 +133,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       end
     end
 
-    it 'handles voice interaction context', vcr: { cassette_name: 'conversation_voice_interaction', match_requests_on: %i[method uri] } do
+    it 'handles voice interaction context', :vcr do
       post '/api/v1/conversation',
            {
              message: 'Hello voice interaction test',
@@ -151,7 +151,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
     end
 
     # Security and validation tests
-    it 'sanitizes malicious context data', vcr: { cassette_name: 'conversation_sanitize_malicious', match_requests_on: %i[method uri] } do
+    it 'sanitizes malicious context data', :vcr do
       post '/api/v1/conversation',
            {
              message: 'test',
@@ -166,7 +166,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(last_response.status).to be_between(200, 499)
     end
 
-    it 'limits context payload size' do
+    it 'limits context payload size', :vcr do
       large_context = (1..1000).to_h { |i| ["key_#{i}", 'x' * 1000] }
 
       post '/api/v1/conversation',
@@ -180,7 +180,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(last_response.status).to be_between(200, 499)
     end
 
-    it 'handles service timeouts gracefully' do
+    it 'handles service timeouts gracefully', :vcr do
       # Simulate slow external services by stubbing the ConversationModule directly
       allow_any_instance_of(ConversationModule).to receive(:call)
         .and_raise(Timeout::Error, 'Service timeout')
@@ -206,7 +206,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
 
   # Error Boundary Tests
   describe 'Error Handling' do
-    it 'handles malformed JSON in conversation request' do
+    it 'handles malformed JSON in conversation request', :vcr do
       post '/api/v1/conversation',
            'invalid{json',
            { 'CONTENT_TYPE' => 'application/json' }
@@ -224,7 +224,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       end
     end
 
-    it 'handles ConversationSession service failure' do
+    it 'handles ConversationSession service failure', :vcr do
       allow(Services::ConversationSession).to receive(:find_or_create)
         .and_raise(StandardError, 'Database connection failed')
 
@@ -238,7 +238,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
       expect(parsed_body['error']).to eq('Database connection failed')
     end
 
-    it 'handles ConversationModule failures gracefully' do
+    it 'handles ConversationModule failures gracefully', :vcr do
       allow_any_instance_of(ConversationModule).to receive(:call)
         .and_raise(Services::LLMService::LLMError, 'LLM service unavailable')
 
@@ -257,44 +257,10 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
   end
 
   # RAG-enhanced conversation tests
-  describe 'POST /api/v1/conversation/with_context' do
-    let(:rag_service) { instance_double(Services::SimpleRAG) }
-    let(:rag_result) do
-      {
-        contexts_used: ['Weather data', 'Location info'],
-        confidence: 0.8
-      }
-    end
-
-    before do
-      allow(Services::SimpleRAG).to receive(:new).and_return(rag_service)
-      allow(rag_service).to receive(:answer_with_context).and_return(rag_result)
-    end
-
-    it 'enhances conversation with RAG context', vcr: { cassette_name: 'conversation_with_rag_enhanced', match_requests_on: %i[method uri] } do
-      post '/api/v1/conversation/with_context',
-           { message: 'What is the weather like?' }.to_json,
-           { 'CONTENT_TYPE' => 'application/json' }
-
-      expect(last_response).to be_ok
-      expect(parsed_body['success']).to be true
-      expect(parsed_body['data']['response']).to be_present
-      expect(parsed_body['data']['contexts_used']).to eq(['Weather data', 'Location info'])
-    end
-
-    it 'handles RAG service failures gracefully' do
-      allow(rag_service).to receive(:answer_with_context)
-        .and_raise(StandardError, 'RAG service unavailable')
-
-      post '/api/v1/conversation/with_context',
-           { message: 'Tell me about the installation' }.to_json,
-           { 'CONTENT_TYPE' => 'application/json' }
-
-      expect(last_response.status).to eq(400)
-      expect(parsed_body['success']).to be false
-      expect(parsed_body['error']).to eq('RAG service unavailable')
-    end
-  end
+  # NOTE: /api/v1/conversation/with_context endpoint tests removed
+  # as part of Phase 3.5 consolidation. RAG functionality is now
+  # integrated into the main /api/v1/conversation endpoint and should
+  # be tested through dedicated RAG service specs.
 
   private
 

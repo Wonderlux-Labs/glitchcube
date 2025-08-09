@@ -13,7 +13,7 @@ RSpec.describe 'Admin/Development Interface', :failing do
   describe 'development-only endpoints' do
     context 'when in development mode' do
       describe 'GET /api/v1/analytics/conversations' do
-        it 'returns conversation history' do
+        it 'returns conversation history', :vcr do
           get '/api/v1/analytics/conversations?limit=5'
 
           expect(last_response).to be_ok
@@ -24,7 +24,7 @@ RSpec.describe 'Admin/Development Interface', :failing do
       end
 
       describe 'GET /api/v1/analytics/modules/:module_name' do
-        it 'returns module analytics' do
+        it 'returns module analytics', :vcr do
           get '/api/v1/analytics/modules/ConversationModule'
 
           expect(last_response).to be_ok
@@ -36,7 +36,7 @@ RSpec.describe 'Admin/Development Interface', :failing do
       end
 
       describe 'GET /api/v1/system_prompt/:character' do
-        it 'previews system prompts for different characters' do
+        it 'previews system prompts for different characters', :vcr do
           get '/api/v1/system_prompt/playful?location=gallery&battery=75'
 
           expect(last_response).to be_ok
@@ -49,7 +49,7 @@ RSpec.describe 'Admin/Development Interface', :failing do
 
       describe 'context document management' do
         describe 'GET /api/v1/context/documents' do
-          it 'lists available context documents' do
+          it 'lists available context documents', :vcr do
             get '/api/v1/context/documents'
 
             expect(last_response).to be_ok
@@ -60,7 +60,7 @@ RSpec.describe 'Admin/Development Interface', :failing do
         end
 
         describe 'POST /api/v1/context/search' do
-          it 'searches context documents' do
+          it 'searches context documents', :vcr do
             post '/api/v1/context/search',
                  { query: 'consciousness', k: 2 }.to_json,
                  { 'CONTENT_TYPE' => 'application/json' }
@@ -78,7 +78,7 @@ RSpec.describe 'Admin/Development Interface', :failing do
     context 'when in production mode' do
       # NOTE: In test mode, endpoints are available for testing
       # In real production, these endpoints are controlled by environment
-      it 'exposes analytics endpoints in test/dev environments' do
+      it 'exposes analytics endpoints in test/dev environments', :vcr do
         # This verifies the endpoints work in test environment
         get '/api/v1/analytics/conversations'
         expect(last_response.status).to eq(200)
@@ -88,7 +88,7 @@ RSpec.describe 'Admin/Development Interface', :failing do
         expect(json).to have_key('success')
       end
 
-      it 'exposes context management endpoints in test/dev environments' do
+      it 'exposes context management endpoints in test/dev environments', :vcr do
         get '/api/v1/context/documents'
         expect(last_response.status).to eq(200)
 
@@ -101,7 +101,7 @@ RSpec.describe 'Admin/Development Interface', :failing do
 
   describe 'conversation with context (RAG)' do
     describe 'POST /api/v1/conversation/with_context' do
-      it 'enhances responses with relevant context', vcr: { cassette_name: 'conversation_with_context' } do
+      it 'enhances responses with relevant context', :vcr do
         post '/api/v1/conversation/with_context',
              { message: 'What are you?', mood: 'curious' }.to_json,
              { 'CONTENT_TYPE' => 'application/json' }
@@ -117,7 +117,7 @@ RSpec.describe 'Admin/Development Interface', :failing do
   end
 
   describe 'session tracking for summarization' do
-    it 'tracks conversations by session' do
+    it 'tracks conversations by session', :vcr do
       # First message
       post '/api/v1/conversation',
            { message: 'Hello!', context: { session_id: 'test-123' } }.to_json,

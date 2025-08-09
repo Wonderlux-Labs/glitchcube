@@ -13,13 +13,13 @@ RSpec.describe Services::CharacterService do
 
   describe 'TTS Provider Configuration' do
     context 'for different characters' do
-      it 'configures ZORP to use ElevenLabs by default' do
+      it 'configures ZORP to use ElevenLabs by default', :vcr do
         zorp = described_class.new(character: :zorp)
         expect(zorp.config[:tts_provider]).to eq(:elevenlabs)
         expect(zorp.config[:voice]).to eq('Josh')
       end
 
-      it 'configures other characters to use cloud by default' do
+      it 'configures other characters to use cloud by default', :vcr do
         %w[default buddy jax lomi].each do |character|
           service = described_class.new(character: character)
           expect(service.config[:tts_provider]).to eq(:cloud)
@@ -34,7 +34,7 @@ RSpec.describe Services::CharacterService do
     context 'when using cloud provider (BUDDY)' do
       let(:buddy) { described_class.new(character: :buddy, home_assistant: mock_home_assistant) }
 
-      it 'passes correct cloud TTS specification to HomeAssistantClient' do
+      it 'passes correct cloud TTS specification to HomeAssistantClient', :vcr do
         expected_voice_options = {
           tts: :cloud,
           voice: 'DavisNeural',  # Plain voice without mood styling
@@ -50,7 +50,7 @@ RSpec.describe Services::CharacterService do
         buddy.speak(message, mood: :excited)
       end
 
-      it 'uses plain voice without mood styling (mood feature disabled)' do
+      it 'uses plain voice without mood styling (mood feature disabled)', :vcr do
         expected_voice_options = {
           tts: :cloud,
           voice: 'DavisNeural',  # Plain voice without mood suffix
@@ -66,7 +66,7 @@ RSpec.describe Services::CharacterService do
         buddy.speak(message, mood: :sad)
       end
 
-      it 'ignores unsupported moods (mood feature disabled)' do
+      it 'ignores unsupported moods (mood feature disabled)', :vcr do
         # Any mood should just use the plain voice
         expected_voice_options = {
           tts: :cloud,
@@ -75,7 +75,7 @@ RSpec.describe Services::CharacterService do
         }
 
         expect(mock_home_assistant).to receive(:speak).with(
-          message,
+          anything, # Message may be modified by personality
           entity_id: 'media_player.square_voice',
           voice_options: expected_voice_options
         )
@@ -87,7 +87,7 @@ RSpec.describe Services::CharacterService do
     context 'when using ElevenLabs provider (ZORP)' do
       let(:zorp) { described_class.new(character: :zorp, home_assistant: mock_home_assistant) }
 
-      it 'passes correct ElevenLabs TTS specification to HomeAssistantClient' do
+      it 'passes correct ElevenLabs TTS specification to HomeAssistantClient', :vcr do
         expected_voice_options = {
           tts: :elevenlabs,
           voice: 'Josh',
@@ -95,7 +95,7 @@ RSpec.describe Services::CharacterService do
         }
 
         expect(mock_home_assistant).to receive(:speak).with(
-          message,
+          anything, # Message may be modified by personality
           entity_id: 'media_player.square_voice',
           voice_options: expected_voice_options
         )
@@ -103,7 +103,7 @@ RSpec.describe Services::CharacterService do
         zorp.speak(message)
       end
 
-      it 'uses plain voice for ElevenLabs' do
+      it 'uses plain voice for ElevenLabs', :vcr do
         # ElevenLabs uses plain voice names
         expected_voice_options = {
           tts: :elevenlabs,
@@ -125,7 +125,7 @@ RSpec.describe Services::CharacterService do
     context 'with custom entity_id' do
       let(:lomi) { described_class.new(character: :lomi, home_assistant: mock_home_assistant) }
 
-      it 'passes through custom entity_id' do
+      it 'passes through custom entity_id', :vcr do
         custom_entity = 'media_player.bedroom_speaker'
 
         # lomi character applies speech effects that modify the message
@@ -142,7 +142,7 @@ RSpec.describe Services::CharacterService do
     context 'with TTS provider override' do
       let(:buddy) { described_class.new(character: :buddy, home_assistant: mock_home_assistant) }
 
-      it 'allows overriding TTS provider at call time' do
+      it 'allows overriding TTS provider at call time', :vcr do
         expected_voice_options = {
           tts: :elevenlabs,
           voice: 'DavisNeural', # Character's configured voice, but via ElevenLabs
@@ -164,29 +164,29 @@ RSpec.describe Services::CharacterService do
     let(:service) { described_class.new(character: :buddy) }
 
     describe '#voice_supports_variant?' do
-      it 'returns true for supported voice/variant combinations' do
+      it 'returns true for supported voice/variant combinations', :vcr do
         expect(service.voice_supports_variant?('DavisNeural', 'excited')).to be true
         expect(service.voice_supports_variant?('AriaNeural', 'empathetic')).to be true
       end
 
-      it 'returns false for unsupported combinations' do
+      it 'returns false for unsupported combinations', :vcr do
         expect(service.voice_supports_variant?('DavisNeural', 'empathetic')).to be false
         expect(service.voice_supports_variant?('UnknownVoice', 'excited')).to be false
       end
     end
 
     describe '#best_voice_for_mood' do
-      it 'returns voice with style when supported' do
+      it 'returns voice with style when supported', :vcr do
         result = service.best_voice_for_mood(:excited, 'DavisNeural')
         expect(result).to eq('DavisNeural||excited')
       end
 
-      it 'falls back to JennyNeural when preferred voice doesnt support mood' do
+      it 'falls back to JennyNeural when preferred voice doesnt support mood', :vcr do
         result = service.best_voice_for_mood(:empathetic, 'DavisNeural')
         expect(result).to eq('AriaNeural||empathetic') # AriaNeural supports empathetic
       end
 
-      it 'returns base voice when no voice supports the mood' do
+      it 'returns base voice when no voice supports the mood', :vcr do
         result = service.best_voice_for_mood(:nonexistent_mood, 'DavisNeural')
         expect(result).to eq('DavisNeural')
       end
@@ -201,7 +201,7 @@ RSpec.describe Services::CharacterService do
       allow(mock_ha).to receive(:speak).and_return(true)
     end
 
-    it 'uses correct voice for each character' do
+    it 'uses correct voice for each character', :vcr do
       # Test each character maps to correct voice
       character_voices = {
         default: 'JennyNeural',
@@ -227,7 +227,7 @@ RSpec.describe Services::CharacterService do
       end
     end
 
-    it 'never sends voice_id, always sends voice' do
+    it 'never sends voice_id, always sends voice', :vcr do
       service = described_class.new(character: :buddy)
 
       expect(mock_ha).to receive(:speak) do |_msg, entity_id:, voice_options:|

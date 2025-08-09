@@ -128,7 +128,7 @@ RSpec.describe Services::ConversationService do
   end
 
   describe 'integration with system prompt' do
-    it 'passes context through to system prompt generation', vcr: { cassette_name: 'services/conversation_service/system_prompt_integration' } do
+    it 'passes context through to system prompt generation', :vcr do
       # Set up expected context values
       service.add_context(:location, 'Test Gallery')
       service.add_context(:event_name, 'RSpec Test')

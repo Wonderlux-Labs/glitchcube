@@ -4,14 +4,14 @@ require 'spec_helper'
 
 RSpec.describe 'Simple Admin Interface' do
   describe 'GET /admin/simple' do
-    it 'loads the simple admin page' do
+    it 'loads the simple admin page', :vcr do
       get '/admin/simple'
 
       expect(last_response).to be_ok
       expect(last_response.body).to include('GLITCH CUBE ADMIN - SIMPLE')
     end
 
-    it 'includes basic conversation form' do
+    it 'includes basic conversation form', :vcr do
       get '/admin/simple'
 
       expect(last_response.body).to include('Conversation Test')
@@ -19,7 +19,7 @@ RSpec.describe 'Simple Admin Interface' do
       expect(last_response.body).to include('persona')
     end
 
-    it 'has basic JavaScript functions' do
+    it 'has basic JavaScript functions', :vcr do
       get '/admin/simple'
 
       # Should have these basic functions
@@ -35,7 +35,7 @@ RSpec.describe 'Simple Admin Interface' do
   end
 
   describe 'POST /admin/proactive_conversation' do
-    it 'creates a conversation session with proactive message', vcr: { cassette_name: 'admin_proactive_conversation' } do
+    it 'creates a conversation session with proactive message', :vcr do
       post '/admin/proactive_conversation',
            { character: 'buddy' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -51,7 +51,7 @@ RSpec.describe 'Simple Admin Interface' do
   end
 
   describe 'GET /admin/status' do
-    it 'returns system status' do
+    it 'returns system status', :vcr do
       get '/admin/status'
 
       expect(last_response).to be_ok

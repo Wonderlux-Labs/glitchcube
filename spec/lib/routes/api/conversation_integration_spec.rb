@@ -6,11 +6,7 @@ require 'concurrent'
 
 # Advanced integration tests for conversation service
 # Focus on circuit breakers, performance, session corruption, and error boundaries
-RSpec.describe 'Conversation Service Integration', vcr: {
-  cassette_name: 'conversation_service_integration',
-  match_requests_on: %i[method uri], # Don't match on body for TTS flexibility
-  allow_playback_repeats: true
-} do
+RSpec.describe 'Conversation Service Integration', :vcr do
   include Rack::Test::Methods
 
   def app
@@ -32,7 +28,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
         ENV.delete('ENABLE_CIRCUIT_BREAKERS')
       end
 
-      it 'opens circuit breaker after consecutive failures' do
+      it 'opens circuit breaker after consecutive failures', :vcr do
         # Mock LLM service to fail repeatedly
         allow(Services::LLMService).to receive(:complete_with_messages)
           .and_raise(Timeout::Error, 'Service timeout')
@@ -69,7 +65,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
         expect(parsed_body.dig('data', 'error')).to eq('general_error')
       end
 
-      it 'transitions to half-open state after timeout' do
+      it 'transitions to half-open state after timeout', :vcr do
         # Mock LLM service to fail first, then succeed
         call_count = 0
         allow(Services::LLMService).to receive(:complete_with_messages) do
@@ -109,7 +105,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
     end
 
     context 'when Home Assistant service fails' do
-      it 'gracefully degrades HA integration features', vcr: { cassette_name: 'ha_service_degradation' } do
+      it 'gracefully degrades HA integration features', :vcr do
         allow_any_instance_of(HomeAssistantClient).to receive(:call_service)
           .and_raise(HomeAssistantClient::TimeoutError, 'HA unavailable')
 
@@ -132,14 +128,14 @@ RSpec.describe 'Conversation Service Integration', vcr: {
   describe 'Session State Corruption Prevention' do
     let(:session_id) { SecureRandom.uuid }
 
-    it 'prevents race conditions in concurrent session updates' do
+    it 'prevents race conditions in concurrent session updates', :vcr do
       # Create initial session
       post '/api/v1/conversation',
            { message: 'Start session' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
       expect(last_response).to be_ok
-      actual_session_id = parsed_body['session_id']
+      actual_session_id = parsed_body.dig('data', 'session_id') || parsed_body['session_id']
       expect(actual_session_id).to be_present
 
       # Make concurrent requests to the same session
@@ -176,7 +172,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
       expect(session.metadata).to be_a(Hash)
     end
 
-    it 'handles session cleanup on unexpected errors' do
+    it 'handles session cleanup on unexpected errors', :vcr do
       session = create_test_session
 
       # Simulate service failure during conversation
@@ -198,7 +194,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
   end
 
   describe 'Performance and Resource Management' do
-    it 'handles large context payloads within memory limits' do
+    it 'handles large context payloads within memory limits', :vcr do
       large_context = {
         conversation_history: Array.new(100) do |i|
           {
@@ -229,7 +225,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
       expect(memory_growth).to be < 100_000 # Reasonable memory growth limit
     end
 
-    it 'cleans up resources after conversation completion' do
+    it 'cleans up resources after conversation completion', :vcr do
       session = create_test_session
 
       # Track database connections
@@ -247,7 +243,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
       expect(final_connections).to eq(initial_connections)
     end
 
-    it 'times out long-running conversations appropriately' do
+    it 'times out long-running conversations appropriately', :vcr do
       # Mock LLM service to raise timeout error
       allow(Services::LLMService).to receive(:complete_with_messages)
         .and_raise(Services::LLMService::LLMError, 'Request timed out after 30 seconds')
@@ -273,7 +269,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
   end
 
   describe 'Database Query Optimization' do
-    it 'avoids N+1 queries when loading conversation history' do
+    it 'avoids N+1 queries when loading conversation history', :vcr do
       session = create_test_session_with_messages(20)
 
       # Track SQL queries
@@ -298,7 +294,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
   end
 
   describe 'Input Validation and Security' do
-    it 'prevents SQL injection through context parameters' do
+    it 'prevents SQL injection through context parameters', :vcr do
       malicious_context = {
         session_id: "'; DROP TABLE conversations; --",
         user_input: "'; UPDATE users SET admin = true; --"
@@ -318,7 +314,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
       expect(Conversation.count).to be >= 0
     end
 
-    it 'limits deeply nested context objects to prevent stack overflow' do
+    it 'limits deeply nested context objects to prevent stack overflow', :vcr do
       # Create deeply nested object
       deep_context = {}
       current = deep_context
@@ -338,7 +334,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
       expect(last_response.status).to be_between(200, 499)
     end
 
-    it 'sanitizes output to prevent XSS in API responses' do
+    it 'sanitizes output to prevent XSS in API responses', :vcr do
       # Simulate LLM response with potential XSS
       allow_any_instance_of(ConversationModule).to receive(:call).and_return(
         response: '<script>alert("xss")</script>Malicious response',
@@ -357,7 +353,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
   end
 
   describe 'Service Degradation Scenarios' do
-    it 'continues functioning when TTS service is unavailable' do
+    it 'continues functioning when TTS service is unavailable', :vcr do
       allow_any_instance_of(Services::CharacterService).to receive(:speak)
         .and_raise(StandardError, 'TTS service down')
 
@@ -371,7 +367,7 @@ RSpec.describe 'Conversation Service Integration', vcr: {
       expect(parsed_body['data']['response']).to be_present
     end
 
-    it 'provides meaningful fallback responses when all AI services fail' do
+    it 'provides meaningful fallback responses when all AI services fail', :vcr do
       # Disable all AI services
       allow(Services::LLMService).to receive(:complete_with_messages)
         .and_raise(Services::LLMService::LLMError, 'All models unavailable')

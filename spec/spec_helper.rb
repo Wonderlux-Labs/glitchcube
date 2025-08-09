@@ -1,19 +1,21 @@
 # frozen_string_literal: true
 
-require 'simplecov'
-SimpleCov.start do
-  add_filter '/spec/'
-  add_filter '/config/'
+if ENV.fetch('CI', false) || ENV.fetch('WITH_COVERAGE', false)
+  require 'simplecov'
+  SimpleCov.start do
+    add_filter '/spec/'
+    add_filter '/config/'
 
-  # Continue generating coverage report even if tests fail
-  at_exit do
-    SimpleCov.result.format! if SimpleCov.running
+    # Continue generating coverage report even if tests fail
+    at_exit do
+      SimpleCov.result.format! if SimpleCov.running
+    end
   end
-end
 
-# Suppress SimpleCov error messages on test failures
-SimpleCov.at_exit do
-  SimpleCov.result.format!
+  # Suppress SimpleCov error messages on test failures
+  SimpleCov.at_exit do
+    SimpleCov.result.format!
+  end
 end
 
 ENV['RACK_ENV'] = 'test'
@@ -45,7 +47,7 @@ Dir[File.join(__dir__, 'support', '**', '*.rb')].each { |f| require f }
 
 RSpec.configure do |config|
   config.include Rack::Test::Methods
-
+  config.example_status_persistence_file_path = 'rspec.txt'
   def app
     GlitchCubeApp
   end
@@ -168,207 +170,211 @@ RSpec.configure do |config|
   end
 end
 
-VCR.configure do |config|
-  config.cassette_library_dir = 'spec/vcr_cassettes'
-  config.hook_into :webmock
-  config.configure_rspec_metadata!
-
-  # Allow HTTP connections when recording new cassettes
-  config.allow_http_connections_when_no_cassette = false # Still strict by default
-  config.ignore_localhost = false # Record localhost calls too
-  config.default_cassette_options = { record: :once } # Record ONCE by default
-
-  # Automatic cassette naming from test description
-  # NOTE: VCR doesn't have a naming_hook method - this was causing errors
-  # config.naming_hook = lambda do |request|
-  #   # Generate cassette name from current RSpec example if available
-  #   if defined?(RSpec) && RSpec.respond_to?(:current_example) && RSpec.current_example
-  #     example = RSpec.current_example
-  #     name = example.full_description.downcase
-  #                   .gsub(/[^a-z0-9\s_-]/, '')
-  #                   .gsub(/\s+/, '_')
-  #                   .squeeze('_')
-  #                   .slice(0, 100)
-  #
-  #     spec_file = example.file_path.gsub(%r{^.*/spec/}, '')
-  #                        .gsub(/_spec\.rb$/, '')
-  #                        .gsub('/', '_')
-  #
-  #     "#{spec_file}/#{name}"
-  #   else
-  #     'default_cassette'
-  #   end
-  # end
-
-  # Best practice: Use automatic cassette naming
-  config.default_cassette_options = {
-    # Smart recording: Record once if missing, otherwise replay
-    record: :once, # Always record once - VCR will skip if cassette exists
-    # Match on method, URI path, and body for deterministic matching
-    match_requests_on: %i[method uri body],
-    # Allow same request multiple times in a test
-    allow_playback_repeats: true,
-    # Serialize with UTF-8 encoding for consistency
-    serialize_with: :yaml,
-    preserve_exact_body_bytes: true,
-    # Decode compressed responses for readability
-    decode_compressed_response: true
-  }
-
-  # Filter sensitive data consistently
-  config.filter_sensitive_data('<OPENROUTER_API_KEY>') { ENV.fetch('OPENROUTER_API_KEY', nil) }
-  config.filter_sensitive_data('<HOME_ASSISTANT_TOKEN>') { ENV.fetch('HOME_ASSISTANT_TOKEN', nil) }
-  config.filter_sensitive_data('<GITHUB_TOKEN>') { ENV.fetch('GITHUB_TOKEN', nil) }
-
-  # Also filter in headers
-  config.before_record do |interaction|
-    # Handle both string and array Authorization headers
-    auth_header = interaction.request.headers['Authorization']
-    if auth_header.is_a?(Array)
-      interaction.request.headers['Authorization'] = auth_header.map { |h| h.gsub(/Bearer .+/, 'Bearer <TOKEN>') }
-    elsif auth_header.is_a?(String)
-      interaction.request.headers['Authorization'] = auth_header.gsub(/Bearer .+/, 'Bearer <TOKEN>')
-    end
-
-    # Handle API key headers
-    api_key = interaction.request.headers['X-Api-Key']
-    if api_key.is_a?(Array)
-      interaction.request.headers['X-Api-Key'] = api_key.map { |_k| '<API_KEY>' }
-    elsif api_key.is_a?(String)
-      interaction.request.headers['X-Api-Key'] = '<API_KEY>'
-    end
-  end
-
-  # Enable auto-recording mode when VCR_AUTO_RECORD=true
-  if ENV['VCR_AUTO_RECORD'] == 'true'
-    config.allow_http_connections_when_no_cassette = true
-
-    # Set up a hook to automatically wrap tests without cassettes
-    config.around_http_request do |request|
-      if VCR.current_cassette.nil?
-        host = request.uri.respond_to?(:host) ? request.uri.host : URI.parse(request.uri.to_s).host
-
-        # Skip localhost
-        if host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
-          request.proceed
-          next
-        end
-
-        # Generate cassette for this test
-        if RSpec.current_example
-          puts "🎬 Auto-recording cassette for: #{RSpec.current_example.full_description}"
-
-          cassette_name = VCRAutoRecording.generate_cassette_name(RSpec.current_example, request)
-
-          # Create directory
-          cassette_dir = File.join('spec', 'vcr_cassettes', File.dirname(cassette_name))
-          FileUtils.mkdir_p(cassette_dir)
-
-          # Use cassette to record
-          VCR.use_cassette(cassette_name, record: :new_episodes, match_requests_on: %i[method uri body]) do
-            VCRAutoRecording.auto_record_request(request, RSpec.current_example)
-            request.proceed
-          end
-        else
-          request.proceed
-        end
-      else
-        request.proceed
-      end
-    end
-  else
-    # Fail fast on missing cassettes with helpful error
-    config.before_http_request do |request|
-      unless VCR.current_cassette
-        host = request.uri.respond_to?(:host) ? request.uri.host : URI.parse(request.uri.to_s).host
-
-        # Allow localhost requests without VCR (for app testing)
-        next if host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
-
-        # Track this unhandled request for reporting
-        VCRRequestTracker.track_request(request, RSpec.current_example) if defined?(VCRRequestTracker)
-
-        error_msg = <<~ERROR
-          ❌ NO VCR CASSETTE ACTIVE FOR EXTERNAL REQUEST
-
-          Request: #{request.method.upcase} #{request.uri}
-          Host: #{host}
-          Test: #{RSpec.current_example&.location || 'Unknown test'}
-
-          To enable auto-recording: VCR_AUTO_RECORD=true bundle exec rspec
-          Or fix manually:
-          1. Wrap this test in VCR.use_cassette or use vcr: metadata
-          2. Record locally: VCR_OVERRIDE=true bundle exec rspec #{RSpec.current_example&.location || 'your_spec.rb'}
-          3. Commit the cassette in spec/vcr_cassettes/
-
-          IMPORTANT: All external HTTP requests MUST go through VCR!
-        ERROR
-
-        raise(VCR::Errors::UnhandledHTTPRequestError.new(request).tap { puts error_msg })
-      end
-    end
-  end
-
-  # Log VCR activity only when recording and not in CI
-  if ENV['VCR_OVERRIDE'] == 'true' && ENV['CI'] != 'true'
-    # Track what we've already logged to avoid spam
-    @vcr_logged_requests ||= Set.new
-
-    config.before_record do |interaction|
-      # interaction.request.uri might be a string or URI object
-      uri = interaction.request.uri
-      uri = URI.parse(uri) if uri.is_a?(String)
-      request_key = "#{interaction.request.method.upcase} #{uri.host}#{uri.path}"
-      unless @vcr_logged_requests.include?(request_key)
-        puts "🎥 Recording: #{request_key}"
-        @vcr_logged_requests.add(request_key)
-      end
-    end
-  elsif ENV['CI'] != 'true' && ENV['VCR_DEBUG'] == 'true'
-    # Only show playback in debug mode
-    config.before_playback do |interaction|
-      puts "▶️  Playing: #{interaction.request.method.upcase} #{interaction.request.uri}"
-    end
-  end
-end
+# OLD VCR Configuration - disabled by Zero-Leak migration
+# VCR.configure do |config|
+#   config.cassette_library_dir = 'spec/vcr_cassettes'
+#   config.hook_into :webmock
+#   config.configure_rspec_metadata!
+#
+#   # Allow HTTP connections when recording new cassettes
+#   config.allow_http_connections_when_no_cassette = false # Still strict by default
+#   config.ignore_localhost = false # Record localhost calls too
+#   config.default_cassette_options = { record: :once } # Record ONCE by default
+#
+#   # Automatic cassette naming from test description
+#   # NOTE: VCR doesn't have a naming_hook method - this was causing errors
+#   # config.naming_hook = lambda do |request|
+#   #   # Generate cassette name from current RSpec example if available
+#   #   if defined?(RSpec) && RSpec.respond_to?(:current_example) && RSpec.current_example
+#   #     example = RSpec.current_example
+#   #     name = example.full_description.downcase
+#   #                   .gsub(/[^a-z0-9\s_-]/, '')
+#   #                   .gsub(/\s+/, '_')
+#   #                   .squeeze('_')
+#   #                   .slice(0, 100)
+#   #
+#   #     spec_file = example.file_path.gsub(%r{^.*/spec/}, '')
+#   #                        .gsub(/_spec\.rb$/, '')
+#   #                        .gsub('/', '_')
+#   #
+#   #     "#{spec_file}/#{name}"
+#   #   else
+#   #     'default_cassette'
+#   #   end
+#   # end
+#
+#   # Best practice: Use automatic cassette naming
+#   config.default_cassette_options = {
+#     # Smart recording: Record once if missing, otherwise replay
+#     record: :once, # Always record once - VCR will skip if cassette exists
+#     # Match on method, URI path, and body for deterministic matching
+#     match_requests_on: %i[method uri body],
+#     # Allow same request multiple times in a test
+#     allow_playback_repeats: true,
+#     # Serialize with UTF-8 encoding for consistency
+#     serialize_with: :yaml,
+#     preserve_exact_body_bytes: true,
+#     # Decode compressed responses for readability
+#     decode_compressed_response: true
+#   }
+#
+#   # Filter sensitive data consistently
+#   config.filter_sensitive_data('<OPENROUTER_API_KEY>') { ENV.fetch('OPENROUTER_API_KEY', nil) }
+#   config.filter_sensitive_data('<HOME_ASSISTANT_TOKEN>') { ENV.fetch('HOME_ASSISTANT_TOKEN', nil) }
+#   config.filter_sensitive_data('<GITHUB_TOKEN>') { ENV.fetch('GITHUB_TOKEN', nil) }
+#
+#   # Also filter in headers
+#   config.before_record do |interaction|
+#     # Handle both string and array Authorization headers
+#     auth_header = interaction.request.headers['Authorization']
+#     if auth_header.is_a?(Array)
+#       interaction.request.headers['Authorization'] = auth_header.map { |h| h.gsub(/Bearer .+/, 'Bearer <TOKEN>') }
+#     elsif auth_header.is_a?(String)
+#       interaction.request.headers['Authorization'] = auth_header.gsub(/Bearer .+/, 'Bearer <TOKEN>')
+#     end
+#
+#     # Handle API key headers
+#     api_key = interaction.request.headers['X-Api-Key']
+#     if api_key.is_a?(Array)
+#       interaction.request.headers['X-Api-Key'] = api_key.map { |_k| '<API_KEY>' }
+#     elsif api_key.is_a?(String)
+#       interaction.request.headers['X-Api-Key'] = '<API_KEY>'
+#     end
+#   end
+#
+#   # Enable auto-recording mode when VCR_AUTO_RECORD=true
+#   if ENV['VCR_AUTO_RECORD'] == 'true'
+#     config.allow_http_connections_when_no_cassette = true
+#
+#     # Set up a hook to automatically wrap tests without cassettes
+#     config.around_http_request do |request|
+#       if VCR.current_cassette.nil?
+#         host = request.uri.respond_to?(:host) ? request.uri.host : URI.parse(request.uri.to_s).host
+#
+#         # Skip localhost
+#         if host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
+#           request.proceed
+#           next
+#         end
+#
+#         # Generate cassette for this test
+#         if RSpec.current_example
+#           puts "🎬 Auto-recording cassette for: #{RSpec.current_example.full_description}"
+#
+#           cassette_name = VCRAutoRecording.generate_cassette_name(RSpec.current_example, request)
+#
+#           # Create directory
+#           cassette_dir = File.join('spec', 'vcr_cassettes', File.dirname(cassette_name))
+#           FileUtils.mkdir_p(cassette_dir)
+#
+#           # Use cassette to record
+#           VCR.use_cassette(cassette_name, record: :new_episodes, match_requests_on: %i[method uri body]) do
+#             VCRAutoRecording.auto_record_request(request, RSpec.current_example)
+#             request.proceed
+#           end
+#         else
+#           request.proceed
+#         end
+#       else
+#         request.proceed
+#       end
+#     end
+#   else
+#     # Fail fast on missing cassettes with helpful error
+#     config.before_http_request do |request|
+#       unless VCR.current_cassette
+#         host = request.uri.respond_to?(:host) ? request.uri.host : URI.parse(request.uri.to_s).host
+#
+#         # Allow localhost requests without VCR (for app testing)
+#         next if host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
+#
+#         # Track this unhandled request for reporting
+#         VCRRequestTracker.track_request(request, RSpec.current_example) if defined?(VCRRequestTracker)
+#
+#         error_msg = <<~ERROR
+#           ❌ NO VCR CASSETTE ACTIVE FOR EXTERNAL REQUEST
+#
+#           Request: #{request.method.upcase} #{request.uri}
+#           Host: #{host}
+#           Test: #{RSpec.current_example&.location || 'Unknown test'}
+#
+#           To enable auto-recording: VCR_AUTO_RECORD=true bundle exec rspec
+#           Or fix manually:
+#           1. Wrap this test in VCR.use_cassette or use vcr: metadata
+#           2. Record locally: VCR_OVERRIDE=true bundle exec rspec #{RSpec.current_example&.location || 'your_spec.rb'}
+#           3. Commit the cassette in spec/vcr_cassettes/
+#
+#           IMPORTANT: All external HTTP requests MUST go through VCR!
+#         ERROR
+#
+#         raise(VCR::Errors::UnhandledHTTPRequestError.new(request).tap { puts error_msg })
+#       end
+#     end
+#   end
+#
+#   # Log VCR activity only when recording and not in CI
+#   if ENV['VCR_OVERRIDE'] == 'true' && ENV['CI'] != 'true'
+#     # Track what we've already logged to avoid spam
+#     @vcr_logged_requests ||= Set.new
+#
+#     config.before_record do |interaction|
+#       # interaction.request.uri might be a string or URI object
+#       uri = interaction.request.uri
+#       uri = URI.parse(uri) if uri.is_a?(String)
+#       request_key = "#{interaction.request.method.upcase} #{uri.host}#{uri.path}"
+#       unless @vcr_logged_requests.include?(request_key)
+#         puts "🎥 Recording: #{request_key}"
+#         @vcr_logged_requests.add(request_key)
+#       end
+#     end
+#   elsif ENV['CI'] != 'true' && ENV['VCR_DEBUG'] == 'true'
+#     # Only show playback in debug mode
+#     config.before_playback do |interaction|
+#       puts "▶️  Playing: #{interaction.request.method.upcase} #{interaction.request.uri}"
+#     end
+#   end
+# end
+# END OLD VCR Configuration
 
 # STRICT: Block ALL external connections except localhost
 # VCR will handle all external calls - no bypass allowed
-WebMock.disable_net_connect!(
-  allow_localhost: true,
-  allow: 'chromedriver.storage.googleapis.com' # Only for Selenium if needed
-)
-
-# Fail immediately on any external request not handled by VCR
-# This is a backup safety net - VCR should catch these first
-WebMock.after_request do |request_signature, _response|
-  host = request_signature.uri.host
-
-  # Only allow true localhost requests to bypass VCR
-  unless host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
-    # Skip this check if VCR is handling the request (recording or playing back)
-    next if VCR.current_cassette
-
-    # This should rarely trigger since VCR.before_http_request should catch it first
-    error_msg = <<~ERROR
-      ❌ EXTERNAL REQUEST BYPASSED VCR!
-
-      Request: #{request_signature.method.upcase} #{request_signature.uri}
-      Host: #{host}
-      Test: #{RSpec.current_example&.location || 'Unknown test'}
-
-      This is a fallback error - the request somehow bypassed VCR's checks.
-
-      To fix:
-      1. Use VCR.use_cassette or vcr: metadata in your test
-      2. Record missing cassette: VCR_OVERRIDE=true bundle exec rspec #{RSpec.current_example&.location || 'your_spec.rb'}
-
-      ALL external requests MUST go through VCR!
-    ERROR
-
-    raise error_msg
-  end
-end
+# OLD WebMock Configuration - disabled by Zero-Leak migration
+# WebMock.disable_net_connect!(
+#   allow_localhost: true,
+#   allow: 'chromedriver.storage.googleapis.com' # Only for Selenium if needed
+# )
+#
+# # Fail immediately on any external request not handled by VCR
+# # This is a backup safety net - VCR should catch these first
+# WebMock.after_request do |request_signature, _response|
+#   host = request_signature.uri.host
+#
+#   # Only allow true localhost requests to bypass VCR
+#   unless host&.match?(/\A(localhost|127\.0\.0\.1|::1)\z/)
+#     # Skip this check if VCR is handling the request (recording or playing back)
+#     next if VCR.current_cassette
+#
+#     # This should rarely trigger since VCR.before_http_request should catch it first
+#     error_msg = <<~ERROR
+#       ❌ EXTERNAL REQUEST BYPASSED VCR!
+#
+#       Request: #{request_signature.method.upcase} #{request_signature.uri}
+#       Host: #{host}
+#       Test: #{RSpec.current_example&.location || 'Unknown test'}
+#
+#       This is a fallback error - the request somehow bypassed VCR's checks.
+#
+#       To fix:
+#       1. Use VCR.use_cassette or vcr: metadata in your test
+#       2. Record missing cassette: VCR_OVERRIDE=true bundle exec rspec #{RSpec.current_example&.location || 'your_spec.rb'}
+#
+#       ALL external requests MUST go through VCR!
+#     ERROR
+#
+#     raise error_msg
+#   end
+# end
+# END OLD WebMock Configuration
 
 # Handle recording modes based on environment
 if ENV['CI'] == 'true'
@@ -401,3 +407,6 @@ else
   puts '▶️  Playback Mode: VCR will record missing cassettes once, replay existing ones'
   puts '   Use VCR_OVERRIDE=true to force recording of new episodes'
 end
+
+# Zero-Leak VCR Configuration
+require_relative 'support/vcr_setup'

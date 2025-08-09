@@ -11,7 +11,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
   end
 
   describe 'GET /gps' do
-    it 'returns the GPS map view' do
+    it 'returns the GPS map view', :vcr do
       get '/gps'
       expect(last_response).to be_ok
       expect(last_response.body).to include('<!DOCTYPE html>')
@@ -42,7 +42,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
       allow(Services::GpsCacheService).to receive_messages(cached_location: mock_location, cached_proximity: mock_proximity)
     end
 
-    it 'returns current location with proximity data' do
+    it 'returns current location with proximity data', :vcr do
       get '/api/v1/gps/location'
       expect(last_response).to be_ok
       expect(last_response.content_type).to include('application/json')
@@ -71,7 +71,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
         allow(Services::GpsCacheService).to receive_messages(cached_location: mock_location, cached_proximity: mock_proximity)
       end
 
-      it 'returns proximity data' do
+      it 'returns proximity data', :vcr do
         get '/api/v1/gps/proximity'
         expect(last_response).to be_ok
 
@@ -86,7 +86,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
         allow(Services::GpsCacheService).to receive(:cached_location).and_return({})
       end
 
-      it 'returns empty proximity data' do
+      it 'returns empty proximity data', :vcr do
         get '/api/v1/gps/proximity'
         expect(last_response).to be_ok
 
@@ -100,7 +100,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
   end
 
   describe 'GET /api/v1/gps/history' do
-    it 'returns location history' do
+    it 'returns location history', :vcr do
       get '/api/v1/gps/history'
       expect(last_response).to be_ok
       expect(last_response.content_type).to include('application/json')
@@ -118,7 +118,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
     end
 
     context 'when specifying hours parameter' do
-      it 'accepts hours parameter' do
+      it 'accepts hours parameter', :vcr do
         get '/api/v1/gps/history?hours=48'
         expect(last_response).to be_ok
 
@@ -135,7 +135,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
 
     %w[streets toilets blocks plazas].each do |gis_type|
       describe "GET /api/v1/gis/#{gis_type}" do
-        it "serves #{gis_type} GeoJSON file" do
+        it "serves #{gis_type} GeoJSON file", :vcr do
           geojson_file = File.join(GlitchCubeApp.settings.root, 'data', 'gis', "#{gis_type == 'streets' ? 'street_lines' : gis_type}.geojson")
 
           if File.exist?(geojson_file)

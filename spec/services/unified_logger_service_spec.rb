@@ -21,7 +21,7 @@ RSpec.describe Services::UnifiedLoggerService do
   end
 
   describe '.setup!' do
-    it 'initializes the logger successfully' do
+    it 'initializes the logger successfully', :vcr do
       expect { described_class.setup! }.not_to raise_error
       expect(described_class.logger).not_to be_nil
     end
@@ -30,7 +30,7 @@ RSpec.describe Services::UnifiedLoggerService do
   describe '.info, .warn, .error, .debug' do
     before { described_class.setup! }
 
-    it 'logs messages with appropriate levels' do
+    it 'logs messages with appropriate levels', :vcr do
       expect { described_class.info('Test info message') }.not_to raise_error
       expect { described_class.warn('Test warning') }.not_to raise_error
       expect { described_class.error('Test error') }.not_to raise_error
@@ -41,7 +41,7 @@ RSpec.describe Services::UnifiedLoggerService do
   describe 'contextual logging' do
     before { described_class.setup! }
 
-    it 'supports context blocks' do
+    it 'supports context blocks', :vcr do
       expect do
         described_class.with_context(request_id: 'req-123', user: 'test') do
           described_class.info('Processing request')
@@ -50,7 +50,7 @@ RSpec.describe Services::UnifiedLoggerService do
       end.not_to raise_error
     end
 
-    it 'supports nested contexts' do
+    it 'supports nested contexts', :vcr do
       expect do
         described_class.with_context(session_id: 'sess-456') do
           described_class.info('Starting session')
@@ -66,7 +66,7 @@ RSpec.describe Services::UnifiedLoggerService do
   describe 'structured logging methods' do
     before { described_class.setup! }
 
-    it 'logs API calls with structured data' do
+    it 'logs API calls with structured data', :vcr do
       expect do
         described_class.api_call(
           service: 'openrouter',
@@ -79,7 +79,7 @@ RSpec.describe Services::UnifiedLoggerService do
       end.not_to raise_error
     end
 
-    it 'logs conversations with metadata' do
+    it 'logs conversations with metadata', :vcr do
       expect do
         described_class.conversation(
           user_message: 'Hello',
@@ -91,7 +91,7 @@ RSpec.describe Services::UnifiedLoggerService do
       end.not_to raise_error
     end
 
-    it 'logs system events' do
+    it 'logs system events', :vcr do
       expect do
         described_class.system_event(
           event: 'battery_low',

@@ -63,7 +63,7 @@ RSpec.describe 'Conversation Summarizer Integration' do
       ]
     end
 
-    it 'summarizes a complete conversation', vcr: { cassette_name: 'conversation_summarizer' } do
+    it 'summarizes a complete conversation', :vcr do
       summary = summarizer.summarize_conversation(conversation_messages)
 
       expect(summary).to be_a(String)

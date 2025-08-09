@@ -9,7 +9,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
   end
 
   describe 'GET /kiosk' do
-    it 'serves the kiosk web interface' do
+    it 'serves the kiosk web interface', :vcr do
       get '/kiosk'
 
       expect(last_response.status).to eq(200)
@@ -21,7 +21,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
       expect(last_response.body).to include('Recent Interactions')
     end
 
-    it 'includes CSS for mood-specific styling' do
+    it 'includes CSS for mood-specific styling', :vcr do
       get '/kiosk'
 
       expect(last_response.body).to include('.mood-playful')
@@ -31,7 +31,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
       expect(last_response.body).to include('.mood-offline')
     end
 
-    it 'includes JavaScript for reactive updates' do
+    it 'includes JavaScript for reactive updates', :vcr do
       get '/kiosk'
 
       expect(last_response.body).to include('KioskDisplay')
@@ -82,7 +82,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
                                                                    ])
       end
 
-      it 'returns comprehensive kiosk status' do
+      it 'returns comprehensive kiosk status', :vcr do
         get '/api/v1/kiosk/status'
 
         expect(last_response.status).to eq(200)
@@ -113,7 +113,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
         )
       end
 
-      it 'includes mood-specific inner thoughts' do
+      it 'includes mood-specific inner thoughts', :vcr do
         Services::KioskService.current_mood = 'playful'
 
         get '/api/v1/kiosk/status'
@@ -136,7 +136,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
                                                                               ])
       end
 
-      it 'returns degraded status with fallback data' do
+      it 'returns degraded status with fallback data', :vcr do
         get '/api/v1/kiosk/status'
 
         expect(last_response.status).to eq(200)
@@ -153,7 +153,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
           .and_raise(StandardError.new('General failure'))
       end
 
-      it 'returns offline fallback state' do
+      it 'returns offline fallback state', :vcr do
         get '/api/v1/kiosk/status'
 
         expect(last_response.status).to eq(200)
@@ -178,7 +178,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
       Services::Kiosk::StateManager.reset!
     end
 
-    it 'updates kiosk display when conversation happens' do
+    it 'updates kiosk display when conversation happens', :vcr do
       # Mock LLM service
       mock_response = instance_double(
         Services::LLMResponse,
@@ -227,7 +227,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
       Services::Kiosk::StateManager.reset!
     end
 
-    it 'updates mood and adds corresponding thought' do
+    it 'updates mood and adds corresponding thought', :vcr do
       Services::KioskService.update_mood('contemplative')
 
       expect(Services::KioskService.current_mood).to eq('contemplative')
@@ -236,7 +236,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
       )
     end
 
-    it 'updates interaction data' do
+    it 'updates interaction data', :vcr do
       interaction_data = {
         message: 'Test message',
         response: 'Test response'
@@ -251,7 +251,7 @@ RSpec.describe 'Kiosk Interface API', type: :request do
       )
     end
 
-    it 'manages inner thoughts with limit of 5' do
+    it 'manages inner thoughts with limit of 5', :vcr do
       7.times { |i| Services::KioskService.add_inner_thought("Thought #{i}") }
 
       thoughts = Services::KioskService.inner_thoughts

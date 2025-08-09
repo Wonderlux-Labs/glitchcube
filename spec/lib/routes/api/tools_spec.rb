@@ -11,26 +11,25 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
   end
 
   let(:conversation_handler_service) { instance_double(Services::ConversationHandlerService) }
-  let(:tool_agent) { double('tool_agent') }
-  let(:ha_agent) { double('home_assistant_agent') }
 
   before do
     allow(Services::ConversationHandlerService).to receive(:new).and_return(conversation_handler_service)
-    allow(conversation_handler_service).to receive_messages(tool_agent: tool_agent, home_assistant_agent: ha_agent)
   end
 
   describe 'POST /api/v1/tool_test' do
     let(:tool_response) do
       {
-        answer: 'Battery level is at 85%. System temperature is 72°F. All sensors are functioning normally.'
+        response: 'Battery level is at 85%. System temperature is 72°F. All sensors are functioning normally.',
+        conversation_id: SecureRandom.uuid,
+        session_id: SecureRandom.uuid
       }
     end
 
     before do
-      allow(tool_agent).to receive(:call).and_return(tool_response)
+      allow(conversation_handler_service).to receive(:process_conversation).and_return(tool_response)
     end
 
-    it 'processes tool test requests using ReAct pattern' do
+    it 'processes tool test requests using ReAct pattern', :vcr do
       post '/api/v1/tool_test',
            { message: 'Tell me about the battery status' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -44,32 +43,34 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
       expect(body).to have_key('timestamp')
     end
 
-    it 'uses default message when none provided' do
+    it 'uses default message when none provided', :vcr do
       post '/api/v1/tool_test',
            {}.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
       expect(last_response).to be_ok
 
-      expect(tool_agent).to have_received(:call).with(
-        question: 'Tell me about the battery status'
+      expect(conversation_handler_service).to have_received(:process_conversation).with(
+        message: 'Tell me about the battery status',
+        context: { tool_focused: true }
       )
     end
 
-    it 'passes custom messages to tool agent' do
+    it 'passes custom messages to tool agent', :vcr do
       custom_message = 'What is the current temperature and humidity?'
 
       post '/api/v1/tool_test',
            { message: custom_message }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
-      expect(tool_agent).to have_received(:call).with(
-        question: custom_message
+      expect(conversation_handler_service).to have_received(:process_conversation).with(
+        message: custom_message,
+        context: { tool_focused: true }
       )
     end
 
-    it 'handles tool agent errors gracefully' do
-      allow(tool_agent).to receive(:call).and_raise(StandardError, 'Tool execution failed')
+    it 'handles tool agent errors gracefully', :vcr do
+      allow(conversation_handler_service).to receive(:process_conversation).and_raise(StandardError, 'Tool execution failed')
 
       post '/api/v1/tool_test',
            { message: 'Test message' }.to_json,
@@ -84,12 +85,12 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
       expect(body['backtrace']).to be_an(Array)
     end
 
-    it 'includes limited backtrace in error responses' do
+    it 'includes limited backtrace in error responses', :vcr do
       backtrace = (1..10).map { |i| "line #{i}" }
       error = StandardError.new('Test error')
       allow(error).to receive(:backtrace).and_return(backtrace)
 
-      allow(tool_agent).to receive(:call).and_raise(error)
+      allow(conversation_handler_service).to receive(:process_conversation).and_raise(error)
 
       post '/api/v1/tool_test',
            { message: 'Test' }.to_json,
@@ -108,10 +109,10 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
     end
 
     before do
-      allow(ha_agent).to receive(:call).and_return(ha_response)
+      allow(conversation_handler_service).to receive(:process_conversation).and_return(ha_response)
     end
 
-    it 'processes Home Assistant integration requests' do
+    it 'processes Home Assistant integration requests', :vcr do
       post '/api/v1/home_assistant',
            { message: 'Check all sensors and set the light to blue' }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
@@ -126,44 +127,47 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
       expect(body).to have_key('timestamp')
     end
 
-    it 'uses default message when none provided' do
+    it 'uses default message when none provided', :vcr do
       post '/api/v1/home_assistant',
            {}.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
       expect(last_response).to be_ok
 
-      expect(ha_agent).to have_received(:call).with(
-        request: 'Check all sensors and set the light to blue'
+      expect(conversation_handler_service).to have_received(:process_conversation).with(
+        message: 'Check all sensors and set the light to blue',
+        context: { voice_interaction: true, ha_focused: true }
       )
     end
 
-    it 'handles sensor status requests' do
+    it 'handles sensor status requests', :vcr do
       sensor_message = 'What are all the current sensor readings?'
 
       post '/api/v1/home_assistant',
            { message: sensor_message }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
-      expect(ha_agent).to have_received(:call).with(
-        request: sensor_message
+      expect(conversation_handler_service).to have_received(:process_conversation).with(
+        message: sensor_message,
+        context: { voice_interaction: true, ha_focused: true }
       )
     end
 
-    it 'handles device control requests' do
+    it 'handles device control requests', :vcr do
       control_message = 'Turn the RGB light to red and increase brightness to 80%'
 
       post '/api/v1/home_assistant',
            { message: control_message }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
-      expect(ha_agent).to have_received(:call).with(
-        request: control_message
+      expect(conversation_handler_service).to have_received(:process_conversation).with(
+        message: control_message,
+        context: { voice_interaction: true, ha_focused: true }
       )
     end
 
-    it 'handles Home Assistant agent errors gracefully' do
-      allow(ha_agent).to receive(:call).and_raise(StandardError, 'HA connection failed')
+    it 'handles Home Assistant agent errors gracefully', :vcr do
+      allow(conversation_handler_service).to receive(:process_conversation).and_raise(StandardError, 'HA connection failed')
 
       post '/api/v1/home_assistant',
            { message: 'Turn on lights' }.to_json,
@@ -177,7 +181,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
       expect(body['backtrace']).to be_an(Array)
     end
 
-    it 'can handle multiple simultaneous requests' do
+    it 'can handle multiple simultaneous requests', :vcr do
       complex_message = 'Check battery level, if below 20% turn light red and speak a low battery warning, otherwise turn light green'
 
       post '/api/v1/home_assistant',
@@ -185,8 +189,9 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
            { 'CONTENT_TYPE' => 'application/json' }
 
       expect(last_response).to be_ok
-      expect(ha_agent).to have_received(:call).with(
-        request: complex_message
+      expect(conversation_handler_service).to have_received(:process_conversation).with(
+        message: complex_message,
+        context: { voice_interaction: true, ha_focused: true }
       )
     end
   end

@@ -132,8 +132,14 @@ module Services
         return parsed_content[:continue_conversation] if parsed_content.key?(:continue_conversation)
       end
 
+      # Fallback: try to extract from response text if it looks like JSON
+      if content && content.include?('"continue_conversation"')
+        match = content.match(/"continue_conversation"\s*:\s*(true|false)/)
+        return match[1] == 'true' if match
+      end
+
       # Return nil when not specified, let ConversationModule decide the safe default
-      false
+      nil
     end
 
     # Get the main response text (handles structured and unstructured)

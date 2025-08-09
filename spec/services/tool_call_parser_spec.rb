@@ -30,7 +30,7 @@ RSpec.describe Services::ToolCallParser do
 
       let(:llm_response) { Services::LLMResponse.new(raw_response) }
 
-      it 'parses tool calls from LLM response' do
+      it 'parses tool calls from LLM response', :vcr do
         tool_calls = described_class.parse(llm_response)
 
         expect(tool_calls).to be_an(Array)
@@ -66,7 +66,7 @@ RSpec.describe Services::ToolCallParser do
 
       let(:llm_response) { Services::LLMResponse.new(raw_response) }
 
-      it 'parses all tool calls' do
+      it 'parses all tool calls', :vcr do
         tool_calls = described_class.parse(llm_response)
 
         expect(tool_calls.size).to eq(2)
@@ -89,7 +89,7 @@ RSpec.describe Services::ToolCallParser do
 
       let(:llm_response) { Services::LLMResponse.new(raw_response) }
 
-      it 'returns empty array' do
+      it 'returns empty array', :vcr do
         expect(described_class.parse(llm_response)).to eq([])
       end
     end
@@ -115,7 +115,7 @@ RSpec.describe Services::ToolCallParser do
 
       let(:llm_response) { Services::LLMResponse.new(raw_response) }
 
-      it 'attempts to extract arguments with fallback' do
+      it 'attempts to extract arguments with fallback', :vcr do
         tool_calls = described_class.parse(llm_response)
 
         expect(tool_calls.size).to eq(1)
@@ -139,7 +139,7 @@ RSpec.describe Services::ToolCallParser do
         }
       end
 
-      it 'parses the tool call correctly' do
+      it 'parses the tool call correctly', :vcr do
         result = described_class.parse_single_tool_call(tool_call)
 
         expect(result[:id]).to eq('test_id')
@@ -156,7 +156,7 @@ RSpec.describe Services::ToolCallParser do
         }
       end
 
-      it 'generates an id' do
+      it 'generates an id', :vcr do
         result = described_class.parse_single_tool_call(tool_call)
 
         expect(result[:id]).to start_with('tool_')
@@ -174,7 +174,7 @@ RSpec.describe Services::ToolCallParser do
         }
       end
 
-      it 'uses arguments as-is' do
+      it 'uses arguments as-is', :vcr do
         result = described_class.parse_single_tool_call(tool_call)
 
         expect(result[:arguments]).to eq({ already: 'parsed' })
@@ -188,7 +188,7 @@ RSpec.describe Services::ToolCallParser do
         }
       end
 
-      it 'returns empty hash for arguments' do
+      it 'returns empty hash for arguments', :vcr do
         result = described_class.parse_single_tool_call(tool_call)
 
         expect(result[:arguments]).to eq({})
@@ -197,7 +197,7 @@ RSpec.describe Services::ToolCallParser do
   end
 
   describe '.extract_fallback_arguments' do
-    it 'extracts key-value pairs from malformed JSON' do
+    it 'extracts key-value pairs from malformed JSON', :vcr do
       input = 'action: "get_sensors", params: "{}"'
       result = described_class.extract_fallback_arguments(input)
 
@@ -205,7 +205,7 @@ RSpec.describe Services::ToolCallParser do
       expect(result[:params]).to eq('{}')
     end
 
-    it 'handles unquoted values' do
+    it 'handles unquoted values', :vcr do
       input = 'count: 5, enabled: true'
       result = described_class.extract_fallback_arguments(input)
 
@@ -215,12 +215,12 @@ RSpec.describe Services::ToolCallParser do
   end
 
   describe '.tool_available?' do
-    it 'returns true for existing tools' do
+    it 'returns true for existing tools', :vcr do
       # TestTool should exist in test environment
       expect(described_class.tool_available?('test')).to be true
     end
 
-    it 'returns false for non-existent tools' do
+    it 'returns false for non-existent tools', :vcr do
       expect(described_class.tool_available?('nonexistent')).to be false
     end
   end
@@ -233,7 +233,7 @@ RSpec.describe Services::ToolCallParser do
       ]
     end
 
-    it 'formats tool calls for logging' do
+    it 'formats tool calls for logging', :vcr do
       formatted = described_class.format_for_logging(tool_calls)
 
       expect(formatted).to include('tool1')
@@ -242,7 +242,7 @@ RSpec.describe Services::ToolCallParser do
       expect(formatted).to include('value')
     end
 
-    it 'handles empty array' do
+    it 'handles empty array', :vcr do
       expect(described_class.format_for_logging([])).to eq('No tool calls')
     end
   end

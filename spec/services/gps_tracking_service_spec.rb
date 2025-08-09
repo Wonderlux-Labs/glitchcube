@@ -13,7 +13,7 @@ RSpec.describe Services::GpsTrackingService do
   end
 
   describe '#initialize' do
-    it 'creates a HomeAssistantClient instance' do
+    it 'creates a HomeAssistantClient instance', :vcr do
       expect(HomeAssistantClient).to receive(:new)
       described_class.new
     end
@@ -45,7 +45,7 @@ RSpec.describe Services::GpsTrackingService do
         allow(ha_client).to receive(:states).and_return(ha_states)
       end
 
-      it 'returns formatted GPS data' do
+      it 'returns formatted GPS data', :vcr do
         result = service.current_location
 
         expect(result).to include(
@@ -65,7 +65,7 @@ RSpec.describe Services::GpsTrackingService do
         allow(ha_client).to receive(:states).and_return([])
       end
 
-      it 'returns random landmark location when no GPS data available' do
+      it 'returns random landmark location when no GPS data available', :vcr do
         result = service.current_location
 
         # Should return a random landmark location
@@ -89,7 +89,7 @@ RSpec.describe Services::GpsTrackingService do
         allow(ha_client).to receive(:states).and_raise(StandardError.new('Connection failed'))
       end
 
-      it 'returns random landmark location when error occurs' do
+      it 'returns random landmark location when error occurs', :vcr do
         result = service.current_location
 
         # Should fallback to random landmark location on error
@@ -117,7 +117,7 @@ RSpec.describe Services::GpsTrackingService do
 
   describe '#detect_nearby_landmarks' do
     context 'at Burning Man' do
-      it 'detects when at Center Camp' do
+      it 'detects when at Center Camp', :vcr do
         # Get Center Camp's actual coordinates from database
         center_camp_landmark = Landmark.find_by(name: 'Center Camp')
         skip 'Center Camp landmark not found in database' unless center_camp_landmark
@@ -129,7 +129,7 @@ RSpec.describe Services::GpsTrackingService do
         expect(center_camp[:distance]).to be < 0.01 # Should be very close
       end
 
-      it 'detects multiple landmarks when in range' do
+      it 'detects multiple landmarks when in range', :vcr do
         # Find The Man coordinates and test nearby detection
         the_man_landmark = Landmark.find_by(name: 'The Man')
         skip 'The Man landmark not found in database' unless the_man_landmark
@@ -142,7 +142,7 @@ RSpec.describe Services::GpsTrackingService do
         expect(landmarks.map { |l| l[:name] }).to include('The Man')
       end
 
-      it 'returns empty array when far from all landmarks' do
+      it 'returns empty array when far from all landmarks', :vcr do
         # Far away location (San Francisco)
         landmarks = service.detect_nearby_landmarks(37.7749, -122.4194)
 
@@ -158,11 +158,11 @@ RSpec.describe Services::GpsTrackingService do
   # end
 
   describe 'LocationHelper integration' do
-    it 'has access to haversine_distance method' do
+    it 'has access to haversine_distance method', :vcr do
       expect(service).to respond_to(:haversine_distance)
     end
 
-    it 'calculates distance correctly' do
+    it 'calculates distance correctly', :vcr do
       # Test the haversine_distance method that was missing
       distance = service.haversine_distance(40.7864, -119.2065, 40.7900, -119.2100)
 
@@ -171,17 +171,17 @@ RSpec.describe Services::GpsTrackingService do
       expect(distance).to be < 1 # Should be less than 1 mile for these coordinates
     end
 
-    it 'has access to distance_from method' do
+    it 'has access to distance_from method', :vcr do
       expect(service).to respond_to(:distance_from)
     end
 
-    it 'has access to coordinates method' do
+    it 'has access to coordinates method', :vcr do
       expect(service).to respond_to(:coordinates)
     end
   end
 
   describe 'error handling' do
-    it 'handles missing configuration gracefully' do
+    it 'handles missing configuration gracefully', :vcr do
       allow(GlitchCube.config).to receive(:gps).and_raise(NoMethodError)
       allow(ha_client).to receive(:states).and_return([])
 

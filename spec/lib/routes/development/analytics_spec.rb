@@ -13,7 +13,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
   # These routes should only be available in development/test
   describe 'route availability' do
     context 'in test environment' do
-      it 'registers analytics routes' do
+      it 'registers analytics routes', :vcr do
         # Just verify the routes work by calling them
         get '/api/v1/logs/errors'
         expect(last_response).to be_ok
@@ -35,7 +35,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       allow(Services::LoggerService).to receive_messages(error_summary: error_summary, error_stats: error_stats)
     end
 
-    it 'returns error statistics' do
+    it 'returns error statistics', :vcr do
       get '/api/v1/logs/errors'
 
       expect(last_response).to be_ok
@@ -59,7 +59,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       allow(Services::CircuitBreakerService).to receive(:status).and_return(circuit_status)
     end
 
-    it 'returns circuit breaker status with action endpoints' do
+    it 'returns circuit breaker status with action endpoints', :vcr do
       get '/api/v1/logs/circuit_breakers'
 
       expect(last_response).to be_ok
@@ -79,7 +79,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       allow(Services::CircuitBreakerService).to receive(:reset_all)
     end
 
-    it 'resets all circuit breakers' do
+    it 'resets all circuit breakers', :vcr do
       post '/api/v1/logs/circuit_breakers/reset'
 
       expect(last_response).to be_ok
@@ -127,7 +127,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       )
     end
 
-    it 'returns conversation analytics with default limit' do
+    it 'returns conversation analytics with default limit', :vcr do
       get '/api/v1/analytics/conversations'
 
       expect(last_response).to be_ok
@@ -139,7 +139,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       expect(body['conversations'].first).to include('session_id', 'started_at', 'message_count')
     end
 
-    it 'accepts custom limit parameter' do
+    it 'accepts custom limit parameter', :vcr do
       get '/api/v1/analytics/conversations?limit=1'
 
       body = JSON.parse(last_response.body)
@@ -156,7 +156,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       allow(system_prompt_service).to receive(:generate).and_return(generated_prompt)
     end
 
-    it 'returns system prompt for default character' do
+    it 'returns system prompt for default character', :vcr do
       get '/api/v1/system_prompt'
 
       expect(last_response).to be_ok
@@ -168,7 +168,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       expect(body).to have_key('timestamp')
     end
 
-    it 'returns system prompt for specific character' do
+    it 'returns system prompt for specific character', :vcr do
       get '/api/v1/system_prompt/playful'
 
       expect(last_response).to be_ok
@@ -186,7 +186,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       )
     end
 
-    it 'accepts context parameters' do
+    it 'accepts context parameters', :vcr do
       get '/api/v1/system_prompt/mysterious?location=Temple&battery=75&count=5'
 
       expect(Services::SystemPromptService).to have_received(:new).with(
@@ -201,7 +201,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
   end
 
   describe 'GET /api/v1/analytics/modules/:module_name' do
-    it 'returns analytics for specific module' do
+    it 'returns analytics for specific module', :vcr do
       get '/api/v1/analytics/modules/conversation_module'
 
       expect(last_response).to be_ok
@@ -233,7 +233,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
         allow(context_service).to receive(:list_documents).and_return(documents)
       end
 
-      it 'returns list of context documents' do
+      it 'returns list of context documents', :vcr do
         get '/api/v1/context/documents'
 
         expect(last_response).to be_ok
@@ -249,7 +249,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
         allow(context_service).to receive(:add_document).and_return(true)
       end
 
-      it 'adds new context document' do
+      it 'adds new context document', :vcr do
         document_data = {
           filename: 'new_guide.txt',
           content: 'This is a guide...',
@@ -273,7 +273,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
         )
       end
 
-      it 'handles missing metadata gracefully' do
+      it 'handles missing metadata gracefully', :vcr do
         document_data = {
           filename: 'simple.txt',
           content: 'Simple content'
@@ -290,7 +290,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
         )
       end
 
-      it 'handles service errors' do
+      it 'handles service errors', :vcr do
         allow(context_service).to receive(:add_document).and_raise(StandardError, 'Storage failed')
 
         post '/api/v1/context/documents',
@@ -317,7 +317,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
         allow(context_service).to receive(:retrieve_context).and_return(search_results)
       end
 
-      it 'searches context documents' do
+      it 'searches context documents', :vcr do
         search_data = { query: 'installation guide', k: 3 }
 
         post '/api/v1/context/search',
@@ -334,7 +334,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
         expect(context_service).to have_received(:retrieve_context).with('installation guide', k: 3)
       end
 
-      it 'uses default k value when not provided' do
+      it 'uses default k value when not provided', :vcr do
         search_data = { query: 'test query' }
 
         post '/api/v1/context/search',

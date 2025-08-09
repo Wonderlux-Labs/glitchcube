@@ -18,7 +18,7 @@ RSpec.describe MissedDeploymentWorker do
 
   describe '#perform' do
     context 'when deployment succeeds' do
-      it 'executes deployment and logs success' do
+      it 'executes deployment and logs success', :vcr do
         # Mock successful deployment results
         success_results = [
           { step: 'git_pull', success: true, message: 'Git pull completed' },
@@ -48,7 +48,7 @@ RSpec.describe MissedDeploymentWorker do
     end
 
     context 'when deployment fails' do
-      it 'raises error and logs failure' do
+      it 'raises error and logs failure', :vcr do
         # Mock failed deployment results
         failed_results = [
           { step: 'git_pull', success: true, message: 'Git pull completed' },
@@ -77,7 +77,7 @@ RSpec.describe MissedDeploymentWorker do
     end
 
     context 'when deployment raises exception' do
-      it 'logs error and re-raises for Sidekiq retry' do
+      it 'logs error and re-raises for Sidekiq retry', :vcr do
         error = StandardError.new('Git connection failed')
 
         allow(GlitchCube::Routes::Api::Deployment)
@@ -101,7 +101,7 @@ RSpec.describe MissedDeploymentWorker do
     end
 
     context 'with minimal deployment info' do
-      it 'uses defaults for missing fields' do
+      it 'uses defaults for missing fields', :vcr do
         minimal_info = { 'commit_sha' => 'def456' }
 
         allow(GlitchCube::Routes::Api::Deployment)
@@ -121,7 +121,7 @@ RSpec.describe MissedDeploymentWorker do
   end
 
   describe 'Sidekiq configuration' do
-    it 'has correct queue and retry settings' do
+    it 'has correct queue and retry settings', :vcr do
       expect(described_class.sidekiq_options_hash).to include(
         'queue' => :default, # Sidekiq uses symbols for queue names
         'retry' => 2

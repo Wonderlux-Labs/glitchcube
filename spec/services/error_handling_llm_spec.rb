@@ -17,7 +17,7 @@ RSpec.describe Services::ErrorHandlingLLM do
 
   describe '#initialize' do
     context 'when Redis is available' do
-      it 'initializes with Redis connection' do
+      it 'initializes with Redis connection', :vcr do
         expect(service.instance_variable_get(:@redis)).to eq(redis)
       end
     end
@@ -27,12 +27,12 @@ RSpec.describe Services::ErrorHandlingLLM do
         allow(Redis).to receive(:new).and_raise(Redis::CannotConnectError, 'Connection refused')
       end
 
-      it 'handles Redis connection error gracefully' do
+      it 'handles Redis connection error gracefully', :vcr do
         service = described_class.new
         expect(service.instance_variable_get(:@redis)).to be_nil
       end
 
-      it 'logs the Redis connection failure' do
+      it 'logs the Redis connection failure', :vcr do
         expect(logger).to receive(:log_api_call).with(
           hash_including(
             service: 'ErrorHandlingLLM',
@@ -57,7 +57,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         )
       end
 
-      it 'logs the error but does not attempt to fix' do
+      it 'logs the error but does not attempt to fix', :vcr do
         expect(logger).to receive(:log_api_call).with(
           hash_including(
             service: 'ErrorHandlingLLM',
@@ -89,7 +89,7 @@ RSpec.describe Services::ErrorHandlingLLM do
           allow(redis).to receive(:exists?).with(/fixed_errors/).and_return(true)
         end
 
-        it 'returns already_analyzed status' do
+        it 'returns already_analyzed status', :vcr do
           result = service.handle_error(error, context)
           expect(result[:action]).to eq('already_analyzed')
           expect(result[:message]).to include('Fix already proposed')
@@ -97,7 +97,7 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       context 'with first occurrence of error' do
-        it 'tracks the error but does not attempt fix' do
+        it 'tracks the error but does not attempt fix', :vcr do
           expect(redis).to receive(:incr).with(/error_count/).and_return(1)
           expect(redis).to receive(:expire).with(/error_count/, 3600)
 
@@ -112,7 +112,7 @@ RSpec.describe Services::ErrorHandlingLLM do
           allow(redis).to receive(:incr).and_return(2)
         end
 
-        it 'tracks but does not fix' do
+        it 'tracks but does not fix', :vcr do
           result = service.handle_error(error, context)
           expect(result[:action]).to eq('tracked')
           expect(result[:occurrence_count]).to eq(2)
@@ -124,7 +124,7 @@ RSpec.describe Services::ErrorHandlingLLM do
           allow(redis).to receive(:incr).and_return(3)
         end
 
-        it 'assesses criticality of the error' do
+        it 'assesses criticality of the error', :vcr do
           expect(service).to receive(:assess_criticality).and_return({ critical: false, confidence: 0.5 })
 
           service.handle_error(error, context)
@@ -139,7 +139,7 @@ RSpec.describe Services::ErrorHandlingLLM do
                                                                       })
           end
 
-          it 'attempts self-healing in DRY_RUN mode' do
+          it 'attempts self-healing in DRY_RUN mode', :vcr do
             expect(service).to receive(:attempt_self_healing).and_return({
                                                                            action: 'fix_proposed',
                                                                            success: true,
@@ -161,7 +161,7 @@ RSpec.describe Services::ErrorHandlingLLM do
                                                                       })
           end
 
-          it 'monitors but does not attempt fix' do
+          it 'monitors but does not attempt fix', :vcr do
             expect(service).not_to receive(:attempt_self_healing)
 
             result = service.handle_error(error, context)
@@ -179,7 +179,7 @@ RSpec.describe Services::ErrorHandlingLLM do
                                                                       })
           end
 
-          it 'monitors but does not attempt fix' do
+          it 'monitors but does not attempt fix', :vcr do
             expect(service).not_to receive(:attempt_self_healing)
 
             result = service.handle_error(error, context)
@@ -195,7 +195,7 @@ RSpec.describe Services::ErrorHandlingLLM do
           service.instance_variable_set(:@redis, redis)
         end
 
-        it 'falls back to in-memory tracking' do
+        it 'falls back to in-memory tracking', :vcr do
           result = service.handle_error(error, context)
           expect(result[:action]).to eq('tracked')
           expect(result[:occurrence_count]).to eq(1)
@@ -208,7 +208,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         allow(GlitchCube.config).to receive(:self_healing_enabled?).and_raise('Unexpected error')
       end
 
-      it 'handles unexpected errors gracefully' do
+      it 'handles unexpected errors gracefully', :vcr do
         result = service.handle_error(error, context)
         expect(result[:action]).to eq('handler_failed')
         expect(result[:error]).to include('Unexpected error')
@@ -225,7 +225,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         allow(service).to receive(:rate_limit_exceeded?).and_return(false)
       end
 
-      it 'uses LLM to analyze error criticality' do
+      it 'uses LLM to analyze error criticality', :vcr do
         expect(OpenRouterService).to receive(:complete).with(
           anything,
           model: 'openai/gpt-4o-mini',
@@ -245,7 +245,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         expect(result[:suggested_fix]).to eq('Add nil check before method call')
       end
 
-      it 'handles malformed JSON response' do
+      it 'handles malformed JSON response', :vcr do
         expect(OpenRouterService).to receive(:complete).and_return('not json')
 
         result = service.assess_criticality(error, context)
@@ -254,7 +254,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         expect(result[:reason]).to eq('Unknown')
       end
 
-      it 'handles LLM errors gracefully' do
+      it 'handles LLM errors gracefully', :vcr do
         expect(OpenRouterService).to receive(:complete).and_raise('API Error')
 
         result = service.assess_criticality(error, context)
@@ -269,7 +269,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         allow(service).to receive(:rate_limit_exceeded?).and_return(true)
       end
 
-      it 'returns low confidence without calling LLM' do
+      it 'returns low confidence without calling LLM', :vcr do
         expect(OpenRouterService).not_to receive(:complete)
 
         result = service.assess_criticality(error, context)
@@ -313,7 +313,7 @@ RSpec.describe Services::ErrorHandlingLLM do
                                                                       })
         end
 
-        it 'proposes fix without applying' do
+        it 'proposes fix without applying', :vcr do
           expect(service).to receive(:save_proposed_fix)
           expect(service).not_to receive(:apply_and_deploy_fix)
 
@@ -335,7 +335,7 @@ RSpec.describe Services::ErrorHandlingLLM do
                                                                       })
         end
 
-        it 'applies the fix and deploys' do
+        it 'applies the fix and deploys', :vcr do
           expect(service).to receive(:apply_and_deploy_fix).and_return({
                                                                          deployed: true,
                                                                          commit_sha: 'abc123'
@@ -356,7 +356,7 @@ RSpec.describe Services::ErrorHandlingLLM do
                                                                       })
         end
 
-        it 'returns fix_failed' do
+        it 'returns fix_failed', :vcr do
           result = service.attempt_self_healing(error, context, analysis)
           expect(result[:action]).to eq('fix_failed')
           expect(result[:success]).to be false
@@ -374,7 +374,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         }
       end
 
-      it 'does not attempt fix' do
+      it 'does not attempt fix', :vcr do
         expect(service).not_to receive(:analyze_and_fix_code)
 
         result = service.attempt_self_healing(error, context, analysis)
@@ -409,7 +409,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         end)
       end
 
-      it 'uses Task agent to analyze and fix code' do
+      it 'uses Task agent to analyze and fix code', :vcr do
         result = service.analyze_and_fix_code(error, context)
         expect(result[:success]).to be true
         expect(result[:description]).to eq('Added defensive nil check')
@@ -422,7 +422,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         hide_const('Task')
       end
 
-      it 'falls back to direct LLM call' do
+      it 'falls back to direct LLM call', :vcr do
         expect(OpenRouterService).to receive(:complete).and_return(
           JSON.generate({
                           success: true,
@@ -449,7 +449,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         end)
       end
 
-      it 'handles agent errors gracefully' do
+      it 'handles agent errors gracefully', :vcr do
         result = service.analyze_and_fix_code(error, context)
         expect(result[:success]).to be false
         expect(result[:error]).to include('Agent error')
@@ -474,7 +474,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         allow(service).to receive_messages(system: true, '`': 'abc123def')
       end
 
-      it 'creates a feature branch and pushes the fix' do
+      it 'creates a feature branch and pushes the fix', :vcr do
         expect(service).to receive(:system).with(%r{git checkout -b auto-fix/}).and_return(true)
         expect(service).to receive(:system).with('git add lib/services/tts_service.rb').and_return(true)
         expect(service).to receive(:system).with(/git commit/).and_return(true)
@@ -486,7 +486,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         expect(result[:branch]).to match(%r{^auto-fix/})
       end
 
-      it 'stores rollback information' do
+      it 'stores rollback information', :vcr do
         expect(redis).to receive(:set).with('glitchcube:rollback_sha', 'abc123def')
         expect(redis).to receive(:expire).with('glitchcube:rollback_sha', 86_400)
 
@@ -499,7 +499,7 @@ RSpec.describe Services::ErrorHandlingLLM do
           allow(service).to receive(:`).with(/gh pr create/).and_return('https://github.com/user/repo/pull/123')
         end
 
-        it 'creates a pull request' do
+        it 'creates a pull request', :vcr do
           result = service.apply_and_deploy_fix(fix)
           expect(result[:pr_url]).to eq('https://github.com/user/repo/pull/123')
         end
@@ -510,7 +510,7 @@ RSpec.describe Services::ErrorHandlingLLM do
           allow(service).to receive(:system).with('which gh > /dev/null 2>&1').and_return(false)
         end
 
-        it 'skips PR creation' do
+        it 'skips PR creation', :vcr do
           result = service.apply_and_deploy_fix(fix)
           expect(result[:pr_url]).to be_nil
           expect(result[:deployed]).to be true
@@ -523,7 +523,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         allow(service).to receive(:system).and_return(false)
       end
 
-      it 'returns failure without pushing' do
+      it 'returns failure without pushing', :vcr do
         result = service.apply_and_deploy_fix(fix)
         expect(result[:deployed]).to be false
         expect(result[:error]).to include('Failed to create branch')
@@ -540,7 +540,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         allow(service).to receive(:system).with(/git branch -D/).and_return(true)
       end
 
-      it 'cleans up branch and returns failure' do
+      it 'cleans up branch and returns failure', :vcr do
         expect(service).to receive(:system).with(/git branch -D auto-fix/)
 
         result = service.apply_and_deploy_fix(fix)
@@ -557,7 +557,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         allow(service).to receive(:system).and_return(true)
       end
 
-      it 'reverts to previous commit' do
+      it 'reverts to previous commit', :vcr do
         expect(service).to receive(:system).with('git revert --no-edit abc123').and_return(true)
         expect(service).to receive(:system).with('git push origin main').and_return(true)
         expect(redis).to receive(:del).with('glitchcube:rollback_sha')
@@ -573,7 +573,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         allow(redis).to receive(:get).and_return(nil)
       end
 
-      it 'returns error' do
+      it 'returns error', :vcr do
         result = service.rollback_last_fix
         expect(result[:success]).to be false
         expect(result[:error]).to include('No recent fix to rollback')
@@ -585,7 +585,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         service.instance_variable_set(:@redis, nil)
       end
 
-      it 'returns error' do
+      it 'returns error', :vcr do
         result = service.rollback_last_fix
         expect(result[:success]).to be false
         expect(result[:error]).to include('Redis not available')
@@ -595,14 +595,14 @@ RSpec.describe Services::ErrorHandlingLLM do
 
   describe 'rate limiting' do
     context 'with Redis available' do
-      it 'tracks rate limits in Redis' do
+      it 'tracks rate limits in Redis', :vcr do
         expect(redis).to receive(:incr).with('glitchcube:llm_rate_limit').and_return(1)
         expect(redis).to receive(:expire).with('glitchcube:llm_rate_limit', 60)
 
         expect(service.send(:rate_limit_exceeded?)).to be false
       end
 
-      it 'detects when rate limit is exceeded' do
+      it 'detects when rate limit is exceeded', :vcr do
         expect(redis).to receive(:incr).with('glitchcube:llm_rate_limit').and_return(11)
 
         expect(service.send(:rate_limit_exceeded?)).to be true
@@ -614,7 +614,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         allow(redis).to receive(:incr).and_raise(Redis::BaseError)
       end
 
-      it 'falls back to in-memory rate limiting' do
+      it 'falls back to in-memory rate limiting', :vcr do
         # First 10 calls should be allowed
         10.times do
           expect(service.send(:rate_limit_exceeded?)).to be false
@@ -641,7 +641,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         end)
       end
 
-      it 'saves to database' do
+      it 'saves to database', :vcr do
         expect(ProposedFix).to receive(:create!).with(
           hash_including(
             error_class: 'StandardError',
@@ -661,7 +661,7 @@ RSpec.describe Services::ErrorHandlingLLM do
         allow(File).to receive(:open)
       end
 
-      it 'falls back to file logging' do
+      it 'falls back to file logging', :vcr do
         expect(FileUtils).to receive(:mkdir_p).with(end_with('log/proposed_fixes'))
         expect(File).to receive(:open).with(/proposed_fixes\.jsonl/, 'a')
 
@@ -669,7 +669,7 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
     end
 
-    it 'marks error as fixed in Redis' do
+    it 'marks error as fixed in Redis', :vcr do
       expect(redis).to receive(:set).with(/fixed_errors/, 'proposed', ex: 604_800)
 
       service.send(:save_proposed_fix, error, context, analysis, fix_result)

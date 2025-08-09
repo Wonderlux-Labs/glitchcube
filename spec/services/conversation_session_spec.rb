@@ -29,14 +29,14 @@ RSpec.describe Services::ConversationSession do
         allow(Conversation).to receive(:exists?).with(session_id: session_id).and_return(true)
       end
 
-      it 'loads existing session' do
+      it 'loads existing session', :vcr do
         session = described_class.find_or_create(session_id: session_id)
 
         expect(session.session_id).to eq(session_id)
         expect(session.metadata[:source]).to eq('api')
       end
 
-      it 'does not create duplicate session' do
+      it 'does not create duplicate session', :vcr do
         expect(Conversation).to receive(:find_or_create_by).once
 
         described_class.find_or_create(session_id: session_id)
@@ -59,7 +59,7 @@ RSpec.describe Services::ConversationSession do
         allow(Conversation).to receive(:exists?).with(session_id: anything).and_return(true)
       end
 
-      it 'creates new session with generated ID' do
+      it 'creates new session with generated ID', :vcr do
         allow(SecureRandom).to receive(:uuid).and_return('generated-uuid-123')
         allow(new_conversation).to receive(:session_id).and_return('generated-uuid-123')
 
@@ -68,7 +68,7 @@ RSpec.describe Services::ConversationSession do
         expect(session.session_id).to eq('generated-uuid-123')
       end
 
-      it 'creates new session with provided context' do
+      it 'creates new session with provided context', :vcr do
         context = { source: 'webhook', persona: 'playful' }
         expect(new_conversation).to receive('source=').with('webhook')
         expect(new_conversation).to receive('persona=').with('playful')
@@ -76,7 +76,7 @@ RSpec.describe Services::ConversationSession do
         described_class.find_or_create(context: context)
       end
 
-      it 'saves new session to database' do
+      it 'saves new session to database', :vcr do
         expect(Conversation).to receive(:find_or_create_by).with(session_id: session_id)
 
         described_class.find_or_create(session_id: session_id)
@@ -90,7 +90,7 @@ RSpec.describe Services::ConversationSession do
         allow(Conversation).to receive(:find_by).with(session_id: session_id).and_return(conversation)
       end
 
-      it 'returns the session' do
+      it 'returns the session', :vcr do
         session = described_class.find(session_id)
 
         expect(session).to be_a(described_class)
@@ -103,7 +103,7 @@ RSpec.describe Services::ConversationSession do
         allow(Conversation).to receive(:find_by).with(session_id: session_id).and_return(nil)
       end
 
-      it 'returns nil' do
+      it 'returns nil', :vcr do
         session = described_class.find(session_id)
 
         expect(session).to be_nil
@@ -121,7 +121,7 @@ RSpec.describe Services::ConversationSession do
     end
 
     context 'adding user message' do
-      it 'delegates to conversation model' do
+      it 'delegates to conversation model', :vcr do
         expect(conversation).to receive(:add_message).with(
           role: 'user',
           content: 'Hello'
@@ -130,7 +130,7 @@ RSpec.describe Services::ConversationSession do
         session.add_message(role: 'user', content: 'Hello')
       end
 
-      it 'returns the created message' do
+      it 'returns the created message', :vcr do
         result = session.add_message(role: 'user', content: 'Hello')
 
         expect(result).to eq(message)
@@ -148,7 +148,7 @@ RSpec.describe Services::ConversationSession do
         )
       end
 
-      it 'updates conversation totals' do
+      it 'updates conversation totals', :vcr do
         expect(conversation).to receive(:update!).with(
           hash_including(
             total_cost: 0.001,
@@ -165,7 +165,7 @@ RSpec.describe Services::ConversationSession do
         )
       end
 
-      it 'updates persona if provided' do
+      it 'updates persona if provided', :vcr do
         expect(conversation).to receive(:update!).with(
           hash_including(persona: 'playful')
         )
@@ -191,7 +191,7 @@ RSpec.describe Services::ConversationSession do
       allow(messages_relation).to receive_messages(limit: messages_relation, reverse: [message1, message2])
     end
 
-    it 'returns messages formatted for LLM' do
+    it 'returns messages formatted for LLM', :vcr do
       allow(messages_relation).to receive(:limit).with(20).and_return(messages_relation)
 
       messages = session.messages_for_llm
@@ -202,7 +202,7 @@ RSpec.describe Services::ConversationSession do
                              ])
     end
 
-    it 'respects message limit' do
+    it 'respects message limit', :vcr do
       expect(messages_relation).to receive(:limit).with(3).and_return(messages_relation)
       allow(messages_relation).to receive(:reverse).and_return([message1, message2])
 
@@ -222,19 +222,19 @@ RSpec.describe Services::ConversationSession do
       allow(ConversationSummaryJob).to receive(:perform_async) if defined?(ConversationSummaryJob)
     end
 
-    it 'marks conversation as ended' do
+    it 'marks conversation as ended', :vcr do
       expect(conversation).to receive(:end!)
 
       session.end_conversation
     end
 
-    it 'sets end reason if provided' do
+    it 'sets end reason if provided', :vcr do
       expect(conversation).to receive(:update!).with(end_reason: 'user_goodbye')
 
       session.end_conversation(reason: 'user_goodbye')
     end
 
-    it 'returns true on success' do
+    it 'returns true on success', :vcr do
       result = session.end_conversation
 
       expect(result).to be true
@@ -256,7 +256,7 @@ RSpec.describe Services::ConversationSession do
       allow(conversation).to receive(:summary).and_return(summary_data)
     end
 
-    it 'returns session summary' do
+    it 'returns session summary', :vcr do
       summary = session.summary
 
       expect(summary[:session_id]).to eq(session_id)
@@ -270,7 +270,7 @@ RSpec.describe Services::ConversationSession do
     context 'with valid conversation' do
       let(:session) { described_class.new(conversation) }
 
-      it 'returns true when conversation exists' do
+      it 'returns true when conversation exists', :vcr do
         expect(session.exists?).to be true
       end
     end
@@ -283,7 +283,7 @@ RSpec.describe Services::ConversationSession do
         session.instance_variable_set(:@conversation, nil)
       end
 
-      it 'returns false when conversation is nil' do
+      it 'returns false when conversation is nil', :vcr do
         expect(session.exists?).to be false
       end
     end
@@ -292,13 +292,13 @@ RSpec.describe Services::ConversationSession do
   describe '#save' do
     let(:session) { described_class.new(conversation) }
 
-    it 'delegates save to conversation model' do
+    it 'delegates save to conversation model', :vcr do
       expect(conversation).to receive(:save).and_return(true)
 
       expect(session.save).to be true
     end
 
-    it 'handles conversation model save failures' do
+    it 'handles conversation model save failures', :vcr do
       expect(conversation).to receive(:save).and_return(false)
 
       expect(session.save).to be false
@@ -321,7 +321,7 @@ RSpec.describe Services::ConversationSession do
       )
     end
 
-    it 'provides compatibility metadata format' do
+    it 'provides compatibility metadata format', :vcr do
       metadata = session.metadata
 
       expect(metadata).to include(

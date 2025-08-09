@@ -66,7 +66,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
       allow(GlitchCube.config.home_assistant).to receive(:url).and_return('http://localhost:8123')
     end
 
-    it 'updates AWTRIX display with persona-based colors' do
+    it 'updates AWTRIX display with persona-based colors', :vcr do
       expect(mock_home_assistant).to receive(:awtrix_display_text).with(
         'Nice to see you!',
         color: [255, 0, 255], # Magenta for playful
@@ -85,7 +85,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
       sleep(0.1)
     end
 
-    it 'truncates long responses for display' do
+    it 'truncates long responses for display', :vcr do
       long_response = 'This is a very long response that should be truncated for the AWTRIX display'
 
       expect(mock_home_assistant).to receive(:awtrix_display_text).with(
@@ -98,7 +98,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
       sleep(0.1)
     end
 
-    it 'uses different colors for different personas' do
+    it 'uses different colors for different personas', :vcr do
       expect(mock_home_assistant).to receive(:awtrix_display_text).with(
         anything,
         hash_including(color: [0, 100, 255]) # Blue for contemplative
@@ -109,13 +109,13 @@ RSpec.describe ConversationModule, 'enhanced features' do
       sleep(0.1)
     end
 
-    it 'handles AWTRIX errors gracefully' do
+    it 'handles AWTRIX errors gracefully', :vcr do
       allow(mock_home_assistant).to receive(:awtrix_display_text).and_raise('AWTRIX error')
 
       expect { module_instance.send(:update_awtrix_display, message, response, persona) }.not_to raise_error
     end
 
-    it 'skips update when HA URL not configured' do
+    it 'skips update when HA URL not configured', :vcr do
       allow(GlitchCube.config.home_assistant).to receive(:url).and_return(nil)
 
       expect(mock_home_assistant).not_to receive(:awtrix_display_text)
@@ -127,14 +127,14 @@ RSpec.describe ConversationModule, 'enhanced features' do
   describe 'integration with conversation enhancements' do
     let(:context) { { include_sensors: true } }
 
-    it 'includes conversation enhancements module' do
+    it 'includes conversation enhancements module', :vcr do
       expect(module_instance).to respond_to(:enrich_context_with_sensors)
       expect(module_instance).to respond_to(:format_sensor_summary)
       expect(module_instance).to respond_to(:with_retry)
       expect(module_instance).to respond_to(:attempt_connection_recovery)
     end
 
-    it 'can enrich context with sensor data' do
+    it 'can enrich context with sensor data', :vcr do
       allow(mock_home_assistant).to receive_messages(battery_level: 85, temperature: 22.5, motion_detected?: false)
 
       enriched = module_instance.enrich_context_with_sensors(context)
@@ -151,7 +151,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
     let(:message) { 'How is the temperature?' }
     let(:context) { { include_sensors: true, persona: 'contemplative' } }
 
-    it 'integrates all enhancements in conversation flow' do
+    it 'integrates all enhancements in conversation flow', :vcr do
       # Mock conversation session to avoid database
       mock_session = instance_double(Services::ConversationSession,
                                      session_id: 'test-session',
@@ -181,7 +181,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
       expect(result[:continue_conversation]).to be true
     end
 
-    it 'handles failures gracefully with error recovery' do
+    it 'handles failures gracefully with error recovery', :vcr do
       # Mock conversation session to avoid database
       mock_session = instance_double(Services::ConversationSession,
                                      session_id: 'test-session',

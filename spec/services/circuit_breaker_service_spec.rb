@@ -4,13 +4,13 @@ require 'spec_helper'
 
 RSpec.describe Services::CircuitBreakerService do
   describe '.home_assistant_breaker' do
-    it 'returns a circuit breaker for home assistant' do
+    it 'returns a circuit breaker for home assistant', :vcr do
       breaker = described_class.home_assistant_breaker
       expect(breaker).to be_a(CircuitBreaker)
       expect(breaker.name).to eq('home_assistant')
     end
 
-    it 'returns the same instance on multiple calls' do
+    it 'returns the same instance on multiple calls', :vcr do
       breaker1 = described_class.home_assistant_breaker
       breaker2 = described_class.home_assistant_breaker
       expect(breaker1).to be(breaker2)
@@ -18,13 +18,13 @@ RSpec.describe Services::CircuitBreakerService do
   end
 
   describe '.openrouter_breaker' do
-    it 'returns a circuit breaker for openrouter' do
+    it 'returns a circuit breaker for openrouter', :vcr do
       breaker = described_class.openrouter_breaker
       expect(breaker).to be_a(CircuitBreaker)
       expect(breaker.name).to eq('openrouter')
     end
 
-    it 'returns the same instance on multiple calls' do
+    it 'returns the same instance on multiple calls', :vcr do
       breaker1 = described_class.openrouter_breaker
       breaker2 = described_class.openrouter_breaker
       expect(breaker1).to be(breaker2)
@@ -32,7 +32,7 @@ RSpec.describe Services::CircuitBreakerService do
   end
 
   describe '.all_breakers' do
-    it 'returns all circuit breakers' do
+    it 'returns all circuit breakers', :vcr do
       breakers = described_class.all_breakers
       expect(breakers).to contain_exactly(
         described_class.home_assistant_breaker,
@@ -42,7 +42,7 @@ RSpec.describe Services::CircuitBreakerService do
   end
 
   describe '.status' do
-    it 'returns status for all breakers' do
+    it 'returns status for all breakers', :vcr do
       status = described_class.status
       expect(status).to be_an(Array)
       expect(status.length).to eq(2)
@@ -54,7 +54,7 @@ RSpec.describe Services::CircuitBreakerService do
   end
 
   describe '.reset_all' do
-    it 'calls close! on all breakers' do
+    it 'calls close! on all breakers', :vcr do
       ha_breaker = described_class.home_assistant_breaker
       or_breaker = described_class.openrouter_breaker
 

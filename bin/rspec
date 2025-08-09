@@ -1,0 +1,18 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Simple wrapper to add VCR options to RSpec
+
+if ARGV.delete('--vcr-none')
+  ENV['VCR_NONE'] = 'true'
+  puts "🛡️ VCR None mode activated (CI emulation)"
+end
+
+if ARGV.delete('--vcr-override')
+  ENV['VCR_OVERRIDE'] = 'true'
+  puts "🔄 VCR Override mode activated"
+end
+
+# Load and run RSpec with remaining args
+require 'bundler/setup'
+load Gem.bin_path('rspec-core', 'rspec')

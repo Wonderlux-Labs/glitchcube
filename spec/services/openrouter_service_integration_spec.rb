@@ -32,13 +32,13 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
   end
 
   describe 'blacklist validation' do
-    it 'prevents using expensive models' do
+    it 'prevents using expensive models', :vcr do
       expect do
         described_class.complete('Test', model: 'openai/o1-pro')
       end.to raise_error(ArgumentError, /blacklisted due to high cost/)
     end
 
-    it 'allows safe models' do
+    it 'allows safe models', :vcr do
       mock_client = stub_openrouter_client
       expect(mock_client).to receive(:complete).and_return(mock_response)
 
@@ -48,7 +48,7 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
   end
 
   describe 'convenience methods' do
-    it 'complete_cheap uses small_cheapest preset' do
+    it 'complete_cheap uses small_cheapest preset', :vcr do
       mock_client = stub_openrouter_client
       expect(mock_client).to receive(:complete).with(
         [{ role: 'user', content: 'Test prompt' }],
@@ -62,7 +62,7 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
       described_class.complete_cheap('Test prompt')
     end
 
-    it 'complete_conversation uses conversation_small preset' do
+    it 'complete_conversation uses conversation_small preset', :vcr do
       mock_client = stub_openrouter_client
       expect(mock_client).to receive(:complete).with(
         [{ role: 'user', content: 'Test prompt' }],
@@ -76,7 +76,7 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
       described_class.complete_conversation('Test prompt')
     end
 
-    it 'analyze_image uses image_classification preset' do
+    it 'analyze_image uses image_classification preset', :vcr do
       mock_client = stub_openrouter_client
       expect(mock_client).to receive(:complete).with(
         [{ role: 'user', content: 'Analyze this image' }],
@@ -92,7 +92,7 @@ RSpec.describe OpenRouterService, 'Integration with Model Presets' do
   end
 
   describe 'preset integration' do
-    it 'validates all preset models are not blacklisted' do
+    it 'validates all preset models are not blacklisted', :vcr do
       GlitchCube::ModelPresets.preset_names.each do |preset_name|
         model = GlitchCube::ModelPresets.get_model(preset_name)
         expect(GlitchCube::ModelPresets.blacklisted?(model)).to be(false),

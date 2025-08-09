@@ -26,7 +26,7 @@ RSpec.describe Services::LoggerService do
   end
 
   describe '.setup_loggers' do
-    it 'creates log directory if it does not exist' do
+    it 'creates log directory if it does not exist', :vcr do
       FileUtils.rm_rf(log_dir)
       expect(Dir.exist?(log_dir)).to be false
 
@@ -35,7 +35,7 @@ RSpec.describe Services::LoggerService do
       expect(Dir.exist?(log_dir)).to be true
     end
 
-    it 'creates all required log files' do
+    it 'creates all required log files', :vcr do
       described_class.setup_loggers
 
       log_files = Dir.glob(File.join(log_dir, '*'))
@@ -62,7 +62,7 @@ RSpec.describe Services::LoggerService do
       }
     end
 
-    it 'logs interaction to interactions.log with proper formatting' do
+    it 'logs interaction to interactions.log with proper formatting', :vcr do
       described_class.log_interaction(**interaction_data)
 
       interactions_content = File.read(File.join(log_dir, 'interactions.log'))
@@ -74,7 +74,7 @@ RSpec.describe Services::LoggerService do
       expect(interactions_content).to include('Confidence: 95%')
     end
 
-    it 'logs interaction to general.log as JSON' do
+    it 'logs interaction to general.log as JSON', :vcr do
       described_class.general # Initialize general logger
 
       described_class.log_interaction(**interaction_data)
@@ -99,14 +99,14 @@ RSpec.describe Services::LoggerService do
       }
     end
 
-    it 'logs successful API call with success emoji' do
+    it 'logs successful API call with success emoji', :vcr do
       described_class.log_api_call(**api_data)
 
       api_content = File.read(File.join(log_dir, 'api_calls.log'))
       expect(api_content).to include('✅ HOME_ASSISTANT POST /api/services/tts/speak 200 (1250ms)')
     end
 
-    it 'logs failed API call with error emoji' do
+    it 'logs failed API call with error emoji', :vcr do
       described_class.log_api_call(
         service: 'home_assistant',
         endpoint: '/api/test',
@@ -121,7 +121,7 @@ RSpec.describe Services::LoggerService do
       expect(api_content).to include('Internal Server Error')
     end
 
-    it 'tracks errors when present' do
+    it 'tracks errors when present', :vcr do
       allow(described_class).to receive(:track_error)
 
       described_class.log_api_call(
@@ -138,7 +138,7 @@ RSpec.describe Services::LoggerService do
   describe '.log_tts' do
     before { described_class.setup_loggers }
 
-    it 'logs successful TTS with speaker emoji' do
+    it 'logs successful TTS with speaker emoji', :vcr do
       described_class.log_tts(
         message: 'Hello world!',
         success: true,
@@ -149,7 +149,7 @@ RSpec.describe Services::LoggerService do
       expect(tts_content).to include('🔊 "Hello world!"')
     end
 
-    it 'logs failed TTS with mute emoji and error' do
+    it 'logs failed TTS with mute emoji and error', :vcr do
       described_class.log_tts(
         message: 'Hello world!',
         success: false,
@@ -161,7 +161,7 @@ RSpec.describe Services::LoggerService do
       expect(tts_content).to include('🔇 "Hello world!" - TTS service unavailable')
     end
 
-    it 'truncates long messages' do
+    it 'truncates long messages', :vcr do
       long_message = 'a' * 150
 
       described_class.log_tts(
@@ -178,7 +178,7 @@ RSpec.describe Services::LoggerService do
   describe '.log_circuit_breaker' do
     before { described_class.setup_loggers }
 
-    it 'logs circuit breaker state changes with appropriate emoji' do
+    it 'logs circuit breaker state changes with appropriate emoji', :vcr do
       expect { described_class.log_circuit_breaker(name: 'test', state: :open) }
         .to output(/🔴.*test.*OPEN/).to_stdout
 
@@ -189,7 +189,7 @@ RSpec.describe Services::LoggerService do
         .to output(/🟡.*test.*HALF_OPEN/).to_stdout
     end
 
-    it 'includes reason when provided' do
+    it 'includes reason when provided', :vcr do
       expect { described_class.log_circuit_breaker(name: 'test', state: :open, reason: 'Too many failures') }
         .to output(/OPEN.*Too many failures/).to_stdout
     end
@@ -198,7 +198,7 @@ RSpec.describe Services::LoggerService do
   describe '.track_error and error statistics' do
     before { described_class.setup_loggers }
 
-    it 'tracks new errors' do
+    it 'tracks new errors', :vcr do
       described_class.track_error('test_service', 'Connection failed')
 
       stats = described_class.error_stats
@@ -210,7 +210,7 @@ RSpec.describe Services::LoggerService do
       )
     end
 
-    it 'increments count for duplicate errors' do
+    it 'increments count for duplicate errors', :vcr do
       described_class.track_error('test_service', 'Connection failed')
       described_class.track_error('test_service', 'Connection failed')
       described_class.track_error('test_service', 'Connection failed')
@@ -220,7 +220,7 @@ RSpec.describe Services::LoggerService do
       expect(error[:count]).to eq(3)
     end
 
-    it 'provides error summary' do
+    it 'provides error summary', :vcr do
       described_class.track_error('service_a', 'Error 1')
       described_class.track_error('service_a', 'Error 1')
       described_class.track_error('service_b', 'Error 2')
@@ -235,7 +235,7 @@ RSpec.describe Services::LoggerService do
                                          })
     end
 
-    it 'sorts errors by frequency in stats' do
+    it 'sorts errors by frequency in stats', :vcr do
       described_class.track_error('service_a', 'Common error')
       described_class.track_error('service_a', 'Common error')
       described_class.track_error('service_a', 'Common error')
@@ -261,7 +261,7 @@ RSpec.describe Services::LoggerService do
       FileUtils.mkdir_p(log_dir)
     end
 
-    it 'persists errors to JSON file' do
+    it 'persists errors to JSON file', :vcr do
       error_tracker.track('test_service', 'Test error')
 
       expect(File.exist?(errors_file)).to be true
@@ -271,7 +271,7 @@ RSpec.describe Services::LoggerService do
       expect(data['test_service:Test error']['count']).to eq(1)
     end
 
-    it 'loads existing errors from file' do
+    it 'loads existing errors from file', :vcr do
       # Create initial error file
       initial_data = {
         'service:error' => {
@@ -293,7 +293,7 @@ RSpec.describe Services::LoggerService do
       expect(stats.first[:count]).to eq(5)
     end
 
-    it 'handles corrupted JSON file gracefully' do
+    it 'handles corrupted JSON file gracefully', :vcr do
       File.write(errors_file, 'invalid json{')
 
       expect { error_tracker.send(:load_errors) }.not_to raise_error

@@ -70,7 +70,7 @@ RSpec.describe ConversationModule do
     let(:mood) { 'neutral' }
 
     context 'when LLM service returns a response' do
-      it 'returns the formatted response' do
+      it 'returns the formatted response', :vcr do
         result = module_instance.call(message: message, context: context, persona: mood)
 
         expect(result[:response]).to eq('Mock AI response')
@@ -80,7 +80,7 @@ RSpec.describe ConversationModule do
         expect(result[:continue_conversation]).to be(true)
       end
 
-      it 'attempts to speak the response through tools' do
+      it 'attempts to speak the response through tools', :vcr do
         # The new architecture uses tool-based TTS via execute_speech_tool
         # Since we don't provide tools in the context, it will skip TTS
         # This is expected behavior for tests without full tool setup
@@ -93,7 +93,7 @@ RSpec.describe ConversationModule do
       end
 
       # NOTE: This is tested more thoroughly in the integration tests with VCR
-      it 'logs the interaction' do
+      it 'logs the interaction', :vcr do
         # Just verify it's called - the exact parameters don't matter for this test
         expect(Services::LoggerService).to receive(:log_interaction).at_least(:once)
 
@@ -108,7 +108,7 @@ RSpec.describe ConversationModule do
       end
 
       # NOTE: These behaviors are tested more accurately in integration tests with VCR
-      it 'returns an offline fallback response' do
+      it 'returns an offline fallback response', :vcr do
         result = module_instance.call(message: message, context: context, persona: mood)
 
         # Should fall back to offline response (check for offline mode indicators)
@@ -116,7 +116,7 @@ RSpec.describe ConversationModule do
         expect(result[:error]).to eq('llm_error')
       end
 
-      it 'returns a fallback response with error flag' do
+      it 'returns a fallback response with error flag', :vcr do
         # Tool-based TTS will be skipped without proper tool context
         # Just verify the fallback response is returned properly
         result = module_instance.call(message: message, context: context, persona: mood)
@@ -135,7 +135,7 @@ RSpec.describe ConversationModule do
           .and_raise(Services::LLMService::RateLimitError.new('Rate limit exceeded'))
       end
 
-      it 'returns a rate limit response' do
+      it 'returns a rate limit response', :vcr do
         result = module_instance.call(message: message, context: context, persona: mood)
 
         expect(result[:response]).to include('pause')
@@ -149,7 +149,7 @@ RSpec.describe ConversationModule do
           .and_raise(StandardError.new('Network error'))
       end
 
-      it 'returns a fallback response' do
+      it 'returns a fallback response', :vcr do
         result = module_instance.call(message: message, context: context, persona: mood)
 
         expect(result[:response]).not_to be_nil
@@ -160,7 +160,7 @@ RSpec.describe ConversationModule do
 
     context 'with different personas' do
       %w[playful contemplative mysterious neutral].each do |persona|
-        it "handles #{persona} persona correctly" do
+        it "handles #{persona} persona correctly", :vcr do
           result = module_instance.call(message: message, context: context, persona: persona)
 
           expect(result[:persona]).to eq(persona)
@@ -193,7 +193,7 @@ RSpec.describe ConversationModule do
           .and_return(mock_session_enriched)
       end
 
-      it 'preserves context in the conversation' do
+      it 'preserves context in the conversation', :vcr do
         result = module_instance.call(message: message, context: enriched_context, persona: mood)
 
         expect(result[:session_id]).to eq('test-session')

@@ -15,7 +15,7 @@ RSpec.describe ErrorHandling do
 
   describe '#log_error' do
     context 'when reraise is true' do
-      it 'logs the error and re-raises it' do
+      it 'logs the error and re-raises it', :vcr do
         error = StandardError.new('Test error')
         context = { operation: 'test_operation' }
 
@@ -36,7 +36,7 @@ RSpec.describe ErrorHandling do
     end
 
     context 'when reraise is false' do
-      it 'logs the error without re-raising' do
+      it 'logs the error without re-raising', :vcr do
         error = StandardError.new('Test error')
         context = { operation: 'test_operation' }
 
@@ -58,7 +58,7 @@ RSpec.describe ErrorHandling do
   end
 
   describe '#handle_operational_error' do
-    it 'logs the error as operational and returns the fallback value' do
+    it 'logs the error as operational and returns the fallback value', :vcr do
       error = ErrorHandling::ServiceUnavailableError.new('Service down')
       fallback = { default: 'response' }
       context = { service: 'test_service' }
@@ -81,7 +81,7 @@ RSpec.describe ErrorHandling do
 
   describe '#with_error_handling' do
     context 'when block executes successfully' do
-      it 'returns the block result' do
+      it 'returns the block result', :vcr do
         result = instance.with_error_handling('test_operation') do
           'success'
         end
@@ -91,7 +91,7 @@ RSpec.describe ErrorHandling do
     end
 
     context 'when a CircuitBreaker::CircuitOpenError occurs' do
-      it 'handles it as an operational error and returns fallback' do
+      it 'handles it as an operational error and returns fallback', :vcr do
         # Mock the CircuitBreaker error class
         stub_const('CircuitBreaker::CircuitOpenError', Class.new(StandardError))
         error = CircuitBreaker::CircuitOpenError.new('Circuit open')
@@ -118,7 +118,7 @@ RSpec.describe ErrorHandling do
     end
 
     context 'when a network timeout occurs' do
-      it 'handles it as an operational error' do
+      it 'handles it as an operational error', :vcr do
         error = Net::OpenTimeout.new('Connection timeout')
         fallback = []
 
@@ -144,7 +144,7 @@ RSpec.describe ErrorHandling do
 
     context 'when an unexpected error occurs' do
       context 'with reraise_unexpected: true' do
-        it 'logs and re-raises the error' do
+        it 'logs and re-raises the error', :vcr do
           error = StandardError.new('Unexpected error')
 
           expect(Services::LoggerService).to receive(:log_api_call).with(
@@ -167,7 +167,7 @@ RSpec.describe ErrorHandling do
       end
 
       context 'with reraise_unexpected: false' do
-        it 'logs the error and returns fallback' do
+        it 'logs the error and returns fallback', :vcr do
           error = StandardError.new('Unexpected error')
           fallback = nil
 

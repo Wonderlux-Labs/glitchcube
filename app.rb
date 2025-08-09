@@ -4,7 +4,7 @@ require_relative 'config/environment'
 
 require 'sinatra'
 require 'sinatra/json'
-# Note: sinatra/reloader is deprecated - use 'rerun' gem in development instead
+# NOTE: sinatra/reloader is deprecated - use 'rerun' gem in development instead
 
 require 'sinatra/activerecord'
 
@@ -91,6 +91,9 @@ class GlitchCubeApp < Sinatra::Base
   register GlitchCube::Routes::Api::System
   register GlitchCube::Routes::Api::Entities
   register GlitchCube::Routes::Api::Proactive
+
+  # Mount context generation route
+  use Routes::Api::ContextGeneration
 
   # Admin routes
   register GlitchCube::Routes::Admin

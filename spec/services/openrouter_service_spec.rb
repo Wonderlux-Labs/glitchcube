@@ -32,7 +32,7 @@ RSpec.describe OpenRouterService do
   end
 
   describe '.complete' do
-    it 'makes a simple completion request' do
+    it 'makes a simple completion request', :vcr do
       mock_client = stub_client_with_mock
 
       expect(mock_client).to receive(:complete).with(
@@ -48,7 +48,7 @@ RSpec.describe OpenRouterService do
       expect(result).to eq(mock_response)
     end
 
-    it 'accepts custom options' do
+    it 'accepts custom options', :vcr do
       mock_client = stub_client_with_mock
 
       expect(mock_client).to receive(:complete).with(
@@ -67,7 +67,7 @@ RSpec.describe OpenRouterService do
       expect(result).to eq(mock_response)
     end
 
-    it 'raises error for blacklisted models' do
+    it 'raises error for blacklisted models', :vcr do
       expect do
         described_class.complete('Test prompt', model: 'openai/o1-pro')
       end.to raise_error(ArgumentError, /blacklisted due to high cost/)
@@ -75,7 +75,7 @@ RSpec.describe OpenRouterService do
   end
 
   describe '.complete_with_context' do
-    it 'handles string messages' do
+    it 'handles string messages', :vcr do
       mock_client = stub_client_with_mock
       expect(mock_client).to receive(:complete).with(
         [{ role: 'user', content: 'Simple string' }],
@@ -90,7 +90,7 @@ RSpec.describe OpenRouterService do
       expect(result).to eq(mock_response)
     end
 
-    it 'handles array of message hashes' do
+    it 'handles array of message hashes', :vcr do
       mock_client = stub_client_with_mock
       messages = [
         { role: 'user', content: 'First message' },
@@ -111,7 +111,7 @@ RSpec.describe OpenRouterService do
       expect(result).to eq(mock_response)
     end
 
-    it 'formats array of strings as user messages' do
+    it 'formats array of strings as user messages', :vcr do
       mock_client = stub_client_with_mock
       messages = ['First message', 'Second message']
       expected_messages = [
@@ -136,7 +136,7 @@ RSpec.describe OpenRouterService do
   describe '.available_models' do
     let(:mock_models) { %w[model1 model2 model3] }
 
-    it 'fetches and caches models' do
+    it 'fetches and caches models', :vcr do
       mock_client = stub_client_with_mock
       expect(mock_client).to receive(:models).once.and_return(mock_models)
 
@@ -149,7 +149,7 @@ RSpec.describe OpenRouterService do
       expect(result2).to eq(mock_models)
     end
 
-    it 'refreshes cache after expiry' do
+    it 'refreshes cache after expiry', :vcr do
       mock_client = stub_client_with_mock
       expect(mock_client).to receive(:models).twice.and_return(mock_models)
 
@@ -166,7 +166,7 @@ RSpec.describe OpenRouterService do
   end
 
   describe '.clear_cache!' do
-    it 'clears the model cache' do
+    it 'clears the model cache', :vcr do
       mock_client = stub_client_with_mock
       # Fill cache
       allow(mock_client).to receive(:models).and_return(['model1'])
@@ -184,7 +184,7 @@ RSpec.describe OpenRouterService do
 
   describe 'convenience methods' do
     describe '.complete_cheap' do
-      it 'uses the small_cheapest preset' do
+      it 'uses the small_cheapest preset', :vcr do
         mock_client = stub_client_with_mock
         expect(mock_client).to receive(:complete).with(
           [{ role: 'user', content: 'Test prompt' }],
@@ -200,7 +200,7 @@ RSpec.describe OpenRouterService do
     end
 
     describe '.complete_conversation' do
-      it 'uses the conversation_small preset' do
+      it 'uses the conversation_small preset', :vcr do
         mock_client = stub_client_with_mock
         expect(mock_client).to receive(:complete).with(
           [{ role: 'user', content: 'Test prompt' }],
@@ -216,7 +216,7 @@ RSpec.describe OpenRouterService do
     end
 
     describe '.analyze_image' do
-      it 'uses the image_classification preset' do
+      it 'uses the image_classification preset', :vcr do
         mock_client = stub_client_with_mock
         expect(mock_client).to receive(:complete).with(
           [{ role: 'user', content: 'Analyze this image' }],
@@ -234,7 +234,7 @@ RSpec.describe OpenRouterService do
 
   describe 'private methods' do
     describe '#format_messages' do
-      it 'formats different message types correctly' do
+      it 'formats different message types correctly', :vcr do
         mock_client = stub_client_with_mock
         # This tests the private method indirectly through complete_with_context
         test_cases = [

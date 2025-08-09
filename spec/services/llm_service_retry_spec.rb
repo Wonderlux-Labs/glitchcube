@@ -22,7 +22,7 @@ RSpec.describe Services::LLMService do
 
     describe '#with_retry_logic' do
       context 'with retries disabled (default in test)' do
-        it 'does not retry on errors' do
+        it 'does not retry on errors', :vcr do
           attempt_count = 0
 
           expect do
@@ -44,7 +44,7 @@ RSpec.describe Services::LLMService do
           ENV.delete('ENABLE_RETRIES')
         end
 
-        it 'retries on rate limit errors' do
+        it 'retries on rate limit errors', :vcr do
           attempt_count = 0
 
           # Don't test sleep implementation details
@@ -63,7 +63,7 @@ RSpec.describe Services::LLMService do
         end
       end
 
-      it 'does not retry authentication errors' do
+      it 'does not retry authentication errors', :vcr do
         attempt_count = 0
 
         expect do
@@ -76,7 +76,7 @@ RSpec.describe Services::LLMService do
         expect(attempt_count).to eq(1)
       end
 
-      it 'succeeds on first attempt without retries' do
+      it 'succeeds on first attempt without retries', :vcr do
         attempt_count = 0
 
         result = described_class.send(:with_retry_logic, model: 'test-model') do
@@ -88,7 +88,7 @@ RSpec.describe Services::LLMService do
         expect(attempt_count).to eq(1)
       end
 
-      it 'does not retry in test environment' do
+      it 'does not retry in test environment', :vcr do
         attempt_count = 0
 
         # In test environment, retries are disabled
@@ -105,7 +105,7 @@ RSpec.describe Services::LLMService do
     end
 
     describe '#complete_with_messages with retry' do
-      it 'does not retry in test environment' do
+      it 'does not retry in test environment', :vcr do
         call_count = 0
 
         allow(mock_client).to receive(:complete) do

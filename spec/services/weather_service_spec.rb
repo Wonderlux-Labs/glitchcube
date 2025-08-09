@@ -96,20 +96,20 @@ RSpec.describe WeatherService, :vcr do
   end
 
   describe '#truncate_summary' do
-    it 'returns summary unchanged if under 255 characters' do
+    it 'returns summary unchanged if under 255 characters', :vcr do
       short_summary = 'Currently sunny and 85°F with light winds.'
       result = service.send(:truncate_summary, short_summary)
       expect(result).to eq(short_summary)
     end
 
-    it 'truncates at sentence boundary when possible' do
+    it 'truncates at sentence boundary when possible', :vcr do
       long_summary = "#{'A' * 200}. #{'B' * 100}"
       result = service.send(:truncate_summary, long_summary)
       expect(result).to end_with('.')
       expect(result.length).to be <= 255
     end
 
-    it 'truncates at word boundary when no sentence boundary available' do
+    it 'truncates at word boundary when no sentence boundary available', :vcr do
       long_summary = "#{'A' * 250} final word here"
       result = service.send(:truncate_summary, long_summary)
       expect(result).to end_with('...')

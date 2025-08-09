@@ -13,13 +13,16 @@ module GlitchCube
               request_body = JSON.parse(request.body.read)
               message = request_body['message'] || 'Tell me about the battery status'
 
-              # Use the conversation handler service to get tool agent
+              # Use the conversation handler service for tool-based conversations
               conversation_handler = ::Services::ConversationHandlerService.new
-              result = conversation_handler.tool_agent.call(question: message)
+              result = conversation_handler.process_conversation(
+                message: message,
+                context: { tool_focused: true }
+              )
 
               json({
                      success: true,
-                     response: result[:answer],
+                     response: result[:response],
                      timestamp: Time.now.iso8601
                    })
             rescue StandardError => e
@@ -40,9 +43,12 @@ module GlitchCube
               request_body = JSON.parse(request.body.read)
               message = request_body['message'] || 'Check all sensors and set the light to blue'
 
-              # Use the conversation handler service to get HA agent
+              # Use the conversation handler service for Home Assistant integration
               conversation_handler = ::Services::ConversationHandlerService.new
-              result = conversation_handler.home_assistant_agent.call(request: message)
+              result = conversation_handler.process_conversation(
+                message: message,
+                context: { voice_interaction: true, ha_focused: true }
+              )
 
               json({
                      success: true,

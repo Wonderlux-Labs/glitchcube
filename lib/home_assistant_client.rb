@@ -89,6 +89,19 @@ class HomeAssistantClient
          })
   end
 
+  # Update a specific attribute of an entity
+  def set_state_attribute(entity_id, attribute_name, attribute_value)
+    # Get current state to preserve other attributes
+    current = state(entity_id)
+    current_attributes = current&.dig('attributes') || {}
+
+    # Update the specific attribute
+    updated_attributes = current_attributes.merge(attribute_name => attribute_value)
+
+    # Set state with updated attributes
+    set_state(entity_id, current&.dig('state') || 'unknown', updated_attributes)
+  end
+
   # Call a service
   def call_service(domain, service, data = {}, return_response: false)
     # Add return_response query parameter if requested

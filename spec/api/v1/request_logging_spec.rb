@@ -17,7 +17,7 @@ RSpec.describe 'Request Logging', type: :request do
   end
 
   describe 'automatic request logging via before/after filters' do
-    it 'logs GET requests with parameters' do
+    it 'logs GET requests with parameters', :vcr do
       get '/'
 
       expect(last_response.status).to eq(200)
@@ -32,7 +32,7 @@ RSpec.describe 'Request Logging', type: :request do
       expect(logged_request[:ip]).to be_a(String)
     end
 
-    it 'logs POST requests', vcr: { cassette_name: 'request_logging_post' } do
+    it 'logs POST requests', :vcr do
       post '/api/v1/conversation',
            { message: 'Hello', mood: 'neutral' }.to_json,
            'CONTENT_TYPE' => 'application/json'
@@ -45,7 +45,7 @@ RSpec.describe 'Request Logging', type: :request do
       expect(logged_request[:params]).to include('_content_type' => 'application/json')
     end
 
-    it 'includes timing information' do
+    it 'includes timing information', :vcr do
       get '/'
 
       logged_request = @logged_requests.first
@@ -54,7 +54,7 @@ RSpec.describe 'Request Logging', type: :request do
       expect(logged_request[:duration]).to be < 5000 # Should be under 5 seconds
     end
 
-    it 'captures request metadata' do
+    it 'captures request metadata', :vcr do
       get '/kiosk', {}, { 'HTTP_USER_AGENT' => 'Test Browser 1.0' }
 
       logged_request = @logged_requests.first
@@ -62,7 +62,7 @@ RSpec.describe 'Request Logging', type: :request do
       expect(logged_request[:ip]).to be_present
     end
 
-    it 'logs error responses' do
+    it 'logs error responses', :vcr do
       # This will trigger a 404
       get '/nonexistent-endpoint'
 
@@ -73,7 +73,7 @@ RSpec.describe 'Request Logging', type: :request do
       expect(logged_request[:path]).to eq('/nonexistent-endpoint')
     end
 
-    it 'handles request parameters' do
+    it 'handles request parameters', :vcr do
       get '/?test=123&foo=bar'
 
       logged_request = @logged_requests.first
@@ -85,7 +85,7 @@ RSpec.describe 'Request Logging', type: :request do
   end
 
   describe 'LoggerService.log_request method' do
-    it 'creates properly formatted log entries' do
+    it 'creates properly formatted log entries', :vcr do
       # Test the actual logging method directly
       Services::LoggerService.log_request(
         method: 'GET',
@@ -102,7 +102,7 @@ RSpec.describe 'Request Logging', type: :request do
       expect(true).to be true
     end
 
-    it 'handles errors gracefully' do
+    it 'handles errors gracefully', :vcr do
       Services::LoggerService.log_request(
         method: 'POST',
         path: '/error-endpoint',

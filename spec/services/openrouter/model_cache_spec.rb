@@ -15,14 +15,14 @@ RSpec.describe Services::OpenRouter::ModelCache do
 
   describe '#available_models' do
     context 'when cache is empty' do
-      it 'fetches models from the client' do
+      it 'fetches models from the client', :vcr do
         expect(client).to receive(:models).and_return(models_response)
 
         result = cache.available_models(client)
         expect(result).to eq(models_response)
       end
 
-      it 'caches the fetched models' do
+      it 'caches the fetched models', :vcr do
         expect(client).to receive(:models).once.and_return(models_response)
 
         # First call fetches from API
@@ -35,7 +35,7 @@ RSpec.describe Services::OpenRouter::ModelCache do
     end
 
     context 'when cache has expired' do
-      it 'fetches fresh models from the client' do
+      it 'fetches fresh models from the client', :vcr do
         # First call to populate cache
         expect(client).to receive(:models).and_return(models_response)
         cache.available_models(client)
@@ -52,7 +52,7 @@ RSpec.describe Services::OpenRouter::ModelCache do
     end
 
     context 'when cache is valid' do
-      it 'returns cached models without API call' do
+      it 'returns cached models without API call', :vcr do
         # Populate cache
         expect(client).to receive(:models).once.and_return(models_response)
         cache.available_models(client)
@@ -65,7 +65,7 @@ RSpec.describe Services::OpenRouter::ModelCache do
   end
 
   describe '#clear!' do
-    it 'clears all cached data' do
+    it 'clears all cached data', :vcr do
       # Populate cache
       expect(client).to receive(:models).and_return(models_response)
       cache.available_models(client)

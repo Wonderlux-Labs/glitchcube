@@ -58,7 +58,7 @@ RSpec.describe 'Conversation Tool Execution Integration', type: :integration do
   end
 
   describe 'Standardized Tool Execution Flow' do
-    context 'when LLM makes tool calls', vcr: { cassette_name: 'standardized_tool_execution' } do
+    context 'when LLM makes tool calls', :vcr do
       it 'executes ALL operations through LLM tool calling system' do
         # Mock tool execution to verify calls
         tool_results = [
@@ -81,7 +81,7 @@ RSpec.describe 'Conversation Tool Execution Integration', type: :integration do
         expect(result[:success]).to be_falsy || result[:response].present?
 
         # Verify tool executor was called (standardized path)
-        expect(Services::ToolExecutor).to have_received(:execute)
+        expect(Services::ToolExecutor).to have_received(:execute).at_least(:once)
       end
 
       it 'does NOT use fallback direct service calls' do
@@ -111,7 +111,7 @@ RSpec.describe 'Conversation Tool Execution Integration', type: :integration do
     context 'when no tools are configured' do
       let(:context_no_tools) { { session_id: 'test-no-tools' } }
 
-      it 'still processes conversation without tool execution', vcr: { cassette_name: 'conversation_no_tools' } do
+      it 'still processes conversation without tool execution', :vcr do
         result = conversation_module.call(
           message: 'Hello there!',
           context: context_no_tools
@@ -125,7 +125,7 @@ RSpec.describe 'Conversation Tool Execution Integration', type: :integration do
   end
 
   describe 'Tool System Integration' do
-    context 'with actual Home Assistant', vcr: { cassette_name: 'ha_tool_integration' } do
+    context 'with actual Home Assistant', :vcr do
       it 'executes lighting and display tools through HA' do
         # Use real HA integration (will be recorded in VCR)
         result = conversation_module.call(

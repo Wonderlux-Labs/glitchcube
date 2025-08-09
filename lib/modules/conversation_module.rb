@@ -9,7 +9,7 @@ require_relative '../services/conversation_session'
 require_relative '../services/tool_call_parser'
 require_relative '../services/tool_executor'
 require_relative '../services/conversation_feedback_service'
-require_relative '../services/memory_recall_service'
+require_relative '../services/context_injection_service'
 require_relative '../home_assistant_client'
 require_relative 'conversation_responses'
 require_relative 'conversation_enhancements'
@@ -414,54 +414,12 @@ class ConversationModule
       context: enriched_context
     ).generate
 
-    # Add relevant memories if available
-    final_prompt = inject_memories_into_prompt(base_prompt, context)
+    # Add relevant context and memories if available
+    final_prompt = Services::ContextInjectionService.inject_context(base_prompt, context)
 
     puts "🧠 System prompt: #{final_prompt.length} chars" if GlitchCube.config.debug?
 
     final_prompt
-  end
-
-  def inject_memories_into_prompt(base_prompt, context)
-    # Skip memory injection if explicitly disabled
-    return base_prompt if context[:skip_memories] == true
-
-    # Get current location from context or Home Assistant
-    location = context[:location] || fetch_current_location
-
-    # Get relevant memories (simplified: location, recent, upcoming)
-    memories = Services::MemoryRecallService.get_relevant_memories(
-      location: location,
-      context: context,
-      limit: 3
-    )
-
-    # Format and inject memories
-    if memories.any?
-      memory_context = Services::MemoryRecallService.format_for_context(memories)
-      final_prompt = "#{base_prompt}#{memory_context}"
-
-      puts "📝 Injected #{memories.size} memories" if GlitchCube.config.debug?
-
-      final_prompt
-    else
-      puts '📝 No memories to inject' if GlitchCube.config.debug?
-
-      base_prompt
-    end
-  rescue StandardError => e
-    puts "Failed to inject memories: #{e.message}"
-    base_prompt
-  end
-
-  def fetch_current_location
-    return nil unless GlitchCube.config.home_assistant.url
-
-    client = HomeAssistantClient.new
-    location = client.state('sensor.glitchcube_location')
-    location&.dig('state')
-  rescue StandardError
-    nil
   end
 
   def generate_fallback_response(_message, persona)

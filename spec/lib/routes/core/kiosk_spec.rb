@@ -11,7 +11,7 @@ RSpec.describe GlitchCube::Routes::Core::Kiosk do
   end
 
   describe 'GET /kiosk' do
-    it 'returns the kiosk view' do
+    it 'returns the kiosk view', :vcr do
       get '/kiosk'
       expect(last_response).to be_ok
       expect(last_response.body).to include('<!DOCTYPE html>')
@@ -34,7 +34,7 @@ RSpec.describe GlitchCube::Routes::Core::Kiosk do
         allow_any_instance_of(Services::KioskService).to receive(:get_status).and_return(mock_status)
       end
 
-      it 'returns kiosk status as JSON' do
+      it 'returns kiosk status as JSON', :vcr do
         get '/api/v1/kiosk/status'
         expect(last_response).to be_ok
         expect(last_response.content_type).to include('application/json')
@@ -51,7 +51,7 @@ RSpec.describe GlitchCube::Routes::Core::Kiosk do
         allow_any_instance_of(Services::KioskService).to receive(:get_status).and_raise(StandardError, 'Service unavailable')
       end
 
-      it 'returns error response' do
+      it 'returns error response', :vcr do
         get '/api/v1/kiosk/status'
         expect(last_response.status).to eq(500)
         expect(last_response.content_type).to include('application/json')

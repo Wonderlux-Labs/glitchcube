@@ -37,7 +37,7 @@ RSpec.describe Services::HealthPushService, :vcr do
       # Use VCR to record actual Home Assistant responses
       # The actual response will be captured in the cassette
 
-      it 'pushes HA health data to Uptime Kuma with status up', vcr: { cassette_name: 'health_push/ha_available' } do
+      it 'pushes HA health data to Uptime Kuma with status up', :vcr do
         # VCR will record both HA call and Uptime Kuma push
         result = service.push_health_status
 
@@ -50,7 +50,7 @@ RSpec.describe Services::HealthPushService, :vcr do
     context 'when Home Assistant is unavailable' do
       # VCR will capture the actual unavailable state
 
-      it 'generates fallback health message and pushes with status up when Sinatra is healthy', vcr: { cassette_name: 'health_push/ha_unavailable' } do
+      it 'generates fallback health message and pushes with status up when Sinatra is healthy', :vcr do
         result = service.push_health_status
 
         # VCR will capture actual responses - just verify service returns a result
@@ -63,7 +63,7 @@ RSpec.describe Services::HealthPushService, :vcr do
           allow(redis).to receive(:ping).and_raise(Redis::CannotConnectError)
         end
 
-        it 'includes Redis issue in fallback message', vcr: { cassette_name: 'health_push/redis_down' } do
+        it 'includes Redis issue in fallback message', :vcr do
           result = service.push_health_status
 
           # VCR will capture the actual response - verify service handles Redis failure
@@ -80,7 +80,7 @@ RSpec.describe Services::HealthPushService, :vcr do
           allow(Services::CircuitBreakerService).to receive_messages(home_assistant_breaker: open_breaker, openrouter_breaker: half_open_breaker)
         end
 
-        it 'includes circuit breaker status in fallback message', vcr: { cassette_name: 'health_push/circuit_breakers_open' } do
+        it 'includes circuit breaker status in fallback message', :vcr do
           result = service.push_health_status
 
           # VCR will capture the actual response - verify service handles circuit breaker states
@@ -97,7 +97,7 @@ RSpec.describe Services::HealthPushService, :vcr do
         allow(GlitchCube.config.monitoring).to receive(:uptime_kuma_push_url).and_return(nil)
       end
 
-      it 'returns health data without pushing', vcr: { cassette_name: 'health_push/no_uptime_kuma_url' } do
+      it 'returns health data without pushing', :vcr do
         result = service.push_health_status
 
         # VCR will capture what actually happens when Uptime Kuma URL is not configured
@@ -107,7 +107,7 @@ RSpec.describe Services::HealthPushService, :vcr do
     end
 
     context 'when an error occurs' do
-      it 'returns error status with message', vcr: { cassette_name: 'health_push/ha_error' } do
+      it 'returns error status with message', :vcr do
         # VCR will capture what happens when HA has errors
         result = service.push_health_status
 
@@ -132,7 +132,7 @@ RSpec.describe Services::HealthPushService, :vcr do
           allow(Services::CircuitBreakerService).to receive_messages(home_assistant_breaker: closed_breaker, openrouter_breaker: closed_breaker)
         end
 
-        it 'returns healthy status with no issues' do
+        it 'returns healthy status with no issues', :vcr do
           result = service.send(:check_sinatra_health)
 
           expect(result[:healthy]).to be(true)
@@ -151,7 +151,7 @@ RSpec.describe Services::HealthPushService, :vcr do
           allow(Services::CircuitBreakerService).to receive_messages(home_assistant_breaker: open_breaker, openrouter_breaker: nil)
         end
 
-        it 'returns degraded status with issues list' do
+        it 'returns degraded status with issues list', :vcr do
           result = service.send(:check_sinatra_health)
 
           expect(result[:healthy]).to be(false)
@@ -170,7 +170,7 @@ RSpec.describe Services::HealthPushService, :vcr do
         }
       end
 
-      it 'generates proper fallback message when API is healthy' do
+      it 'generates proper fallback message when API is healthy', :vcr do
         message = service.send(:generate_fallback_health_message, sinatra_health)
 
         expect(message).to match(/^HA:DOWN \| API:OK \| Up:\d+\.?\d*h$/)
@@ -185,7 +185,7 @@ RSpec.describe Services::HealthPushService, :vcr do
           }
         end
 
-        it 'includes all issues and circuit breaker status' do
+        it 'includes all issues and circuit breaker status', :vcr do
           message = service.send(:generate_fallback_health_message, sinatra_health)
 
           expect(message).to match(/^HA:DOWN \| API:DEGRADED \| Up:\d+\.?\d*h \| Issues:Redis:down,DB:down \| CB:home_assistant:open,openrouter:half_open$/)
