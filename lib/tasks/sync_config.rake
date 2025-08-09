@@ -66,25 +66,8 @@ namespace :config do
     system("ssh #{REMOTE_HOST} 'mkdir -p /config/backups && tar -czf /config/backups/config_backup_#{timestamp}.tar.gz -C /config --exclude=backups --exclude=\"home-assistant.log*\" --exclude=\"*.db*\" . 2>/dev/null || echo \"Backup creation failed\"'")
 
     # Push main configuration files
-    sync_files = [
-      'configuration.yaml',
-      'automations.yaml',
-      'scenes.yaml',
-      'scripts.yaml',
-      'rest_commands.yaml'
-    ]
 
     # Push directories
-    sync_dirs = [
-      'automations/',
-      'scripts/',
-      'sensors/',
-      'template/',
-      'binary_sensors/',
-      'input_helpers/',
-      'themes/',
-      'custom_components/glitchcube_conversation/'
-    ]
 
     # Use rsync for better file syncing (handles updates and deletions properly)
     puts '  📡 Syncing configuration with rsync...'
