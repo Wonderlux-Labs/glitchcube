@@ -18,6 +18,12 @@ node_modules/
 /test/version_tmp/
 /tmp/
 
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
 # VCR cassettes - needed for CI
 # /spec/vcr_cassettes/
 

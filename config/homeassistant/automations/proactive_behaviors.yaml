@@ -1,6 +1,6 @@
 # Proactive Glitch Cube Behaviors
 # These automations trigger non-conversational LLM interactions
-# Note: REST command configuration should be in rest_commands.yaml
+# Note: REST command configuration should be in configuration.yaml
 
 - alias: "Glitch Cube - Attention Seeking When Lonely"
   description: "Cube seeks attention after no interaction for 30 minutes"

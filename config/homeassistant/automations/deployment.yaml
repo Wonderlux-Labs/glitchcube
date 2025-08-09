@@ -20,21 +20,19 @@
     
     # Set deployment status
     - service: input_boolean.turn_on
-      target:
+      data:
         entity_id: input_boolean.deployment_in_progress
     
     # Update deployment timestamp
     - service: input_text.set_value
-      target:
-        entity_id: input_text.last_deployment_time
       data:
+        entity_id: input_text.last_deployment_time
         value: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
     
     # Update deployment commit
     - service: input_text.set_value
-      target:
-        entity_id: input_text.last_deployment_commit
       data:
+        entity_id: input_text.last_deployment_commit
         value: "{{ trigger.json.commit[:7] if trigger.json.commit else 'unknown' }}"
     
     # Notify that deployment is starting
@@ -43,9 +41,9 @@
         title: "🚀 Deployment Starting"
         message: |
           GitHub Actions triggered deployment
-          Commit: {{ trigger.json.commit[:7] }}
-          Branch: {{ trigger.json.branch }}
-          Actor: {{ trigger.json.actor }}
+          Commit: {{ trigger.json.commit[:7] if trigger.json.commit else 'unknown' }}
+          Branch: {{ trigger.json.branch if trigger.json.branch else 'unknown' }}
+          Actor: {{ trigger.json.actor if trigger.json.actor else 'unknown' }}
     
     # Execute deployment on host via SSH
     - service: shell_command.deploy_glitchcube
@@ -63,7 +61,7 @@
     
     # Mark deployment complete
     - service: input_boolean.turn_off
-      target:
+      data:
         entity_id: input_boolean.deployment_in_progress
     
     # Send success notification
@@ -71,8 +69,8 @@
       data:
         title: "✅ Deployment Complete"
         message: |
-          Successfully deployed commit {{ trigger.json.commit[:7] }}
-          Message: {{ trigger.json.message }}
+          Successfully deployed commit {{ trigger.json.commit[:7] if trigger.json.commit else 'unknown' }}
+          Message: {{ trigger.json.message if trigger.json.message else 'No message' }}
 
 - id: manual_deployment_trigger
   alias: "Manual Deployment"
