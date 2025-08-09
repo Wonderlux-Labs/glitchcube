@@ -1,0 +1,172 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  # Job 1: Lint code
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint Code
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      
+      - name: Run RuboCop
+        run: bundle exec rubocop --parallel --format progress --format json --out tmp/rubocop.json
+      
+      - name: Run Reek
+        run: bundle exec reek --format progress --format json > tmp/reek.json || true
+      
+      - name: Check for security issues with Brakeman
+        run: bundle exec brakeman --no-pager --format json --output tmp/brakeman.json || true
+
+  # Job 2: Run tests
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests
+    
+    services:
+      postgres:
+        image: postgis/postgis:15-3.3
+        env:
+          POSTGRES_USER: glitchcube
+          POSTGRES_PASSWORD: glitchcube_test
+          POSTGRES_DB: glitchcube_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    env:
+      CI: true
+      RACK_ENV: test
+      MOCK_HOME_ASSISTANT: true
+      DATABASE_URL: postgresql://glitchcube:glitchcube_test@localhost:5432/glitchcube_test
+      REDIS_URL: redis://localhost:6379
+      OPENROUTER_API_KEY: test-api-key
+      HOME_ASSISTANT_TOKEN: test-ha-token
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      
+      - name: Wait for PostgreSQL
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-client
+          for i in $(seq 1 10); do
+            pg_isready -h localhost -p 5432 -U glitchcube && break
+            echo "Waiting for PostgreSQL... ($i/10)"
+            sleep 5
+          done
+        env:
+          PGPASSWORD: glitchcube_test
+      
+      - name: Setup database
+        run: |
+          bundle exec rake db:create
+          bundle exec rake db:migrate
+      
+      - name: Run tests
+        run: |
+          bundle exec rspec \
+            --format progress \
+            --format RspecJunitFormatter \
+            --out tmp/rspec_results.xml \
+            --format documentation \
+            --color \
+            --tty
+
+  # Job 3: Deploy (only runs after BOTH lint and tests pass, only on main branch)
+  deploy:
+    needs: [lint, test]  # This creates the dependency - deploy only runs if BOTH lint and test succeed
+    runs-on: ubuntu-latest
+    name: Deploy to Production
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    
+    steps:
+      - name: Notify Home Assistant for Deployment
+        env:
+          HASS_WEBHOOK_URL: ${{ secrets.HOME_ASSISTANT_WEBHOOK_URL }}
+        run: |
+          echo "🚀 Tests passed! Triggering deployment..."
+          
+          # Send deployment webhook to Home Assistant
+          # HA will trigger the host system to pull and deploy
+          curl -X POST "$HASS_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "event": "deployment_ready",
+              "source": "github_actions",
+              "commit": "${{ github.sha }}",
+              "branch": "${{ github.ref_name }}",
+              "actor": "${{ github.actor }}",
+              "message": "${{ github.event.head_commit.message }}",
+              "repository": "${{ github.repository }}",
+              "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+            }'
+          
+          echo "✅ Deployment webhook sent to Home Assistant"
+      
+      - name: Create GitHub Deployment Record
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'production',
+              description: 'Automated deployment after successful tests',
+              auto_merge: false,
+              required_contexts: [],
+              production_environment: true
+            });
+            
+            // Mark deployment as successful since we've notified HA
+            if (deployment.data.id) {
+              await github.rest.repos.createDeploymentStatus({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                deployment_id: deployment.data.id,
+                state: 'success',
+                description: 'Deployment webhook sent to Home Assistant',
+                environment_url: 'https://glitchcube.local'
+              });
+            }

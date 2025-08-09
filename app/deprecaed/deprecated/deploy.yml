@@ -78,32 +78,6 @@ jobs:
       
       - name: Run tests
         run: bundle exec rspec --format documentation --color --tty
-      
-      - name: Check if deployment needed
-        if: success() && github.ref == 'refs/heads/main'
-        id: check_deploy
-        run: |
-          echo "Tests passed! Checking what needs deployment..."
-          
-          # Check what changed
-          CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD)
-          
-          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-          # Determine what needs deployment
-          if echo "$CHANGED_FILES" | grep -qE '\.(rb|yml|Gemfile)'; then
-            echo "needs_host=true" >> $GITHUB_OUTPUT
-          else
-            echo "needs_host=false" >> $GITHUB_OUTPUT
-          fi
-          
-          if echo "$CHANGED_FILES" | grep -q 'config/homeassistant'; then
-            echo "needs_hass=true" >> $GITHUB_OUTPUT
-          else
-            echo "needs_hass=false" >> $GITHUB_OUTPUT
-          fi
 
   notify_deploy:
     needs: test
