@@ -156,13 +156,13 @@ pkill -f "ruby app.rb" || true
 pkill -f "sidekiq" || true
 sleep 2
 
-# Start the application using bin/dev (handles both Sinatra and Sidekiq)
-log_info "Starting Glitch Cube application using bin/dev..."
+# Start the application using bin/prod (handles both Sinatra and Sidekiq)
+log_info "Starting Glitch Cube application using bin/prod..."
 export RACK_ENV=production
 
-# Use bin/dev which starts both Sinatra (with WEBrick) and Sidekiq
+# Use bin/prod which starts both Sinatra and Sidekiq in production mode
 cd "$GLITCHCUBE_DIR"
-RACK_ENV=production "$ASDF" exec ./bin/dev > "$GLITCHCUBE_DIR/logs/glitchcube.log" 2>&1 &
+RACK_ENV=production "$ASDF" exec ./bin/prod > "$GLITCHCUBE_DIR/logs/glitchcube.log" 2>&1 &
 GLITCHCUBE_PID=$!
 
 # Give it time to start

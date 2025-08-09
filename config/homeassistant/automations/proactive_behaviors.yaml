@@ -1,5 +1,6 @@
 # Proactive Glitch Cube Behaviors
 # These automations trigger non-conversational LLM interactions
+# Note: REST command configuration should be in configuration.yaml
 
 - alias: "Glitch Cube - Attention Seeking When Lonely"
   description: "Cube seeks attention after no interaction for 30 minutes"
@@ -74,12 +75,3 @@
       data:
         endpoint: "proactive/custom"
         prompt: "Your battery is at {{ states('sensor.glitchcube_battery') }}%! Dramatically express your need for power, sing about electricity, flash warning colors!"
-
-# REST command configuration (add to configuration.yaml)
-rest_command:
-  glitchcube_proactive:
-    url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/proactive/{{ endpoint }}"
-    method: POST
-    headers:
-      Content-Type: application/json
-    payload: '{{ data | to_json }}'

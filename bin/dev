@@ -28,7 +28,7 @@ fi
 
 # Start Sidekiq in background
 echo "🚀 Starting Sidekiq..."
-bundle exec sidekiq &
+bundle exec sidekiq -C config/sidekiq.yml -r ./config/sidekiq_boot.rb &
 SIDEKIQ_PID=$!
 
 # Give Sidekiq a moment to start

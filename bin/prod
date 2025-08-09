@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Production script to run app and sidekiq
+
+set -e
+
+echo "🎲 Starting GlitchCube in production mode..."
+echo "================================"
+echo "App: http://localhost:4567"
+echo "Press Ctrl-C to stop all services"
+echo ""
+
+# Function to kill all background processes on exit
+cleanup() {
+    echo ""
+    echo "🛑 Shutting down services..."
+    if [ ! -z "$SIDEKIQ_PID" ]; then
+        echo "Stopping Sidekiq (PID: $SIDEKIQ_PID)..."
+        kill $SIDEKIQ_PID 2>/dev/null || true
+    fi
+    if [ ! -z "$APP_PID" ]; then
+        echo "Stopping App (PID: $APP_PID)..."
+        kill $APP_PID 2>/dev/null || true
+    fi
+    exit 0
+}
+
+# Set up trap to cleanup on Ctrl-C
+trap cleanup INT TERM
+
+# Export production environment
+export RACK_ENV=production
+export APP_ENV=production
+
+# Start Sidekiq in background
+echo "🚀 Starting Sidekiq..."
+bundle exec sidekiq -C config/sidekiq.yml -r ./config/sidekiq_boot.rb &
+SIDEKIQ_PID=$!
+echo "Sidekiq started with PID: $SIDEKIQ_PID"
+
+# Give Sidekiq a moment to start
+sleep 2
+
+# Start the app in background
+echo "🚀 Starting app..."
+bundle exec ruby app.rb &
+APP_PID=$!
+echo "App started with PID: $APP_PID"
+
+# Wait for both processes
+echo ""
+echo "✅ All services running. Press Ctrl-C to stop."
+wait $SIDEKIQ_PID $APP_PID
