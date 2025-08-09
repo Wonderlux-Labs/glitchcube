@@ -261,7 +261,7 @@ module Jobs
       response = Services::LLMService.complete(
         system_prompt: 'You fix malformed JSON. Return only valid JSON, no markdown or explanation.',
         user_message: fix_prompt,
-        model: 'google/gemini-2.0-flash-exp',
+        model: 'openai/gpt-4o-mini',
         temperature: 0.1
       )
 

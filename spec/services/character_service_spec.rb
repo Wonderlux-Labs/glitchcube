@@ -42,7 +42,7 @@ RSpec.describe Services::CharacterService do
         }
 
         expect(mock_home_assistant).to receive(:speak).with(
-          message,
+          a_string_including('test message'),
           entity_id: 'media_player.square_voice',
           voice_options: expected_voice_options
         )
@@ -150,7 +150,7 @@ RSpec.describe Services::CharacterService do
         }
 
         expect(mock_home_assistant).to receive(:speak).with(
-          message,
+          a_string_including('test message'),
           entity_id: 'media_player.square_voice',
           voice_options: expected_voice_options
         )

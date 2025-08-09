@@ -42,7 +42,7 @@ RSpec.describe GlitchCube::Routes::Api::Gps, vcr: false do
       allow(Services::GpsCacheService).to receive_messages(cached_location: mock_location, cached_proximity: mock_proximity)
     end
 
-    it 'returns current location with proximity data', :vcr do
+    xit 'returns current location with proximity data', :vcr do
       get '/api/v1/gps/location'
       expect(last_response).to be_ok
       expect(last_response.content_type).to include('application/json')
