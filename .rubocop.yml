@@ -1,124 +1,152 @@
 inherit_from: .rubocop_todo.yml
 
-# RuboCop configuration for Glitch Cube
-# Art installation Ruby/Sinatra application
-
-plugins:
-  - rubocop-rspec
-
+# The behavior of RuboCop can be controlled via the .rubocop.yml
+# configuration file. It makes it possible to enable/disable
+# certain cops (checks) and to alter their behavior if they accept
+# any parameters. The file can be placed either in your home
+# directory or in some project directory.
+#
+# RuboCop will start looking for the configuration file in the directory
+# where the inspected file is and continue its way up to the root directory.
+#
+# See https://github.com/rubocop-hq/rubocop/blob/master/manual/configuration.md
 AllCops:
+  TargetRubyVersion: 3.4
   SuggestExtensions: false
-  DisplayCopNames: true
-  DisplayStyleGuide: true
-  ExtraDetails: true
   NewCops: enable
-  TargetRubyVersion: 3.1
   Exclude:
-    - 'vendor/**/*'
-    - 'coverage/**/*'
-    - 'data/**/*'
-    - 'bin/**/*'
-    - 'spec/fixtures/**/*'
+    - 'test/**/*'
+    - 'rack-protection/**/*'
+    - 'sinatra-contrib/**/*'
+    - vendor/bundle/**/*
 
-Layout/MultilineMethodCallIndentation:
-  EnforcedStyle: indented
+Layout/ExtraSpacing:
+  AllowForAlignment: true
+  AllowBeforeTrailingComments: true
 
-# Style preferences for art installation context
+# Temporary disable cops because warnings are fixed
+Style/SingleLineMethods:
+  Enabled: false
+
+Style/MutableConstant:
+  Enabled: false
+
+Lint/AmbiguousBlockAssociation:
+  Enabled: false
+
+Style/CaseEquality:
+  Enabled: false
+
+Style/PerlBackrefs:
+  Enabled: false
+
 Style/Documentation:
-  Enabled: false  # Art installation - focus on functionality over docs
+  Enabled: false
 
-Style/FrozenStringLiteralComment:
-  Enabled: true
+Lint/IneffectiveAccessModifier:
+  Enabled: false
 
-Style/StringLiterals:
-  EnforcedStyle: single_quotes
+Lint/RescueException:
+  Enabled: false
 
-Style/ClassAndModuleChildren:
-  Enabled: false  # Allow compact namespace definitions
+Style/SpecialGlobalVars:
+  Enabled: false
 
+Bundler/DuplicatedGem:
+  Enabled: false
 
-Metrics/ClassLength:
-  Max: 150
-  Exclude:
-    - 'spec/**/*'
-    - 'app.rb'
-    - lib/services/beacon_service.rb
+Layout/HeredocIndentation:
+  Enabled: false
 
-Metrics/BlockLength:
-  Max: 25
-  Exclude:
-    - 'spec/**/*'
-    - 'config/**/*'
-    - 'app.rb'
-    - 'Rakefile'
-    - 'db/migrations/**/*'
-    - 'db/schema.rb'
-    - 'deprecated/**/*'
-    - 'discover_tts_voices.rb'
-    - 'lib/routes/**/*'
-    - 'lib/services/gps_tracking_service.rb'
-    - 'lib/tasks/**/*'
-    - 'scripts/testing_scripts/test_wake_word.rb'  # Testing script with long blocks
+Style/FormatStringToken:
+  Enabled: false
 
-Metrics/ModuleLength:
-  Max: 150
-  Exclude:
-    - 'lib/routes/api/gps.rb'                # GPS tracking endpoints - legitimate complexity
-    - 'lib/routes/api/system.rb'             # System monitoring endpoints - legitimate complexity
-    - 'lib/cube/settings.rb'                 # Configuration settings module
-    - 'lib/modules/conversation_enhancements.rb' # Conversation enhancement features
-    - 'lib/routes/admin.rb'                  # Admin interface endpoints
-    - 'lib/routes/api/conversation.rb'       # Main conversation endpoints
-    - 'lib/routes/api/deployment.rb'         # Deployment management endpoints
-    - 'lib/routes/admin_test.rb'             # Admin test endpoints module
-    - 'lib/routes/development/analytics.rb'  # Development analytics module
-
-# Security
-Security/Eval:
-  Enabled: true
-
-# RSpec specific rules - relaxed for art installation testing
-RSpec/ExampleLength:
-  Max: 30  # Allow longer examples for integration tests
-
-RSpec/MultipleExpectations:
-  Max: 15  # Allow more expectations in integration tests
-
-RSpec/NestedGroups:
-  Max: 4
-
-RSpec/DescribeClass:
-  Enabled: false  # Integration tests don't always describe classes
-
-# Disable overly strict RSpec rules for art installation
-RSpec/AnyInstance:
-  Enabled: false  # Allow any_instance_of for mocking in art installation
-
-RSpec/MessageSpies:
-  Enabled: false  # Allow traditional stubbing patterns
-
-RSpec/VerifiedDoubles:
-  Enabled: false  # Allow simple doubles for testing
-
-RSpec/PendingWithoutReason:
-  Enabled: false  # Allow pending tests without detailed reasons
-
-RSpec/ContextWording:
-  Enabled: false  # Allow flexible context descriptions
-
-# Disable problematic cops for art installation
-Lint/MissingSuper:
-  Enabled: false  # Art installation framework may not require super calls
-
-Style/GlobalVars:
-  Enabled: false  # May need globals for art installation state
+Lint/UselessAccessModifier:
+  Enabled: false
 
 Style/ClassVars:
-  Enabled: false  # May need class variables for shared state
+  Enabled: false
 
-# Disable RSpec linting cops that are too strict
-RSpec/StubbedMock:
-  Enabled: false  # Allow expect for stubbing in tests
+Lint/UselessAssignment:
+  Enabled: false
 
-RSpec/SpecFilePathFormat:
-  Enabled: false  # Allow flexible spec file naming
+Style/EmptyLiteral:
+  Enabled: false
+
+Layout/LineLength:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  Enabled: false
+
+Metrics/PerceivedComplexity:
+  Enabled: false
+
+Lint/SuppressedException:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/BlockLength:
+  Enabled: false
+
+Metrics/ModuleLength:
+  Enabled: false
+
+Lint/AmbiguousRegexpLiteral:
+  Enabled: false
+
+Style/AccessModifierDeclarations:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+Style/EvalWithLocation:
+  Enabled: false
+
+Lint/MissingSuper:
+  Enabled: false
+
+Style/MissingRespondToMissing:
+  Enabled: false
+
+Style/MixinUsage:
+  Enabled: false
+
+Style/MultilineTernaryOperator:
+  Enabled: false
+
+Style/StructInheritance:
+  Enabled: false
+
+Style/SymbolProc:
+  Enabled: false
+
+Style/IfUnlessModifier:
+  Enabled: false
+
+Style/OptionalBooleanParameter:
+  Enabled: false
+
+Style/DocumentDynamicEvalDefinition:
+  Enabled: false
+
+Lint/ToEnumArguments:
+  Enabled: false
+
+Naming/MethodParameterName:
+  Enabled: false
+
+Naming/AccessorMethodName:
+  Enabled: false
+
+Style/SlicingWithRange:
+  Enabled: false

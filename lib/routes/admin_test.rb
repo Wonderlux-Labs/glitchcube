@@ -10,8 +10,8 @@ module GlitchCube
         app.get '/admin/test' do
           # Load recent conversations for display
           @recent_conversations = Conversation.order(created_at: :desc)
-            .limit(5)
-            .map do |conv|
+                                              .limit(5)
+                                              .map do |conv|
             {
               session_id: conv.session_id,
               persona: conv.persona,
@@ -143,8 +143,8 @@ module GlitchCube
         # List all sessions
         app.get '/admin/test/sessions' do
           @conversations = Conversation.order(created_at: :desc)
-            .limit(20)
-            .map do |conv|
+                                       .limit(20)
+                                       .map do |conv|
             {
               session_id: conv.session_id,
               persona: conv.persona,

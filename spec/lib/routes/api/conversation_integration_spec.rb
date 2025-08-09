@@ -408,13 +408,13 @@ RSpec.describe 'Conversation Service Integration', :vcr do
     session
   end
 
-  def count_sql_queries(&block)
+  def count_sql_queries(&)
     query_count = 0
     counter = lambda do |_name, _start, _finish, _id, payload|
       query_count += 1 unless %w[CACHE SCHEMA].include?(payload[:name])
     end
 
-    ActiveSupport::Notifications.subscribed(counter, 'sql.active_record', &block)
+    ActiveSupport::Notifications.subscribed(counter, 'sql.active_record', &)
 
     query_count
   end

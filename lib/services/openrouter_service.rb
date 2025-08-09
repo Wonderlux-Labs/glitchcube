@@ -46,7 +46,7 @@ class OpenRouterService
     end
 
     # Streaming completion (for future use)
-    def stream_complete(prompt, model: default_model, **options, &block)
+    def stream_complete(prompt, model: default_model, **options, &)
       # Validate model isn't blacklisted
       GlitchCube::ModelPresets.validate_model!(model)
 
@@ -59,7 +59,7 @@ class OpenRouterService
       }.merge(options)
 
       # NOTE: Streaming calls are not logged the same way due to their nature
-      client.complete(request_params, &block)
+      client.complete(request_params, &)
     end
 
     # Get available models (cached for 1 hour)
@@ -73,24 +73,24 @@ class OpenRouterService
     end
 
     # Convenience methods for common model presets
-    def complete_cheap(prompt, **options)
+    def complete_cheap(prompt, **)
       model = GlitchCube::ModelPresets.get_model(:small_cheapest)
-      complete(prompt, model: model, **options)
+      complete(prompt, model: model, **)
     end
 
-    def complete_conversation(prompt, **options)
+    def complete_conversation(prompt, **)
       model = GlitchCube::ModelPresets.get_model(:conversation_small)
-      complete(prompt, model: model, **options)
+      complete(prompt, model: model, **)
     end
 
-    def complete_premium(prompt, **options)
+    def complete_premium(prompt, **)
       model = GlitchCube::ModelPresets.get_model(:conversation_default)
-      complete(prompt, model: model, **options)
+      complete(prompt, model: model, **)
     end
 
-    def analyze_image(prompt, **options)
+    def analyze_image(prompt, **)
       model = GlitchCube::ModelPresets.get_model(:image_classification)
-      complete(prompt, model: model, **options)
+      complete(prompt, model: model, **)
     end
 
     private

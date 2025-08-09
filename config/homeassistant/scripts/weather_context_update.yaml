@@ -1,0 +1,79 @@
+# Scripts to update weather context using Claude for persona
+
+update_weather_24h:
+  alias: "Update Weather Context - Next 24 Hours"
+  sequence:
+    # Get hourly forecast first
+    - service: weather.get_forecasts
+      data:
+        type: hourly
+      target:
+        entity_id: weather.playaweather
+      response_variable: hourly_forecast
+    
+    # Use Claude to summarize with ALL available weather data
+    - service: conversation.process
+      data:
+        agent_id: conversation.claude_conversation
+        text: >-
+          Summarize weather for next 24h in a casual, conversational tone (aim for 500-800 chars for rich context):
+          Current conditions:
+          - Temp: {{ states('sensor.playaweather_temperature') }}°F (feels like {{ states('sensor.playaweather_feels_like_temperature') }}°F)
+          - Condition: {{ states('sensor.playaweather_weather') }}
+          - Humidity: {{ states('sensor.playaweather_humidity') }}%
+          - Pressure: {{ states('sensor.playaweather_pressure') }} hPa
+          - Wind: {{ states('sensor.playaweather_wind_speed') }}mph from {{ states('sensor.playaweather_wind_bearing') }}°
+          - Visibility: {{ states('sensor.playaweather_visibility') }}mi
+          - UV Index: {{ states('sensor.playaweather_uv_index') }}
+          - Cloud cover: {{ states('sensor.playaweather_cloud_coverage') }}%
+          - Dew point: {{ states('sensor.playaweather_dew_point') }}°F
+          - Rain: {{ states('sensor.playaweather_rain') }}mm
+          - Snow: {{ states('sensor.playaweather_snow') }}mm
+          {% set hours = hourly_forecast['weather.playaweather'].forecast %}
+          Next 24h (every 6h): 
+          Now: {{ hours[0].temperature }}°F {{ hours[0].condition }};
+          +6h: {{ hours[6].temperature }}°F {{ hours[6].condition }};
+          +12h: {{ hours[12].temperature }}°F {{ hours[12].condition }};
+          +18h: {{ hours[18].temperature }}°F {{ hours[18].condition }}
+      response_variable: weather_24h
+    
+    # Fire event with the summary to store in trigger-based sensor
+    - event: update_weather_24h
+      event_data:
+        summary: "{{ weather_24h.response.speech.plain.speech }}"
+
+update_weather_5day:
+  alias: "Update Weather Context - 5 Day Forecast"
+  sequence:
+    # Get daily forecast first
+    - service: weather.get_forecasts
+      data:
+        type: daily
+      target:
+        entity_id: weather.playaweather
+      response_variable: daily_forecast
+    
+    # Use Claude to summarize
+    - service: conversation.process
+      data:
+        agent_id: conversation.claude_conversation
+        text: >-
+          Summarize 5-day weather forecast in a casual, conversational tone (aim for 500-800 chars for rich context):
+          {% set days = daily_forecast['weather.playaweather'].forecast[:5] %}
+          {% for day in days %}
+          Day {{ loop.index }}: {{ day.temperature }}°F/{{ day.templow }}°F, {{ day.condition }}
+          {% endfor %}
+      response_variable: weather_5day
+    
+    # Fire event with the summary to store in trigger-based sensor
+    - event: update_weather_5day
+      event_data:
+        summary: "{{ weather_5day.response.speech.plain.speech }}"
+
+update_all_weather_context:
+  alias: "Update All Weather Context"
+  sequence:
+    - service: script.update_weather_24h
+    - delay:
+        seconds: 2
+    - service: script.update_weather_5day

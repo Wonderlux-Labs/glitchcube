@@ -6,15 +6,15 @@ module VCRHelpers
   def self.cassette_name_for(example)
     # Use example's full description, sanitized for filesystem
     name = example.full_description.downcase
-      .gsub(/[^a-z0-9\s_-]/, '') # Remove special chars
-      .gsub(/\s+/, '_')           # Replace spaces with underscores
-      .squeeze('_')               # Remove duplicate underscores
-      .slice(0, 100)              # Limit length for filesystem
+                  .gsub(/[^a-z0-9\s_-]/, '') # Remove special chars
+                  .gsub(/\s+/, '_')           # Replace spaces with underscores
+                  .squeeze('_')               # Remove duplicate underscores
+                  .slice(0, 100)              # Limit length for filesystem
 
     # Group by spec file for organization
     spec_file = example.file_path.gsub(%r{^.*/spec/}, '')
-      .gsub(/_spec\.rb$/, '')
-      .gsub('/', '_')
+                       .gsub(/_spec\.rb$/, '')
+                       .gsub('/', '_')
 
     "#{spec_file}/#{name}"
   end

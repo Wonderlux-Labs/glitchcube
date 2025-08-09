@@ -89,9 +89,9 @@ module Services
 
       # Get recent messages from database
       recent_messages = @conversation.messages
-        .order(created_at: :desc)
-        .limit(limit)
-        .reverse # Oldest first for context
+                                     .order(created_at: :desc)
+                                     .limit(limit)
+                                     .reverse # Oldest first for context
 
       # Format for LLM API
       recent_messages.map do |msg|

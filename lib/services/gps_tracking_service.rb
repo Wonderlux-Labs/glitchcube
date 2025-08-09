@@ -124,8 +124,8 @@ module Services
       # Query each landmark type with its appropriate radius
       landmark_queries.each do |type, radius|
         type_landmarks = Landmark.active
-          .where(landmark_type: type)
-          .near_location(lat, lng, radius)
+                                 .where(landmark_type: type)
+                                 .near_location(lat, lng, radius)
 
         type_landmarks.each do |landmark|
           distance = landmark.distance_from(lat, lng)
@@ -140,8 +140,8 @@ module Services
 
       # Get any other landmark types with default proximity (25 feet)
       other_types = Landmark.active
-        .where.not(landmark_type: landmark_queries.keys)
-        .near_location(lat, lng, Utils::GeoConstants::PROXIMITY_DISTANCES[:landmarks])
+                            .where.not(landmark_type: landmark_queries.keys)
+                            .near_location(lat, lng, Utils::GeoConstants::PROXIMITY_DISTANCES[:landmarks])
 
       other_types.each do |landmark|
         distance = landmark.distance_from(lat, lng)
@@ -232,8 +232,8 @@ module Services
     def detect_nearby_portos(lat, lng)
       # Use spatial query for toilet landmarks
       toilet_landmarks = Landmark.active
-        .where(landmark_type: 'toilet')
-        .near_location(lat, lng, Utils::GeoConstants::PROXIMITY_DISTANCES[:toilets])
+                                 .where(landmark_type: 'toilet')
+                                 .near_location(lat, lng, Utils::GeoConstants::PROXIMITY_DISTANCES[:toilets])
 
       nearby_portos = toilet_landmarks.map do |toilet|
         {

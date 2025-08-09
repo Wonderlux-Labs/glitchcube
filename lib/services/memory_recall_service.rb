@@ -14,9 +14,9 @@ module Services
         # 2. Get a location-based memory if we have location
         if location.present?
           location_memory = Memory.by_location(location)
-            .fresh # Less-told stories
-            .where.not(id: selected_memories.map(&:id))
-            .first
+                                  .fresh # Less-told stories
+                                  .where.not(id: selected_memories.map(&:id))
+                                  .first
           selected_memories << location_memory if location_memory
         end
 
@@ -24,10 +24,10 @@ module Services
         remaining_slots = limit - selected_memories.size
         if remaining_slots.positive?
           recent_memories = Memory.high_intensity
-            .recent
-            .fresh
-            .where.not(id: selected_memories.map(&:id))
-            .limit(remaining_slots)
+                                  .recent
+                                  .fresh
+                                  .where.not(id: selected_memories.map(&:id))
+                                  .limit(remaining_slots)
           selected_memories.concat(recent_memories)
         end
 
@@ -58,8 +58,8 @@ module Services
       # Get a person's story summary
       def person_summary(name)
         memories = Memory.about_person(name)
-          .order(Arel.sql("(data->>'emotional_intensity')::float DESC"))
-          .limit(5)
+                         .order(Arel.sql("(data->>'emotional_intensity')::float DESC"))
+                         .limit(5)
 
         return nil if memories.empty?
 
@@ -86,9 +86,9 @@ module Services
         end
 
         memories.order(Arel.sql("(data->>'emotional_intensity')::float DESC"))
-          .order(:recall_count)
-          .limit(limit)
-          .tap { |m| m.each(&:recall!) }
+                .order(:recall_count)
+                .limit(limit)
+                .tap { |m| m.each(&:recall!) }
       end
 
       # Get social connections for a person
@@ -123,9 +123,9 @@ module Services
       # Get trending memories (high intensity, recent, less recalled)
       def get_trending_memories(limit: 5)
         Memory.where(created_at: 24.hours.ago..)
-          .high_intensity
-          .fresh # Less-told stories
-          .limit(limit)
+              .high_intensity
+              .fresh # Less-told stories
+              .limit(limit)
       end
 
       private

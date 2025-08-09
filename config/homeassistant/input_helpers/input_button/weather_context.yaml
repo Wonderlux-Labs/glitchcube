@@ -1,0 +1,5 @@
+# Input button to manually trigger weather context update
+
+update_weather_context:
+  name: "Update Weather Context"
+  icon: mdi:weather-cloudy-arrow-right

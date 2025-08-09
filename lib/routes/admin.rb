@@ -422,8 +422,8 @@ module GlitchCube
                          conversation = Conversation.find_by(session_id: session_id)
                          if conversation
                            Memory.where("data->>'conversation_id' = ?", conversation.id.to_s)
-                             .or(Memory.where(created_at: conversation.started_at..Time.now))
-                             .recent.limit(limit)
+                                 .or(Memory.where(created_at: conversation.started_at..Time.now))
+                                 .recent.limit(limit)
                          else
                            []
                          end
@@ -434,8 +434,8 @@ module GlitchCube
                        query = params[:query]
                        if query
                          Memory.where('content ILIKE ?', "%#{query}%")
-                           .or(Memory.where('data::text ILIKE ?', "%#{query}%"))
-                           .recent.limit(limit)
+                               .or(Memory.where('data::text ILIKE ?', "%#{query}%"))
+                               .recent.limit(limit)
                        else
                          []
                        end
@@ -477,9 +477,9 @@ module GlitchCube
           offset = (params[:offset] || 0).to_i
 
           conversations = Conversation.order(created_at: :desc)
-            .limit(limit)
-            .offset(offset)
-            .includes(:messages)
+                                      .limit(limit)
+                                      .offset(offset)
+                                      .includes(:messages)
 
           formatted_conversations = conversations.map do |conv|
             {
@@ -640,9 +640,9 @@ module GlitchCube
             memories = begin
               # Find memories from around the time of this conversation
               Memory.where(created_at: conversation.started_at..Time.now)
-                .or(Memory.where("data->>'session_id' = ?", session_id))
-                .or(Memory.where("data->>'conversation_id' = ?", conversation.id.to_s))
-                .recent.limit(50).map do |memory|
+                    .or(Memory.where("data->>'session_id' = ?", session_id))
+                    .or(Memory.where("data->>'conversation_id' = ?", conversation.id.to_s))
+                    .recent.limit(50).map do |memory|
                 {
                   id: memory.id,
                   content: memory.content,

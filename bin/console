@@ -28,59 +28,59 @@ end
 # Helper methods available in console
 module ConsoleHelpers
   def reload!
-    puts "🔄 Reloading..."
-    
+    puts '🔄 Reloading...'
+
     # Clear Ruby's loaded features for our app files
     $LOADED_FEATURES.reject! { |f| f.include?('/glitchcube/') }
-    
+
     # Reload lib files
     Dir[File.join(__dir__, '../lib/**/*.rb')].each { |f| load f }
-    
+
     # Reload models
     if defined?(ActiveRecord)
       Dir[File.join(__dir__, '../app/models/**/*.rb')].each { |f| load f }
     end
-    
-    puts "✅ Reloaded!"
+
+    puts '✅ Reloaded!'
     true
   end
-  
+
   def app
     @app ||= Sinatra::Application
   end
-  
+
   def ha
     @ha ||= HomeAssistantClient.new
   end
-  
+
   def tts(character = :default)
     @tts ||= {}
     @tts[character] ||= Services::CharacterService.new(character: character)
   end
-  
+
   def openrouter
     @openrouter ||= Services::OpenRouterService.new
   end
-  
+
   def config
     GlitchCube.config
   end
-  
-  def test_speak(message = "Hello from the console!", character = :default)
+
+  def test_speak(message = 'Hello from the console!', character = :default)
     tts(character).speak(message)
   end
-  
+
   def test_conversation(message = "What's your purpose?")
     handler = Services::ConversationHandlerService.new
     response = handler.process(message)
     puts response[:message]
     response
   end
-  
+
   def list_characters
     Services::CharacterService::CHARACTERS.keys
   end
-  
+
   def switch_character(name)
     character = Services::CharacterService::CHARACTERS[name.to_sym]
     if character
@@ -91,54 +91,54 @@ module ConsoleHelpers
       puts "❌ Character not found. Available: #{list_characters.join(', ')}"
     end
   end
-  
+
   def test_models
-    puts "Testing OpenRouter connection..."
+    puts 'Testing OpenRouter connection...'
     models = openrouter.available_models
     puts "✅ Found #{models.count} models"
     models.first(5).each do |model|
       puts "  - #{model['id']}: $#{model['pricing']['prompt']} per token"
     end
-  rescue => e
+  rescue StandardError => e
     puts "❌ Error: #{e.message}"
   end
-  
+
   def test_ha
-    puts "Testing Home Assistant connection..."
+    puts 'Testing Home Assistant connection...'
     states = ha.states
     puts "✅ Connected! Found #{states.count} entities"
     states.first(5).each do |state|
       puts "  - #{state['entity_id']}: #{state['state']}"
     end
-  rescue => e
+  rescue StandardError => e
     puts "❌ Error: #{e.message}"
   end
-  
+
   def help
     puts <<~HELP
       🎮 GlitchCube Console Commands:
-      
+
       Core Objects:
         app           - Sinatra application instance
         ha            - HomeAssistantClient instance
         tts(char)     - TTS service for character (default: :default)
         openrouter    - OpenRouterService instance
         config        - GlitchCube configuration
-      
+
       Testing:
         test_speak(msg, char)  - Test TTS with message and character
         test_conversation(msg) - Test conversation handler
         test_models           - Test OpenRouter connection
         test_ha              - Test Home Assistant connection
-      
+
       Characters:
         list_characters      - Show available characters
         switch_character(name) - Switch to a character
-        
+      #{'  '}
       Utilities:
         reload!             - Reload all application code
         help               - Show this help message
-      
+
       Examples:
         tts(:buddy).speak("Hello!")
         test_conversation("Tell me a joke")
@@ -156,14 +156,14 @@ Pry.config.prompt = Pry::Prompt.new(
   'glitchcube',
   'GlitchCube interactive console',
   [
-    proc { |obj, nest_level, _| 
-      prompt = "🎲 glitchcube"
-      prompt += ":#{nest_level}" if nest_level > 0
+    proc { |_obj, nest_level, _|
+      prompt = '🎲 glitchcube'
+      prompt += ":#{nest_level}" if nest_level.positive?
       "#{prompt}> "
     },
-    proc { |obj, nest_level, _|
-      prompt = "🎲 glitchcube"
-      prompt += ":#{nest_level}" if nest_level > 0  
+    proc { |_obj, nest_level, _|
+      prompt = '🎲 glitchcube'
+      prompt += ":#{nest_level}" if nest_level.positive?
       "#{prompt}* "
     }
   ]
@@ -171,7 +171,7 @@ Pry.config.prompt = Pry::Prompt.new(
 
 # Welcome message
 puts <<~BANNER
-  
+
   ╔═══════════════════════════════════════╗
   ║     🎲 GlitchCube Console 🎲          ║
   ╠═══════════════════════════════════════╣
@@ -181,10 +181,10 @@ puts <<~BANNER
   ║  Type 'help' for available commands   ║
   ║  Type 'exit' to quit                  ║
   ╚═══════════════════════════════════════╝
-  
-  Environment: #{ENV['RACK_ENV']}
+
+  Environment: #{ENV.fetch('RACK_ENV', nil)}
   Ruby: #{RUBY_VERSION}
-  
+
 BANNER
 
 # Optional: Try to connect to services (comment out if hanging)
@@ -204,9 +204,9 @@ BANNER
 #   puts "❌ (#{e.class})"
 # end
 
-puts ""
+puts ''
 puts "Type 'help' for commands"
-puts ""
+puts ''
 
 # Start the console
 Pry.start
