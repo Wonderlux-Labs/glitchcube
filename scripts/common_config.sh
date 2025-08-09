@@ -27,7 +27,9 @@ get_reachable_host() {
     # Try primary first (Tailscale)
     if ping -c 1 -W 1 "$primary" >/dev/null 2>&1; then
         echo "$primary"
-    elif ping -c 1 -W 1 "$fallback" >/dev/null 2>&1; then
+    if ping -c 1 -W 5 "$primary" >/dev/null 2>&1; then
+        echo "$primary"
+    elif ping -c 1 -W 5 "$fallback" >/dev/null 2>&1; then
         echo "$fallback"
     else
         echo "$primary"  # Default to primary if neither responds
@@ -40,17 +42,17 @@ export CURRENT_HASS_HOST=$(get_reachable_host "$HASS_HOST" "$HASS_HOST_FALLBACK"
 
 # Common logging function
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
 log_success() {
-    echo -e "\033[0;32m✓\033[0m $1"
+    echo -e "\033[0;32m✓\033[0m $1" | tee -a "$LOG_FILE"
 }
 
 log_error() {
-    echo -e "\033[0;31m✗\033[0m $1"
+    echo -e "\033[0;31m✗\033[0m $1" | tee -a "$LOG_FILE"
 }
 
 log_info() {
-    echo -e "\033[1;33m➜\033[0m $1"
+    echo -e "\033[1;33m➜\033[0m $1" | tee -a "$LOG_FILE"
 }
