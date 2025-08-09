@@ -5,9 +5,11 @@
 
 set -e
 
-# Configuration
-REMOTE_HOST="eristmini@speedygonzo"
-REMOTE_DIR="/Users/eristmini/glitch/glitchcube"
+# Source common configuration
+source "$(dirname "$0")/common_config.sh"
+
+REMOTE_HOST="${MAC_MINI_USER}@${CURRENT_MAC_HOST}"
+REMOTE_DIR="$GLITCHCUBE_DIR"
 LOCAL_DIR="$(dirname "$0")"
 
 echo "========================================="
@@ -47,7 +49,7 @@ ssh "$REMOTE_HOST" << 'ENDSSH'
     echo "  - Check and start PostgreSQL"
     echo "  - Start VMware Fusion and Home Assistant VM"
     echo "  - Wait for Home Assistant to be ready"
-    echo "  - Start Glitch Cube application with foreman"
+    echo "  - Start Glitch Cube application with bin/prod"
     echo ""
     echo "Logs will be written to:"
     echo "  - /Users/eristmini/glitch/startup.log"

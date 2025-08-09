@@ -3,13 +3,10 @@
 
 set -e
 
-GLITCHCUBE_DIR="/Users/eristmini/glitch/glitchcube"
-LOG_FILE="/Users/eristmini/glitch/deploy.log"
+# Source common configuration
+source "$(dirname "$0")/common_config.sh"
 
-# Logging function
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
-}
+LOG_FILE="$LOG_DIR/deploy.log"
 
 log "========================================="
 log "Starting deployment from GitHub"
