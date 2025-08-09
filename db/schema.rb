@@ -13,12 +13,9 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema[7.1].define(version: 20_250_806_160_924) do
-  create_schema 'topology'
-
   # These are extensions that must be enabled in order to support this database
   enable_extension 'plpgsql'
   enable_extension 'postgis'
-  enable_extension 'postgis_topology'
 
   create_table 'api_calls', force: :cascade do |t|
     t.string 'service', null: false
@@ -72,25 +69,12 @@ ActiveRecord::Schema[7.1].define(version: 20_250_806_160_924) do
     t.index ['ha_conversation_id'], name: 'index_conversations_on_ha_conversation_id'
     t.index ['ha_device_id'], name: 'index_conversations_on_ha_device_id'
     t.index ['persona'], name: 'index_conversations_on_persona'
-    t.index ['session_id'], name: 'index_conversations_on_session_id'
+    t.index ['session_id'], name: 'index_conversations_on_session_id', unique: true
     t.index ['started_at'], name: 'index_conversations_on_started_at'
   end
 
   # Could not dump table "landmarks" because of following StandardError
-  #   Unknown type 'geometry' for column 'location'
-
-  create_table 'layer', primary_key: %w[topology_id layer_id], force: :cascade do |t|
-    t.integer 'topology_id', null: false
-    t.integer 'layer_id', null: false
-    t.string 'schema_name', null: false
-    t.string 'table_name', null: false
-    t.string 'feature_column', null: false
-    t.integer 'feature_type', null: false
-    t.integer 'level', default: 0, null: false
-    t.integer 'child_id'
-
-    t.unique_constraint %w[schema_name table_name feature_column], name: 'layer_schema_name_table_name_feature_column_key'
-  end
+  #   Unknown type 'geography(Point,4326)' for column 'location'
 
   create_table 'memories', force: :cascade do |t|
     t.text 'content', null: false
@@ -147,15 +131,5 @@ ActiveRecord::Schema[7.1].define(version: 20_250_806_160_924) do
     t.index ['street_type'], name: 'index_streets_on_street_type'
   end
 
-  create_table 'topology', id: :serial, force: :cascade do |t|
-    t.string 'name', null: false
-    t.integer 'srid', null: false
-    t.float 'precision', null: false
-    t.boolean 'hasz', default: false, null: false
-
-    t.unique_constraint ['name'], name: 'topology_name_key'
-  end
-
-  add_foreign_key 'layer', 'topology', name: 'layer_topology_id_fkey'
   add_foreign_key 'messages', 'conversations'
 end

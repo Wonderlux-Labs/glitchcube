@@ -8,7 +8,7 @@ RSpec.describe Jobs::PersonalityMemoryJob do
 
   describe '#perform' do
     context 'with insufficient messages' do
-      it 'exits early when too few messages', vcr: true do
+      it 'exits early when too few messages', :vcr do
         allow(Message).to receive_message_chain(:joins, :where, :where, :order).and_return([])
 
         # Allow the first info log, then expect the "not enough" message
@@ -34,7 +34,7 @@ RSpec.describe Jobs::PersonalityMemoryJob do
         allow(messages).to receive_messages(count: 3, group_by: { 1 => messages })
       end
 
-      it 'extracts memories from conversations', vcr: true do
+      it 'extracts memories from conversations', :vcr do
         # Use VCR to record/replay both HA and LLM calls
         # Allow any external calls within this cassette
         allow(Memory).to receive(:where).and_return(double(exists?: false))
@@ -42,17 +42,17 @@ RSpec.describe Jobs::PersonalityMemoryJob do
         job.perform
       end
 
-      it 'handles extraction failures gracefully', vcr: true do
+      it 'handles extraction failures gracefully', :vcr do
         allow(Services::LLMService).to receive(:complete).and_raise(StandardError.new('API Error'))
         # Allow any log_api_call from other services (like HomeAssistantClient)
         allow(Services::LoggerService).to receive(:log_api_call).and_call_original
         # The extract_personality_memories method catches the error and returns []
         # So it logs the error but doesn't re-raise it - the job continues
         expect(Services::LoggerService).to receive(:log_api_call).with(hash_including(
-          service: 'application',
-          status: 500,
-          error: /StandardError: API Error/
-        )).at_least(:once)
+                                                                         service: 'application',
+                                                                         status: 500,
+                                                                         error: /StandardError: API Error/
+                                                                       )).at_least(:once)
         # Allow the logger to log info messages
         allow(job.logger).to receive(:info).and_call_original
         # The job should complete without raising an error
@@ -65,7 +65,7 @@ RSpec.describe Jobs::PersonalityMemoryJob do
   describe 'private methods' do
     describe '#fetch_location_data' do
       context 'with Home Assistant available' do
-        it 'fetches location and coordinates', vcr: true do
+        it 'fetches location and coordinates', :vcr do
           # Use VCR to record/replay Home Assistant call
           result = job.send(:fetch_location_data)
 
@@ -77,7 +77,7 @@ RSpec.describe Jobs::PersonalityMemoryJob do
       end
 
       context 'without Home Assistant' do
-        it 'returns default location', vcr: true do
+        it 'returns default location', :vcr do
           allow(GlitchCube.config.home_assistant).to receive(:url).and_return(nil)
 
           result = job.send(:fetch_location_data)
@@ -88,21 +88,21 @@ RSpec.describe Jobs::PersonalityMemoryJob do
     end
 
     describe '#parse_event_time' do
-      it 'parses common time patterns', vcr: true do
+      it 'parses common time patterns', :vcr do
         expect(job.send(:parse_event_time, 'in 30 minutes')).to be_within(1.minute).of(30.minutes.from_now)
         expect(job.send(:parse_event_time, 'in 2 hours')).to be_within(1.minute).of(2.hours.from_now)
         expect(job.send(:parse_event_time, 'tonight')).to be_within(1.hour).of(Time.now.end_of_day.change(hour: 21))
         expect(job.send(:parse_event_time, 'tomorrow')).to be_within(1.hour).of(Time.now.tomorrow.change(hour: 20))
       end
 
-      it 'handles nil and blank strings', vcr: true do
+      it 'handles nil and blank strings', :vcr do
         expect(job.send(:parse_event_time, nil)).to be_nil
         expect(job.send(:parse_event_time, '')).to be_nil
       end
     end
 
     describe '#store_memories' do
-      it 'avoids storing duplicate memories', vcr: true do
+      it 'avoids storing duplicate memories', :vcr do
         memory_data = {
           content: 'Test memory',
           data: { emotional_intensity: 0.5 }
@@ -115,7 +115,7 @@ RSpec.describe Jobs::PersonalityMemoryJob do
         job.send(:store_memories, [memory_data])
       end
 
-      it 'stores unique memories', vcr: true do
+      it 'stores unique memories', :vcr do
         memory_data = {
           content: 'Unique memory',
           data: { emotional_intensity: 0.7 }

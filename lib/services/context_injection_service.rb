@@ -29,11 +29,11 @@ module Services
       begin
         ha_client = HomeAssistantClient.new
         context_sensor = ha_client.state('sensor.glitchcube_context')
-        
+
         # Check if sensor actually exists (HA returns specific structure for non-existent entities)
         if context_sensor.is_a?(Hash) && context_sensor['state'] == 'unavailable'
           context_sensor = nil
-          puts "📝 Context sensor not yet configured in HA" if GlitchCube.config.debug?
+          puts '📝 Context sensor not yet configured in HA' if GlitchCube.config.debug?
         end
       rescue StandardError => e
         puts "📝 Could not fetch context sensor: #{e.message}" if GlitchCube.config.debug?

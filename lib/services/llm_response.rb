@@ -133,7 +133,7 @@ module Services
       end
 
       # Fallback: try to extract from response text if it looks like JSON
-      if content && content.include?('"continue_conversation"')
+      if content&.include?('"continue_conversation"')
         match = content.match(/"continue_conversation"\s*:\s*(true|false)/)
         return match[1] == 'true' if match
       end

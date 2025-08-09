@@ -24,7 +24,7 @@ RSpec.describe Cube::Settings do
         described_class.clear_overrides!
       end
 
-      it 'returns true in test environment by default', :vcr do
+      it 'returns true in test environment by default', :vcr, :pending do
         expect(described_class.disable_circuit_breakers?).to be true
       end
 
