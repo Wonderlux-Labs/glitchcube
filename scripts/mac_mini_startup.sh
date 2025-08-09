@@ -156,18 +156,14 @@ pkill -f "ruby app.rb" || true
 pkill -f "sidekiq" || true
 sleep 2
 
-# Start the application directly (no foreman needed for single user)
-log_info "Starting Glitch Cube application..."
+# Start the application using bin/dev (handles both Sinatra and Sidekiq)
+log_info "Starting Glitch Cube application using bin/dev..."
 export RACK_ENV=production
 
-# Start Sinatra app directly
-RACK_ENV=production "$ASDF" exec bundle exec ruby app.rb > "$GLITCHCUBE_DIR/logs/sinatra.log" 2>&1 &
-SINATRA_PID=$!
-
-# Start Sidekiq in background
-log_info "Starting Sidekiq worker..."
-RACK_ENV=production "$ASDF" exec bundle exec sidekiq > "$GLITCHCUBE_DIR/logs/sidekiq.log" 2>&1 &
-SIDEKIQ_PID=$!
+# Use bin/dev which starts both Sinatra (with WEBrick) and Sidekiq
+cd "$GLITCHCUBE_DIR"
+RACK_ENV=production "$ASDF" exec ./bin/dev > "$GLITCHCUBE_DIR/logs/glitchcube.log" 2>&1 &
+GLITCHCUBE_PID=$!
 
 # Give it time to start
 sleep 10
@@ -175,10 +171,10 @@ sleep 10
 # Check if Sinatra is responding
 if "$CURL" -s -o /dev/null -w "%{http_code}" "http://localhost:4567/health" | grep -q "200"; then
     log_success "Glitch Cube API is running on port 4567"
-    log_success "Sinatra PID: $SINATRA_PID, Sidekiq PID: $SIDEKIQ_PID"
+    log_success "Glitch Cube PID: $GLITCHCUBE_PID"
 else
     log_error "Glitch Cube API failed to start"
-    log "Check logs at $GLITCHCUBE_DIR/logs/sinatra.log"
+    log "Check logs at $GLITCHCUBE_DIR/logs/glitchcube.log"
 fi
 
 # 7. Final status check

@@ -16,7 +16,7 @@ jobs:
     
     services:
       postgres:
-        image: postgres:15
+        image: postgis/postgis:15-3.3
         env:
           POSTGRES_USER: glitchcube
           POSTGRES_PASSWORD: glitchcube_test
@@ -74,7 +74,7 @@ jobs:
       - name: Setup database
         run: |
           bundle exec rake db:create
-          bundle exec rake db:schema:load
+          bundle exec rake db:migrate
       
       - name: Run tests
         run: bundle exec rspec
