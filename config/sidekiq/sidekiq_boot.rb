@@ -6,6 +6,9 @@
 # CRITICAL: Load and configure database BEFORE loading app
 # This ensures Sidekiq uses the correct database configuration
 
+# Load the database configuration module first
+require_relative '../database_config'
+
 # Configure database with our centralized config
 puts '🗄️  Configuring Sidekiq database...'
 puts "   ENV['RACK_ENV']: #{ENV.fetch('RACK_ENV', nil)}"

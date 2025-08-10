@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require_relative '../../lib/personas/base_persona'
+require_relative '../../lib/personas/buddy_persona'
+require_relative '../../lib/personas/jax_persona'
 
 RSpec.describe ConversationModule do
   let(:module_instance) { described_class.new }
@@ -52,6 +55,9 @@ RSpec.describe ConversationModule do
     # These are class methods for logging - OK to mock at class level
     allow(Services::LoggerService).to receive(:log_interaction)
     allow(Services::LoggerService).to receive(:log_tts)
+
+    # Mock SimpleLogger for persona tool loading
+    allow(Services::SimpleLogger).to receive(:debug)
 
     # These are class methods for kiosk - OK to mock at class level
     allow(Services::KioskService).to receive(:update_mood)
@@ -158,12 +164,58 @@ RSpec.describe ConversationModule do
     end
 
     context 'with different personas' do
-      %w[playful contemplative mysterious neutral].each do |persona|
+      %w[buddy jax lomi zorp].each do |persona|
         it "handles #{persona} persona correctly", :vcr do
           result = module_instance.call(message: message, context: context, persona: persona)
 
           expect(result[:persona]).to eq(persona)
         end
+      end
+
+      it 'defaults to buddy persona when not specified', :vcr do
+        result = module_instance.call(message: message, context: context)
+        expect(result[:persona]).to eq('buddy')
+      end
+
+      it 'creates proper persona instance through BasePersona', :vcr do
+        # Use test double to verify persona creation
+        mock_persona = instance_double(Personas::BuddyPersona,
+                                       name: 'buddy',
+                                       generate_system_prompt: 'Test prompt',
+                                       tool_schemas: [],
+                                       generate_fallback_response: 'Fallback')
+
+        allow(Personas::BasePersona).to receive(:create).with('buddy', anything).and_return(mock_persona)
+
+        module_instance.call(message: message, context: context, persona: 'buddy')
+
+        expect(Personas::BasePersona).to have_received(:create).with('buddy', anything)
+      end
+    end
+
+    context 'persona tool loading' do
+      it 'auto-loads persona tools when not provided in context', :vcr do
+        # Verify tools are auto-loaded from persona
+        module_instance.call(message: message, context: {}, persona: 'buddy')
+
+        # Should have loaded tools automatically
+        expect(Services::SimpleLogger).to have_received(:debug).with(
+          'Auto-loaded tools for persona',
+          hash_including(tagged: [:tools], persona: 'buddy')
+        )
+      end
+
+      it 'uses provided tools when available in context', :vcr do
+        custom_tools = [{ 'type' => 'function', 'function' => { 'name' => 'custom_tool' } }]
+        context_with_tools = context.merge(tools: custom_tools)
+
+        module_instance.call(message: message, context: context_with_tools, persona: 'buddy')
+
+        # Should not auto-load tools when provided
+        expect(Services::SimpleLogger).not_to have_received(:debug).with(
+          'Auto-loaded tools for persona',
+          anything
+        )
       end
     end
 
