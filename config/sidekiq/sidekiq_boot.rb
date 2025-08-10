@@ -24,7 +24,9 @@ puts "   Username: #{config['username']}"
 puts "   Pool: #{config['pool']}"
 
 # Now load the main application
+require_relative '../../app'
 
 # Load Sidekiq configuration
+require_relative 'sidekiq'
 
 puts '✅ Sidekiq environment loaded successfully'
