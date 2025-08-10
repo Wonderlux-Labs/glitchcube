@@ -41,12 +41,20 @@ RSpec.describe Personas::DefaultPersona do
     end
 
     it 'can be explicitly registered if needed' do
-      # Register DefaultPersona explicitly
-      Personas::BasePersona.register_persona('explicit_default', Personas::DefaultPersona)
+      # Save the original registry state
+      original_registry = Personas::BasePersona.instance_variable_get(:@registry).dup
 
-      # Now it should create DefaultPersona specifically
-      explicit_default = Personas::BasePersona.create('explicit_default')
-      expect(explicit_default).to be_a(Personas::DefaultPersona)
+      begin
+        # Register DefaultPersona explicitly
+        Personas::BasePersona.register_persona('explicit_default', Personas::DefaultPersona)
+
+        # Now it should create DefaultPersona specifically
+        explicit_default = Personas::BasePersona.create('explicit_default')
+        expect(explicit_default).to be_a(Personas::DefaultPersona)
+      ensure
+        # Restore the original registry state to prevent test pollution
+        Personas::BasePersona.instance_variable_set(:@registry, original_registry)
+      end
     end
   end
 
