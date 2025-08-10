@@ -54,7 +54,7 @@ RSpec.describe 'Request Logging', type: :request do
     end
 
     it 'captures request metadata', :vcr do
-      get '/kiosk', {}, { 'HTTP_USER_AGENT' => 'Test Browser 1.0' }
+      get '/health', {}, { 'HTTP_USER_AGENT' => 'Test Browser 1.0' }
 
       logged_request = @logged_requests.first
       expect(logged_request[:user_agent]).to eq('Test Browser 1.0')

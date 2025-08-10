@@ -51,7 +51,7 @@ module Services
       context[:occurrence_count] = occurrence_count
       analysis = assess_criticality(error, context)
 
-      if analysis[:critical] && analysis[:confidence] > criticality_threshold
+      if analysis[:critical] && analysis[:confidence] >= criticality_threshold
         result = attempt_self_healing(error, context, analysis)
         log_healing_attempt(error, context, analysis, result)
         result
@@ -86,7 +86,7 @@ module Services
 
       prompt = build_criticality_prompt(error, context)
 
-      response = Services::LLM::LLMService.complete_cheap_tools(
+      response = Services::LLMService.complete_cheap_tools(
         prompt,
         model: 'openai/gpt-4o-mini',
         response_format: { type: 'json_object' }
@@ -387,7 +387,7 @@ module Services
                  )
                else
                  # Fallback to direct LLM call if Task agent not available
-                 response = Services::LLM::LLMService.complete_cheap_tools(
+                 response = Services::LLMService.complete_cheap_tools(
                    prompt,
                    model: 'openai/gpt-4o-mini',
                    response_format: { type: 'json_object' }

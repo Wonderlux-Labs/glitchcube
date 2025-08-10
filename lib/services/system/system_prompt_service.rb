@@ -2,6 +2,8 @@
 
 require 'time'
 require 'tzinfo'
+require_relative '../../personas/base_persona'
+require_relative '../../personas/persona_factory'
 
 module Services
   class SystemPromptService
@@ -13,9 +15,30 @@ module Services
     def initialize(character: nil, context: {})
       @character = character
       @context = context
+
+      # Bridge to Persona system if character is provided
+      return unless @character
+
+      begin
+        # Ensure personas are registered
+        Personas::PersonaFactory.register_all unless Personas::BasePersona.available_personas.any?
+
+        # Create persona instance for this character
+        @persona = Personas::BasePersona.create(@character.to_s, @context)
+      rescue StandardError => e
+        # Fall back to nil if persona can't be created
+        puts "Warning: Could not create persona for character '#{@character}': #{e.message}" if defined?(GlitchCube) && GlitchCube.config&.debug?
+        @persona = nil
+      end
     end
 
     def generate
+      # If we have a persona, delegate to it
+      if @persona
+        return @persona.generate_system_prompt
+      end
+
+      # Otherwise use the old implementation for backward compatibility
       prompt_parts = [
         datetime_section,
         base_prompt,

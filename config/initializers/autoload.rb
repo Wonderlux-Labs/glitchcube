@@ -81,7 +81,7 @@ module Autoloader
       Dir[File.join(root, 'lib', 'services', 'system', '*.rb')].each { |f| require f }
 
       # Then other service subdirectories
-      %w[llm memory gps kiosk conversation].each do |subdir|
+      %w[llm memory gps conversation].each do |subdir|
         Dir[File.join(root, 'lib', 'services', subdir, '*.rb')].each { |f| require f }
       end
 

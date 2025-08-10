@@ -58,7 +58,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
 
   describe '#call with enhancements' do
     let(:message) { 'How is the temperature?' }
-    let(:context) { { include_sensors: true, persona: 'contemplative' } }
+    let(:context) { { include_sensors: true, persona: 'lomi' } }
 
     it 'integrates all enhancements in conversation flow', :vcr do
       # Mock conversation session to avoid database
@@ -82,7 +82,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
       result = module_instance.call(message: message, context: context)
 
       expect(result[:response]).to eq('Hello from Glitch Cube!')
-      expect(result[:persona]).to eq('contemplative')
+      expect(result[:persona]).to eq('lomi')
       expect(result[:continue_conversation]).to be true
     end
 
@@ -102,7 +102,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
 
       result = module_instance.call(message: message, context: context)
 
-      expect(result[:response].downcase).to match(/offline|connectivity|unavailable|quiet|spirit|digital silence|presence|artistic moment|computational resources|reflecting/)
+      expect(result[:response].downcase).to match(/offline|connectivity|unavailable|quiet|spirit|digital silence|presence|artistic moment|computational resources|reflecting|clouded/)
       expect(result[:error]).to eq('llm_error')
     end
   end

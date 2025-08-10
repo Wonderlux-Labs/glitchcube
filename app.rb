@@ -62,7 +62,6 @@ class GlitchCubeApp < Sinatra::Base
 
   # Register route modules
   # Core application routes
-  register GlitchCube::Routes::Core::Kiosk
 
   # Main API routes
   register GlitchCube::Routes::Api::Gps

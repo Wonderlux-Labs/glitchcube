@@ -54,7 +54,7 @@ class WeatherService
   def generate_weather_summary(weather_data)
     prompt = build_weather_prompt(weather_data)
 
-    response = Services::LLM::LLMService.complete_cheap_no_tools(
+    response = Services::LLMService.complete_cheap_no_tools(
       prompt,
       model: 'google/gemini-2.0-flash-thinking-exp:free',
       max_tokens: 100,

@@ -115,8 +115,7 @@ module Services
       session.add_message(
         role: 'assistant',
         content: response_text,
-        persona: persona,
-        error: true
+        persona: persona
       )
     rescue StandardError => e
       puts "Warning: Could not record error response: #{e.message}"

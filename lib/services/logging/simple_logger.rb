@@ -14,8 +14,8 @@ module Services
         caller_info = extract_caller
         tags = normalize_tags(tagged)
 
-        # Format: [timestamp] [LEVEL] message #tag1 #tag2 (caller) key=value
-        line = "[#{timestamp}] [#{level.upcase}] #{msg}"
+        # Format: [timestamp] [LEVEL] [ENV] message #tag1 #tag2 (caller) key=value
+        line = "[#{timestamp}] [#{level.upcase}] [#{rack_env}] #{msg}"
         line += " #{tags.map { |t| "##{t}" }.join(' ')}" unless tags.empty?
         line += " (#{caller_info})"
         line += " #{format_metadata(metadata)}" unless metadata.empty?
@@ -89,6 +89,10 @@ module Services
 
       def should_echo_to_screen?
         ENV['LOG_TO_SCREEN'] == 'true'
+      end
+
+      def rack_env
+        (ENV['RACK_ENV'] || 'development').upcase
       end
 
       def extract_caller

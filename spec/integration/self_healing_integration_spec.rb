@@ -15,7 +15,7 @@ RSpec.describe 'Self-Healing Error Handler Integration' do
     FileUtils.rm_rf('log/proposed_fixes')
 
     # Clear all LLM service state to prevent mock leaking
-    Services::LLM::LLMService.clear_cache! if defined?(Services::LLM::LLMService)
+    Services::LLMService.clear_cache! if defined?(Services::LLMService)
   end
 
   after do

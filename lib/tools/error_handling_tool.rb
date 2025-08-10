@@ -153,7 +153,7 @@ class ErrorHandlingTool < BaseTool
       if GlitchCube.config.openrouter_api_key
         # Simple test - just check if we can initialize the service
 
-        Services::LLM::LLMService.new
+        Services::LLMService.new
         result << '  ✅ Service initialized'
         result << '  🔑 API key configured'
       else

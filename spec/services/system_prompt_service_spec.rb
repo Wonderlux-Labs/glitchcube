@@ -96,13 +96,13 @@ RSpec.describe Services::SystemPromptService do
       describe 'default character fallback' do
         let(:character) { 'nonexistent_character' }
 
-        it 'falls back to default prompt when character file missing' do
+        it 'falls back to buddy persona when character file missing' do
           result = service.generate
 
-          expect(result).to include('You are the Glitch Cube')
-          expect(result).to include('CORE IDENTITY:')
-          expect(result).to include('cube-shaped autonomous entity')
-          expect(result).to include('PERSONALITY TRAITS:')
+          # When a character doesn't exist, BasePersona defaults to BuddyPersona
+          expect(result).to include('BUDDY')
+          expect(result).to include('Helper')
+          expect(result).not_to include('nonexistent_character')
         end
       end
 
@@ -176,11 +176,12 @@ RSpec.describe Services::SystemPromptService do
     context 'when prompt file is missing' do
       let(:character) { 'nonexistent' }
 
-      it 'falls back to default prompt gracefully' do
+      it 'falls back to buddy persona gracefully' do
         result = service.generate
 
-        expect(result).to include('You are the Glitch Cube')
-        expect(result).to include('CORE IDENTITY:')
+        # When a character doesn't exist, BasePersona defaults to BuddyPersona
+        expect(result).to include('BUDDY')
+        expect(result).to include('Helper')
         expect(result).not_to include('nonexistent')
       end
 
@@ -220,13 +221,14 @@ RSpec.describe Services::SystemPromptService do
     end
   end
 
-  describe 'integration with ConversationModule' do
-    it 'is used by ConversationModule for prompt generation' do
+  describe 'integration with Persona system' do
+    it 'delegates to Personas::BasePersona when character is provided' do
       # This is more of a documentation spec
-      module_file = File.read(File.join(__dir__, '../../lib/modules/conversation_module.rb'))
+      service_file = File.read(File.join(__dir__, '../../lib/services/system/system_prompt_service.rb'))
 
-      expect(module_file).to include('')
-      expect(module_file).to include('Services::SystemPromptService.new')
+      # Verify the service bridges to the Persona system
+      expect(service_file).to include('Personas::BasePersona.create')
+      expect(service_file).to include('@persona.generate_system_prompt')
     end
   end
 end

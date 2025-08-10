@@ -7,7 +7,7 @@ class ContextGenerationJob
 
   def perform(model:, prompt:, sensor:, attribute:)
     # Simple LLM call
-    response = Services::LLM::LLMService.complete_cheap_no_tools(
+    response = Services::LLMService.complete_cheap_no_tools(
       prompt,
       model: model,
       max_tokens: 100,  # Keep it concise

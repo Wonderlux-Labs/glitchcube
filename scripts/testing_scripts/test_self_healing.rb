@@ -4,13 +4,14 @@
 # Test script to demonstrate the self-healing error handler
 # WARNING: Only run in development environment!
 
+require_relative '../../config/environment'
 require 'redis'
 
 puts '🧬 Self-Healing Error Handler Test'
 puts '⚠️  WARNING: This is experimental and can modify code!'
 puts
 puts 'Configuration:'
-puts "  - Self-healing enabled: #{GlitchCube.config.enable_self_healing}"
+puts "  - Self-healing enabled: #{GlitchCube.config.self_healing_enabled?}"
 puts "  - Min confidence: #{GlitchCube.config.self_healing_min_confidence}"
 puts "  - Error threshold: #{GlitchCube.config.self_healing_error_threshold}"
 puts
@@ -20,8 +21,8 @@ if GlitchCube.config.production?
   exit 1
 end
 
-unless GlitchCube.config.enable_self_healing
-  puts '❌ Self-healing is disabled. Set ENABLE_SELF_HEALING=true to test.'
+unless GlitchCube.config.self_healing_enabled?
+  puts '❌ Self-healing is disabled. Set SELF_HEALING=DRY_RUN to test.'
   exit 1
 end
 

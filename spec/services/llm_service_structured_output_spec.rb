@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require_relative '../../lib/services/llm/llm_service'
 
 RSpec.describe Services::LLMService, 'structured output support' do
   before do

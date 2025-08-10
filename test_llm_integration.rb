@@ -17,9 +17,9 @@ begin
   puts '   ✅ Services::LLMService loaded successfully'
 
   # Test namespaced LLMService
-  puts '   - Loading Services::LLM::LLMService...'
+  puts '   - Loading Services::LLMService...'
 
-  puts '   ✅ Services::LLM::LLMService loaded successfully'
+  puts '   ✅ Services::LLMService loaded successfully'
 
   # Test LLMResponse
   puts '   - Loading LLMResponse classes...'
@@ -36,7 +36,7 @@ puts "\n2. Testing convenience methods availability..."
 
 begin
   # Test namespaced service convenience methods
-  puts '   - Checking Services::LLM::LLMService convenience methods...'
+  puts '   - Checking Services::LLMService convenience methods...'
   namespaced_methods = %i[
     complete_cheap_tools
     complete_cheap_no_tools
@@ -46,7 +46,7 @@ begin
   ]
 
   namespaced_methods.each do |method|
-    if Services::LLM::LLMService.respond_to?(method)
+    if Services::LLMService.respond_to?(method)
       puts "   ✅ #{method} available"
     else
       puts "   ❌ #{method} missing"
@@ -101,8 +101,8 @@ begin
   puts "   ✅ Tool calls present: #{response.respond_to?(:tool_calls?) ? response.tool_calls? : 'method missing'}"
 
   # Test namespaced LLMResponse
-  puts '   - Testing Services::LLM::LLMResponse...'
-  namespaced_response = Services::LLM::LLMResponse.new(mock_response)
+  puts '   - Testing Services::LLMResponse...'
+  namespaced_response = Services::LLMResponse.new(mock_response)
   puts "   ✅ Content: #{namespaced_response.content}"
   puts "   ✅ Usage: #{namespaced_response.usage}"
   puts "   ✅ Tool calls present: #{namespaced_response.tool_calls?}"
@@ -132,9 +132,9 @@ begin
     end
   end
 
-  puts '   - Checking Services::LLM::LLMService methods...'
+  puts '   - Checking Services::LLMService methods...'
   basic_methods.each do |method|
-    if Services::LLM::LLMService.respond_to?(method)
+    if Services::LLMService.respond_to?(method)
       puts "   ✅ #{method} available"
     else
       puts "   ❌ #{method} missing"

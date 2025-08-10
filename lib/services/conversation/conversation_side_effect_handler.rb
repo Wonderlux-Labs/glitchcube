@@ -86,25 +86,9 @@ module Services
     end
 
     def update_displays
-      update_kiosk_display
+      # Display update functionality removed (kiosk service deprecated)
     rescue StandardError => e
       puts "Warning: Display update failed: #{e.message}"
-    end
-
-    def update_kiosk_display
-      return unless kiosk_enabled?
-
-      Services::KioskService.update_mood(persona)
-      Services::KioskService.update_interaction({
-                                                  message: user_message,
-                                                  response: response_text
-                                                })
-      Services::KioskService.add_inner_thought('Just shared something meaningful with a visitor')
-    end
-
-    def kiosk_enabled?
-      defined?(Services::KioskService) &&
-        Services::KioskService.respond_to?(:update_mood)
     end
 
     def debug_mode?

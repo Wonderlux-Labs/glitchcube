@@ -59,10 +59,7 @@ RSpec.describe ConversationModule do
     # Mock SimpleLogger for persona tool loading
     allow(Services::SimpleLogger).to receive(:debug)
 
-    # These are class methods for kiosk - OK to mock at class level
-    allow(Services::KioskService).to receive(:update_mood)
-    allow(Services::KioskService).to receive(:update_interaction)
-    allow(Services::KioskService).to receive(:add_inner_thought)
+    # Kiosk service removed (deprecated)
 
     # Mock AWTRIX display methods
     allow(mock_home_assistant).to receive(:awtrix_display_text)
