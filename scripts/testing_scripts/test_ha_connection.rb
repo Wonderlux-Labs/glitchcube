@@ -3,7 +3,6 @@
 
 # Test Home Assistant connection and list entities
 require 'bundler/setup'
-require_relative '../app'
 
 puts 'Testing Home Assistant connection...'
 puts "URL: #{GlitchCube.config.home_assistant.url || 'Not configured'}"

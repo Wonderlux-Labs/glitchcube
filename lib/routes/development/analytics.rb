@@ -68,8 +68,6 @@ module GlitchCube
           app.get '/api/v1/system_prompt' do
             content_type :json
 
-            require_relative '../../services/system_prompt_service'
-
             character = nil
             context = {
               location: params[:location] || 'Default Location',
@@ -92,8 +90,6 @@ module GlitchCube
 
           app.get '/api/v1/system_prompt/:character' do
             content_type :json
-
-            require_relative '../../services/system_prompt_service'
 
             character = params[:character]
             context = {
@@ -139,7 +135,6 @@ module GlitchCube
           app.get '/api/v1/context/documents' do
             content_type :json
 
-            require_relative '../../services/context_retrieval_service'
             service = ::Services::ContextRetrievalService.new
 
             json({
@@ -154,7 +149,6 @@ module GlitchCube
             begin
               data = JSON.parse(request.body.read)
 
-              require_relative '../../services/context_retrieval_service'
               service = ::Services::ContextRetrievalService.new
 
               success = service.add_document(
@@ -183,7 +177,6 @@ module GlitchCube
             begin
               data = JSON.parse(request.body.read)
 
-              require_relative '../../services/context_retrieval_service'
               service = ::Services::ContextRetrievalService.new
 
               results = service.retrieve_context(data['query'], k: data['k'] || 3)

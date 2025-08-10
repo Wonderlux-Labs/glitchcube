@@ -8,8 +8,6 @@ require 'vcr'
 require 'webmock/rspec'
 
 # Load our Zero-Leak VCR configuration
-require_relative 'vcr_config'
-require_relative 'vcr_helpers_new'
 
 # Initialize Zero-Leak VCR configuration
 ZeroLeakVCR.configure!

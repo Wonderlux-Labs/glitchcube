@@ -6,12 +6,6 @@
 require 'dotenv'
 Dotenv.load('.env.defaults', '.env')
 
-require_relative 'config/constants'
-require_relative 'config/initializers/config'
-require_relative 'lib/services/logger_service'
-require_relative 'lib/services/circuit_breaker_service'
-require_relative 'lib/modules/conversation_module'
-
 puts '🎲 Testing End-to-End Conversation Flow'
 puts '=' * 50
 

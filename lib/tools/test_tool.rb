@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_tool'
-
 class TestTool < BaseTool
   def self.name
     'test_tool'
@@ -13,6 +11,32 @@ class TestTool < BaseTool
 
   def self.tool_prompt
     'Get system info with get_info(). Types: battery, location, sensors, all.'
+  end
+
+  # List of available tool methods for this class
+  def self.available_tools
+    %w[test]
+  end
+
+  # Prompt description for LLM
+  def self.prompt_description
+    'Get system information for testing'
+  end
+
+  # Tool schemas for each method
+  def self.tool_schemas
+    {
+      'test' => {
+        'type' => 'object',
+        'properties' => {
+          'info_type' => {
+            'type' => 'string',
+            'enum' => %w[battery location sensors all],
+            'description' => 'Type of information to retrieve'
+          }
+        }
+      }
+    }
   end
 
   def self.parameters
@@ -33,10 +57,16 @@ class TestTool < BaseTool
     'system_integration'
   end
 
-  def self.call(info_type: 'all')
+  # Main entry point for the 'test' tool method
+  def self.test(info_type: 'all')
     result = perform_action(info_type)
     # Convert result to string for ReAct module
     format_result(result)
+  end
+
+  # Legacy method for backwards compatibility
+  def self.call(info_type: 'all')
+    test(info_type: info_type)
   end
 
   def self.format_result(result)

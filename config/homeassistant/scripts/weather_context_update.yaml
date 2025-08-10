@@ -16,7 +16,7 @@ update_weather_24h:
       data:
         agent_id: conversation.claude_conversation
         text: >-
-          Summarize weather for next 24h in a casual, conversational tone (aim for 500-800 chars for rich context):
+          Summarize weather for next 24h in a few concise sentences including currently"
           Current conditions:
           - Temp: {{ states('sensor.playaweather_temperature') }}°F (feels like {{ states('sensor.playaweather_feels_like_temperature') }}°F)
           - Condition: {{ states('sensor.playaweather_weather') }}
@@ -58,7 +58,7 @@ update_weather_5day:
       data:
         agent_id: conversation.claude_conversation
         text: >-
-          Summarize 5-day weather forecast in a casual, conversational tone (aim for 500-800 chars for rich context):
+          Summarize 5-day weather forecast in a concise way:
           {% set days = daily_forecast['weather.playaweather'].forecast[:5] %}
           {% for day in days %}
           Day {{ loop.index }}: {{ day.temperature }}°F/{{ day.templow }}°F, {{ day.condition }}

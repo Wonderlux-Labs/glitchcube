@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/home_assistant_client'
 
 RSpec.describe HomeAssistantClient do
   let(:client) { described_class.new }

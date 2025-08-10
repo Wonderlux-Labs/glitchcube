@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/services/character_service'
+require_relative '../../lib/personas/base_persona'
+require_relative '../../lib/personas/buddy_persona'
 
 RSpec.describe Services::CharacterService do
   let(:mock_home_assistant) { instance_double(HomeAssistantClient) }
@@ -245,6 +246,59 @@ RSpec.describe Services::CharacterService do
       end
 
       service.speak('Test')
+    end
+  end
+
+  describe 'Persona Bridge Integration' do
+    context 'when persona exists' do
+      let(:service) { described_class.new(character: :buddy) }
+
+      it 'creates persona instance on initialization' do
+        expect(service.instance_variable_get(:@persona)).to be_a(Personas::BuddyPersona)
+      end
+
+      it 'uses persona for tool schemas' do
+        tools = service.get_tools
+        expect(tools).to be_an(Array)
+        expect(tools).not_to be_empty
+        # Should get tools from BuddyPersona
+        expect(tools.first).to include('type' => 'function')
+      end
+
+      it 'uses persona for system prompt' do
+        prompt = service.get_system_prompt
+        expect(prompt).to include('BUDDY')
+        expect(prompt).to include('helpful')
+      end
+    end
+
+    context 'when persona does not exist' do
+      let(:service) { described_class.new(character: :default) }
+
+      it 'falls back to character config for tools' do
+        tools = service.get_tools
+        expect(tools).to eq(Services::CharacterService::CHARACTERS[:default][:tools])
+      end
+
+      it 'falls back to basic prompt' do
+        prompt = service.get_system_prompt
+        expect(prompt).to eq('You are Glitch Cube: Sentient interactive art installation with curiosity')
+      end
+    end
+
+    context 'persona registry interaction' do
+      it 'checks if persona exists using BasePersona registry' do
+        expect(Personas::BasePersona.persona_exists?('buddy')).to be true
+        expect(Personas::BasePersona.persona_exists?('jax')).to be true
+        expect(Personas::BasePersona.persona_exists?('nonexistent')).to be false
+      end
+
+      it 'handles missing personas gracefully' do
+        service = described_class.new(character: :unknown_character)
+        expect(service.instance_variable_get(:@persona)).to be_nil
+        expect { service.get_tools }.not_to raise_error
+        expect { service.get_system_prompt }.not_to raise_error
+      end
     end
   end
 end

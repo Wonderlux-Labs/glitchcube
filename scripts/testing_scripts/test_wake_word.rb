@@ -5,9 +5,7 @@
 # This simulates what happens when someone says "Hey Glitch Cube"
 
 require 'bundler/setup'
-require_relative 'config/environment'
-require_relative 'config/initializers/config'
-require_relative 'lib/home_assistant_client'
+
 require 'json'
 
 puts '🎤 Wake Word Detection Test'

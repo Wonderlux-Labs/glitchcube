@@ -365,10 +365,12 @@
     <header>
       <h1>🎲 Glitch Cube Conversation Testing</h1>
       <div class="nav-tabs">
+        <a href="/admin">Admin Home</a>
         <a href="/admin/test" class="active">Conversations</a>
+        <a href="/admin/test/flow">Flow Test</a>
         <a href="/admin/test/sessions">All Sessions</a>
         <a href="/admin/test/memories">Memories</a>
-        <a href="/admin/test/tools">Tools</a>
+        <a href="/admin/tools">Tools Explorer</a>
         <a href="/health">System Status</a>
       </div>
     </header>
@@ -382,6 +384,20 @@
           <div class="form-group">
             <label for="message">Your Message</label>
             <textarea name="message" id="message" placeholder="Type your message here..." required><%= @last_message || "Hello! What's on your mind today?" %></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="model">Model (optional)</label>
+            <select name="model" id="model" class="form-control">
+              <option value="" <%= session[:selected_model].nil? || session[:selected_model].empty? ? 'selected' : '' %>>Default Model</option>
+              <option value="deepseek/deepseek-chat-v3-0324" <%= session[:selected_model] == 'deepseek/deepseek-chat-v3-0324' ? 'selected' : '' %>>DeepSeek Chat v3</option>
+              <option value="openai/gpt-oss-120b" <%= session[:selected_model] == 'openai/gpt-oss-120b' ? 'selected' : '' %>>GPT OSS 120B</option>
+              <option value="cohere/command-r" <%= session[:selected_model] == 'cohere/command-r' ? 'selected' : '' %>>Cohere Command-R</option>
+              <option value="anthropic/claude-4-sonnet" <%= session[:selected_model] == 'anthropic/claude-4-sonnet' ? 'selected' : '' %>>Claude 4 Sonnet</option>
+              <option value="anthropic/claude-3-haiku" <%= session[:selected_model] == 'anthropic/claude-3-haiku' ? 'selected' : '' %>>Claude 3 Haiku</option>
+              <option value="openai/gpt-4.1-mini" <%= session[:selected_model] == 'openai/gpt-4.1-mini' ? 'selected' : '' %>>GPT 4.1 Mini</option>
+              <option value="anthropic/claude-3.5-haiku" <%= session[:selected_model] == 'anthropic/claude-3.5-haiku' ? 'selected' : '' %>>Claude 3.5 Haiku</option>
+            </select>
           </div>
           
           <div class="form-group">
@@ -423,6 +439,10 @@
         
         <% if @conversation_response %>
           <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" style="font-size: 14px;"><%= @selected_model || 'Default' %></div>
+              <div class="stat-label">Model</div>
+            </div>
             <div class="stat-card">
               <div class="stat-value">$<%= @conversation_response[:cost] || 0 %></div>
               <div class="stat-label">Cost</div>

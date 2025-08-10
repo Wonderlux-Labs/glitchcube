@@ -118,3 +118,23 @@ glitchcube_proactive:
   headers:
     Content-Type: application/json
   payload: '{{ data | to_json }}'
+
+# LLM completion command for AI text generation
+glitchcube_llm_complete:
+  url: "http://{{ states('sensor.glitchcube_host_ip') }}:4567/api/v1/llm/complete"
+  method: POST
+  headers:
+    Content-Type: "application/json"
+  payload: |
+    {
+      "prompt": "{{ prompt }}",
+      {% if model is defined %}
+      "model": "{{ model }}",
+      {% endif %}
+      {% if options is defined %}
+      "options": {{ options | to_json }}
+      {% endif %}
+    }
+  content_type: "application/json"
+  verify_ssl: false
+  timeout: 120

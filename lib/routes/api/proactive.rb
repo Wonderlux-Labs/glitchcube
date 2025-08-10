@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'json'
-require_relative '../../services/proactive_interaction_service'
 
 module GlitchCube
   module Routes

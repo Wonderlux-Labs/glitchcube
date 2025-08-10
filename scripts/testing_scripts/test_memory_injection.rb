@@ -3,9 +3,6 @@
 
 # Test memory injection in conversations
 
-require_relative 'config/environment'
-require_relative 'app'
-
 puts '=== Testing Memory Injection in Conversations ==='
 
 # Enable debug mode to see memory injection

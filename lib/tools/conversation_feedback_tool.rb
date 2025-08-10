@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_tool'
-require_relative '../services/conversation_feedback_service'
-require_relative '../services/logger_service'
-
 # Tool for controlling visual conversation feedback through LED ring
 # Provides clear visual indicators for conversation states and moods
 class ConversationFeedbackTool < BaseTool
@@ -21,6 +17,39 @@ class ConversationFeedbackTool < BaseTool
 
   def self.tool_prompt
     'Set conversation state with set_state(). Use custom colors with set_custom_color(). Control with turn_off(), get_status().'
+  end
+
+  # List of available tool methods for this class
+  def self.available_tools
+    %w[set_state set_custom_color get_status]
+  end
+
+  # Prompt description for LLM
+  def self.prompt_description
+    'Control LED ring visual feedback for conversation states and custom colors'
+  end
+
+  # Tool schemas for each method
+  def self.tool_schemas
+    {
+      'set_state' => {
+        'type' => 'object',
+        'properties' => {
+          'state' => { 'type' => 'string', 'enum' => %w[listening thinking speaking completed error idle] }
+        },
+        'required' => ['state']
+      },
+      'set_custom_color' => {
+        'type' => 'object',
+        'properties' => {
+          'color' => { 'type' => 'string' },
+          'brightness' => { 'type' => 'integer', 'minimum' => 0, 'maximum' => 255 },
+          'effect' => { 'type' => 'string', 'enum' => %w[solid pulse_slow pulse_fast flash fade_out] }
+        },
+        'required' => ['color']
+      },
+      'get_status' => { 'type' => 'object', 'properties' => {} }
+    }
   end
 
   # Set conversation state with predefined visual feedback

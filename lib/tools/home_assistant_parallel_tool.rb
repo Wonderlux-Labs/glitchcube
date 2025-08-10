@@ -2,7 +2,6 @@
 
 require 'concurrent'
 require 'json'
-require_relative 'base_tool'
 
 # Enhanced Home Assistant tool with parallel execution support
 class HomeAssistantParallelTool < BaseTool

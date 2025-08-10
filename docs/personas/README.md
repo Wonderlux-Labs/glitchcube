@@ -64,8 +64,8 @@ Create a test script for rapid iteration:
 #!/usr/bin/env ruby
 # test_persona.rb
 
-require_relative 'lib/modules/conversation_module'
-require_relative 'lib/services/character_service'
+
+
 
 def test_persona(persona_name, test_messages)
   puts "🎭 Testing #{persona_name.upcase} persona"
@@ -148,12 +148,12 @@ end
 
 ```ruby
 # Check persona configuration
-require_relative 'lib/services/character_service'
+
 buddy_config = Services::CharacterService.get_character('buddy')
 puts "BUDDY tools: #{buddy_config[:tools]}"
 
 # Test tool registry integration
-require_relative 'lib/services/tool_registry_service'
+
 tools = Services::ToolRegistryService.get_tools_for_character('buddy')
 puts "Available functions: #{tools.size}"
 tools.each { |t| puts "  - #{t[:name]}: #{t[:description]}" }

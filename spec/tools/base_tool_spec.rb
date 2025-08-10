@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/tools/base_tool'
 
 RSpec.describe BaseTool do
   describe 'class methods' do

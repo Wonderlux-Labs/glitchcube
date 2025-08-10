@@ -3,11 +3,7 @@
 
 # Test script for entity monitoring system
 
-require_relative '../app'
-
 # Require the services we're testing
-require_relative '../lib/services/entity_manager_service'
-require_relative '../lib/jobs/entity_documentation_job'
 
 puts '🧪 Testing Entity Monitoring System'
 puts '=' * 50

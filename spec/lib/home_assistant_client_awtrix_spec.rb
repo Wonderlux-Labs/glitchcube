@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'home_assistant_client'
+require 'core/home_assistant_client'
 # FIX CLIENT AND SPECS
 
 RSpec.describe HomeAssistantClient do

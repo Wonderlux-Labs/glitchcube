@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/services/weather_service'
 
 RSpec.describe WeatherService, :vcr do
   let(:service) { described_class.new }

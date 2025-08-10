@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 # Test TTS Service in console
-require_relative 'lib/services/tts_service'
 
 puts '🎤 Testing TTS Service'
 puts '=' * 50

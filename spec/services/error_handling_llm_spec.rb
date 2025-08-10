@@ -226,18 +226,21 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       it 'uses LLM to analyze error criticality', :vcr do
-        expect(OpenRouterService).to receive(:complete).with(
+        mock_response = instance_double(Services::LLMResponse,
+                                        content: JSON.generate({
+                                                                 'critical' => true,
+                                                                 'confidence' => 0.85,
+                                                                 'reason' => 'Null pointer exception in core service',
+                                                                 'suggested_fix' => 'Add nil check before method call',
+                                                                 'affects_core_functionality' => true,
+                                                                 'can_self_heal' => true
+                                                               }))
+
+        expect(Services::LLMService).to receive(:complete_cheap_tools).with(
           anything,
           model: 'openai/gpt-4o-mini',
           response_format: { type: 'json_object' }
-        ).and_return(JSON.generate({
-                                     'critical' => true,
-                                     'confidence' => 0.85,
-                                     'reason' => 'Null pointer exception in core service',
-                                     'suggested_fix' => 'Add nil check before method call',
-                                     'affects_core_functionality' => true,
-                                     'can_self_heal' => true
-                                   }))
+        ).and_return(mock_response)
 
         result = service.assess_criticality(error, context)
         expect(result[:critical]).to be true
@@ -246,7 +249,8 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       it 'handles malformed JSON response', :vcr do
-        expect(OpenRouterService).to receive(:complete).and_return('not json')
+        mock_response = instance_double(Services::LLMResponse, content: 'not json')
+        expect(Services::LLMService).to receive(:complete_cheap_tools).and_return(mock_response)
 
         result = service.assess_criticality(error, context)
         expect(result[:critical]).to be false
@@ -255,7 +259,7 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       it 'handles LLM errors gracefully', :vcr do
-        expect(OpenRouterService).to receive(:complete).and_raise('API Error')
+        expect(Services::LLMService).to receive(:complete_cheap_tools).and_raise('API Error')
 
         result = service.assess_criticality(error, context)
         expect(result[:critical]).to be false
@@ -270,7 +274,7 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       it 'returns low confidence without calling LLM', :vcr do
-        expect(OpenRouterService).not_to receive(:complete)
+        expect(Services::LLMService).not_to receive(:complete_cheap_tools)
 
         result = service.assess_criticality(error, context)
         expect(result[:critical]).to be false
@@ -423,17 +427,17 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       it 'falls back to direct LLM call', :vcr do
-        expect(OpenRouterService).to receive(:complete).and_return(
-          JSON.generate({
-                          success: true,
-                          fix: {
-                            description: 'Added nil check',
-                            changes: [
-                              { file: 'lib/services/tts_service.rb', diff: '+ return unless client', line: 29 }
-                            ]
-                          }
-                        })
-        )
+        mock_response = instance_double(Services::LLMResponse,
+                                        content: JSON.generate({
+                                                                 success: true,
+                                                                 fix: {
+                                                                   description: 'Added nil check',
+                                                                   changes: [
+                                                                     { file: 'lib/services/tts_service.rb', diff: '+ return unless client', line: 29 }
+                                                                   ]
+                                                                 }
+                                                               }))
+        expect(Services::LLMService).to receive(:complete_cheap_tools).and_return(mock_response)
 
         result = service.analyze_and_fix_code(error, context)
         expect(result[:success]).to be true

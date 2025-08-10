@@ -2,7 +2,6 @@
 
 require 'spec_helper'
 require 'fileutils'
-require_relative '../../lib/services/context_retrieval_service'
 
 RSpec.describe 'Context Retrieval Integration' do
   let(:service) { Services::ContextRetrievalService.new }

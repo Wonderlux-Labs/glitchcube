@@ -366,8 +366,8 @@ end
 
 ```ruby
 # Load your custom modules
-require_relative 'lib/modules/conversation_module'
-require_relative 'lib/modules/image_analysis_module'
+
+
 
 class ArtInstallationAPI < Sinatra::Base
   # Method 1: Manual endpoint registration
@@ -1118,7 +1118,7 @@ end
 ```ruby
 # spec/modules/image_analysis_module_spec.rb
 require 'spec_helper'
-require_relative '../../lib/modules/image_analysis_module'
+
 
 RSpec.describe ImageAnalysisModule do
   let(:module_instance) { described_class.new }
@@ -1187,7 +1187,7 @@ end
 ```ruby
 # spec/tools/image_generation_tool_spec.rb
 require 'spec_helper'
-require_relative '../../lib/tools/image_generation_tool'
+
 
 RSpec.describe ImageGenerationTool do
   describe '.call' do
@@ -1259,7 +1259,7 @@ end
 # spec/integration/api_spec.rb
 require 'spec_helper'
 require 'rack/test'
-require_relative '../../app'
+
 
 RSpec.describe 'Art Installation API' do
   include Rack::Test::Methods
@@ -1353,7 +1353,7 @@ end
 # spec/jobs/artistic_evolution_job_spec.rb
 require 'spec_helper'
 require 'sidekiq/testing'
-require_relative '../../lib/jobs/artistic_evolution_job'
+
 
 RSpec.describe ArtisticEvolutionJob do
   before do

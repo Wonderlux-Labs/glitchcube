@@ -1,9 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_tool'
-require_relative '../services/circuit_breaker_service'
-require_relative '../services/logger_service'
-
 # Tool for system diagnostics, error handling, and self-healing
 # Provides circuit breaker status, system health checks, and recovery actions
 class ErrorHandlingTool < BaseTool
@@ -156,8 +152,8 @@ class ErrorHandlingTool < BaseTool
     begin
       if GlitchCube.config.openrouter_api_key
         # Simple test - just check if we can initialize the service
-        require_relative '../services/openrouter_service'
-        Services::OpenRouterService.new
+
+        Services::LLMService.new
         result << '  ✅ Service initialized'
         result << '  🔑 API key configured'
       else

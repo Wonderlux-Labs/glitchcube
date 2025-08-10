@@ -32,6 +32,10 @@ RSpec.describe 'Simple Session Management - Phase 3.5', type: :integration do
           device_id: 'glitchcube_satellite'
         }
       }.to_json, { 'CONTENT_TYPE' => 'application/json' }
+      if last_response.status != 200
+        puts "Response status: #{last_response.status}"
+        puts "Response body: #{last_response.body}"
+      end
       expect(last_response.status).to eq(200)
       response_data = JSON.parse(last_response.body)
       expect(response_data['success']).to be true

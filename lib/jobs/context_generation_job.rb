@@ -6,15 +6,15 @@ class ContextGenerationJob
   include Sidekiq::Worker
 
   def perform(model:, prompt:, sensor:, attribute:)
-    # Simple OpenRouter call
-    response = OpenRouterService.complete(
+    # Simple LLM call
+    response = Services::LLMService.complete_cheap_no_tools(
       prompt,
       model: model,
       max_tokens: 100,  # Keep it concise
       temperature: 0.3  # Factual summaries
     )
 
-    summary = response.dig('choices', 0, 'message', 'content')&.strip
+    summary = response.content&.strip
 
     # Truncate to 255 chars if needed (for main state)
     summary = truncate_intelligently(summary, 255)

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/jobs/personality_memory_job'
 
 RSpec.describe Jobs::PersonalityMemoryJob do
   let(:job) { described_class.new }

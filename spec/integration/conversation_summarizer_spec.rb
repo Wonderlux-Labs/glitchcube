@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/services/conversation_summarizer'
-require_relative '../../lib/services/context_retrieval_service'
 
 RSpec.describe 'Conversation Summarizer Integration' do
   let(:summarizer) { Services::ConversationSummarizer.new }

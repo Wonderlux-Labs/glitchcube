@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_tool'
-require_relative '../services/logger_service'
-
 # Tool for controlling RGB lighting hardware on the Glitch Cube
 # Provides simple, direct control of lights with known entity mappings
 class LightingTool < BaseTool
@@ -20,6 +17,78 @@ class LightingTool < BaseTool
 
   def self.tool_prompt
     'Control RGB lighting with set_light(), turn_off_light(), set_effect(). Targets: cube, cart, voice_ring, matrix, indicators, all.'
+  end
+
+  # List of available tool methods for this class
+  def self.available_tools
+    %w[set_state get_state list_states]
+  end
+
+  # Prompt description for LLM
+  def self.prompt_description
+    'Control RGB lighting on cube hardware - set colors, brightness, effects'
+  end
+
+  # Tool schemas for each method
+  def self.tool_schemas
+    {
+      'set_state' => {
+        'type' => 'object',
+        'properties' => {
+          'state' => { 'type' => 'string', 'enum' => %w[on off] },
+          'target' => { 'type' => 'string', 'enum' => %w[cube cart voice_ring matrix indicators all] },
+          'color' => { 'type' => 'string' },
+          'brightness' => { 'type' => 'integer', 'minimum' => 0, 'maximum' => 255 },
+          'effect' => { 'type' => 'string', 'enum' => %w[solid pulse rainbow strobe] }
+        },
+        'required' => ['state']
+      },
+      'get_state' => {
+        'type' => 'object',
+        'properties' => {
+          'target' => { 'type' => 'string', 'enum' => %w[cube cart voice_ring matrix indicators all] }
+        }
+      },
+      'list_states' => { 'type' => 'object', 'properties' => {} }
+    }
+  end
+
+  # Main method for setting light state
+  def self.set_state(state:, target: 'all', color: nil, brightness: 150, effect: 'solid')
+    return turn_off(target: target) if state == 'off'
+
+    params = { target: target, color: color, brightness: brightness }
+    params[:pulse] = rand(5) if effect == 'pulse'
+    set_light(params)
+  end
+
+  # Get current state of lights
+  def self.get_state(target: 'all')
+    entity_ids = get_entities(target)
+    states = {}
+
+    entity_ids.each do |entity_id|
+      state = get_ha_state(entity_id)
+      states[entity_id] = state
+    end
+
+    format_response(true, 'Light states retrieved', states)
+  end
+
+  # List all light states
+  def self.list_states
+    all_targets = %w[cube cart voice_ring matrix indicators]
+    states = {}
+
+    all_targets.each do |target|
+      entity_ids = get_entities(target)
+      entity_ids.each do |entity_id|
+        state = get_ha_state(entity_id)
+        states[target] = state
+      end
+    end
+
+    format_response(true, 'All light states', states)
   end
 
   # Set light color and brightness

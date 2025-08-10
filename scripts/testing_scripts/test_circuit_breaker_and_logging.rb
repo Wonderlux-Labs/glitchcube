@@ -8,12 +8,6 @@ require 'dotenv'
 Dotenv.load('.env.defaults', '.env')
 
 # Load dependencies
-require_relative 'config/constants'
-require_relative 'config/initializers/config'
-require_relative 'lib/services/circuit_breaker_service'
-require_relative 'lib/services/logger_service'
-require_relative 'lib/home_assistant_client'
-require_relative 'lib/modules/conversation_module'
 
 puts '🧪 Testing Circuit Breaker and Logging System'
 puts '=' * 60

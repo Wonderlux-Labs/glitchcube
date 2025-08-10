@@ -3,9 +3,6 @@
 
 # Test script for memory system
 
-require_relative 'config/environment'
-require_relative 'app'
-
 puts '=== Memory System Test ==='
 puts 'Loading app environment...'
 

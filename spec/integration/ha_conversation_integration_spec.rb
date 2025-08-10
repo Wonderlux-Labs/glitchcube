@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/routes/api/conversation'
+
 require 'rack/test'
 
 RSpec.describe 'Home Assistant Conversation Integration', type: :integration do

@@ -2,8 +2,6 @@
 # frozen_string_literal: true
 
 require 'json'
-require_relative 'config/environment'
-require_relative 'lib/services/tool_registry_service'
 
 puts 'Testing Tool JSON Responses...'
 puts '=' * 50

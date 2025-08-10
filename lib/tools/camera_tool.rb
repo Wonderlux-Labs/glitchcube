@@ -1,8 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_tool'
-require_relative '../services/logger_service'
-
 # Tool for camera control and image capture
 # Provides snapshot capture, motion detection, and visual analysis
 class CameraTool < BaseTool

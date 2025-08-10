@@ -71,7 +71,7 @@ graph TD
     Trigger([Trigger Event]) --> Type{Trigger Type}
     
     Type -->|Motion| Motion[HA Automation<br/>automations.yaml]
-    Type -->|Schedule| Cron[Sidekiq Cron<br/>config/sidekiq.yml]
+    Type -->|Schedule| Cron[Sidekiq Cron<br/>config/sidekiq/sidekiq.yml]
     Type -->|Battery| Battery[HA Automation<br/>sensor.battery_level]
     Type -->|Admin| Admin[Admin Panel<br/>/admin/proactive_conversation]
     
@@ -115,7 +115,7 @@ graph TD
 | Trigger | Location | Condition | Action |
 |---------|----------|-----------|--------|
 | **Motion Detection** | `config/homeassistant/automations.yaml` | `binary_sensor.cube_motion` turns on | Call `/api/v1/proactive/trigger` |
-| **Scheduled Check-ins** | `config/sidekiq.yml` | Every 2 hours (10am-10pm) | Run `ProactiveInteractionJob` |
+| **Scheduled Check-ins** | `config/sidekiq/sidekiq.yml` | Every 2 hours (10am-10pm) | Run `ProactiveInteractionJob` |
 | **Low Battery** | `config/homeassistant/automations.yaml` | Battery < 20% | Trigger help request |
 | **Admin Test** | `/admin/test` or `/admin/proactive_conversation` | Manual trigger | Start proactive conversation |
 | **Event-based** | Custom automations | Art car nearby, music playing, etc | Context-aware greeting |

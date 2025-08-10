@@ -55,8 +55,6 @@ end
 
 desc 'Show all routes'
 task :routes do
-  require_relative 'app'
-
   puts "\n🎲 Glitch Cube Routes"
   puts '===================='
 

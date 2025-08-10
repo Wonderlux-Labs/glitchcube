@@ -24,16 +24,6 @@ module GlitchCube
         database_url: ENV.fetch('DATABASE_URL', 'postgresql://localhost:5432/glitchcube_development'),
         redis_url: ENV.fetch('REDIS_URL', nil),
 
-        # MariaDB Configuration
-        mariadb: OpenStruct.new(
-          host: ENV.fetch('MARIADB_HOST', 'localhost'),
-          port: ENV.fetch('MARIADB_PORT', '3306').to_i,
-          database: ENV.fetch('MARIADB_DATABASE', 'glitchcube'),
-          username: ENV.fetch('MARIADB_USERNAME', 'glitchcube'),
-          password: ENV.fetch('MARIADB_PASSWORD', 'glitchcube'),
-          url: build_mariadb_url
-        ),
-
         # Home Assistant Integration
         home_assistant: OpenStruct.new(
           url: ENV['HOME_ASSISTANT_URL'] || ENV.fetch('HA_URL', nil),
@@ -135,30 +125,6 @@ module GlitchCube
       @redis_connection ||= Redis.new(url: redis_url)
     end
 
-    # Helper to check if persistence is available
-    def persistence_enabled?
-      !database_url.nil?
-    end
-
-    # Helper to get MariaDB URL (with fallback)
-    def mariadb_url
-      return mariadb.url if mariadb.url && !mariadb.url.empty?
-      return nil unless mariadb_available?
-
-      "mysql2://#{mariadb.username}:#{mariadb.password}@#{mariadb.host}:#{mariadb.port}/#{mariadb.database}?encoding=utf8mb4"
-    end
-
-    # Check if MariaDB connection is available (without destroying data)
-    def mariadb_available?
-      return false unless mariadb.host && mariadb.username && mariadb.password
-
-      # In test environment, always use SQLite for safety
-      return false if test?
-
-      # Only attempt connection if we have all required parameters
-      true
-    end
-
     # Self-healing helper methods
     def self_healing_enabled?
       self_healing_mode != 'OFF'
@@ -175,11 +141,6 @@ module GlitchCube
     # Environment helper
     def environment
       rack_env
-    end
-
-    # Conversation tracing helper
-    def conversation_tracing_enabled?
-      conversation_tracing_enabled
     end
 
     # Debug helper
@@ -204,18 +165,6 @@ module GlitchCube
 
       true
     end
-
-    def self.build_mariadb_url
-      host = ENV.fetch('MARIADB_HOST', 'localhost')
-      port = ENV.fetch('MARIADB_PORT', '3306')
-      database = ENV.fetch('MARIADB_DATABASE', 'glitchcube')
-      username = ENV.fetch('MARIADB_USERNAME', 'glitchcube')
-      password = ENV.fetch('MARIADB_PASSWORD', 'glitchcube')
-
-      return nil if ENV.fetch('MARIADB_ENABLED', 'false') != 'true'
-
-      "mysql2://#{username}:#{password}@#{host}:#{port}/#{database}?encoding=utf8mb4"
-    end
   end
 
   # Convenience method
@@ -233,12 +182,4 @@ rescue StandardError => e
   raise if ENV['RACK_ENV'] == 'production'
 end
 
-# Initialize tool registry
-begin
-  require_relative '../../lib/services/tool_registry_service'
-  Services::ToolRegistryService.initialize!
-rescue StandardError => e
-  puts "⚠️  Tool registry initialization failed: #{e.message}"
-  # Don't fail startup if tools can't load in dev
-  raise if ENV['RACK_ENV'] == 'production'
-end
+# Tool registry no longer needs initialization - tools are loaded explicitly

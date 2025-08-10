@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/modules/conversation_module'
 
 RSpec.describe 'Conversation Tool Execution Integration', type: :integration do
   let(:conversation_module) { ConversationModule.new(persona: 'buddy') }

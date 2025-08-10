@@ -7,19 +7,9 @@ module GlitchCube
   module Routes
     module Admin
       def self.registered(app)
-        # Main admin interface - conversation development focused
+        # Main admin interface
         app.get '/admin' do
-          erb :admin_simple
-        end
-
-        # Keep simple admin as main interface
-        app.get '/admin/simple' do
-          erb :admin_simple
-        end
-
-        # Keep advanced for complex debugging when needed
-        app.get '/admin/advanced' do
-          erb :admin_advanced
+          erb :admin
         end
 
         # Comprehensive conversation show view for debugging
@@ -177,7 +167,7 @@ module GlitchCube
 
             # Log if it failed
             unless success
-              require_relative '../helpers/log_helper'
+
               LogHelper.error("TTS failed for character #{character}: message='#{message}', entity_id='#{entity_id}'")
             end
 
@@ -510,7 +500,6 @@ module GlitchCube
           content_type :json
 
           begin
-            require_relative '../services/tool_registry_service'
             tools = ::Services::ToolRegistryService.discover_tools
 
             # Format for frontend consumption
@@ -555,7 +544,6 @@ module GlitchCube
             data = JSON.parse(request.body.read)
             parameters = data['parameters'] || {}
 
-            require_relative '../services/tool_registry_service'
             result = ::Services::ToolRegistryService.execute_tool_directly(tool_name, parameters)
 
             result.to_json
@@ -576,6 +564,27 @@ module GlitchCube
           end
         end
 
+        # Get all tool methods as individual functions
+        app.get '/admin/api/tools/methods' do
+          content_type :json
+
+          begin
+            tool_names = params[:tools]&.split(',')&.map(&:strip)
+
+            functions = ::Services::ToolRegistryService.get_tool_methods_as_functions(tool_names)
+
+            {
+              success: true,
+              functions: functions,
+              count: functions.size,
+              tool_names: tool_names
+            }.to_json
+          rescue StandardError => e
+            status 500
+            { success: false, error: e.message }.to_json
+          end
+        end
+
         # Get OpenAI function specifications for tools
         app.get '/admin/api/tools/openai-functions' do
           content_type :json
@@ -583,8 +592,6 @@ module GlitchCube
           begin
             character = params[:character]
             tool_names = params[:tools]&.split(',')&.map(&:strip)
-
-            require_relative '../services/tool_registry_service'
 
             functions = if character
                           ::Services::ToolRegistryService.get_tools_for_character(character)

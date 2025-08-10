@@ -7,8 +7,6 @@ require 'bundler/setup'
 require 'dotenv'
 Dotenv.load
 
-require_relative 'app'
-
 tts = Services::TTSService.new
 
 puts '=' * 50

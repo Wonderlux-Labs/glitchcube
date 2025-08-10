@@ -1,8 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative 'app'
-
 puts '🔍 Testing Conversation Tracing...'
 puts "Environment: #{GlitchCube.config.environment}"
 puts "Tracing enabled: #{GlitchCube.config.conversation_tracing_enabled?}"

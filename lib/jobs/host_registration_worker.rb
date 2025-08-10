@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../services/host_registration_service'
-
 class HostRegistrationWorker
   include Sidekiq::Job
 

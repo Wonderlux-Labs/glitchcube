@@ -18,7 +18,7 @@ class Boundary < ActiveRecord::Base
 
   def contains_point?(lat, lng)
     # For now, delegate to LocationHelper which has the tested trash fence logic
-    require_relative '../../lib/utils/location_helper'
+
     include Utils::LocationHelper
 
     within_trash_fence?(lat, lng)

@@ -2,8 +2,6 @@
 
 # Example usage of TTSService in GlitchCube conversations
 
-require_relative 'tts_service'
-
 # Initialize the service (typically done once in app initialization)
 tts = Services::TTSService.new(
   default_provider: :cloud,

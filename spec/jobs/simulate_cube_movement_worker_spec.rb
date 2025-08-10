@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/jobs/simulate_cube_movement_worker'
 
 RSpec.describe Jobs::SimulateCubeMovementWorker do
   let(:worker) { described_class.new }
@@ -109,7 +108,7 @@ RSpec.describe Jobs::SimulateCubeMovementWorker do
   describe 'cron schedule' do
     it 'is configured to run every 5 minutes' do
       # Load the cron configuration
-      cron_config = YAML.load_file(File.expand_path('../../config/sidekiq_cron.yml', __dir__))
+      cron_config = YAML.load_file(File.expand_path('../../config/sidekiq/sidekiq_cron.yml', __dir__))
 
       job_config = cron_config['simulate_cube_movement_worker']
       expect(job_config).not_to be_nil

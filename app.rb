@@ -13,30 +13,14 @@ require 'sidekiq'
 require 'redis'
 require 'active_record'
 
-# Load Sidekiq configuration with cron job logging
-require_relative 'config/sidekiq' if defined?(Sidekiq)
+# Load Sidekiq configuration if available
+require_relative 'config/sidekiq/sidekiq' if defined?(Sidekiq)
 
-# Load services
-
-# Load circuit breaker service
-require_relative 'lib/services/circuit_breaker_service'
-
-# Load logger service
-require_relative 'lib/services/logger_service'
-
-# Load health monitoring services
-require_relative 'lib/services/health_push_service'
-
-# Load entity management services
-require_relative 'lib/services/entity_manager_service'
-
-# Load application constants and config first
+# Load application configuration
 require_relative 'config/constants'
-
-# Load database configuration first
 require_relative 'config/database_config'
 
-# Load initializers (including config.rb)
+# Load all initializers (includes our new autoloader)
 Dir[File.join(__dir__, 'config', 'initializers', '*.rb')].each { |file| require file }
 
 # Set up database connection using centralized config
@@ -47,15 +31,11 @@ set :database_file, 'config/database.yml'
 # Load models
 Dir[File.join(__dir__, 'app', 'models', '*.rb')].each { |file| require file }
 
-# Load model pricing
+# Load model configuration
+require_relative 'config/model_presets'
 require_relative 'config/model_pricing'
 
-Dir[File.join(__dir__, 'lib', 'modules', '*.rb')].each { |file| require file }
-Dir[File.join(__dir__, 'lib', 'tools', '*.rb')].each { |file| require file }
-Dir[File.join(__dir__, 'lib', 'jobs', '*.rb')].each { |file| require file }
-Dir[File.join(__dir__, 'lib', 'services', '*.rb')].each { |file| require file }
-Dir[File.join(__dir__, 'lib', 'routes', '*.rb')].each { |file| require file }
-Dir[File.join(__dir__, 'lib', 'routes', '**', '*.rb')].each { |file| require file }
+# All library files are now loaded by config/initializers/autoload.rb
 
 class GlitchCubeApp < Sinatra::Base
   configure do
@@ -76,12 +56,12 @@ class GlitchCubeApp < Sinatra::Base
   end
 
   configure :development do
-    register Sinatra::Reloader
+    # NOTE: Using rerun instead of Sinatra::Reloader for auto-reloading
+    # Run with: bundle exec rerun -- bundle exec ruby app.rb
   end
 
   # Register route modules
   # Core application routes
-  register GlitchCube::Routes::Core::Kiosk
 
   # Main API routes
   register GlitchCube::Routes::Api::Gps
@@ -91,6 +71,7 @@ class GlitchCubeApp < Sinatra::Base
   register GlitchCube::Routes::Api::System
   register GlitchCube::Routes::Api::Entities
   register GlitchCube::Routes::Api::Proactive
+  register GlitchCube::Routes::Api::LLM
 
   # Mount context generation route
   use Routes::Api::ContextGeneration

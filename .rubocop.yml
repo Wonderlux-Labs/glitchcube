@@ -24,6 +24,8 @@ Layout/ExtraSpacing:
   AllowForAlignment: true
   AllowBeforeTrailingComments: true
 
+Style/OpenStructUse:
+  Enabled: false
 # Temporary disable cops because warnings are fixed
 Style/SingleLineMethods:
   Enabled: false

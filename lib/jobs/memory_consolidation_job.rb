@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'sidekiq'
-require_relative '../services/context_retrieval_service'
 
 module Jobs
   class MemoryConsolidationJob

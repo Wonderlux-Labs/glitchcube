@@ -2,7 +2,6 @@
 
 require 'spec_helper'
 require 'fileutils'
-require_relative '../../lib/jobs/memory_consolidation_job'
 
 RSpec.describe Jobs::MemoryConsolidationJob do
   let(:test_context_dir) { 'spec/fixtures/test_memory_documents' }

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/services/llm_service'
 
 RSpec.describe Services::LLMService do
   describe 'retry logic' do
