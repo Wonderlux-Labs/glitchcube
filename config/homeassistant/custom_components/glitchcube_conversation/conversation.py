@@ -222,18 +222,18 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         _LOGGER.info("TTS Provider: %s", tts_provider)
         
         # Set the speech text for the pipeline
+        # The assist satellite will use the pipeline's configured TTS to speak this
         intent_response.async_set_speech(response_text)
+        _LOGGER.info("Speech text set for pipeline TTS: %s...", response_text[:50] if response_text else "")
         
-        # Use TTS action from Sinatra if provided (for persona-specific voices)
-        if conversation_data.get("tts_action"):
-            tts_action = conversation_data["tts_action"]
-            _LOGGER.info("TTS Action provided by Sinatra")
-            _LOGGER.debug("TTS Action details: %s", tts_action)
-            
-            # Set the action on the intent response
-            # This will override the pipeline's default TTS with persona-specific voice
-            intent_response.async_set_action(tts_action)
-            _LOGGER.info("TTS action set on intent response")
+        # Note: We can't override TTS voice for assist satellites via actions
+        # The satellite uses its pipeline's configured TTS service
+        # To use persona-specific voices, we'd need to:
+        # 1. Configure multiple pipelines with different TTS voices
+        # 2. Or use the announce action on the satellite entity directly
+        if conversation_data.get("tts_voice"):
+            _LOGGER.debug("Persona voice '%s' requested but satellites use pipeline TTS", 
+                         conversation_data.get("tts_voice"))
         
         # Phase 3.5: Ultra-simple continuation logic
         # Let Sinatra decide if conversation should continue based on LLM's decision

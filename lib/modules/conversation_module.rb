@@ -182,37 +182,21 @@ class ConversationModule
       # Only use fallback if response_text is nil or empty
       response_text = persona.generate_fallback_response(message) if response_text.nil? || response_text.strip.empty?
 
-      # For voice interactions, ALWAYS handle TTS on Sinatra side
+      # For assist satellites, TTS is handled by the pipeline
+      # We don't need to call TTS explicitly here
       tts_handled = false
       if context[:voice_interaction]
-        # Check if speech_synthesis tool was already called
+        # Check if speech_synthesis tool was already called by the LLM
+        # (This would be for non-satellite voice interactions)
         tts_handled = tool_calls_made.any? do |call|
           call[:tool_name]&.include?('speech_synthesis') ||
             call[:tool_name]&.include?('speak')
         end
 
-        # If TTS wasn't called yet, call it now
-        if !tts_handled && response_text && !response_text.strip.empty?
-          Services::SimpleLogger.info('Voice interaction - calling TTS',
-                                      tagged: %i[conversation voice tts],
-                                      persona: persona_name)
-
-          # Use the persona's speak method to handle TTS
-          begin
-            character_service = Services::CharacterService.new(character: persona_name.to_sym)
-            character_service.speak(response_text, entity_id: 'media_player.square_voice')
-            tts_handled = true
-          rescue StandardError => e
-            Services::SimpleLogger.error('Failed to call TTS for voice interaction',
-                                         tagged: %i[conversation voice error],
-                                         error: e.message)
-          end
-        end
-
-        Services::SimpleLogger.info('Voice interaction TTS status',
-                                    tagged: %i[conversation voice],
-                                    tts_handled: tts_handled,
-                                    tools_called: tool_calls_made.map { |t| t[:tool_name] })
+        Services::SimpleLogger.debug('Voice interaction detected',
+                                     tagged: %i[conversation voice],
+                                     tts_handled_by_tools: tts_handled,
+                                     response_length: response_text&.length || 0)
       end
 
       # Get the TTS voice for this persona
@@ -235,25 +219,14 @@ class ConversationModule
         error: nil
       }
 
-      # Always include a full TTS action for voice interactions
-      # This ensures persona-specific voices are used
+      # NOTE: For assist satellites, TTS is handled by the pipeline configuration
+      # We can't override voices dynamically - would need separate pipelines per persona
+      # Keeping tts_voice and tts_provider in result for reference/future use
       if context[:voice_interaction] || context['voice_interaction']
-        # Always use square_voice for Wyoming satellite - device_id is a hash, not entity_id
-        media_player = 'media_player.square_voice'
-
-        result[:tts_action] = {
-          service: 'tts.speak',
-          target: {
-            entity_id: "tts.#{tts_config[:provider]}_tts"
-          },
-          data: {
-            media_player_entity_id: media_player,
-            message: response_text,  # Use the cleaned response_text variable that was fixed above
-            options: {
-              voice: tts_config[:voice]
-            }
-          }
-        }
+        Services::SimpleLogger.debug('Voice interaction - TTS handled by pipeline',
+                                     tagged: %i[conversation voice],
+                                     requested_voice: tts_config[:voice],
+                                     requested_provider: tts_config[:provider])
       end
 
       # Handle all post-response side effects
