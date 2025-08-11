@@ -7,7 +7,12 @@ RSpec.describe 'Location Models', type: :model do
   # Load GIS data once before all location tests - only if not already loaded
   before(:all) do
     # Check if data is already loaded
-    if Boundary.none? || Street.none? || Landmark.none?
+    # Cache counts to avoid multiple DB queries
+    boundary_count = Boundary.count
+    street_count = Street.count
+    landmark_count = Landmark.count
+    # Check if data is already loaded
+    if boundary_count == 0 || street_count == 0 || landmark_count == 0
       puts '🌍 Loading GIS data for location specs...'
 
       # Clear any partial data
