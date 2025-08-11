@@ -255,7 +255,7 @@ class ConversationModule
           },
           data: {
             media_player_entity_id: device_id,
-            message: response_text,
+            message: result[:response],  # Use the cleaned response from result, not response_text
             options: {
               voice: tts_config[:voice]
             }
