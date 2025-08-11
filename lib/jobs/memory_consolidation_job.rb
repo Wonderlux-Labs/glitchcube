@@ -9,7 +9,10 @@ module Jobs
     sidekiq_options queue: 'low', retry: 1
 
     def perform(summary)
-      puts 'Consolidating memories from conversation...'
+      Services::SimpleLogger.info(
+        'Consolidating memories from conversation...',
+        tagged: [:memory_consolidation]
+      )
 
       # Extract memorable insights
       memorable_points = extract_memorable_insights(summary)

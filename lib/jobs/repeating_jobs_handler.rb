@@ -60,6 +60,10 @@ class RepeatingJobsHandler
 
   private
 
+  def logger
+    Services::SimpleLogger
+  end
+
   # Check if a service is enabled (default: true)
   def service_enabled?(service_name)
     enabled = redis.get("repeating_jobs:#{service_name}:enabled")

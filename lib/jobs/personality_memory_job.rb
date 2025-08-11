@@ -49,6 +49,10 @@ module Jobs
 
     private
 
+    def logger
+      Services::SimpleLogger
+    end
+
     def extract_personality_memories(messages, conversation_id)
       context = build_conversation_context(messages)
       location_data = fetch_location_data

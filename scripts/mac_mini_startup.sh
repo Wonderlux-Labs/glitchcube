@@ -27,6 +27,10 @@ INITIAL_WAIT=60  # Wait 60 seconds before first attempt
 MAX_RETRIES=30  # 30 attempts after initial wait
 RETRY_DELAY=10  # 10 seconds between attempts
 
+# Ensure log directory exists
+mkdir -p "$LOG_DIR"
+mkdir -p "$GLITCHCUBE_DIR/logs"
+
 # Start logging
 log "========================================="
 log "Starting Glitch Cube Services"

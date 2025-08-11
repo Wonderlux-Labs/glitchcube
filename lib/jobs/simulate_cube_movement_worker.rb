@@ -48,6 +48,10 @@ module Jobs
 
     private
 
+    def logger
+      Services::SimpleLogger
+    end
+
     def load_configuration
       @config = if File.exist?(CONFIG_FILE)
                   JSON.parse(File.read(CONFIG_FILE))

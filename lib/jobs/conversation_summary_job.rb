@@ -10,18 +10,30 @@ module Jobs
     sidekiq_options queue: 'low', retry: 3
 
     def perform(conversation_id, messages, context = {})
-      puts "Summarizing conversation #{conversation_id}..."
+      Services::SimpleLogger.info(
+        "Summarizing conversation #{conversation_id}...",
+        tagged: [:conversation_summary],
+        conversation_id: conversation_id
+      )
 
       summarizer = Services::ConversationSummarizer.new
       summary = summarizer.summarize_conversation(messages, context)
 
       if summary
-        puts "Conversation #{conversation_id} summarized successfully"
+        Services::SimpleLogger.info(
+          "Conversation #{conversation_id} summarized successfully",
+          tagged: %i[conversation_summary success],
+          conversation_id: conversation_id
+        )
 
         # Optionally trigger memory consolidation
         Jobs::MemoryConsolidationJob.perform_async(summary) if should_update_memories?(summary)
       else
-        puts "Failed to summarize conversation #{conversation_id}"
+        Services::SimpleLogger.warn(
+          "Failed to summarize conversation #{conversation_id}",
+          tagged: %i[conversation_summary failure],
+          conversation_id: conversation_id
+        )
       end
     end
 

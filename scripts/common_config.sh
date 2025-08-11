@@ -38,7 +38,28 @@ get_reachable_host() {
 export CURRENT_MAC_HOST=$(get_reachable_host "$MAC_MINI_HOST" "$MAC_MINI_HOST_FALLBACK")
 export CURRENT_HASS_HOST=$(get_reachable_host "$HASS_HOST" "$HASS_HOST_FALLBACK")
 
-# Common logging function
+# Common logging functions
 log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    local message="[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    echo "$message"
+    # Also append to log file if LOG_FILE is set
+    if [ -n "$LOG_FILE" ]; then
+        echo "$message" >> "$LOG_FILE"
+    fi
+}
+
+log_info() {
+    log "ℹ️  $1"
+}
+
+log_success() {
+    log "✅ $1"
+}
+
+log_error() {
+    log "❌ $1"
+}
+
+log_warning() {
+    log "⚠️  $1"
 }

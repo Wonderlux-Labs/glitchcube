@@ -50,7 +50,52 @@ Sidekiq.default_job_options = {
   'backtrace' => true
 }
 
-# Add middleware for logging
+# Add middleware for logging with SimpleLogger
+class SimpleLoggerMiddleware
+  def call(worker, job, queue)
+    start_time = Time.now
+    jid = job['jid']
+    worker_class = worker.class.to_s
+
+    Services::SimpleLogger.info(
+      'Job started',
+      tagged: %i[sidekiq job_start],
+      worker: worker_class,
+      queue: queue,
+      jid: jid
+    )
+
+    yield
+
+    duration = ((Time.now - start_time) * 1000).round(2)
+    Services::SimpleLogger.info(
+      'Job completed',
+      tagged: %i[sidekiq job_complete],
+      worker: worker_class,
+      queue: queue,
+      jid: jid,
+      duration_ms: duration
+    )
+  rescue StandardError => e
+    duration = begin
+      ((Time.now - start_time) * 1000).round(2)
+    rescue StandardError
+      0
+    end
+    Services::SimpleLogger.log_error(
+      error: e,
+      message: "Job failed: #{worker_class}",
+      tagged: %i[sidekiq job_error],
+      worker: worker_class,
+      queue: queue,
+      jid: jid,
+      duration_ms: duration
+    )
+    raise
+  end
+end
+
+# Legacy beacon logging for backwards compatibility
 class BeaconLoggingMiddleware
   def call(worker, _job, _queue)
     puts "[Beacon] Starting #{worker.class} job" if worker.class.to_s.include?('Beacon')
@@ -60,6 +105,10 @@ end
 
 Sidekiq.configure_server do |config|
   config.server_middleware do |chain|
+    chain.add SimpleLoggerMiddleware
     chain.add BeaconLoggingMiddleware
   end
+
+  # Configure Sidekiq's internal logger to be less verbose
+  config.logger.level = Logger::WARN if config.respond_to?(:logger)
 end

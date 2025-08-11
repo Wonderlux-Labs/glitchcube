@@ -10,9 +10,15 @@ class InitialHostRegistrationWorker
     success = Services::HostRegistrationService.register_with_retry_loop
 
     if success
-      puts '✅ Initial registration successful - regular updates handled by cron job'
+      Services::SimpleLogger.info(
+        '✅ Initial registration successful - regular updates handled by cron job',
+        tagged: %i[host_registration startup]
+      )
     else
-      puts '❌ Initial registration failed - will retry via Sidekiq retry mechanism'
+      Services::SimpleLogger.error(
+        '❌ Initial registration failed - will retry via Sidekiq retry mechanism',
+        tagged: %i[host_registration startup error]
+      )
       raise 'Failed to register with Home Assistant after all attempts'
     end
   end
