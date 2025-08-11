@@ -18,8 +18,8 @@ RSpec.describe Personas::BuddyPersona do
   end
 
   describe '#available_tools' do
-    it 'returns SpeechTool and DisplayTool' do
-      expect(persona.available_tools).to eq([SpeechTool, DisplayTool])
+    it 'returns SpeechTool and LightingTool' do
+      expect(persona.available_tools).to eq([SpeechTool, LightingTool])
     end
   end
 

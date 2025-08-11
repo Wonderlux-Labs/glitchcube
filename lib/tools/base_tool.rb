@@ -98,19 +98,19 @@ class BaseTool
         error_message: e.message
       }
 
-      SimpleLogger.error('Home Assistant service call failed',
-                         tagged: %i[tool home_assistant error],
-                         **error_context)
+      Services::SimpleLogger.error('Home Assistant service call failed',
+                                   tagged: %i[tool home_assistant error],
+                                   **error_context)
 
       "❌ HA Service Error (#{domain}.#{service}): #{e.message}"
     rescue StandardError => e
       # Generic error handling
-      SimpleLogger.error('Tool service call failed',
-                         tagged: %i[tool error],
-                         domain: domain,
-                         service: service,
-                         error_class: e.class.name,
-                         error_message: e.message)
+      Services::SimpleLogger.error('Tool service call failed',
+                                   tagged: %i[tool error],
+                                   domain: domain,
+                                   service: service,
+                                   error_class: e.class.name,
+                                   error_message: e.message)
 
       "❌ HA Service Error: #{e.message}"
     end
@@ -174,16 +174,16 @@ class BaseTool
       begin
         validation = Services::HAServiceValidator.validate_service_call(domain, service, data, ha_client: ha_client)
         unless validation[:valid]
-          SimpleLogger.warn('HA service validation warnings',
-                            tagged: %i[tool ha_validation],
-                            service: "#{domain}.#{service}",
-                            warnings: validation[:errors])
+          Services::SimpleLogger.warn('HA service validation warnings',
+                                      tagged: %i[tool ha_validation],
+                                      service: "#{domain}.#{service}",
+                                      warnings: validation[:errors])
         end
       rescue StandardError => e
-        SimpleLogger.debug('HA service validation failed (non-blocking)',
-                           tagged: %i[tool ha_validation],
-                           service: "#{domain}.#{service}",
-                           error: e.message)
+        Services::SimpleLogger.debug('HA service validation failed (non-blocking)',
+                                     tagged: %i[tool ha_validation],
+                                     service: "#{domain}.#{service}",
+                                     error: e.message)
       end
     end
 

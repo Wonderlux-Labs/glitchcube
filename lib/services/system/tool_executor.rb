@@ -5,7 +5,7 @@ module Services
   class ToolExecutor
     class << self
       def execute(tool_calls, _options = {})
-        Array(tool_calls).map { |call| execute_single(call) }
+        tool_calls.map { |call| execute_single(call) }
       end
 
       private
@@ -72,7 +72,10 @@ module Services
         # [:keyreq, :name] = required keyword arg
         # [:key, :name] = optional keyword arg
         # [:keyrest, :kwargs] = **kwargs (accepts any)
-        accepted_keys = method_params.slice(:key, :keyreq).map(&:last)
+        # rubocop:disable Style/HashSlice, Style/SymbolArray
+        # method_params is an Array, not a Hash - slice doesn't work here
+        accepted_keys = method_params.select { |param_type, _name| [:key, :keyreq].include?(param_type) }.map(&:last)
+        # rubocop:enable Style/HashSlice, Style/SymbolArray
 
         # If method has **kwargs, accept all arguments
         has_keyrest = method_params.any? { |param_type, _name| param_type == :keyrest }

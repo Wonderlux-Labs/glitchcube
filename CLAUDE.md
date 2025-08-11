@@ -428,6 +428,44 @@ Managed by Sidekiq with Redis:
 4. Re-record cassettes when API responses change: `VCR_RECORD=true bundle exec rspec`
 5. Keep tests green before committing
 
+### 🔴 MANDATORY: Test-Driven Todo Management
+**When using todos for development tasks, you MUST follow this tight testing loop:**
+
+Every implementation todo item MUST be immediately followed by a corresponding test todo item. This is non-negotiable for maintaining code quality and preventing regressions.
+
+**Required Pattern:**
+```
+☐ Implement feature X
+☐ Write and run specs for feature X
+☐ Fix bug in component Y
+☐ Write and run specs for component Y fix
+☐ Add validation to method Z
+☐ Write and run specs for validation in method Z
+☐ Run full test suite before marking feature complete
+```
+
+**Rules:**
+1. **Never** have an implementation todo without a test todo
+2. **Always** run the test immediately after implementation
+3. **Fix** failing tests before moving to the next task
+4. **Mark** both implementation and test todos complete together
+5. **Run** full test suite after completing a feature group
+
+**Example Todo List Structure:**
+```
+☐ Implement native tool calling handler
+☐ Write and run specs for native tool calling handler
+☐ Fix tool_executor.rb slice bug  
+☐ Write and run specs for tool_executor fix
+☐ Add response validation with fallbacks
+☐ Write and run specs for response validation
+☐ Add **_kwargs to tool methods
+☐ Write and run specs for kwargs handling
+☐ Run full integration test suite
+```
+
+This ensures every change is tested, regressions are caught immediately, and the codebase maintains high quality standards.
+
 ### Local Development Loop
 1. Start the app: `bin/dev` (includes auto-reload + Sidekiq)
 2. Make changes - app auto-reloads automatically

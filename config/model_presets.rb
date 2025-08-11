@@ -131,6 +131,63 @@ module GlitchCube
     # Default model to use when none specified
     DEFAULT_MODEL = 'qwen/qwen3-coder:free'
 
+    # Models that support structured output (JSON schema/response_format)
+    # Generated from OpenRouter API data - models with supports_schema=true
+    STRUCTURED_OUTPUT_MODELS = [
+      'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
+      'cohere/command', 'cohere/command-a', 'cohere/command-r',
+      'cohere/command-r-03-2024', 'cohere/command-r-08-2024',
+      'cohere/command-r-plus', 'cohere/command-r-plus-04-2024',
+      'cohere/command-r-plus-08-2024', 'cohere/command-r7b-12-2024',
+      'deepseek/deepseek-chat', 'deepseek/deepseek-chat-v3-0324',
+      'deepseek/deepseek-r1', 'deepseek/deepseek-r1-0528',
+      'deepseek/deepseek-r1-distill-llama-70b',
+      'google/gemini-2.0-flash-001', 'google/gemini-2.0-flash-lite-001',
+      'google/gemini-2.5-flash', 'google/gemini-2.5-flash-lite',
+      'google/gemini-2.5-flash-lite-preview-06-17', 'google/gemini-2.5-pro',
+      'google/gemini-2.5-pro-exp-03-25', 'google/gemini-2.5-pro-preview',
+      'google/gemini-2.5-pro-preview-05-06', 'google/gemini-flash-1.5',
+      'google/gemini-flash-1.5-8b', 'google/gemini-pro-1.5',
+      'google/gemma-3-12b-it:free', 'google/gemma-3-27b-it:free',
+      'google/gemma-3-4b-it:free', 'inception/mercury', 'inception/mercury-coder',
+      'meta-llama/llama-3.1-405b-instruct', 'meta-llama/llama-3.1-405b-instruct:free',
+      'meta-llama/llama-3.1-70b-instruct', 'meta-llama/llama-3.1-8b-instruct',
+      'meta-llama/llama-3.2-11b-vision-instruct', 'meta-llama/llama-3.2-1b-instruct',
+      'meta-llama/llama-3.2-3b-instruct', 'meta-llama/llama-3.3-70b-instruct',
+      'meta-llama/llama-4-maverick', 'meta-llama/llama-4-scout',
+      'minimax/minimax-m1', 'mistralai/codestral-2501', 'mistralai/codestral-2508',
+      'mistralai/devstral-medium', 'mistralai/devstral-small',
+      'mistralai/devstral-small-2505', 'mistralai/magistral-medium-2506',
+      'mistralai/magistral-medium-2506:thinking', 'mistralai/magistral-small-2506',
+      'mistralai/ministral-3b', 'mistralai/ministral-8b', 'mistralai/mistral-large',
+      'mistralai/mistral-large-2407', 'mistralai/mistral-large-2411',
+      'mistralai/mistral-medium-3', 'mistralai/mistral-nemo', 'mistralai/mistral-saba',
+      'mistralai/mistral-small', 'mistralai/mistral-small-24b-instruct-2501',
+      'mistralai/mistral-small-3.1-24b-instruct', 'mistralai/mistral-small-3.1-24b-instruct:free',
+      'mistralai/mistral-small-3.2-24b-instruct', 'mistralai/mistral-small-3.2-24b-instruct:free',
+      'mistralai/mistral-tiny', 'mistralai/mixtral-8x22b-instruct',
+      'mistralai/pixtral-12b', 'mistralai/pixtral-large-2411',
+      'moonshotai/kimi-k2', 'openai/chatgpt-4o-latest', 'openai/codex-mini',
+      'openai/gpt-3.5-turbo', 'openai/gpt-3.5-turbo-0613', 'openai/gpt-3.5-turbo-16k',
+      'openai/gpt-3.5-turbo-instruct', 'openai/gpt-4', 'openai/gpt-4-0314',
+      'openai/gpt-4-1106-preview', 'openai/gpt-4-turbo', 'openai/gpt-4-turbo-preview',
+      'openai/gpt-4.1', 'openai/gpt-4.1-mini', 'openai/gpt-4.1-nano',
+      'openai/gpt-4o', 'openai/gpt-4o-2024-05-13', 'openai/gpt-4o-2024-08-06',
+      'openai/gpt-4o-2024-11-20', 'openai/gpt-4o-mini', 'openai/gpt-4o-mini-2024-07-18',
+      'openai/gpt-4o-mini-search-preview', 'openai/gpt-4o-search-preview',
+      'openai/gpt-4o:extended', 'openai/gpt-5', 'openai/gpt-5-chat',
+      'openai/gpt-5-mini', 'openai/gpt-5-nano', 'openai/gpt-oss-120b',
+      'openai/gpt-oss-20b', 'openai/gpt-oss-20b:free', 'openai/o1',
+      'openai/o1-pro', 'openai/o3', 'openai/o3-mini', 'openai/o3-mini-high',
+      'openai/o3-pro', 'openai/o4-mini', 'openai/o4-mini-high',
+      'qwen/qwen-2.5-vl-7b-instruct', 'qwen/qwen2.5-vl-32b-instruct',
+      'qwen/qwen2.5-vl-72b-instruct:free', 'qwen/qwen3-235b-a22b',
+      'qwen/qwen3-235b-a22b-2507', 'qwen/qwen3-235b-a22b:free',
+      'qwen/qwen3-30b-a3b', 'qwen/qwen3-32b', 'qwen/qwen3-4b:free',
+      'qwen/qwen3-coder', 'qwen/qwq-32b:free', 'thedrummer/rocinante-12b',
+      'thedrummer/unslopnemo-12b', 'x-ai/grok-3', 'x-ai/grok-3-mini', 'x-ai/grok-4'
+    ].freeze
+
     # Get model for specific use case
     # Accepts either a specific model ID or a type (:free, :cheap_tools, :cheap_no_tools, :conversation, :premium, :multimodel)
     # If both are nil, returns the DEFAULT_MODEL
@@ -179,6 +236,14 @@ module GlitchCube
       raise ArgumentError, "Model #{model_id} is blacklisted due to high cost (>$50/1M tokens). Use a different model preset." if blacklisted?(model_id)
 
       model_id
+    end
+
+    # Check if model supports structured output (response_format)
+    def self.supports_structured_output?(model_id)
+      return false unless model_id
+
+      # Check for exact match in the structured models list
+      STRUCTURED_OUTPUT_MODELS.include?(model_id)
     end
   end
 end

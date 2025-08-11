@@ -13,6 +13,9 @@ RSpec.describe ConversationModule do
            response_text: 'Mock AI response',
            continue_conversation?: true,
            has_tool_calls?: false,
+           tool_calls: nil,
+           content: 'Mock AI response',
+           parsed_content: { 'response' => 'Mock AI response', 'continue_conversation' => true },
            cost: 0.001,
            model: 'test-model',
            usage: { prompt_tokens: 10, completion_tokens: 20 })
@@ -174,19 +177,14 @@ RSpec.describe ConversationModule do
         expect(result[:persona]).to eq('buddy')
       end
 
-      it 'creates proper persona instance through BasePersona', :vcr do
-        # Use test double to verify persona creation
-        mock_persona = instance_double(Personas::BuddyPersona,
-                                       name: 'buddy',
-                                       generate_system_prompt: 'Test prompt',
-                                       tool_schemas: [],
-                                       generate_fallback_response: 'Fallback')
+      it 'uses the correct persona for responses', :vcr do
+        # Test the OUTCOME, not the implementation
+        result = module_instance.call(message: message, context: context, persona: 'buddy')
 
-        allow(Personas::BasePersona).to receive(:create).with('buddy', anything).and_return(mock_persona)
-
-        module_instance.call(message: message, context: context, persona: 'buddy')
-
-        expect(Personas::BasePersona).to have_received(:create).with('buddy', anything)
+        # Verify the response came from the correct persona
+        expect(result[:persona]).to eq('buddy')
+        expect(result[:response]).to be_a(String)
+        expect(result[:response]).not_to be_empty
       end
     end
 

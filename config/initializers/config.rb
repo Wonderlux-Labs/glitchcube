@@ -17,7 +17,7 @@ module GlitchCube
         openai_api_key: ENV.fetch('OPENAI_API_KEY', nil),
         anthropic_api_key: ENV.fetch('ANTHROPIC_API_KEY', nil),
         helicone_api_key: (ENV['RACK_ENV'] == 'test' ? nil : ENV.fetch('HELICONE_API_KEY', nil)),
-        default_ai_model: ENV.fetch('DEFAULT_AI_MODEL', 'google/gemini-2.5-flash'),
+        default_ai_model: ENV.fetch('DEFAULT_AI_MODEL', 'anthropic/claude-sonnet-4'),
         port: ENV.fetch('PORT', '4567').to_i,
         session_secret: ENV.fetch('SESSION_SECRET') { SecureRandom.hex(64) },
         rack_env: ENV.fetch('RACK_ENV', 'development'),
@@ -50,16 +50,17 @@ module GlitchCube
 
         # AI Configuration
         ai: OpenStruct.new(
-          default_model: ENV.fetch('DEFAULT_AI_MODEL', 'google/gemini-2.5-flash'),
+          default_model: ENV.fetch('DEFAULT_AI_MODEL', 'anthropic/claude-sonnet-4'),
           temperature: ENV.fetch('AI_TEMPERATURE', '0.8').to_f,
-          max_tokens: ENV.fetch('AI_MAX_TOKENS', '200').to_i,
+          max_tokens: ENV.fetch('AI_MAX_TOKENS', '500').to_i,
+          max_tool_tokens: ENV.fetch('MAX_TOOL_TOKENS', '2048').to_i,
           max_session_messages: ENV.fetch('MAX_SESSION_MESSAGES', '10').to_i
         ),
 
         # AI Conversation Parameters (deprecated - use ai section)
         conversation: OpenStruct.new(
           temperature: ENV.fetch('AI_TEMPERATURE', '0.8').to_f,
-          max_tokens: ENV.fetch('AI_MAX_TOKENS', '200').to_i,
+          max_tokens: ENV.fetch('AI_MAX_TOKENS', '500').to_i,
           max_session_messages: ENV.fetch('MAX_SESSION_MESSAGES', '10').to_i
         ),
 

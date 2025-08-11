@@ -216,7 +216,7 @@ class CameraTool < BaseTool
   end
 
   # Analyze current camera scene (placeholder for future AI vision integration)
-  def self.analyze_scene(camera:, focus_area: 'general scene')
+  def self.analyze_scene(camera:, focus_area: 'general scene', **_kwargs)
     return format_response(false, 'Camera name is required') if camera.nil? || camera.empty?
 
     entity_id = resolve_camera_entity(camera)

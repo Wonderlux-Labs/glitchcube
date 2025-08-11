@@ -60,9 +60,11 @@ module GlitchCube
               # Otherwise generate a new one
               context = request_body['context'] || {}
 
-              # Preserve session_id from context if provided (support both string and symbol keys)
-              # This allows HA to track multi-turn conversations
-              context[:session_id] = context['session_id'] || context[:session_id] || SecureRandom.uuid
+              # Preserve session_id from context or root level (support both string and symbol keys)
+              # This allows HA to track multi-turn conversations and supports test requests
+              context[:session_id] = request_body['session_id'] || request_body[:session_id] ||
+                                     context['session_id'] || context[:session_id] ||
+                                     SecureRandom.uuid
 
               # Memory/resource guard: reject oversize context payloads
               if context['conversation_history'].is_a?(Array) && context['conversation_history'].size > 100
@@ -98,6 +100,9 @@ module GlitchCube
                   context[:conversation_id] = context[:conversation_id]
                   context[:language] = context[:language] || 'en'
                 end
+
+                # Add model parameter to context if provided in request
+                context[:model] = request_body['model'] if request_body['model']
 
                 # Use the conversation module directly
                 conversation_module = ConversationModule.new

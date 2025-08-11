@@ -194,6 +194,9 @@ module Services
         # Add transforms for cost optimization
         extras[:transforms] = options[:transforms] if options[:transforms]
 
+        # Add reasoning tokens support (OpenRouter)
+        extras[:reasoning] = options[:reasoning] if options[:reasoning]
+
         {
           messages: messages,
           model: model,
@@ -206,6 +209,36 @@ module Services
 
         # Log the request
         log_api_request(params)
+
+        # DETAILED REQUEST LOGGING for debugging
+        Services::SimpleLogger.debug(
+          'LLM API REQUEST DETAILS',
+          tagged: %i[llm api_request],
+          model: params[:model],
+          message_count: params[:messages].size,
+          extras: params[:extras],
+          full_messages: params[:messages]
+        )
+
+        # RAW HTTP REQUEST LOGGING - CRITICAL FOR DEBUGGING
+        request_payload = {
+          messages: params[:messages],
+          model: params[:model],
+          **params[:extras]
+        }
+        raw_request_msg = "🔧 RAW HTTP REQUEST TO OPENROUTER:\nURL: https://openrouter.ai/api/v1/chat/completions\nModel: #{params[:model]}\nFull JSON Payload:\n#{JSON.pretty_generate(request_payload)}"
+
+        puts '=' * 80
+        puts raw_request_msg
+        puts '=' * 80
+
+        Services::SimpleLogger.debug(
+          'RAW HTTP REQUEST',
+          tagged: %i[llm raw_request],
+          url: 'https://openrouter.ai/api/v1/chat/completions',
+          model: params[:model],
+          payload: request_payload
+        )
 
         if GlitchCube.config.debug?
           Services::SimpleLogger.debug(
@@ -223,6 +256,45 @@ module Services
           model: params[:model],
           extras: params[:extras]
         )
+
+        # RAW HTTP RESPONSE LOGGING - CRITICAL FOR DEBUGGING
+        raw_response_msg = "🔧 RAW HTTP RESPONSE FROM OPENROUTER:\nStatus: 200\nResponse Class: #{response.class.name}\nFull JSON Response:\n#{JSON.pretty_generate(response)}"
+
+        puts '=' * 80
+        puts raw_response_msg
+        puts '=' * 80
+
+        Services::SimpleLogger.debug(
+          'RAW HTTP RESPONSE',
+          tagged: %i[llm raw_response],
+          status: 200,
+          response_class: response.class.name,
+          full_response: response
+        )
+
+        # DETAILED RESPONSE LOGGING for debugging
+        Services::SimpleLogger.debug(
+          'LLM API RESPONSE DETAILS',
+          tagged: %i[llm api_response],
+          response_class: response.class.name,
+          full_response: response.inspect
+        )
+
+        if response.respond_to?(:[]) && response[:choices]
+          choice = response[:choices]&.first
+          if choice
+            Services::SimpleLogger.debug(
+              'LLM RESPONSE CHOICE DETAILS',
+              tagged: %i[llm api_response choice],
+              finish_reason: choice[:finish_reason] || choice['finish_reason'],
+              has_content: !(choice.dig(:message, :content) || choice.dig('message', 'content')).nil?,
+              content_length: (choice.dig(:message, :content) || choice.dig('message', 'content') || '').length,
+              has_tool_calls: !(choice.dig(:message, :tool_calls) || choice.dig('message', 'tool_calls')).nil?,
+              tool_calls_count: (choice.dig(:message, :tool_calls) || choice.dig('message', 'tool_calls') || []).size,
+              message_keys: (choice[:message] || choice['message'] || {}).keys
+            )
+          end
+        end
 
         if GlitchCube.config.debug?
           Services::SimpleLogger.debug(
@@ -483,7 +555,8 @@ module Services
           model: params[:model],
           message_count: params[:messages].size,
           temperature: params[:extras][:temperature],
-          max_tokens: params[:extras][:max_tokens]
+          max_tokens: params[:extras][:max_tokens],
+          full_request_payload: params  # Log the complete request to see what we're sending
         )
       end
 

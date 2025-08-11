@@ -70,4 +70,25 @@ RSpec.describe SpeechTool do
       expect(described_class::DEFAULT_ENTITY).to eq('media_player.square_voice')
     end
   end
+
+  describe '**_kwargs handling' do
+    it 'accepts unexpected parameters without crashing' do
+      # Mock the HomeAssistant client to prevent actual TTS calls
+      mock_client = double('HomeAssistantClient')
+      allow(Services::HomeAssistantClient).to receive(:new).and_return(mock_client)
+      allow(mock_client).to receive(:speak).and_return({ 'success' => true })
+      allow(Services::SimpleLogger).to receive(:info)
+
+      # This should not raise an error even with extra parameters
+      expect do
+        described_class.speak_text(
+          text: 'Hello world',
+          entity_id: 'media_player.test',
+          # These extra parameters should be gracefully ignored
+          extra_param: 'should_be_ignored',
+          another_param: 123
+        )
+      end.not_to raise_error
+    end
+  end
 end

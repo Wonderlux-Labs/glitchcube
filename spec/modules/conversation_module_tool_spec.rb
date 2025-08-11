@@ -1,0 +1,181 @@
+# frozen_string_literal: true
+
+require 'spec_helper'
+require_relative '../../lib/modules/conversation_module'
+
+RSpec.describe ConversationModule do
+  let(:conversation_module) { ConversationModule.new }
+
+  describe '#handle_native_tool_response' do
+    let(:messages) do
+      [
+        { role: 'system', content: 'You are a helpful assistant.' },
+        { role: 'user', content: 'Turn on the lights' }
+      ]
+    end
+
+    let(:llm_options) do
+      {
+        model: 'gpt-4',
+        temperature: 0.7,
+        max_tokens: 500
+      }
+    end
+
+    let(:response_schema) do
+      {
+        type: 'object',
+        properties: {
+          response: { type: 'string' },
+          continue_conversation: { type: 'boolean' }
+        }
+      }
+    end
+
+    let(:tool_calls) do
+      [
+        {
+          'id' => 'call_123',
+          'function' => {
+            'name' => 'set_lights',
+            'arguments' => '{"state":"on","brightness":100}'
+          }
+        }
+      ]
+    end
+
+    let(:llm_response) do
+      double('LLMResponse',
+             tool_calls: tool_calls,
+             message_data: { role: 'assistant', content: nil, tool_calls: tool_calls })
+    end
+
+    let(:follow_up_response) do
+      double('LLMResponse',
+             response_text: 'I turned on the lights for you.',
+             content: 'I turned on the lights for you.',
+             continue_conversation?: false,
+             model: 'gpt-4',
+             usage: { prompt_tokens: 100, completion_tokens: 50 },
+             cost: 0.01)
+    end
+
+    before do
+      allow(Services::ToolExecutor).to receive(:execute)
+        .with([{ name: 'set_lights', arguments: { 'state' => 'on', 'brightness' => 100 } }])
+        .and_return([{ success: true, message: 'Lights turned on' }])
+
+      allow(Services::LLMService).to receive(:complete_with_messages)
+        .and_return(follow_up_response)
+
+      allow(Services::SimpleLogger).to receive(:info)
+    end
+
+    it 'executes tool calls and returns a follow-up response' do
+      result = conversation_module.send(:handle_native_tool_response, llm_response, messages, llm_options, response_schema)
+
+      expect(result).to eq(follow_up_response)
+    end
+
+    it 'tracks tool calls in @last_tool_calls' do
+      conversation_module.send(:handle_native_tool_response, llm_response, messages, llm_options, response_schema)
+
+      expect(conversation_module.instance_variable_get(:@last_tool_calls)).to eq([
+                                                                                   {
+                                                                                     tool_name: 'set_lights',
+                                                                                     arguments: { 'state' => 'on', 'brightness' => 100 },
+                                                                                     result: { success: true, message: 'Lights turned on' }
+                                                                                   }
+                                                                                 ])
+    end
+
+    it 'includes tool results in follow-up messages' do
+      expected_tool_result = {
+        tool_call_id: 'call_123',
+        role: 'tool',
+        name: 'set_lights',
+        content: '{"success":true,"message":"Lights turned on"}'
+      }
+
+      expect(Services::LLMService).to receive(:complete_with_messages) do |args|
+        expect(args[:messages]).to include(expected_tool_result)
+        follow_up_response
+      end
+
+      conversation_module.send(:handle_native_tool_response, llm_response, messages, llm_options, response_schema)
+    end
+
+    it 'uses structured output in follow-up call when schema provided' do
+      # Mock that the model supports structured output
+      allow(GlitchCube::ModelPresets).to receive(:supports_structured_output?).and_return(true)
+
+      expect(Services::LLMService).to receive(:complete_with_messages) do |args|
+        expect(args[:response_format]).not_to be_nil
+        follow_up_response
+      end
+
+      conversation_module.send(:handle_native_tool_response, llm_response, messages, llm_options, response_schema)
+    end
+
+    it 'handles multiple tool calls' do
+      multi_tool_calls = [
+        {
+          'id' => 'call_123',
+          'function' => {
+            'name' => 'set_lights',
+            'arguments' => '{"state":"on"}'
+          }
+        },
+        {
+          'id' => 'call_456',
+          'function' => {
+            'name' => 'speak',
+            'arguments' => '{"text":"Hello"}'
+          }
+        }
+      ]
+
+      multi_llm_response = double('LLMResponse',
+                                  tool_calls: multi_tool_calls,
+                                  message_data: { role: 'assistant', content: nil, tool_calls: multi_tool_calls })
+
+      allow(Services::ToolExecutor).to receive(:execute)
+        .with([{ name: 'set_lights', arguments: { 'state' => 'on' } }])
+        .and_return([{ success: true }])
+
+      allow(Services::ToolExecutor).to receive(:execute)
+        .with([{ name: 'speak', arguments: { 'text' => 'Hello' } }])
+        .and_return([{ success: true, spoken: 'Hello' }])
+
+      conversation_module.send(:handle_native_tool_response, multi_llm_response, messages, llm_options, response_schema)
+
+      last_tool_calls = conversation_module.instance_variable_get(:@last_tool_calls)
+      expect(last_tool_calls.length).to eq(2)
+      expect(last_tool_calls.map { |c| c[:tool_name] }).to eq(%w[set_lights speak])
+    end
+
+    it 'handles JSON parsing errors gracefully' do
+      invalid_tool_calls = [
+        {
+          'id' => 'call_789',
+          'function' => {
+            'name' => 'set_lights',
+            'arguments' => 'invalid json {'
+          }
+        }
+      ]
+
+      invalid_llm_response = double('LLMResponse',
+                                    tool_calls: invalid_tool_calls,
+                                    message_data: { role: 'assistant', content: nil, tool_calls: invalid_tool_calls })
+
+      allow(Services::ToolExecutor).to receive(:execute)
+        .with([{ name: 'set_lights', arguments: {} }])
+        .and_return([{ success: false, error: 'Invalid arguments' }])
+
+      expect do
+        conversation_module.send(:handle_native_tool_response, invalid_llm_response, messages, llm_options, response_schema)
+      end.not_to raise_error
+    end
+  end
+end
