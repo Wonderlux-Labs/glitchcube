@@ -32,7 +32,7 @@ module Services
 
       def setup_loggers
         # Legacy method - no longer needed but kept for compatibility
-        @setup_loggers ||= ErrorTracker.new
+        ensure_loggers
       end
 
       def general
@@ -182,10 +182,13 @@ module Services
 
       private
 
+      # rubocop:disable Naming/MemoizedInstanceVariableName
       def ensure_loggers
         # Ensure error tracker is initialized
         @ensure_loggers ||= ErrorTracker.new
+        @error_tracker ||= ErrorTracker.new
       end
+      # rubocop:enable Naming/MemoizedInstanceVariableName
 
       def log_directory
         # For compatibility with ErrorTracker

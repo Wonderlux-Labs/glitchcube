@@ -11,8 +11,8 @@ RSpec.describe Jobs::PersonalityMemoryJob do
         allow(Message).to receive_message_chain(:joins, :where, :where, :order).and_return([])
 
         # Allow the first info log, then expect the "not enough" message
-        allow(job.logger).to receive(:info).with('🧠 Extracting personality memories from recent conversations...')
-        expect(job.logger).to receive(:info).with(/Not enough messages/)
+        allow(Services::SimpleLogger).to receive(:info).with('🧠 Extracting personality memories from recent conversations...')
+        expect(Services::SimpleLogger).to receive(:info).with(/Not enough messages/)
         expect(job).not_to receive(:extract_personality_memories)
 
         job.perform
@@ -61,7 +61,7 @@ RSpec.describe Jobs::PersonalityMemoryJob do
                                                                          error: /StandardError: API Error/
                                                                        )).at_least(:once)
         # Allow the logger to log info messages
-        allow(job.logger).to receive(:info).and_call_original
+        allow(Services::SimpleLogger).to receive(:info).and_call_original
         # The job should complete without raising an error
         # (extract_personality_memories returns [] on failure, not re-raising)
         expect { job.perform }.not_to raise_error

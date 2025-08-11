@@ -23,6 +23,14 @@ require_relative 'config/database_config'
 # Load all initializers (includes our new autoloader)
 Dir[File.join(__dir__, 'config', 'initializers', '*.rb')].each { |file| require file }
 
+# Log application startup after all initializers are loaded
+Services::SimpleLogger.info(
+  'Cube starting up',
+  tagged: [:startup],
+  environment: ENV['RACK_ENV'] || 'development',
+  version: GlitchCube.config.device.app_version
+)
+
 # Set up database connection using centralized config
 # This ensures consistent database configuration across all environments
 configure_database!

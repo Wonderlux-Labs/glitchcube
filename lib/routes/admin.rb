@@ -131,7 +131,7 @@ module GlitchCube
             character = data['character']&.to_sym || :default
 
             # Use CharacterService for consistent TTS path
-            character_service = ::Services::CharacterService.new(character: character)
+            character_service = Services::CharacterService.new(character: character)
             success = character_service.speak(message, entity_id: entity_id)
 
             {
@@ -162,7 +162,7 @@ module GlitchCube
             entity_id = data['entity_id']
 
             # Use character service to speak
-            character_service = ::Services::CharacterService.new(character: character)
+            character_service = Services::CharacterService.new(character: character)
             success = character_service.speak(message, entity_id: entity_id)
 
             # Log if it failed
@@ -228,7 +228,7 @@ module GlitchCube
             message = proactive_messages[character]&.sample || 'Hello! Want to chat?'
 
             # Speak the proactive message
-            character_service = ::Services::CharacterService.new(character: character)
+            character_service = Services::CharacterService.new(character: character)
             character_service.speak(message, entity_id: entity_id)
 
             # Start a conversation session using standard ActiveRecord system
@@ -290,14 +290,14 @@ module GlitchCube
             response[:home_assistant] = true
             response[:ha_url] = ha_client.base_url || 'http://glitch.local:8123'
           rescue StandardError => e
-            Services::SimpleLogger.error('HA status check error', tagged: %i[admin status error], error: e.message)
+            ::Services::SimpleLogger.error('HA status check error', tagged: %i[admin status error], error: e.message)
           end
 
           # Check OpenRouter - simple API key check
           begin
             response[:openrouter] = !ENV['OPENROUTER_API_KEY'].nil? && ENV['OPENROUTER_API_KEY'].length > 10
           rescue StandardError => e
-            Services::SimpleLogger.error('OpenRouter status check error', tagged: %i[admin status error], error: e.message)
+            ::Services::SimpleLogger.error('OpenRouter status check error', tagged: %i[admin status error], error: e.message)
           end
 
           # Check Redis
@@ -313,7 +313,7 @@ module GlitchCube
               response[:redis] = redis.ping == 'PONG'
             end
           rescue StandardError => e
-            Services::SimpleLogger.error('Redis status check error', tagged: %i[admin status error], error: e.message)
+            ::Services::SimpleLogger.error('Redis status check error', tagged: %i[admin status error], error: e.message)
           end
 
           # Get other config safely
@@ -321,7 +321,7 @@ module GlitchCube
             response[:host_ip] = '192.168.0.56' # From your logs
             response[:ai_model] = GlitchCube.config.ai.default_model || DEFAULT_AI_MODEL || 'google/gemini-2.5-flash'
           rescue StandardError => e
-            Services::SimpleLogger.error('Config check error', tagged: %i[admin status error], error: e.message)
+            ::Services::SimpleLogger.error('Config check error', tagged: %i[admin status error], error: e.message)
           end
 
           response.to_json
@@ -507,7 +507,7 @@ module GlitchCube
           lines = (params[:lines] || 100).to_i
           lines = [lines, 1000].min # Cap at 1000 lines for performance
 
-          log_file = Services::SimpleLogger.log_file_path
+          log_file = ::Services::SimpleLogger.log_file_path
 
           if File.exist?(log_file)
             # Read last N lines efficiently
@@ -613,11 +613,11 @@ module GlitchCube
             }.to_json
           rescue StandardError => e
             # Log the full error for debugging
-            Services::SimpleLogger.error('Tool API Error',
-                                         tagged: %i[admin tool error],
-                                         error_class: e.class.name,
-                                         error: e.message,
-                                         backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil)
+            ::Services::SimpleLogger.error('Tool API Error',
+                                           tagged: %i[admin tool error],
+                                           error_class: e.class.name,
+                                           error: e.message,
+                                           backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil)
 
             status 500
             {
@@ -645,11 +645,11 @@ module GlitchCube
             status 400
             { success: false, error: "Invalid JSON: #{e.message}" }.to_json
           rescue StandardError => e
-            Services::SimpleLogger.error('Tool Execution Error',
-                                         tagged: %i[admin tool error],
-                                         error_class: e.class.name,
-                                         error: e.message,
-                                         backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil)
+            ::Services::SimpleLogger.error('Tool Execution Error',
+                                           tagged: %i[admin tool error],
+                                           error_class: e.class.name,
+                                           error: e.message,
+                                           backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil)
 
             status 500
             {

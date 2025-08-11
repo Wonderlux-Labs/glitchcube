@@ -2,20 +2,22 @@
 
 ## Current Development Focus
 
-### Phase 2: Tool Execution Cleanup
+### Logging System Migration (In Progress)
+- [ ] Complete SimpleLogger migration (~100+ puts statements remaining)
+- [ ] Replace LoggerService calls with SimpleLogger in core services
+- [ ] Add admin interface for viewing logs
+- [ ] Update request/response logging in app.rb (lines 100, 122)
+- [ ] Clean up debug logging patterns (GlitchCube.config.debug? vs .development?)
+
+### Architecture Consolidation (From Phase 2-4)
 - [ ] Remove tool execution fallback mechanisms from ConversationModule
 - [ ] Standardize on LLM tool calling approach via ToolExecutor
 - [ ] Clean up dual execution paths in hardware operations
-
-### Phase 3: Webhook Simplification
 - [ ] Remove bidirectional webhook complexity from HA integration
-- [ ] Consolidate remaining conversation endpoints
-- [ ] Document simplified webhook flow
-
-### Phase 4: Final Cleanup
+- [ ] Consolidate conversation endpoints (`/api/v1/conversation` as primary)
+- [ ] Simplify custom HA conversation agent to pure HTTP forwarding
 - [ ] Remove deprecated methods from codebase
-- [ ] Clean up unused dependencies
-- [ ] Update all documentation to reflect final architecture
+- [ ] Update all documentation to reflect Sinatra-centric architecture
 
 ## Testing & Quality
 

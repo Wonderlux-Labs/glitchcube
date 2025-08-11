@@ -1,38 +1,158 @@
 # frozen_string_literal: true
 
-# Autoload all library files in the correct order
+# First, load the service registry
+require_relative '../../lib/core/service_registry'
+
+# Autoload all library files using lazy loading and dependency management
 # This eliminates the need for require_relative statements throughout the codebase
 
 # Load order is important for dependencies
 module Autoloader
   class << self
     def load_all
-      # 1. Core dependencies first
+      # Phase 1: Register all service locations without loading
+      register_all_services
+
+      # Phase 2: Load only critical services needed at startup
+      load_critical_services
+
+      # Phase 3: Load other non-lazy components
       load_core
-
-      # 2. Configuration and constants
       load_config
-
-      # 3. Utilities and helpers
       load_utilities
-
-      # 4. Base classes and modules
       load_base_classes
-
-      # 5. Personas (base class first, then specific personas)
       load_personas
-
-      # 6. Tools (must be before services since ToolExecutor references them)
       load_tools
 
-      # 7. Services (with subdirectories)
-      load_services
+      # Phase 4: In test environment, load all services after tools are available
+      if ENV['RACK_ENV'] == 'test'
+        load_all_services_for_tests
+      end
 
-      # 8. Jobs and workers (may depend on services)
       load_jobs
-
-      # 9. Routes
       load_routes
+    end
+
+    private
+
+    def register_all_services
+      # Register all services with their dependencies
+      # These will be lazy-loaded on first access
+
+      # Logging services (no dependencies, load first)
+      ServiceRegistry.register(:simple_logger, 'services/logging/simple_logger')
+      ServiceRegistry.register(:logger_service, 'services/logging/logger_service',
+                               dependencies: [:simple_logger])
+
+      # System services
+      ServiceRegistry.register(:error_handling_llm, 'services/system/error_handling_llm',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:circuit_breaker_service, 'services/system/circuit_breaker_service',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:tool_registry_service, 'services/system/tool_registry_service',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:tool_executor, 'services/system/tool_executor',
+                               dependencies: %i[tool_registry_service logger_service])
+      ServiceRegistry.register(:entity_manager_service, 'services/system/entity_manager_service',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:character_service, 'services/system/character_service',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:health_push_service, 'services/system/health_push_service',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:host_registration_service, 'services/system/host_registration_service',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:proactive_interaction_service, 'services/system/proactive_interaction_service',
+                               dependencies: %i[logger_service entity_manager_service])
+      ServiceRegistry.register(:repeating_jobs_manager, 'services/system/repeating_jobs_manager',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:home_assistant_webhook_service, 'services/system/home_assistant_webhook_service',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:system_prompt_service, 'services/system/system_prompt_service',
+                               dependencies: [:logger_service])
+
+      # LLM services
+      ServiceRegistry.register(:llm_service, 'services/llm/llm_service',
+                               dependencies: %i[logger_service circuit_breaker_service])
+      ServiceRegistry.register(:llm_response, 'services/llm/llm_response')
+
+      # Memory services
+      ServiceRegistry.register(:memory_recall_service, 'services/memory/memory_recall_service',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:context_injection_service, 'services/memory/context_injection_service',
+                               dependencies: %i[logger_service memory_recall_service])
+      ServiceRegistry.register(:context_retrieval_service, 'services/memory/context_retrieval_service',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:context_enrichment_service, 'services/memory/context_enrichment_service',
+                               dependencies: %i[logger_service context_retrieval_service])
+
+      # GPS services
+      ServiceRegistry.register(:gps_cache_service, 'services/gps/gps_cache_service',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:gps_tracking_service, 'services/gps/gps_tracking_service',
+                               dependencies: %i[logger_service gps_cache_service])
+
+      # Conversation services
+      ServiceRegistry.register(:conversation_handler_service, 'services/conversation/conversation_handler_service',
+                               dependencies: %i[logger_service llm_service memory_recall_service])
+      ServiceRegistry.register(:conversation_session, 'services/conversation/conversation_session',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:conversation_tool_handler, 'services/conversation/conversation_tool_handler',
+                               dependencies: %i[logger_service tool_executor])
+      ServiceRegistry.register(:conversation_error_handler, 'services/conversation/conversation_error_handler',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:conversation_feedback_service, 'services/conversation/conversation_feedback_service',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:conversation_side_effect_handler, 'services/conversation/conversation_side_effect_handler',
+                               dependencies: [:logger_service])
+      ServiceRegistry.register(:conversation_summarizer, 'services/conversation/conversation_summarizer',
+                               dependencies: [:logger_service])
+
+      # Register any other services in root services directory
+      register_root_services
+    end
+
+    def register_root_services
+      # Find and register any services in the root services directory
+      Dir[File.join(root, 'lib', 'services', '*.rb')].each do |file|
+        basename = File.basename(file, '.rb')
+        service_name = basename.to_sym
+
+        # Skip if already registered
+        next if ServiceRegistry.registered_services.include?(service_name)
+
+        # Register with basic dependency on logger
+        ServiceRegistry.register(service_name, "services/#{basename}",
+                                 dependencies: [:logger_service])
+      end
+    end
+
+    def load_critical_services
+      # Load only the services that are absolutely needed at startup
+      # Everything else will be lazy-loaded on first access
+
+      # Always load logging first
+      ServiceRegistry.load(:simple_logger)
+      ServiceRegistry.load(:logger_service)
+
+      # Load error handling if configured
+      return unless ENV['ENABLE_ERROR_HANDLING'] != 'false'
+
+      ServiceRegistry.load(:error_handling_llm)
+
+      # In test environment, we need to load dependencies before services
+      # This will be handled after tools are loaded in load_all
+    end
+
+    def load_all_services_for_tests
+      # Load all registered services for test environment
+      # This ensures specs can reference Services::ClassName directly
+      puts 'Loading all services for test environment...' if ENV['DEBUG']
+      ServiceRegistry.registered_services.each do |service|
+        ServiceRegistry.load(service)
+      rescue StandardError => e
+        # Skip services that have issues loading
+        puts "Warning: Could not load service #{service}: #{e.message}"
+      end
     end
 
     private
@@ -72,22 +192,8 @@ module Autoloader
       require_if_exists 'lib/tools/base_tool'
     end
 
-    def load_services
-      # Services with proper subdirectory loading
-      # Load logging services first as many others depend on them
-      Dir[File.join(root, 'lib', 'services', 'logging', '*.rb')].each { |f| require f }
-
-      # Then system services
-      Dir[File.join(root, 'lib', 'services', 'system', '*.rb')].each { |f| require f }
-
-      # Then other service subdirectories
-      %w[llm memory gps conversation].each do |subdir|
-        Dir[File.join(root, 'lib', 'services', subdir, '*.rb')].each { |f| require f }
-      end
-
-      # Finally any services in the root services directory
-      Dir[File.join(root, 'lib', 'services', '*.rb')].each { |f| require f }
-    end
+    # Services are now handled by ServiceRegistry with lazy loading
+    # No need for explicit load_services method
 
     def load_jobs
       Dir[File.join(root, 'lib', 'jobs', '*.rb')].each { |f| require f }
@@ -133,3 +239,6 @@ end
 
 # Load everything when this initializer runs
 Autoloader.load_all
+
+# The namespace alias is now handled by 00_namespace_setup.rb
+# which loads before this file and sets up proper constant resolution

@@ -15,8 +15,7 @@
 ### Technical References
 - [Environment Variables](./ENVIRONMENT_VARIABLES.md) - Configuration reference
 - [Home Assistant Integration](./technical/home_assistant_integration.md) - HA API details
-- [AI Framework (Desiru)](./technical/desirue_framework.md) - ReAct agent system
-- [GPS Implementation](./technical/gps_real_time_implementation.md) - Location tracking
+- [GPS Architecture](./gps_architecture.md) - Location tracking system
 
 ### API Documentation
 - [Home Assistant Endpoints](./technical/home_assistant_api_endpoints.md) - HA API reference
@@ -63,23 +62,30 @@
 ### Testing
 ```bash
 # Run all tests
-bundle exec rspec
+bin/rspec
+
+# Run tests with VCR options
+bin/rspec --vcr-none      # CI mode (no cassettes)
+bin/rspec --vcr-override  # Override existing cassettes
 
 # Test conversations in console
-rake console
+bin/console
 test_conversation("Hello!")
 ```
 
 ### Common Tasks
 ```bash
+# Start development server (auto-reload + Sidekiq)
+bin/dev
+
+# Start production server
+bin/prod
+
 # Deploy to production
-rake deploy:smart
+rake deploy:push["Deploy message"]
 
 # Check system status
-rake status
-
-# Access Home Assistant VM
-ssh root@glitch.local
+rake health:check
 ```
 
 ## Documentation Standards
