@@ -21,7 +21,7 @@ class ConversationFeedbackTool < BaseTool
 
   # List of available tool methods for this class
   def self.available_tools
-    %w[set_state set_custom_color get_status]
+    %w[set_conversation_state get_status]
   end
 
   # Prompt description for LLM
@@ -32,28 +32,19 @@ class ConversationFeedbackTool < BaseTool
   # Tool schemas for each method
   def self.tool_schemas
     {
-      'set_state' => {
+      'set_conversation_state' => {
         'type' => 'object',
         'properties' => {
           'state' => { 'type' => 'string', 'enum' => %w[listening thinking speaking completed error idle] }
         },
         'required' => ['state']
       },
-      'set_custom_color' => {
-        'type' => 'object',
-        'properties' => {
-          'color' => { 'type' => 'string' },
-          'brightness' => { 'type' => 'integer', 'minimum' => 0, 'maximum' => 255 },
-          'effect' => { 'type' => 'string', 'enum' => %w[solid pulse_slow pulse_fast flash fade_out] }
-        },
-        'required' => ['color']
-      },
       'get_status' => { 'type' => 'object', 'properties' => {} }
     }
   end
 
   # Set conversation state with predefined visual feedback
-  def self.set_state(state:)
+  def self.set_conversation_state(state:)
     valid_states = %w[listening thinking speaking completed error idle]
 
     return format_response(false, "Invalid state '#{state}'. Valid states: #{valid_states.join(', ')}") unless valid_states.include?(state.to_s)

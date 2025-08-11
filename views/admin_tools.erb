@@ -351,6 +351,7 @@
     let availableTools = [];
     let selectedTool = null;
     let selectedFunction = null;
+    let selectedMethod = null;
     let executionHistory = [];
 
     // Tab switching
@@ -402,7 +403,7 @@
       `).join('');
     }
 
-    // Select a tool
+    // Select a tool class
     function selectTool(toolName) {
       const tool = availableTools.find(t => t.name === toolName);
       if (!tool) return;
@@ -411,9 +412,59 @@
       
       // Update visual selection
       document.querySelectorAll('.tool-card').forEach(card => card.classList.remove('selected'));
-      event.target.classList.add('selected');
+      event.target.closest('.tool-card').classList.add('selected');
       
-      renderToolDetails();
+      renderToolClassMethods();
+    }
+
+    // Render methods for selected tool class
+    function renderToolClassMethods() {
+      const detailsDiv = document.getElementById('tool-details');
+      
+      if (!selectedTool) {
+        detailsDiv.innerHTML = '<div style="color: #666;">Select a tool class to see its methods</div>';
+        return;
+      }
+
+      const methods = selectedTool.methods || {};
+      const methodNames = Object.keys(methods);
+      
+      if (methodNames.length === 0) {
+        detailsDiv.innerHTML = `<h3>${selectedTool.display_name}</h3><div style="color: #666;">No methods found for this tool class</div>`;
+        return;
+      }
+
+      detailsDiv.innerHTML = `
+        <h3>${selectedTool.display_name}</h3>
+        <p style="color: #ccc; margin-bottom: 20px;">${selectedTool.description}</p>
+        
+        <div style="margin-bottom: 20px;">
+          <h4 style="color: #00ff00; margin-bottom: 15px;">Available Methods</h4>
+          <div id="method-cards">
+            ${methodNames.map(methodName => {
+              const method = methods[methodName];
+              const paramCount = method.parameters?.properties ? Object.keys(method.parameters.properties).length : 0;
+              return `
+                <div class="function-card" onclick="selectMethod('${methodName}')" data-method="${methodName}">
+                  <div class="function-name">${methodName}</div>
+                  <div class="function-description">${method.description}</div>
+                  <div class="function-params">${paramCount} parameters</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+        
+        <div id="method-parameters" style="display: none;">
+          <h4 style="color: #ffff00; margin-bottom: 15px;">Method Parameters</h4>
+          <div id="dynamic-parameters"></div>
+          
+          <div style="margin-top: 20px;">
+            <button onclick="executeSelectedMethod()">🚀 Execute Method</button>
+            <button onclick="clearMethodParameters()">🗑️ Clear Parameters</button>
+          </div>
+        </div>
+      `;
     }
 
     // Render tool details and parameter form
@@ -628,21 +679,35 @@
         resultDiv.innerHTML = `✅ SUCCESS
 Tool: ${result.tool_name}
 Execution Time: ${result.execution_time_ms}ms
-Result:
-${JSON.stringify(result.result, null, 2)}
+Timestamp: ${result.timestamp}
 
-Parameters Used:
+📡 Home Assistant Debug:
+HA URL: ${result.debug_info?.ha_url || 'Not available'}
+Circuit Breaker: ${result.debug_info?.ha_circuit_breaker_open ? '🔴 OPEN' : '🟢 CLOSED'}
+Last HA Call: ${result.debug_info?.last_ha_call || 'N/A'}
+
+🎯 Tool Result:
+${typeof result.result === 'string' ? result.result : JSON.stringify(result.result, null, 2)}
+
+🔧 Full Debug Result:
+${JSON.stringify(result, null, 2)}
+
+📋 Parameters Used:
 ${JSON.stringify(result.parameters, null, 2)}`;
       } else {
         resultDiv.className = 'result-display result-error';
         resultDiv.innerHTML = `❌ ERROR
 Tool: ${result.tool_name}
 Error: ${result.error}
+Timestamp: ${result.timestamp || 'N/A'}
 
-Parameters Attempted:
+📡 Debug Info:
+${result.debug_info ? JSON.stringify(result.debug_info, null, 2) : 'No debug info available'}
+
+📋 Parameters Attempted:
 ${JSON.stringify(result.parameters, null, 2)}
 
-${result.backtrace ? 'Stack Trace:\n' + result.backtrace.join('\n') : ''}`;
+${result.backtrace ? '📚 Stack Trace:\n' + result.backtrace.join('\n') : ''}`;
       }
     }
 
@@ -942,6 +1007,174 @@ ${result.backtrace ? 'Stack Trace:\n' + result.backtrace.join('\n') : ''}`;
       } catch (err) {
         toolsDiv.innerHTML = `<div class="result-error">Failed to load character tools: ${err.message}</div>`;
       }
+    }
+
+    // Select a method from the current tool class
+    function selectMethod(methodName) {
+      if (!selectedTool || !selectedTool.methods) return;
+      
+      const method = selectedTool.methods[methodName];
+      if (!method) return;
+      
+      selectedMethod = methodName;
+      
+      // Replace entire right panel with method details
+      const detailsDiv = document.getElementById('tool-details');
+      const parameters = method.parameters || {};
+      const properties = parameters.properties || {};
+      const required = parameters.required || [];
+      
+      detailsDiv.innerHTML = `
+        <div style="margin-bottom: 20px;">
+          <a href="#" onclick="backToMethods(); return false;" style="color: #00ff00; text-decoration: none; margin-bottom: 15px; display: block;">
+            ← Back to ${selectedTool.display_name} Methods
+          </a>
+          <h3>${methodName}</h3>
+          <p style="color: #ccc; margin-bottom: 20px;">${method.description}</p>
+        </div>
+        
+        <div class="parameter-form">
+          ${Object.keys(properties).length > 0 ? 
+            Object.entries(properties).map(([paramName, paramInfo]) => {
+              const isRequired = required.includes(paramName);
+              return renderMethodParameterControl(paramName, paramInfo, isRequired);
+            }).join('') :
+            '<div style="color: #666; font-style: italic; margin-bottom: 20px;">No parameters required</div>'
+          }
+          
+          <div style="margin-top: 20px;">
+            <button onclick="executeSelectedMethod()">🚀 Execute ${methodName}</button>
+            <button onclick="clearMethodParameters()">🗑️ Clear Parameters</button>
+          </div>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 15px; border-top: 1px solid #333;">
+          <a href="#" onclick="backToMethods(); return false;" style="color: #00ff00; text-decoration: none;">
+            ← Back to ${selectedTool.display_name} Methods
+          </a>
+        </div>
+      `;
+    }
+
+    // Go back to methods list for current tool
+    function backToMethods() {
+      selectedMethod = null;
+      renderToolClassMethods();
+    }
+
+    // Render parameter control for method parameters
+    function renderMethodParameterControl(paramName, paramInfo, isRequired) {
+      const labelClass = isRequired ? 'parameter-required' : 'parameter-optional';
+      const requiredMark = isRequired ? ' *' : '';
+      
+      let control = '';
+      
+      if (paramInfo.enum && paramInfo.enum.length > 0) {
+        control = `
+          <select id="method-param-${paramName}" data-method-param="${paramName}" data-type="${paramInfo.type}">
+            <option value="">-- Select ${paramName} --</option>
+            ${paramInfo.enum.map(value => `<option value="${value}">${value}</option>`).join('')}
+          </select>
+        `;
+      } else if (paramInfo.type === 'boolean') {
+        control = `
+          <input type="checkbox" id="method-param-${paramName}" data-method-param="${paramName}" data-type="boolean">
+        `;
+      } else if (paramInfo.type === 'integer') {
+        control = `
+          <input type="number" id="method-param-${paramName}" data-method-param="${paramName}" data-type="integer" 
+                 placeholder="Enter ${paramName}">
+        `;
+      } else if (paramInfo.type === 'array') {
+        control = `
+          <textarea id="method-param-${paramName}" data-method-param="${paramName}" data-type="array" rows="3"
+                    placeholder="Enter ${paramName} as JSON array"></textarea>
+        `;
+      } else {
+        control = `
+          <input type="text" id="method-param-${paramName}" data-method-param="${paramName}" data-type="${paramInfo.type}"
+                 placeholder="Enter ${paramName}">
+        `;
+      }
+      
+      return `
+        <div class="parameter-group">
+          <label class="parameter-label ${labelClass}">
+            ${paramName}${requiredMark} (${paramInfo.type})
+            ${paramInfo.description ? `<div style="color: #999; font-size: 0.9em; margin-top: 3px;">${paramInfo.description}</div>` : ''}
+          </label>
+          ${control}
+        </div>
+      `;
+    }
+
+    // Execute the selected method
+    async function executeSelectedMethod() {
+      if (!selectedTool || !selectedMethod) {
+        alert('Please select a tool class and method first');
+        return;
+      }
+
+      // Collect method parameters
+      const parameters = {};
+      document.querySelectorAll('[data-method-param]').forEach(input => {
+        const paramName = input.dataset.methodParam;
+        const paramType = input.dataset.type;
+        let value = input.type === 'checkbox' ? input.checked : input.value.trim();
+        
+        if (value !== '' && value !== false) {
+          if (paramType === 'integer') {
+            parameters[paramName] = parseInt(value) || 0;
+          } else if (paramType === 'boolean') {
+            parameters[paramName] = value;
+          } else if (paramType === 'array') {
+            try {
+              parameters[paramName] = JSON.parse(value);
+            } catch (e) {
+              parameters[paramName] = value.split(',').map(s => s.trim());
+            }
+          } else {
+            parameters[paramName] = value;
+          }
+        }
+      });
+
+      // Show loading
+      const resultDiv = document.getElementById('latest-result');
+      resultDiv.innerHTML = '⏳ Executing method...';
+      resultDiv.className = 'result-display';
+
+      try {
+        const response = await fetch(`/admin/api/tools/${selectedMethod}/execute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parameters })
+        });
+
+        const result = await response.json();
+        displayResult(result);
+        addToHistory(result);
+      } catch (err) {
+        const errorResult = {
+          success: false,
+          error: err.message,
+          tool_name: selectedMethod,
+          parameters
+        };
+        displayResult(errorResult);
+        addToHistory(errorResult);
+      }
+    }
+
+    // Clear method parameters
+    function clearMethodParameters() {
+      document.querySelectorAll('[data-method-param]').forEach(input => {
+        if (input.type === 'checkbox') {
+          input.checked = false;
+        } else {
+          input.value = '';
+        }
+      });
     }
   </script>
 </body>

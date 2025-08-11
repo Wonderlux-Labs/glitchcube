@@ -45,6 +45,14 @@ Glitchcube is an autonomous interactive art installation for Burning Man - a sel
 - Lighting effects
 - Music playback
 
+#### 6. Entity Management System (`lib/services/system/entity_manager_service.rb`)
+- Keeps Home Assistant entity list up to date
+- Organizes entities by domain (light, sensor, media_player, etc.)
+- Redis caching with 5-minute expiration
+- Automatic refresh on entity changes
+- Background job processing (`EntityDocumentationJob`)
+- API endpoints for manual refresh and querying
+
 ## Testing Strategy
 
 ### VCR Configuration
@@ -130,6 +138,18 @@ rake deploy:pull      # Manual pull from GitHub (on Mac Mini)
 rake deploy:check     # Check for updates (on Mac Mini)
 ```
 
+### Entity Management Commands
+```bash
+# Update entity documentation manually
+ruby scripts/update_ha_entities_doc.rb
+
+# API endpoints for entity management
+curl -X POST http://localhost:4567/api/v1/entities/refresh    # Force refresh
+curl http://localhost:4567/api/v1/entities/list               # Get all entities
+curl http://localhost:4567/api/v1/entities/light             # Get light entities
+curl http://localhost:4567/api/v1/entities/sensor            # Get sensor entities
+```
+
 ### Interactive Console Usage
 
 The `bin/console` command gives you a Ruby console with the entire GlitchCube application loaded. This is perfect for:
@@ -173,6 +193,25 @@ Services::GisCacheService.clear_cache!
 
 # Test services
 Services::HomeAssistantClient.new.test_connection
+```
+
+**Entity Management:**
+```ruby
+# Get all Home Assistant entities organized by domain
+entities = GlitchCube::Services::EntityManagerService.get_entities_by_domain
+
+# Force refresh entities from Home Assistant
+GlitchCube::Services::EntityManagerService.refresh_entities!
+
+# Get specific domain entities
+lights = GlitchCube::Services::EntityManagerService.get_rgb_lights
+motion_sensors = GlitchCube::Services::EntityManagerService.get_motion_sensors
+media_players = GlitchCube::Services::EntityManagerService.get_media_players
+
+# Get hardware capability summary
+caps = GlitchCube::Services::EntityManagerService.get_hardware_capabilities
+puts "RGB Lights: #{caps[:summary][:rgb_light_count]}"
+puts "Motion Sensors: #{caps[:summary][:motion_sensor_count]}"
 ```
 
 **Spatial Queries (PostGIS):**

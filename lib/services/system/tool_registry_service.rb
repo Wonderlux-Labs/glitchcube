@@ -46,12 +46,65 @@ module Services
         tools
       end
 
+      # All available tool classes
+      ALL_TOOL_CLASSES = [
+        SpeechTool,
+        DisplayTool,
+        LightingTool,
+        CameraTool,
+        MusicTool,
+        ConversationFeedbackTool,
+        ErrorHandlingTool,
+        HomeAssistantParallelTool,
+        TestTool
+      ].freeze
+
+      # Discover all available tools with metadata (for admin interface)
+      # Returns tool classes with their methods and parameters
+      def discover_tools
+        tool_classes_data = {}
+
+        ALL_TOOL_CLASSES.each do |tool_class|
+          class_name = tool_class.name.split('::').last # e.g., "LightingTool"
+
+          # Initialize data for this tool class
+          tool_classes_data[class_name] = {
+            description: tool_class.respond_to?(:prompt_description) ?
+                         tool_class.prompt_description :
+                         "Tools provided by #{class_name}",
+            category: tool_class.respond_to?(:category) ?
+                      tool_class.category :
+                      class_name.gsub(/Tool$/, '').downcase,
+            methods: {} # This will store the methods for this class
+          }
+
+          next unless tool_class.respond_to?(:available_tools)
+
+          tool_class.available_tools.each do |tool_name|
+            # The tool_name here is the method name (e.g., 'set_light_color')
+            parameters = if tool_class.respond_to?(:tool_schemas) && tool_class.tool_schemas[tool_name]
+                           tool_class.tool_schemas[tool_name]
+                         else
+                           { 'type' => 'object', 'properties' => {} }
+                         end
+
+            tool_classes_data[class_name][:methods][tool_name] = {
+              description: "#{tool_class.prompt_description} - #{tool_name}",
+              parameters: parameters
+            }
+          end
+        end
+
+        tool_classes_data
+      end
+
       # Execute a tool directly (for admin testing)
-      def execute_tool_directly(tool_name, parameters = {})
+      def execute_tool_directly(tool_name, parameters = {}, tool_class: nil)
         Services::ToolExecutor.execute([{
                                          name: tool_name,
                                          arguments: parameters,
-                                         id: "test_#{SecureRandom.hex(4)}"
+                                         id: "test_#{SecureRandom.hex(4)}",
+                                         tool_class: tool_class
                                        }]).first
       end
     end

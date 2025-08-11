@@ -54,16 +54,16 @@ class LightingTool < BaseTool
   end
 
   # Main method for setting light state
-  def self.set_state(state:, target: 'all', color: nil, brightness: 150, effect: 'solid')
+  def self.set_state(state:, target: 'all', color: nil, brightness: 150, effect: 'solid', **_kwargs)
     return turn_off(target: target) if state == 'off'
 
     params = { target: target, color: color, brightness: brightness }
     params[:pulse] = rand(5) if effect == 'pulse'
-    set_light(params)
+    set_light(**params)
   end
 
   # Get current state of lights
-  def self.get_state(target: 'all')
+  def self.get_state(target: 'all', **_kwargs)
     entity_ids = get_entities(target)
     states = {}
 
@@ -76,7 +76,7 @@ class LightingTool < BaseTool
   end
 
   # List all light states
-  def self.list_states
+  def self.list_states(**_kwargs)
     all_targets = %w[cube cart voice_ring matrix indicators]
     states = {}
 

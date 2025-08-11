@@ -591,18 +591,18 @@ module GlitchCube
           content_type :json
 
           begin
-            tools = ::Services::ToolRegistryService.discover_tools
+            tool_classes = ::Services::ToolRegistryService.discover_tools
 
-            # Format for frontend consumption
-            formatted_tools = tools.map do |name, info|
+            # Return tool classes for left panel
+            formatted_tools = tool_classes.map do |class_name, class_info|
               {
-                name: name,
-                display_name: name.split('_').map(&:capitalize).join(' '),
-                description: info[:description],
-                category: info[:category],
-                parameters: info[:parameters],
-                examples: info[:examples] || [],
-                class_name: info[:class_name]
+                name: class_name,
+                display_name: class_name.gsub(/Tool$/, ''),
+                description: class_info[:description],
+                category: class_info[:category],
+                methods: class_info[:methods],
+                examples: [],
+                class_name: class_name
               }
             end
 
@@ -638,9 +638,37 @@ module GlitchCube
             data = JSON.parse(request.body.read)
             parameters = data['parameters'] || {}
 
-            result = ::Services::ToolRegistryService.execute_tool_directly(tool_name, parameters)
+            start_time = Time.now
+            # Get the tool class context from the method name
+            tool_classes_data = ::Services::ToolRegistryService.discover_tools
+            target_tool_class = nil
 
-            result.to_json
+            tool_classes_data.each do |class_name, class_info|
+              if class_info[:methods] && class_info[:methods][tool_name]
+                target_tool_class = class_name
+                break
+              end
+            end
+
+            result = ::Services::ToolRegistryService.execute_tool_directly(tool_name, parameters, tool_class: target_tool_class)
+            execution_time = ((Time.now - start_time) * 1000).round
+
+            # Use the tool executor result directly, just add debug info
+            enhanced_result = result.dup
+            enhanced_result[:parameters] = parameters
+            enhanced_result[:execution_time_ms] = execution_time
+            enhanced_result[:timestamp] = Time.now.iso8601
+            # Get recent HA service call logs for debugging
+            recent_ha_logs = Admin.get_recent_ha_logs(5) # Get last 5 HA calls
+
+            enhanced_result[:debug_info] = {
+              ha_circuit_breaker_open: false, # TODO: Get actual circuit breaker status
+              recent_ha_calls: recent_ha_logs,
+              ha_url: ENV['HOME_ASSISTANT_URL'] || ENV['HA_URL'] || 'Not configured',
+              tool_class_context: target_tool_class
+            }
+
+            enhanced_result.to_json
           rescue JSON::ParserError => e
             status 400
             { success: false, error: "Invalid JSON: #{e.message}" }.to_json
@@ -790,6 +818,41 @@ module GlitchCube
             status 500
             { error: e.message, backtrace: e.backtrace.first(5) }.to_json
           end
+        end
+      end
+
+      # Get recent Home Assistant service call logs for debugging
+      def self.get_recent_ha_logs(limit = 5)
+        log_file = ::Services::SimpleLogger.log_file_path
+        return [] unless File.exist?(log_file)
+
+        begin
+          # Read recent logs and filter for HA service calls
+          recent_logs = `tail -n 100 #{log_file}`.split("\n")
+          ha_logs = []
+
+          recent_logs.reverse.each do |line|
+            break if ha_logs.size >= limit
+
+            # Look for HA-related log entries
+            # Parse the log line
+            next unless (line.include?('#home_assistant') || line.include?('HA Service') || line.include?('Home Assistant')) && (line =~ /^\[([\d:\.]+)\] \[(\w+)\] \[(\w+)\](.+)$/)
+
+            timestamp = $1
+            level = $2.downcase
+            message = $4.strip
+
+            ha_logs << {
+              timestamp: timestamp,
+              level: level,
+              message: message,
+              raw: line
+            }
+          end
+
+          ha_logs.reverse # Return in chronological order
+        rescue StandardError => e
+          [{ error: "Failed to read HA logs: #{e.message}" }]
         end
       end
     end

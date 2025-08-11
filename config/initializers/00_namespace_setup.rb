@@ -61,7 +61,11 @@ unless defined?(Services)
       return const_get(name) if const_defined?(name)
 
       # Try to load the service via ServiceRegistry
-      service_name = name.to_s.gsub(/([a-z])([A-Z])/, '\1_\2').downcase.to_sym
+      # Handle cases like LLMService -> llm_service properly
+      service_name = name.to_s
+                         .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')    # Handle consecutive caps: LLMService -> LLM_Service
+                         .gsub(/([a-z])([A-Z])/, '\1_\2')          # Handle normal camelCase: camelCase -> camel_Case
+                         .downcase.to_sym
 
       if defined?(ServiceRegistry) && ServiceRegistry.registered_services.include?(service_name)
         ServiceRegistry.load(service_name)
@@ -70,7 +74,6 @@ unless defined?(Services)
           return const_get(name)
         end
       end
-
       super
     end
   end

@@ -3,6 +3,16 @@
 
 # Script to update Home Assistant entities documentation
 require 'bundler/setup'
+require 'dotenv/load'
+
+# Load environment variables
+Dotenv.load('.env', '.env.defaults')
+
+# Set the environment
+ENV['RACK_ENV'] ||= 'development'
+
+# Load the app properly with all its initializers and correct load order
+require_relative '../app'
 
 require 'json'
 require 'time'

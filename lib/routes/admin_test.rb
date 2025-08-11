@@ -189,18 +189,21 @@ module GlitchCube
           erb :admin_test_memories
         end
 
-        # Test tools
+        # Test tools - show available tool classes
         app.get '/admin/test/tools' do
-          @tools = ::Services::ToolRegistryService.discover_tools.map do |name, info|
+          # Get the hierarchical tool data
+          @all_tools_data = ::Services::ToolRegistryService.discover_tools
+
+          # For the initial display, we show tool classes
+          @tool_classes = @all_tools_data.map do |class_name, class_info|
             {
-              name: name,
-              description: info[:description],
-              category: info[:category]
+              name: class_name,
+              description: class_info[:description],
+              category: class_info[:category]
             }
           end
 
-          # Redirect to the main tools explorer
-          redirect '/admin/tools'
+          erb :admin_test_tools
         end
 
         # Execute tool form submission
@@ -221,17 +224,19 @@ module GlitchCube
             @tool_result = { success: false, error: e.message }
           end
 
-          # Reload tools list
-          @tools = ::Services::ToolRegistryService.discover_tools.map do |name, info|
+          # Get the hierarchical tool data
+          @all_tools_data = ::Services::ToolRegistryService.discover_tools
+
+          # For the display, we show tool classes
+          @tool_classes = @all_tools_data.map do |class_name, class_info|
             {
-              name: name,
-              description: info[:description],
-              category: info[:category]
+              name: class_name,
+              description: class_info[:description],
+              category: class_info[:category]
             }
           end
 
-          # Redirect to the main tools explorer
-          redirect '/admin/tools'
+          erb :admin_test_tools
         end
       end
     end

@@ -85,7 +85,30 @@ class BaseTool
       else
         "❌ Service #{domain}.#{service} failed"
       end
+    rescue HomeAssistantClient::Error => e
+      # Enhanced HA error reporting with specific error details
+      error_context = {
+        domain: domain,
+        service: service,
+        data: data,
+        error_class: e.class.name,
+        error_message: e.message
+      }
+
+      SimpleLogger.error('Home Assistant service call failed',
+                         tagged: %i[tool home_assistant error],
+                         **error_context)
+
+      "❌ HA Service Error (#{domain}.#{service}): #{e.message}"
     rescue StandardError => e
+      # Generic error handling
+      SimpleLogger.error('Tool service call failed',
+                         tagged: %i[tool error],
+                         domain: domain,
+                         service: service,
+                         error_class: e.class.name,
+                         error_message: e.message)
+
       "❌ HA Service Error: #{e.message}"
     end
 

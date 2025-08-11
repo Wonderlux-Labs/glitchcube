@@ -13,21 +13,88 @@ module Services
       def execute_single(tool_call)
         tool_name = tool_call[:name] || tool_call['name']
         arguments = tool_call[:arguments] || tool_call['arguments'] || {}
+        preferred_tool_class = tool_call[:tool_class] || tool_call['tool_class']
 
         # Find which tool class handles this method
-        tool_class = find_tool_class_for(tool_name)
+        tool_class = if preferred_tool_class
+                       find_specific_tool_class(preferred_tool_class, tool_name)
+                     else
+                       find_tool_class_for(tool_name)
+                     end
         return error_result(tool_call, "No tool handles '#{tool_name}'") unless tool_class
+
+        # Normalize and filter arguments to match method signature
+        normalized_args = normalize_args(arguments)
+
+        # Log tool execution
+        SimpleLogger.info('Executing tool method',
+                          tagged: %i[tool_executor execution],
+                          tool_class: tool_class.name,
+                          tool_name: tool_name,
+                          arguments: normalized_args.inspect)
 
         # Execute the tool method
         result = if tool_class.respond_to?(tool_name)
-                   tool_class.send(tool_name, **normalize_args(arguments))
+                   # Filter arguments to match method signature to prevent keyword argument errors
+                   filtered_args = filter_args_for_method(tool_class, tool_name, normalized_args)
+
+                   SimpleLogger.debug('Method signature filtering',
+                                      tagged: %i[tool_executor signature],
+                                      method: "#{tool_class.name}.#{tool_name}",
+                                      original_args: normalized_args.keys,
+                                      filtered_args: filtered_args.keys)
+
+                   tool_class.send(tool_name, **filtered_args)
                  else
-                   tool_class.call(**normalize_args(arguments))
+                   tool_class.call(**normalized_args)
                  end
 
         success_result(tool_call, result)
       rescue StandardError => e
+        SimpleLogger.error('Tool execution failed',
+                           tagged: %i[tool_executor error],
+                           tool_class: tool_class&.name || 'Unknown',
+                           tool_name: tool_name,
+                           error_class: e.class.name,
+                           error_message: e.message,
+                           backtrace: e.backtrace&.first(3))
         error_result(tool_call, e.message)
+      end
+
+      # Filter arguments to only include those that the method can accept
+      def filter_args_for_method(tool_class, method_name, args)
+        return args unless tool_class.respond_to?(method_name)
+
+        method_obj = tool_class.method(method_name)
+        method_params = method_obj.parameters
+
+        # Get the parameter names that the method accepts
+        # [:keyreq, :name] = required keyword arg
+        # [:key, :name] = optional keyword arg
+        # [:keyrest, :kwargs] = **kwargs (accepts any)
+        accepted_keys = method_params.slice(:key, :keyreq).map(&:last)
+
+        # If method has **kwargs, accept all arguments
+        has_keyrest = method_params.any? { |param_type, _name| param_type == :keyrest }
+        return args if has_keyrest
+
+        # Otherwise, filter to only accepted keys
+        args.slice(*accepted_keys)
+      rescue StandardError => e
+        SimpleLogger.warn('Failed to filter method args, using all',
+                          tagged: %i[tool_executor signature_filter],
+                          method: "#{tool_class.name}.#{method_name}",
+                          error: e.message)
+        args
+      end
+
+      def find_specific_tool_class(preferred_class_name, tool_name)
+        tool_class = tool_classes.find { |tc| tc.name.split('::').last == preferred_class_name }
+        return nil unless tool_class
+        return nil unless tool_class.respond_to?(:available_tools)
+        return nil unless tool_class.available_tools.include?(tool_name)
+
+        tool_class
       end
 
       def find_tool_class_for(tool_name)
