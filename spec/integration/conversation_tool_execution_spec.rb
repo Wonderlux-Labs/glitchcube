@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 RSpec.describe 'Conversation Tool Execution Integration', type: :integration do
-  let(:conversation_module) { ConversationModule.new(persona: 'buddy') }
+  let(:conversation_module) { ConversationModule.new }
   let(:test_message) { "Turn on the cube lights to red and show 'Hello' on the display" }
   let(:context) do
     {

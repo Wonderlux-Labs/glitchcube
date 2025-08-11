@@ -7,33 +7,49 @@ class ConversationModule
   include ErrorHandling
 
   # Convenience class methods for each persona
+  # Class method to switch persona programmatically
+  # This updates Redis state and syncs with Home Assistant
+  def self.switch_persona(persona_name)
+    Services::PersonaStateService.set_current_persona(persona_name)
+  end
+
+  # Get the current active persona
+  def self.current_persona
+    Services::PersonaStateService.get_current_persona
+  end
+
+  # These convenience methods set the persona and return a new instance
   def self.buddy
-    new(persona: 'buddy')
+    switch_persona('buddy')
+    new
   end
 
   def self.jax
-    new(persona: 'jax')
+    switch_persona('jax')
+    new
   end
 
   def self.lomi
-    new(persona: 'lomi')
+    switch_persona('lomi')
+    new
   end
 
   def self.zorp
-    new(persona: 'zorp')
+    switch_persona('zorp')
+    new
   end
 
   def self.default
-    new(persona: 'buddy')
+    new
   end
 
-  def initialize(persona: 'buddy')
-    @default_persona = persona
+  def initialize
+    # No longer need to store default persona - we get it from PersonaStateService
   end
 
   def call(message:, context: {}, persona: nil)
-    # Use persona from context or instance default
-    persona_name = persona || context[:persona] || @default_persona
+    # Use persona from parameters, context, or get from PersonaStateService
+    persona_name = persona || context[:persona] || Services::PersonaStateService.get_current_persona
 
     # Create persona instance (keep persona_name separate from persona object)
     persona_instance = Personas::BasePersona.create(persona_name, context)

@@ -51,12 +51,8 @@ module Services
         SpeechTool,
         DisplayTool,
         LightingTool,
-        CameraTool,
         MusicTool,
-        ConversationFeedbackTool,
-        ErrorHandlingTool,
-        HomeAssistantParallelTool,
-        TestTool
+        ErrorHandlingTool
       ].freeze
 
       # Discover all available tools with metadata (for admin interface)

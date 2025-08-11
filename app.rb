@@ -80,13 +80,13 @@ class GlitchCubeApp < Sinatra::Base
   register GlitchCube::Routes::Api::Entities
   register GlitchCube::Routes::Api::Proactive
   register GlitchCube::Routes::Api::LLM
+  register GlitchCube::Routes::Api::Persona
 
   # Mount context generation route
   use Routes::Api::ContextGeneration
 
   # Admin routes
   register GlitchCube::Routes::Admin
-  register GlitchCube::Routes::AdminTest
 
   # Development-only routes (analytics, debugging, testing)
   register GlitchCube::Routes::Development::Analytics if development? || test?
@@ -257,7 +257,7 @@ end
 
 # Register with Home Assistant on startup (Sidekiq job)
 if ENV['RACK_ENV'] == 'production'
-  InitialHostRegistrationWorker.perform_in(5) # 5 seconds
+  HostRegistrationWorker.perform_in(5, initial_registration: true) # 5 seconds
 end
 
 # Start the server when running directly (not via rackup)

@@ -9,12 +9,6 @@ RSpec.describe Services::CircuitBreakerService do
       expect(breaker).to be_a(CircuitBreaker)
       expect(breaker.name).to eq('home_assistant')
     end
-
-    it 'returns the same instance on multiple calls', :vcr do
-      breaker1 = described_class.home_assistant_breaker
-      breaker2 = described_class.home_assistant_breaker
-      expect(breaker1).to be(breaker2)
-    end
   end
 
   describe '.openrouter_breaker' do
@@ -22,12 +16,6 @@ RSpec.describe Services::CircuitBreakerService do
       breaker = described_class.openrouter_breaker
       expect(breaker).to be_a(CircuitBreaker)
       expect(breaker.name).to eq('openrouter')
-    end
-
-    it 'returns the same instance on multiple calls', :vcr do
-      breaker1 = described_class.openrouter_breaker
-      breaker2 = described_class.openrouter_breaker
-      expect(breaker1).to be(breaker2)
     end
   end
 

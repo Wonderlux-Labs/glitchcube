@@ -21,8 +21,8 @@ module Personas
         name = normalize_persona_name(persona_name)
         persona_class = @registry[name]
 
-        # Default to BuddyPersona if persona not found or 'default' is requested
-        if !persona_class || name == 'default'
+        # Default to BuddyPersona if persona not found
+        unless persona_class
           require_relative 'buddy_persona'
           persona_class = Personas::BuddyPersona
         end
@@ -41,10 +41,9 @@ module Personas
       private
 
       def normalize_persona_name(persona_name)
-        return 'default' if persona_name.nil? || persona_name.to_s.strip.empty?
+        return 'buddy' if persona_name.nil? || persona_name.to_s.strip.empty?
 
-        name = persona_name.to_s.downcase.strip
-        name == 'default' ? 'default' : name
+        persona_name.to_s.downcase.strip
       end
     end
 

@@ -344,7 +344,8 @@ class ErrorHandlingTool < BaseTool
 
   # Get system uptime in hours
   def self.get_system_uptime
-    start_time = File.mtime('/Users/estiens/code/glitchcube/app.rb')
+    app_path = File.expand_path('../../app.rb', __dir__)
+    start_time = File.mtime(app_path)
     ((Time.now - start_time) / 3600).round(1)
   rescue StandardError
     0.0
