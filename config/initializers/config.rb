@@ -51,16 +51,10 @@ module GlitchCube
         # AI Configuration
         ai: OpenStruct.new(
           default_model: ENV.fetch('DEFAULT_AI_MODEL', 'anthropic/claude-sonnet-4'),
+          default_tools_model: ENV.fetch('DEFAULT_TOOLS_MODEL', ENV.fetch('DEFAULT_AI_MODEL', 'anthropic/claude-sonnet-4')),
           temperature: ENV.fetch('AI_TEMPERATURE', '0.8').to_f,
-          max_tokens: ENV.fetch('AI_MAX_TOKENS', '500').to_i,
+          max_tokens: ENV.fetch('AI_MAX_TOKENS', '2000').to_i,
           max_tool_tokens: ENV.fetch('MAX_TOOL_TOKENS', '2048').to_i,
-          max_session_messages: ENV.fetch('MAX_SESSION_MESSAGES', '10').to_i
-        ),
-
-        # AI Conversation Parameters (deprecated - use ai section)
-        conversation: OpenStruct.new(
-          temperature: ENV.fetch('AI_TEMPERATURE', '0.8').to_f,
-          max_tokens: ENV.fetch('AI_MAX_TOKENS', '500').to_i,
           max_session_messages: ENV.fetch('MAX_SESSION_MESSAGES', '10').to_i
         ),
 

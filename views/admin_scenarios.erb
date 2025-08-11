@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Scenario Testing - Model Comparison</title>
+  <style>
+    body {
+      font-family: 'SF Mono', Monaco, monospace;
+      background: #0a0a0a;
+      color: #00ff41;
+      padding: 20px;
+      margin: 0;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding: 15px;
+      border: 1px solid #00ff41;
+      background: #001100;
+    }
+    h1 { 
+      margin: 0; 
+      color: #00ff41;
+      text-shadow: 0 0 10px #00ff41;
+    }
+    .nav-links a {
+      color: #00ff41;
+      text-decoration: none;
+      margin-left: 20px;
+      padding: 5px 10px;
+      border: 1px solid #00ff41;
+      transition: all 0.3s;
+    }
+    .nav-links a:hover {
+      background: #00ff41;
+      color: #000;
+    }
+    .container {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .sidebar {
+      background: #001100;
+      border: 1px solid #00ff41;
+      padding: 15px;
+      height: fit-content;
+      position: sticky;
+      top: 20px;
+    }
+    .main-content {
+      background: #001100;
+      border: 1px solid #00ff41;
+      padding: 20px;
+    }
+    .scenario-card {
+      background: #000;
+      border: 1px solid #00ff41;
+      padding: 10px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .scenario-card:hover {
+      background: #002200;
+      box-shadow: 0 0 10px #00ff41;
+    }
+    .scenario-card.selected {
+      background: #003300;
+      border-color: #00ffff;
+    }
+    .category-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #00ff41;
+      color: #000;
+      font-size: 10px;
+      margin-left: 10px;
+    }
+    .control-panel {
+      background: #000;
+      border: 1px solid #00ff41;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .model-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 10px;
+      margin: 15px 0;
+    }
+    .model-checkbox {
+      display: flex;
+      align-items: center;
+      padding: 5px;
+      background: #001100;
+      border: 1px solid #333;
+    }
+    .model-checkbox:hover {
+      border-color: #00ff41;
+    }
+    .model-checkbox input {
+      margin-right: 8px;
+    }
+    button {
+      background: #00ff41;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      font-family: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      margin-right: 10px;
+      transition: all 0.3s;
+    }
+    button:hover {
+      background: #00ff00;
+      box-shadow: 0 0 15px #00ff41;
+    }
+    button:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+    }
+    .results-container {
+      margin-top: 20px;
+    }
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    .comparison-table th,
+    .comparison-table td {
+      border: 1px solid #00ff41;
+      padding: 10px;
+      text-align: left;
+    }
+    .comparison-table th {
+      background: #002200;
+      color: #00ff41;
+    }
+    .comparison-table tr:hover {
+      background: #001100;
+    }
+    .response-cell {
+      max-width: 400px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .response-cell:hover {
+      white-space: normal;
+    }
+    .metric-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      margin: 2px;
+      background: #003300;
+      border: 1px solid #00ff41;
+      font-size: 11px;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      font-size: 18px;
+    }
+    .loading::after {
+      content: '';
+      animation: dots 1.5s infinite;
+    }
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+    .persona-selector {
+      margin: 15px 0;
+    }
+    .persona-selector select {
+      background: #000;
+      color: #00ff41;
+      border: 1px solid #00ff41;
+      padding: 5px 10px;
+      font-family: inherit;
+    }
+    .quick-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .recent-comparisons {
+      margin-top: 20px;
+      padding: 15px;
+      background: #000;
+      border: 1px solid #00ff41;
+    }
+    .comparison-item {
+      padding: 8px;
+      margin: 5px 0;
+      background: #001100;
+      border: 1px solid #333;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+    }
+    .comparison-item:hover {
+      border-color: #00ff41;
+    }
+    .custom-scenario {
+      margin-top: 20px;
+      padding: 15px;
+      background: #000;
+      border: 1px solid #00ff41;
+    }
+    .custom-scenario textarea {
+      width: 100%;
+      min-height: 100px;
+      background: #000;
+      color: #00ff41;
+      border: 1px solid #00ff41;
+      padding: 10px;
+      font-family: inherit;
+    }
+    .tool-badge {
+      background: #ff6b00;
+      color: #000;
+      padding: 2px 6px;
+      margin: 0 2px;
+      font-size: 10px;
+      border-radius: 3px;
+    }
+    .error-badge {
+      background: #ff0000;
+      color: #fff;
+    }
+    .cost-display {
+      color: #ffff00;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🧪 SCENARIO TESTING & MODEL COMPARISON</h1>
+    <div class="nav-links">
+      <a href="/admin">← Back</a>
+      <a href="/admin/tools">Tools</a>
+      <a href="/admin/logs">Logs</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="sidebar">
+      <h3>📚 Test Scenarios</h3>
+      <div id="scenario-list">
+        <% @scenarios.each do |id, scenario| %>
+          <div class="scenario-card" data-scenario-id="<%= id %>" onclick="selectScenario('<%= id %>')">
+            <strong><%= scenario[:name] %></strong>
+            <span class="category-tag"><%= scenario[:category] %></span>
+            <div style="font-size: 11px; color: #888; margin-top: 5px;">
+              <%= scenario[:description] %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+
+      <div class="custom-scenario">
+        <h4>✏️ Custom Scenario</h4>
+        <textarea id="custom-messages" placeholder='Enter messages as JSON array:
+[
+  {"role": "user", "content": "Hello"},
+  {"role": "user", "content": "How are you?"}
+]'></textarea>
+        <button onclick="runCustomScenario()">Run Custom</button>
+      </div>
+
+      <% if @recent_comparisons && !@recent_comparisons.empty? %>
+        <div class="recent-comparisons">
+          <h4>📊 Recent Comparisons</h4>
+          <% @recent_comparisons.each do |comp| %>
+            <div class="comparison-item" onclick="loadComparison('<%= comp[:id] %>')">
+              <span><%= comp[:scenario_name] %></span>
+              <span style="color: #888; font-size: 11px;"><%= comp[:models_count] %> models</span>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="main-content">
+      <div class="control-panel">
+        <h3>⚙️ Test Configuration</h3>
+        
+        <div class="quick-actions">
+          <button onclick="selectAllModels()">Select All Models</button>
+          <button onclick="clearAllModels()">Clear All</button>
+          <button onclick="selectFreeModels()">Free Models Only</button>
+        </div>
+
+        <div class="persona-selector">
+          <label>Persona: </label>
+          <select id="persona-select">
+            <option value="buddy">Buddy (Helpful)</option>
+            <option value="jax">Jax (Bartender)</option>
+            <option value="lomi">Lomi (Performer)</option>
+            <option value="zorp">Zorp (Weird)</option>
+          </select>
+        </div>
+
+        <h4>Select Models to Compare:</h4>
+        <div class="model-selector">
+          <% @model_categories.each do |category, models| %>
+            <div style="grid-column: 1 / -1; margin: 15px 0 8px 0;">
+              <h5 style="color: #00ffff; margin: 0; font-size: 13px; border-bottom: 1px solid #333; padding-bottom: 3px;">
+                <%= category %>
+                <button onclick="toggleCategory('<%= category.gsub(/[^a-zA-Z0-9]/, '_') %>')" style="font-size: 10px; padding: 2px 8px; margin-left: 10px;">Toggle All</button>
+              </h5>
+            </div>
+            <% models.each do |model| %>
+              <label class="model-checkbox" data-category="<%= category.gsub(/[^a-zA-Z0-9]/, '_') %>">
+                <input type="checkbox" name="model" value="<%= model %>" 
+                       <%= (category.include?('Free') || model.include?('free')) ? 'checked' : '' %>>
+                <span style="font-size: 11px;"><%= model.gsub(':', ': ') %></span>
+              </label>
+            <% end %>
+          <% end %>
+        </div>
+
+        <div style="margin-top: 20px;">
+          <button id="run-comparison" onclick="runComparison()">
+            🚀 Run Comparison
+          </button>
+          <button onclick="exportResults()" id="export-btn" disabled>
+            📥 Export CSV
+          </button>
+        </div>
+      </div>
+
+      <div id="results-container" class="results-container">
+        <!-- Results will be loaded here -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let selectedScenario = null;
+    let currentComparisonId = null;
+
+    function selectScenario(scenarioId) {
+      selectedScenario = scenarioId;
+      
+      // Update UI
+      document.querySelectorAll('.scenario-card').forEach(card => {
+        card.classList.remove('selected');
+      });
+      document.querySelector(`[data-scenario-id="${scenarioId}"]`).classList.add('selected');
+      
+      // Load scenario details
+      fetch(`/admin/scenarios/${scenarioId}`)
+        .then(r => r.json())
+        .then(scenario => {
+          document.getElementById('results-container').innerHTML = `
+            <h3>📝 Scenario: ${scenario.name}</h3>
+            <p>${scenario.description}</p>
+            <h4>Messages:</h4>
+            <ol>
+              ${scenario.messages.map(m => `<li>${m.content}</li>`).join('')}
+            </ol>
+            <p style="color: #888;">Select models above and click "Run Comparison" to test this scenario.</p>
+          `;
+        });
+    }
+
+    function getSelectedModels() {
+      const checkboxes = document.querySelectorAll('input[name="model"]:checked');
+      return Array.from(checkboxes).map(cb => cb.value);
+    }
+
+    function runComparison() {
+      if (!selectedScenario) {
+        alert('Please select a scenario first');
+        return;
+      }
+
+      const models = getSelectedModels();
+      if (models.length === 0) {
+        alert('Please select at least one model');
+        return;
+      }
+
+      const button = document.getElementById('run-comparison');
+      button.disabled = true;
+      button.textContent = 'Running...';
+
+      document.getElementById('results-container').innerHTML = '<div class="loading">Running scenario comparison</div>';
+
+      const persona = document.getElementById('persona-select').value;
+
+      fetch('/admin/scenarios/compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenario_id: selectedScenario,
+          models: models,
+          persona: persona
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        currentComparisonId = data.comparison_id;
+        displayResults(data);
+        document.getElementById('export-btn').disabled = false;
+      })
+      .catch(err => {
+        document.getElementById('results-container').innerHTML = 
+          `<div style="color: red;">Error: ${err.message}</div>`;
+      })
+      .finally(() => {
+        button.disabled = false;
+        button.textContent = '🚀 Run Comparison';
+      });
+    }
+
+    function displayResults(data) {
+      const container = document.getElementById('results-container');
+      
+      // Build comparison table
+      let html = `
+        <h3>📊 Comparison Results: ${data.scenario.name}</h3>
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Response Quality</th>
+              <th>Cost</th>
+              <th>Tokens</th>
+              <th>Time (ms)</th>
+              <th>Tools Used</th>
+              <th>Errors</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      data.results.forEach(result => {
+        const metrics = result.metrics;
+        html += `
+          <tr>
+            <td>${result.model}</td>
+            <td>
+              <details>
+                <summary>View Responses (${result.responses.length})</summary>
+                ${result.responses.map((r, i) => `
+                  <div style="margin: 10px 0; padding: 10px; background: #000; border: 1px solid #333;">
+                    <strong>Q${i+1}:</strong> ${r.user_message}<br>
+                    <strong>A:</strong> ${r.response ? r.response.substring(0, 200) + '...' : 'Error'}
+                    ${r.tools_used && r.tools_used.length > 0 ? 
+                      `<br><strong>Tools:</strong> ${r.tools_used.map(t => 
+                        `<span class="tool-badge">${t}</span>`).join('')}` : ''}
+                  </div>
+                `).join('')}
+              </details>
+            </td>
+            <td class="cost-display">$${metrics.total_cost.toFixed(6)}</td>
+            <td>${metrics.total_tokens}</td>
+            <td>${metrics.execution_time_ms}</td>
+            <td>
+              ${metrics.unique_tools_used.map(t => 
+                `<span class="tool-badge">${t}</span>`).join('')}
+              <br><small>${metrics.tool_calls_count} calls</small>
+            </td>
+            <td>
+              ${metrics.errors_count > 0 ? 
+                `<span class="error-badge">${metrics.errors_count}</span>` : 
+                '<span style="color: green;">✓</span>'}
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `
+          </tbody>
+        </table>
+        
+        <h4>📈 Summary Statistics</h4>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 15px;">
+          ${generateSummaryStats(data.results)}
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function generateSummaryStats(results) {
+      const costs = results.map(r => r.metrics.total_cost);
+      const tokens = results.map(r => r.metrics.total_tokens);
+      const times = results.map(r => r.metrics.execution_time_ms);
+      
+      const avgCost = (costs.reduce((a, b) => a + b, 0) / costs.length).toFixed(6);
+      const avgTokens = Math.round(tokens.reduce((a, b) => a + b, 0) / tokens.length);
+      const avgTime = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+      
+      const cheapest = results.reduce((min, r) => 
+        r.metrics.total_cost < min.metrics.total_cost ? r : min);
+      const fastest = results.reduce((min, r) => 
+        r.metrics.execution_time_ms < min.metrics.execution_time_ms ? r : min);
+
+      return `
+        <div class="metric-badge" style="padding: 10px;">
+          <strong>Avg Cost:</strong><br>$${avgCost}
+        </div>
+        <div class="metric-badge" style="padding: 10px;">
+          <strong>Avg Tokens:</strong><br>${avgTokens}
+        </div>
+        <div class="metric-badge" style="padding: 10px;">
+          <strong>Avg Time:</strong><br>${avgTime}ms
+        </div>
+        <div class="metric-badge" style="padding: 10px;">
+          <strong>Best Value:</strong><br>${cheapest.model.split('/')[1]}
+        </div>
+      `;
+    }
+
+    function runCustomScenario() {
+      const messagesText = document.getElementById('custom-messages').value;
+      if (!messagesText) {
+        alert('Please enter custom messages');
+        return;
+      }
+
+      let messages;
+      try {
+        messages = JSON.parse(messagesText);
+      } catch (e) {
+        alert('Invalid JSON format for messages');
+        return;
+      }
+
+      const models = getSelectedModels();
+      if (models.length === 0) {
+        alert('Please select at least one model');
+        return;
+      }
+
+      const persona = document.getElementById('persona-select').value;
+
+      document.getElementById('results-container').innerHTML = '<div class="loading">Running custom scenario</div>';
+
+      fetch('/admin/scenarios/custom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Custom Scenario',
+          messages: messages,
+          models: models,
+          persona: persona
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error);
+        displayResults(data);
+      })
+      .catch(err => {
+        document.getElementById('results-container').innerHTML = 
+          `<div style="color: red;">Error: ${err.message}</div>`;
+      });
+    }
+
+    function selectAllModels() {
+      document.querySelectorAll('input[name="model"]').forEach(cb => cb.checked = true);
+    }
+
+    function clearAllModels() {
+      document.querySelectorAll('input[name="model"]').forEach(cb => cb.checked = false);
+    }
+
+    function selectFreeModels() {
+      document.querySelectorAll('input[name="model"]').forEach(cb => {
+        cb.checked = cb.value.includes('free');
+      });
+    }
+
+    function toggleCategory(category) {
+      const checkboxes = document.querySelectorAll(`[data-category="${category}"] input[type="checkbox"]`);
+      const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+      
+      checkboxes.forEach(cb => {
+        cb.checked = !allChecked;
+      });
+    }
+
+    function exportResults() {
+      if (!currentComparisonId) {
+        alert('No comparison results to export');
+        return;
+      }
+      window.location.href = `/admin/scenarios/export/${currentComparisonId}`;
+    }
+
+    function loadComparison(comparisonId) {
+      // This would load a previous comparison - implement if needed
+      alert('Loading comparison: ' + comparisonId);
+    }
+
+    // Auto-select first scenario on load
+    window.addEventListener('load', () => {
+      const firstScenario = document.querySelector('.scenario-card');
+      if (firstScenario) {
+        firstScenario.click();
+      }
+    });
+  </script>
+</body>
+</html>

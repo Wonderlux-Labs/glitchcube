@@ -385,6 +385,107 @@ module GlitchCube
             json({ success: success, message: 'GIS cache cleared' })
           end
 
+          # External map app endpoint - includes location with rich proximity context
+          app.get '/api/v1/gps/cube_current_loc' do
+            content_type :json
+
+            # Add CORS headers for external app access
+            headers 'Access-Control-Allow-Origin' => '*'
+            headers 'Access-Control-Allow-Methods' => 'GET'
+            headers 'Access-Control-Allow-Headers' => 'Content-Type'
+
+            begin
+              # Get current location with full context
+              gps_service = ::Services::GpsTrackingService.new
+              location = gps_service.current_location
+
+              if location.nil? || !location[:lat] || !location[:lng]
+                status 503
+                return json({
+                              error: 'GPS tracking not available',
+                              message: 'No GPS data available',
+                              timestamp: Time.now.utc.iso8601
+                            })
+              end
+
+              # Get proximity context
+              lat = location[:lat]
+              lng = location[:lng]
+              proximity = ::Services::GpsCacheService.cached_proximity(lat, lng)
+
+              # Find nearest intersection/street
+              gps_service = ::Services::GpsTrackingService.new
+              brc_address = gps_service.brc_address_from_coordinates(lat, lng)
+
+              # Get nearby landmarks
+              nearby_landmarks = Landmark.within_meters(lng, lat, 1000)
+                                         .limit(10)
+                                         .map do |landmark|
+                distance = gps_service.haversine_distance(lat, lng, landmark.latitude.to_f, landmark.longitude.to_f)
+                {
+                  name: landmark.name,
+                  type: landmark.landmark_type,
+                  distance_meters: distance.round(0),
+                  distance_text: distance < 100 ? "#{distance.round(0)}m" : "#{(distance / 1000.0).round(1)}km"
+                }
+              end
+                                        .sort_by { |l| l[:distance_meters] }
+
+              # Response for external app
+              response_data = {
+                # Core location
+                lat: lat,
+                lng: lng,
+                timestamp: location[:timestamp] || Time.now.utc.iso8601,
+
+                # Context information
+                address: brc_address || location[:address],
+                context: location[:context],
+                section: location[:section],
+                distance_from_man: location[:distance_from_man],
+
+                # Proximity data
+                nearest_intersection: brc_address,
+                nearby_landmarks: nearby_landmarks.take(5),
+
+                # Visual/map context
+                map_mode: proximity[:map_mode] || 'normal',
+                visual_effects: proximity[:visual_effects] || [],
+
+                # Source info
+                source: location[:source] || 'unknown',
+                last_update: Time.now.utc.iso8601
+              }
+
+              # Add closest landmark for context
+              if nearby_landmarks.any?
+                closest = nearby_landmarks.first
+                response_data[:closest_landmark] = if closest[:distance_meters] < 200 # Very close
+                                                     "at #{closest[:name]}"
+                                                   elsif closest[:distance_meters] < 500 # Nearby
+                                                     "near #{closest[:name]} (#{closest[:distance_text]})"
+                                                   else
+                                                     "#{closest[:distance_text]} from #{closest[:name]}"
+                                                   end
+              end
+
+              json(response_data)
+            rescue StandardError => e
+              ::Services::LoggerService.log_api_call(
+                service: 'GPS External API',
+                endpoint: '/api/v1/gps/cube_current_loc',
+                error: e.message,
+                success: false
+              )
+              status 500
+              json({
+                     error: 'GPS service error',
+                     message: e.message,
+                     timestamp: Time.now.utc.iso8601
+                   })
+            end
+          end
+
           app.get '/api/v1/gps/landmarks' do
             content_type :json
 

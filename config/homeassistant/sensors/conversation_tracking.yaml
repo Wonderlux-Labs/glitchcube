@@ -20,7 +20,7 @@
       friendly_name: "Last Conversation"
       value_template: >-
         {% set last_time = states.sensor.conversation_state.attributes.last_activity %}
-        {% if last_time %}
+        {% if last_time and last_time != 'unknown' and last_time != 'unavailable' %}
           {{ (now() - strptime(last_time, '%Y-%m-%dT%H:%M:%S')).total_seconds() | int }}
         {% else %}
           0
@@ -32,7 +32,7 @@
     last_conversation_human:
       friendly_name: "Last Activity"  
       value_template: >-
-        {% set seconds = states('sensor.last_conversation_time') | int %}
+        {% set seconds = states('sensor.last_conversation_time') | int(0) %}
         {% if seconds < 60 %}
           {{ seconds }}s ago
         {% elif seconds < 3600 %}
@@ -46,7 +46,7 @@
   sensors:
     api_response_time:
       friendly_name: "API Response Time"
-      value_template: "{{ states('sensor.api_response_time_entity') | default(0) }}"
+      value_template: "{{ states('sensor.api_response_time_entity') | int(0) }}"
       unit_of_measurement: "ms"
       device_class: duration
 
@@ -54,7 +54,7 @@
   sensors:
     daily_api_calls:
       friendly_name: "Daily API Calls"
-      value_template: "{{ states('sensor.daily_api_calls_entity') | default(0) }}"
+      value_template: "{{ states('sensor.daily_api_calls_entity') | int(0) }}"
 
 # Circuit breaker status
 - platform: template

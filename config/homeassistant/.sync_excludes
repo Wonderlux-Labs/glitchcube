@@ -1,0 +1,25 @@
+# Files to exclude from bidirectional sync
+# Use glob patterns
+
+# Temporary files that get recreated by HA
+glitchcube_host.yaml
+
+# System files HA creates automatically  
+.storage/**
+backups/**
+tts/**
+.cloud/**
+deps/**
+llmvision/**
+home-assistant.log*
+*.db*
+secrets.yaml
+.DS_Store
+**/__pycache__/**
+*.pyc
+logs/**
+*.log
+
+# Files that should only be edited locally
+.sync_manifest
+.sync_excludes

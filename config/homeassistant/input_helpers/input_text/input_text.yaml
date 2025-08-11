@@ -2,7 +2,7 @@
 current_persona:
   name: "Current AI Persona"
   max: 100
-  initial: "Default"
+  initial: "buddy"
   
 current_environment:
   name: "Current Environment"
@@ -18,8 +18,11 @@ current_weather:
 
 glitchcube_host:
   name: "Glitch Cube Host IP"
-  max: 15
-  icon: "mdi:cube-outline"
+  initial: "192.168.0.99"  # Default fallback IP - should be 192.168.0.99 in production
+  min: 7                   # Minimum length for IP (x.x.x.x)
+  max: 15                  # Maximum length for IP (xxx.xxx.xxx.xxx)
+  icon: mdi:cube-outline
+  mode: text
 
 camera_vision_analysis:
   name: "Camera Vision Analysis"

@@ -3,7 +3,7 @@
 # This allows Home Assistant to call any AI model for text generation
 
 glitchcube_llm_complete:
-  url: "http://{{ states('sensor.glitchcube_host_ip') }}:4567/api/v1/llm/complete"
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/llm/complete"
   method: POST
   headers:
     Content-Type: "application/json"
@@ -69,7 +69,7 @@ update_status_page:
 
 # GitHub deployment automation
 trigger_glitchcube_deployment:
-  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/internal"
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/deploy/internal"
   method: POST
   headers:
     Content-Type: "application/json"
@@ -85,12 +85,12 @@ trigger_glitchcube_deployment:
   timeout: 60
   
 check_deployment_status:
-  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/status"
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/deploy/status"
   method: GET
   timeout: 10
   
 manual_glitchcube_deployment:
-  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/deploy/internal"
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/deploy/internal"
   method: POST
   headers:
     Content-Type: "application/json"
@@ -107,7 +107,7 @@ manual_glitchcube_deployment:
 
 # System restart commands
 trigger_glitchcube_restart:
-  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/system/restart"
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/system/restart"
   method: POST
   headers:
     Content-Type: "application/json"
@@ -120,17 +120,17 @@ trigger_glitchcube_restart:
   timeout: 10
 
 check_glitchcube_health:
-  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/system/health"
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/system/health"
   method: GET
   timeout: 5
 
 get_restart_history:
-  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/system/restart_history"
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/system/restart_history"
   method: GET
   timeout: 5
 
 clear_glitchcube_queues:
-  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/system/clear_queues"
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/system/clear_queues"
   method: POST
   headers:
     Content-Type: "application/json"
@@ -142,7 +142,7 @@ clear_glitchcube_queues:
 
 # Entity monitoring REST commands
 update_glitchcube_entities:
-  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/entities/change_notification"
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/entities/change_notification"
   method: POST
   headers:
     Content-Type: "application/json"
@@ -158,7 +158,7 @@ update_glitchcube_entities:
   timeout: 5
 
 refresh_glitchcube_entities:
-  url: "{{ states('input_text.glitchcube_host_url') }}/api/v1/entities/refresh"
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/entities/refresh"
   method: POST
   headers:
     Content-Type: "application/json"

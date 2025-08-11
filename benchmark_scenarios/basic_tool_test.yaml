@@ -1,0 +1,25 @@
+scenario_name: "Basic Tool Test - Lights and Joke"
+tier: 1
+persona: "buddy"
+description: "Tests basic tool calling with light control and conversation"
+# Optional: specify models to test (if not specified, uses DEFAULT_MODELS)
+# models:
+#   - "openai/gpt-4.1-mini"
+#   - "anthropic/claude-sonnet-4"
+#   - "google/gemini-2.5-flash"
+#   - "openai/gpt-4.1-mini|anthropic/claude-sonnet-4"  # Test split mode
+turns:
+  - user_input: "Turn the lights blue and tell me a joke"
+    assertions:
+      - type: tool_calls
+        expected:
+          - name: control_lights
+            params: 
+              color: "blue"
+      - type: latency
+        max_ms: 5000
+      - type: response_contains
+        keywords: ["joke", "funny", "laugh"]
+      - type: persona_consistency
+        must_contain: ["fuck", "help", "customer"]
+        must_not_contain: ["as an AI", "I cannot"]

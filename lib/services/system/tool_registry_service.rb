@@ -52,7 +52,8 @@ module Services
         DisplayTool,
         LightingTool,
         MusicTool,
-        ErrorHandlingTool
+        ErrorHandlingTool,
+        HassMcpTool
       ].freeze
 
       # Discover all available tools with metadata (for admin interface)

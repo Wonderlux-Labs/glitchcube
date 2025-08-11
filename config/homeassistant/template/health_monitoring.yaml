@@ -26,7 +26,7 @@ template:
               unknown
             {% endif %}
           hass_ip: "{{ state_attr('binary_sensor.remote_ui', 'ip_address') | default(states('sensor.local_ip')) | default('unknown') }}"
-          sinatra_ip: "{{ states('input_text.glitchcube_host_ip') | default('unknown') }}"
+          sinatra_ip: "{{ states('input_text.glitchcube_host') | default('unknown') }}"
           sinatra_status: "{{ states('sensor.glitchcube_api_health') | default('unknown') }}"
           last_interaction: "{{ states('input_datetime.last_interaction_time') | default('never') }}"
           last_deployment: "{{ states('input_text.last_deployment_time') | default('never') }}"
@@ -60,7 +60,7 @@ template:
                 "wifi_dbm": {{ states('sensor.wifi_signal_strength') | default(-100) }},
                 "internet": "{{ states('binary_sensor.internet_connectivity') | default('unknown') }}",
                 "hass_ip": "{{ state_attr('binary_sensor.remote_ui', 'ip_address') | default(states('sensor.local_ip')) | default('unknown') }}",
-                "sinatra_ip": "{{ states('input_text.glitchcube_host_ip') | default('unknown') }}"
+                "sinatra_ip": "{{ states('input_text.glitchcube_host') | default('unknown') }}"
               },
               "services": {
                 "home_assistant": "running",

@@ -2,6 +2,8 @@
 
 require 'sinatra/base'
 require 'json'
+require_relative 'admin/scenarios'
+require_relative 'admin/benchmarks'
 
 module GlitchCube
   module Routes
@@ -9,6 +11,14 @@ module GlitchCube
       def self.registered(app)
         # Main admin interface
         app.get '/admin' do
+          # Get current GPS location for display
+          begin
+            gps_service = Services::GpsTrackingService.new
+            @current_location = gps_service.current_location
+          rescue StandardError => e
+            @current_location = { error: e.message }
+          end
+
           erb :admin
         end
 
@@ -817,6 +827,146 @@ module GlitchCube
           rescue StandardError => e
             status 500
             { error: e.message, backtrace: e.backtrace.first(5) }.to_json
+          end
+        end
+
+        # GPS Spoofing endpoints (development only)
+
+        # Get list of landmarks for typeahead
+        app.get '/admin/landmarks' do
+          content_type :json
+
+          # Block GPS spoofing in production for security
+          unless ENV['RACK_ENV'] == 'development'
+            status 403
+            return { success: false, error: 'GPS spoofing is only available in development environment' }.to_json
+          end
+
+          begin
+            landmarks = Landmark.active.order(:name).limit(100).map do |landmark|
+              {
+                id: landmark.id,
+                name: landmark.name,
+                latitude: landmark.latitude.to_f,
+                longitude: landmark.longitude.to_f,
+                landmark_type: landmark.landmark_type,
+                description: landmark.description
+              }
+            end
+
+            { success: true, landmarks: landmarks }.to_json
+          rescue StandardError => e
+            status 500
+            { success: false, error: e.message }.to_json
+          end
+        end
+
+        # Set spoofed GPS location
+        app.post '/admin/spoof_gps' do
+          content_type :json
+
+          # Block GPS spoofing in production for security
+          unless ENV['RACK_ENV'] == 'development'
+            status 403
+            return { success: false, error: 'GPS spoofing is only available in development environment' }.to_json
+          end
+
+          begin
+            data = JSON.parse(request.body.read)
+            latitude = data['latitude']&.to_f
+            longitude = data['longitude']&.to_f
+            name = data['name'] || 'Custom Location'
+
+            unless latitude && longitude
+              status 400
+              return { success: false, error: 'Latitude and longitude are required' }.to_json
+            end
+
+            # Store in Redis like the simulation system does
+            require 'redis'
+            redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+
+            location_data = {
+              lat: latitude,
+              lng: longitude,
+              timestamp: Time.now.iso8601,
+              source: 'admin_spoof',
+              name: name
+            }
+
+            redis.set('current_cube_location', location_data.to_json)
+
+            # Enable simulation mode if not already enabled
+            redis.set('cube_simulate_movement', 'true')
+
+            Services::LoggerService.log_api_call(
+              service: 'admin',
+              endpoint: 'spoof_gps',
+              method: 'POST',
+              latitude: latitude,
+              longitude: longitude,
+              name: name,
+              success: true
+            )
+
+            {
+              success: true,
+              message: "GPS spoofed to #{name} (#{latitude}, #{longitude})",
+              location: location_data
+            }.to_json
+          rescue StandardError => e
+            status 500
+            {
+              success: false,
+              error: e.message,
+              backtrace: e.backtrace.first(3)
+            }.to_json
+          end
+        end
+
+        # Clear GPS spoofing (return to real GPS)
+        app.delete '/admin/spoof_gps' do
+          content_type :json
+
+          # Block GPS spoofing in production for security
+          unless ENV['RACK_ENV'] == 'development'
+            status 403
+            return { success: false, error: 'GPS spoofing is only available in development environment' }.to_json
+          end
+
+          begin
+            require 'redis'
+            redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+
+            redis.del('current_cube_location')
+            redis.set('cube_simulate_movement', 'false')
+
+            Services::LoggerService.log_api_call(
+              service: 'admin',
+              endpoint: 'clear_gps_spoof',
+              method: 'DELETE',
+              success: true
+            )
+
+            { success: true, message: 'GPS spoofing cleared, returning to real GPS' }.to_json
+          rescue StandardError => e
+            status 500
+            { success: false, error: e.message }.to_json
+          end
+        end
+
+        # Get current GPS location (for display) - works in all environments
+        app.get '/admin/current_location' do
+          content_type :json
+
+          begin
+            gps_service = Services::GpsTrackingService.new
+            location = gps_service.current_location
+
+            { success: true, location: location }.to_json
+          rescue StandardError => e
+            status 500
+            { success: false, error: e.message }.to_json
           end
         end
       end

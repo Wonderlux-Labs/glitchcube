@@ -76,10 +76,33 @@
     }
     .session-item:hover { background: #002200; }
     .flex { display: flex; gap: 10px; align-items: center; }
+    .location-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #000;
+      border: 1px solid #0f0;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+    .location-item {
+      padding: 8px;
+      cursor: pointer;
+      border-bottom: 1px solid #333;
+      font-size: 12px;
+    }
+    .location-item:hover { background: #003300; }
+    .location-item:last-child { border-bottom: none; }
+    .location-name { color: #00ff00; font-weight: bold; }
+    .location-type { color: #888; font-size: 10px; }
+    .location-coords { color: #ffff00; font-size: 10px; }
   </style>
 </head>
 <body>
   <div style="margin-bottom: 20px;">
+    <a href="/admin/scenarios" style="color: #00ff41; text-decoration: none; font-weight: bold;">🧪 Scenarios</a> |
     <a href="/admin/errors" style="color: #ff3333; text-decoration: none;">🐛 Errors</a> |
     <a href="/admin/tools" style="color: #ffff00; text-decoration: none;">🔧 Tools</a> |
     <a href="/admin/logs" style="color: #00ffff; text-decoration: none;">📋 Logs</a> |
@@ -107,7 +130,75 @@
           <option value="zorp">ZORP - Mysterious Oracle</option>
         </select>
         
-        <textarea id="message" rows="3" placeholder="Type your message..."></textarea>
+        <!-- Quick Actions Bar -->
+        <div style="background: #000; border: 1px solid #0f0; padding: 10px; margin: 10px 0;">
+          <div style="font-size: 12px; color: #00ff00; margin-bottom: 8px;">⚡ QUICK ACTIONS</div>
+          <div class="flex" style="flex-wrap: wrap; gap: 5px;">
+            <button onclick="replayLastMessage()" id="replay-btn" disabled style="font-size: 11px;">🔄 Replay</button>
+            <button onclick="switchPersonaKeepSession()" style="font-size: 11px;">👥 Switch Persona</button>
+            <button onclick="branchSession()" style="font-size: 11px;">🌿 Branch</button>
+            <button onclick="saveSession()" style="font-size: 11px;">💾 Save</button>
+            <button onclick="toggleModelOverride()" id="model-btn" style="font-size: 11px;">🤖 Model</button>
+            <button onclick="quickTest()" style="font-size: 11px;">⚡ Quick Test</button>
+          </div>
+          
+          <!-- Model Selector (Hidden by default) -->
+          <div id="model-selector" style="display: none; margin-top: 10px;">
+            <select id="model-override" style="width: 100%;">
+              <option value="">Default Model (<%= GlitchCube::ModelPresets::DEFAULT_MODEL %>)</option>
+              <optgroup label="Free Models (Recommended)">
+                <% GlitchCube::ModelPresets::FREE_MODELS.each do |model| %>
+                  <option value="<%= model %>"><%= model %></option>
+                <% end %>
+              </optgroup>
+              <optgroup label="Cheap Models with Tools">
+                <% GlitchCube::ModelPresets::CHEAP_TOOLS_MODELS.each do |model| %>
+                  <option value="<%= model %>"><%= model %></option>
+                <% end %>
+              </optgroup>
+              <optgroup label="Conversation Models">
+                <% GlitchCube::ModelPresets::CONVERSATION_MODELS.each do |model| %>
+                  <option value="<%= model %>"><%= model %></option>
+                <% end %>
+              </optgroup>
+              <optgroup label="Vision Models">
+                <% GlitchCube::ModelPresets::VISION_MODELS.each do |model| %>
+                  <option value="<%= model %>"><%= model %></option>
+                <% end %>
+              </optgroup>
+              <optgroup label="Premium Models (Higher Cost)">
+                <% GlitchCube::ModelPresets::PREMIUM_MODELS.each do |model| %>
+                  <option value="<%= model %>"><%= model %></option>
+                <% end %>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Enhanced Message Input -->
+        <div style="position: relative;">
+          <textarea id="message" rows="3" placeholder="Type your message... (Shift+Enter for new line, Enter to send)"></textarea>
+          <div style="position: absolute; top: 5px; right: 8px; font-size: 11px; color: #888;">
+            <span id="char-count">0</span>/500
+          </div>
+        </div>
+        
+        <!-- Template Quick-Insert -->
+        <div style="margin: 5px 0;">
+          <select id="message-templates" onchange="insertTemplate()" style="font-size: 11px; width: 100%;">
+            <option value="">-- Quick Templates --</option>
+            <option value="Hello! What are you?">First Contact</option>
+            <option value="I need to get to 6:30 and Esplanade, can you help?">Ride Request</option>
+            <option value="Show me everything you can do">Hardware Demo</option>
+            <option value="Let's have a dance party!">Party Mode</option>
+            <option value="Tell me about yourself">Self Description</option>
+            <option value="What's your favorite memory?">Memory Probe</option>
+            <option value="Can you see me right now?">Camera Test</option>
+            <option value="Play some music">Music Test</option>
+            <option value="What time is it?">Time Query</option>
+            <option value="Where are we right now?">Location Query</option>
+          </select>
+        </div>
         
         <div>
           <button onclick="sendMessage()">💬 Send Message</button>
@@ -170,6 +261,49 @@
           <div class="status">Debug output will appear here</div>
         </div>
       </div>
+      
+      <% if ENV['RACK_ENV'] == 'development' || ENV['RACK_ENV'] == 'test' %>
+      <div class="panel">
+        <h2>📍 GPS Location Spoofing</h2>
+        <div class="small" style="color: #ffaa00; margin-bottom: 10px;">⚠️ Development Only - Not available in production</div>
+        
+        <!-- Current Location Display -->
+        <div style="background: #001100; padding: 10px; margin-bottom: 10px; border: 1px solid #333;">
+          <div class="small" style="color: #888; margin-bottom: 5px;">Current Location:</div>
+          <div id="current-location-display" style="font-size: 12px;">
+            <% if @current_location && !@current_location[:error] %>
+              <%= @current_location[:address] || 'Unknown' %> 
+              (<%= @current_location[:lat]&.round(6) %>, <%= @current_location[:lng]&.round(6) %>)
+              <br><span style="color: #888;">Source: <%= @current_location[:source] %></span>
+            <% else %>
+              <span style="color: #ff0000;">Error: <%= @current_location[:error] if @current_location %></span>
+            <% end %>
+          </div>
+        </div>
+        
+        <!-- Location Search -->
+        <div style="position: relative;">
+          <input type="text" id="location-search" placeholder="Search landmarks..." 
+                 autocomplete="off" onkeyup="searchLandmarks()" onkeydown="handleLocationKeydown(event)">
+          <div id="location-suggestions" class="location-dropdown" style="display: none;"></div>
+        </div>
+        
+        <!-- Manual Coordinates -->
+        <div class="flex" style="margin: 5px 0;">
+          <input type="number" id="manual-lat" placeholder="Latitude" step="0.000001" style="width: 48%;">
+          <input type="number" id="manual-lng" placeholder="Longitude" step="0.000001" style="width: 48%;">
+        </div>
+        
+        <!-- Action Buttons -->
+        <div style="margin-top: 10px;">
+          <button onclick="spoofLocation()">📍 Spoof Location</button>
+          <button onclick="clearSpoofing()">🔄 Clear Spoofing</button>
+          <button onclick="refreshCurrentLocation()">🔄 Refresh</button>
+        </div>
+        
+        <div id="gps-status" class="small" style="margin-top: 10px; color: #888;"></div>
+      </div>
+      <% end %>
     </div>
   </div>
 
@@ -224,10 +358,15 @@
       
       if (!currentSessionId) newSession();
       
+      // Store for replay
+      lastUserMessage = message;
+      document.getElementById('replay-btn').disabled = false;
+      
       const persona = document.getElementById('persona').value;
       const enableTools = document.getElementById('enable-tools').checked;
       const skipMemories = document.getElementById('skip-memories').checked;
       const enableTts = document.getElementById('enable-tts').checked;
+      const modelOverride = document.getElementById('model-override').value;
       
       // Display user message
       addToDisplay('USER: ' + message, 'user');
@@ -242,7 +381,8 @@
             source: 'admin_dev',
             tools: enableTools ? ['test_tool', 'weather', 'memory_search'] : [],
             skip_memories: skipMemories,
-            enable_tts: enableTts
+            enable_tts: enableTts,
+            model_override: modelOverride || undefined
           }
         };
         
@@ -536,6 +676,320 @@
       addToDisplay('🗑️ Display cleared', 'system');
     }
     
+    // Quick Action Functions
+    let lastUserMessage = '';
+    let savedSessions = JSON.parse(localStorage.getItem('glitchcube_saved_sessions') || '[]');
+    
+    function replayLastMessage() {
+      if (lastUserMessage) {
+        document.getElementById('message').value = lastUserMessage;
+        sendMessage();
+      }
+    }
+    
+    function switchPersonaKeepSession() {
+      const currentPersona = document.getElementById('persona').value;
+      const personas = ['buddy', 'jax', 'lomi', 'zorp'];
+      const currentIndex = personas.indexOf(currentPersona);
+      const nextIndex = (currentIndex + 1) % personas.length;
+      
+      document.getElementById('persona').value = personas[nextIndex];
+      addToDisplay(`👥 Switched to ${personas[nextIndex]} (session preserved)`, 'system');
+    }
+    
+    function branchSession() {
+      if (!currentSessionId) {
+        addToDisplay('❌ No active session to branch', 'error');
+        return;
+      }
+      
+      const branchId = `${currentSessionId}_branch_${Date.now()}`;
+      const oldSession = currentSessionId;
+      
+      // Create new branch
+      currentSessionId = branchId;
+      document.getElementById('session-id').value = branchId;
+      
+      addToDisplay(`🌿 Created branch: ${branchId}`, 'system');
+      addToDisplay(`📚 Original session: ${oldSession}`, 'status');
+      updateRecentSessions();
+    }
+    
+    function saveSession() {
+      if (!currentSessionId) {
+        addToDisplay('❌ No session to save', 'error');
+        return;
+      }
+      
+      const sessionData = {
+        id: currentSessionId,
+        persona: document.getElementById('persona').value,
+        timestamp: Date.now(),
+        messages: Array.from(document.getElementById('conversation-display').children).map(div => ({
+          content: div.textContent,
+          className: div.className
+        }))
+      };
+      
+      savedSessions = savedSessions.filter(s => s.id !== currentSessionId); // Remove existing
+      savedSessions.unshift(sessionData); // Add to beginning
+      savedSessions = savedSessions.slice(0, 10); // Keep only 10
+      
+      localStorage.setItem('glitchcube_saved_sessions', JSON.stringify(savedSessions));
+      addToDisplay(`💾 Session saved: ${currentSessionId}`, 'system');
+    }
+    
+    function toggleModelOverride() {
+      const selector = document.getElementById('model-selector');
+      const isVisible = selector.style.display !== 'none';
+      selector.style.display = isVisible ? 'none' : 'block';
+      
+      const btn = document.getElementById('model-btn');
+      btn.textContent = isVisible ? '🤖 Model' : '🤖 Hide';
+    }
+    
+    async function quickTest() {
+      const testMessages = [
+        'Hello!',
+        'What can you do?',
+        'Tell me something interesting'
+      ];
+      
+      const randomMessage = testMessages[Math.floor(Math.random() * testMessages.length)];
+      document.getElementById('message').value = randomMessage;
+      
+      addToDisplay('⚡ Quick test initiated', 'system');
+      await sendMessage();
+    }
+    
+    function insertTemplate() {
+      const select = document.getElementById('message-templates');
+      const template = select.value;
+      if (template) {
+        document.getElementById('message').value = template;
+        select.selectedIndex = 0; // Reset selection
+        document.getElementById('message').focus();
+      }
+    }
+    
+    function updateCharCount() {
+      const message = document.getElementById('message').value;
+      const count = message.length;
+      const counter = document.getElementById('char-count');
+      counter.textContent = count;
+      counter.style.color = count > 400 ? '#ff0000' : count > 300 ? '#ffff00' : '#888';
+    }
+    
+    // GPS Spoofing Functions
+    let landmarksCache = [];
+    let currentSuggestionIndex = -1;
+    
+    async function loadLandmarks() {
+      if (landmarksCache.length > 0) return landmarksCache;
+      
+      try {
+        const response = await fetch('/admin/landmarks');
+        const data = await response.json();
+        
+        if (data.success) {
+          landmarksCache = data.landmarks;
+          return landmarksCache;
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (err) {
+        addToDisplay('❌ Failed to load landmarks: ' + err.message, 'error', 'debug-output');
+        return [];
+      }
+    }
+    
+    async function searchLandmarks() {
+      const query = document.getElementById('location-search').value.toLowerCase().trim();
+      const suggestionsDiv = document.getElementById('location-suggestions');
+      
+      if (query.length < 2) {
+        suggestionsDiv.style.display = 'none';
+        return;
+      }
+      
+      const landmarks = await loadLandmarks();
+      const filtered = landmarks.filter(landmark => 
+        landmark.name.toLowerCase().includes(query) ||
+        (landmark.description && landmark.description.toLowerCase().includes(query)) ||
+        landmark.landmark_type.toLowerCase().includes(query)
+      ).slice(0, 10);
+      
+      if (filtered.length === 0) {
+        suggestionsDiv.style.display = 'none';
+        return;
+      }
+      
+      suggestionsDiv.innerHTML = '';
+      filtered.forEach((landmark, index) => {
+        const item = document.createElement('div');
+        item.className = 'location-item';
+        item.innerHTML = `
+          <div class="location-name">${landmark.name}</div>
+          <div class="location-type">${landmark.landmark_type}</div>
+          <div class="location-coords">${landmark.latitude.toFixed(6)}, ${landmark.longitude.toFixed(6)}</div>
+        `;
+        
+        item.onclick = () => selectLandmark(landmark);
+        suggestionsDiv.appendChild(item);
+      });
+      
+      suggestionsDiv.style.display = 'block';
+      currentSuggestionIndex = -1;
+    }
+    
+    function handleLocationKeydown(event) {
+      const suggestionsDiv = document.getElementById('location-suggestions');
+      const items = suggestionsDiv.querySelectorAll('.location-item');
+      
+      if (items.length === 0) return;
+      
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          currentSuggestionIndex = Math.min(currentSuggestionIndex + 1, items.length - 1);
+          updateSuggestionHighlight(items);
+          break;
+          
+        case 'ArrowUp':
+          event.preventDefault();
+          currentSuggestionIndex = Math.max(currentSuggestionIndex - 1, -1);
+          updateSuggestionHighlight(items);
+          break;
+          
+        case 'Enter':
+          event.preventDefault();
+          if (currentSuggestionIndex >= 0 && items[currentSuggestionIndex]) {
+            items[currentSuggestionIndex].click();
+          }
+          break;
+          
+        case 'Escape':
+          suggestionsDiv.style.display = 'none';
+          currentSuggestionIndex = -1;
+          break;
+      }
+    }
+    
+    function updateSuggestionHighlight(items) {
+      items.forEach((item, index) => {
+        item.style.background = index === currentSuggestionIndex ? '#003300' : '';
+      });
+    }
+    
+    function selectLandmark(landmark) {
+      document.getElementById('location-search').value = landmark.name;
+      document.getElementById('manual-lat').value = landmark.latitude;
+      document.getElementById('manual-lng').value = landmark.longitude;
+      document.getElementById('location-suggestions').style.display = 'none';
+      
+      addToDisplay(`📍 Selected: ${landmark.name}`, 'status', 'debug-output');
+    }
+    
+    async function spoofLocation() {
+      const lat = parseFloat(document.getElementById('manual-lat').value);
+      const lng = parseFloat(document.getElementById('manual-lng').value);
+      const name = document.getElementById('location-search').value || 'Custom Location';
+      
+      if (!lat || !lng) {
+        addToDisplay('❌ Please enter valid coordinates', 'error', 'debug-output');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/admin/spoof_gps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            latitude: lat,
+            longitude: lng,
+            name: name
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          addToDisplay(`✅ ${data.message}`, 'status', 'debug-output');
+          refreshCurrentLocation();
+        } else {
+          addToDisplay(`❌ GPS spoof failed: ${data.error}`, 'error', 'debug-output');
+        }
+      } catch (err) {
+        addToDisplay(`❌ GPS spoof error: ${err.message}`, 'error', 'debug-output');
+      }
+    }
+    
+    async function clearSpoofing() {
+      try {
+        const response = await fetch('/admin/spoof_gps', {
+          method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          addToDisplay(`✅ ${data.message}`, 'status', 'debug-output');
+          refreshCurrentLocation();
+          
+          // Clear the form
+          document.getElementById('location-search').value = '';
+          document.getElementById('manual-lat').value = '';
+          document.getElementById('manual-lng').value = '';
+        } else {
+          addToDisplay(`❌ Clear spoof failed: ${data.error}`, 'error', 'debug-output');
+        }
+      } catch (err) {
+        addToDisplay(`❌ Clear spoof error: ${err.message}`, 'error', 'debug-output');
+      }
+    }
+    
+    async function refreshCurrentLocation() {
+      try {
+        const response = await fetch('/admin/current_location');
+        const data = await response.json();
+        
+        const display = document.getElementById('current-location-display');
+        
+        if (data.success && data.location) {
+          const loc = data.location;
+          const address = loc.address || 'Unknown';
+          const lat = loc.lat ? loc.lat.toFixed(6) : '?';
+          const lng = loc.lng ? loc.lng.toFixed(6) : '?';
+          const source = loc.source || 'unknown';
+          
+          display.innerHTML = `
+            ${address} (${lat}, ${lng})
+            <br><span style="color: #888;">Source: ${source}</span>
+          `;
+          
+          // Show additional context if available
+          if (loc.context || loc.landmark_name) {
+            const context = loc.context || '';
+            const landmark = loc.landmark_name || '';
+            display.innerHTML += `<br><span style="color: #00ffff; font-size: 10px;">${context} ${landmark}</span>`;
+          }
+        } else {
+          display.innerHTML = `<span style="color: #ff0000;">Error: ${data.error || 'Unknown error'}</span>`;
+        }
+      } catch (err) {
+        const display = document.getElementById('current-location-display');
+        display.innerHTML = `<span style="color: #ff0000;">Error: ${err.message}</span>`;
+      }
+    }
+    
+    // Hide location suggestions when clicking elsewhere
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#location-search') && !e.target.closest('#location-suggestions')) {
+        document.getElementById('location-suggestions').style.display = 'none';
+        currentSuggestionIndex = -1;
+      }
+    });
+
     // Event Listeners
     document.addEventListener('DOMContentLoaded', () => {
       // Enter key to send message
@@ -545,6 +999,9 @@
           sendMessage();
         }
       });
+      
+      // Character counter
+      document.getElementById('message').addEventListener('input', updateCharCount);
       
       // Enter key to search memories
       document.getElementById('memory-search').addEventListener('keypress', (e) => {

@@ -103,23 +103,30 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         # Always check for dynamic host first (for dynamic IP support)
         try:
             glitchcube_host_state = self.hass.states.get("input_text.glitchcube_host")
-            if glitchcube_host_state and glitchcube_host_state.state:
-                dynamic_host = glitchcube_host_state.state
+            if (glitchcube_host_state and 
+                glitchcube_host_state.state and 
+                glitchcube_host_state.state not in ["unknown", "unavailable", ""]):
+                
+                dynamic_host = glitchcube_host_state.state.strip()
                 port = self._config_entry.data.get("port", DEFAULT_PORT)
                 api_url = f"http://{dynamic_host}:{port}/api/v1/conversation"
                 _LOGGER.debug(f"Using dynamic host from input_text: {dynamic_host}")
                 return api_url
+            else:
+                state_value = glitchcube_host_state.state if glitchcube_host_state else "None"
+                _LOGGER.info(f"Dynamic host not available or invalid: {state_value}")
         except Exception as e:
             _LOGGER.warning(f"Could not read dynamic host: {e}")
         
         # If we have a configured URL, use it
         if self._api_url:
+            _LOGGER.debug(f"Using configured API URL: {self._api_url}")
             return self._api_url
         
         # Last resort: use production IP
         port = self._config_entry.data.get("port", DEFAULT_PORT)
         fallback_url = f"http://192.168.0.99:{port}/api/v1/conversation"
-        _LOGGER.warning(f"No host configured and no dynamic host available, using fallback: {fallback_url}")
+        _LOGGER.info(f"No host configured and no dynamic host available, using fallback: {fallback_url}")
         return fallback_url
 
     async def async_process(

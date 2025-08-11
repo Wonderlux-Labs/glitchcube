@@ -41,6 +41,7 @@ gem 'sidekiq-cron', '~> 1.12'
 # HTTP Client
 gem 'httparty', '~> 0.23'
 gem 'net-ping', '~> 2.0'
+gem 'ruby-mcp-client', '~> 0.4'
 
 # JSON handling
 gem 'json', '~> 2.13'

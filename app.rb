@@ -87,6 +87,8 @@ class GlitchCubeApp < Sinatra::Base
 
   # Admin routes
   register GlitchCube::Routes::Admin
+  register GlitchCube::Routes::AdminScenarios
+  register GlitchCube::Routes::AdminBenchmarks
 
   # Development-only routes (analytics, debugging, testing)
   register GlitchCube::Routes::Development::Analytics if development? || test?

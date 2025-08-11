@@ -4,6 +4,16 @@
     "BUNDLE_PATH": "vendor/bundle",
     "DISABLE_SPRING": "false"
   },
+  "mcpServers": {
+    "homeassistant": {
+      "command": "uvx",
+      "args": ["mcp-proxy"],
+      "env": {
+        "SSE_URL": "http://glitch.local:8123/mcp_server/sse",
+        "API_ACCESS_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJmODZmMzA0NjYwMjg0YTI0YWNkMzM5NzI0YjBiMjhmZSIsImlhdCI6MTc1NDQxNzE0MiwiZXhwIjoyMDY5Nzc3MTQyfQ.QrzutqtPKbnXpFbiALjC8ppCfuaNnUsep7CWQMBK1kw"
+      }
+    }
+  },
   "permissions": {
     "allow": [
       "Read(**)",

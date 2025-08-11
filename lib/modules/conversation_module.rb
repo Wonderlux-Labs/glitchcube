@@ -107,12 +107,20 @@ class ConversationModule
       using_tools = context[:tools].present? && !context[:tools].empty?
 
       if using_tools
-        # Native tool calling - let LLM decide when to use tools
+        # Native tool calling - Use tools model for better tool handling
+        llm_options[:model] = context[:tools_model] || GlitchCube.config.ai.default_tools_model
         llm_options[:tools] = context[:tools]
         llm_options[:tool_choice] = 'auto'
         # Use higher token limit for tool calls to allow multiple tool calls
         llm_options[:max_tokens] = context[:max_tokens] || GlitchCube.config.ai.max_tool_tokens
-        Services::SimpleLogger.debug('Tool calling enabled', tagged: %i[conversation tools], max_tokens: llm_options[:max_tokens])
+
+        # Enhanced logging for model split testing
+        Services::SimpleLogger.info('🔧 TOOLS CALL - Using tools-optimized model',
+                                    tagged: %i[conversation tools model_split],
+                                    model: llm_options[:model],
+                                    max_tokens: llm_options[:max_tokens])
+        puts "🔧 TOOLS CALL: Using model #{llm_options[:model]} for tool execution" if GlitchCube.config.debug?
+
         # DO NOT set response_format when using tools!
       elsif response_schema
         # Structured output - only when NOT using tools
@@ -238,8 +246,6 @@ class ConversationModule
         conversation_id: session.session_id,
         session_id: session.session_id,
         persona: persona_name,
-        tts_voice: tts_config[:voice],  # Pass the voice name for dynamic selection
-        tts_provider: tts_config[:provider],  # cloud or elevenlabs
         model: llm_response.model,
         cost: cost,
         tokens: llm_response.usage,
@@ -249,9 +255,8 @@ class ConversationModule
         error: nil
       }
 
-      # NOTE: For assist satellites, TTS is handled by the pipeline configuration
-      # We can't override voices dynamically - would need separate pipelines per persona
-      # Keeping tts_voice and tts_provider in result for reference/future use
+      # NOTE: For assist satellites, TTS is handled by pipeline configuration per persona
+      # Voice switching is managed by the HA conversation agent via pipeline selection
       if context[:voice_interaction] || context['voice_interaction']
         Services::SimpleLogger.debug('Voice interaction - TTS handled by pipeline',
                                      tagged: %i[conversation voice],
@@ -287,7 +292,7 @@ class ConversationModule
 
   private
 
-  def handle_native_tool_response(llm_response, messages, llm_options, response_schema, _session: nil)
+  def handle_native_tool_response(llm_response, messages, llm_options, response_schema, session: nil)
     @last_tool_calls = []
     tool_results = []
 
@@ -376,9 +381,10 @@ class ConversationModule
                                  tagged: %i[conversation tools],
                                  message_count: updated_messages.size)
 
-    # Second call options - ALWAYS ask for JSON but only enforce if model supports it
+    # Second call options - Use default model for conversation response
+    # This allows us to use a cheaper/faster model for tools, but better model for conversation
     second_call_options = {
-      model: llm_options[:model],
+      model: GlitchCube.config.ai.default_model,  # Switch back to default conversation model
       temperature: llm_options[:temperature],
       max_tokens: GlitchCube.config.ai.max_tool_tokens,  # Use config value
       reasoning: { max_tokens: 500 }  # More reasoning tokens but still controlled
@@ -392,11 +398,13 @@ class ConversationModule
       second_call_options[:response_format] = response_schema
     end
 
-    Services::SimpleLogger.debug('Second LLM call options',
-                                 tagged: %i[conversation tools],
-                                 model: second_call_options[:model],
-                                 max_tokens: second_call_options[:max_tokens],
-                                 has_reasoning: second_call_options[:reasoning].present?)
+    # Enhanced logging for model split testing
+    Services::SimpleLogger.info('💬 CONVERSATION CALL - Using conversation-optimized model',
+                                tagged: %i[conversation tools model_split],
+                                model: second_call_options[:model],
+                                max_tokens: second_call_options[:max_tokens],
+                                has_reasoning: second_call_options[:reasoning].present?)
+    puts "💬 CONVERSATION CALL: Using model #{second_call_options[:model]} for response generation" if GlitchCube.config.debug?
 
     begin
       # Log the complete request being sent
