@@ -231,8 +231,8 @@ class ConversationModule
 
       # Always include a full TTS action for voice interactions
       # This ensures persona-specific voices are used
-      if context[:voice_interaction]
-        device_id = context[:device_id] || 'media_player.square_voice'
+      if context[:voice_interaction] || context['voice_interaction']
+        device_id = context[:device_id] || context['device_id'] || 'media_player.square_voice'
 
         result[:tts_action] = {
           service: 'tts.speak',
