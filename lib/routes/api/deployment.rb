@@ -48,12 +48,12 @@ module GlitchCube
               }
 
               # Log the deployment request
-              ::Services::LoggerService.log_api_call(
-                service: 'github_webhook',
-                endpoint: '/deploy/webhook',
-                method: 'POST',
-                deployment_info: deployment_info
-              )
+              Services::SimpleLogger.info('GitHub webhook deployment request',
+                                          tagged: %i[deployment webhook api_call],
+                                          service: 'github_webhook',
+                                          endpoint: '/deploy/webhook',
+                                          method: 'POST',
+                                          deployment_info: deployment_info)
 
               # Execute deployment in background
               deployment_result = execute_deployment(deployment_info)
@@ -80,14 +80,14 @@ module GlitchCube
                    })
             rescue StandardError => e
               status 500
-              ::Services::LoggerService.log_api_call(
-                service: 'github_webhook',
-                endpoint: '/deploy/webhook',
-                method: 'POST',
-                status: 500,
-                error: e.message,
-                backtrace: e.backtrace.first(3)
-              )
+              Services::SimpleLogger.error('GitHub webhook deployment error',
+                                           tagged: %i[deployment webhook api_call error],
+                                           service: 'github_webhook',
+                                           endpoint: '/deploy/webhook',
+                                           method: 'POST',
+                                           status: 500,
+                                           error: e.message,
+                                           backtrace: e.backtrace.first(3))
 
               json({
                      error: 'Deployment failed',
@@ -124,12 +124,12 @@ module GlitchCube
               }
 
               # Log the internal deployment request
-              ::Services::LoggerService.log_api_call(
-                service: 'internal_deployment',
-                endpoint: '/deploy/internal',
-                method: 'POST',
-                deployment_info: deployment_info
-              )
+              Services::SimpleLogger.info('Internal deployment request',
+                                          tagged: %i[deployment internal api_call],
+                                          service: 'internal_deployment',
+                                          endpoint: '/deploy/internal',
+                                          method: 'POST',
+                                          deployment_info: deployment_info)
 
               # Execute deployment
               deployment_result = execute_deployment(deployment_info)
@@ -148,13 +148,13 @@ module GlitchCube
                    })
             rescue StandardError => e
               status 500
-              ::Services::LoggerService.log_api_call(
-                service: 'internal_deployment',
-                endpoint: '/deploy/internal',
-                method: 'POST',
-                status: 500,
-                error: e.message
-              )
+              Services::SimpleLogger.error('Internal deployment error',
+                                           tagged: %i[deployment internal api_call error],
+                                           service: 'internal_deployment',
+                                           endpoint: '/deploy/internal',
+                                           method: 'POST',
+                                           status: 500,
+                                           error: e.message)
 
               json({
                      error: 'Internal deployment failed',
@@ -256,7 +256,7 @@ module GlitchCube
 
           begin
             # Step 1: Git pull to update local repository
-            puts '🔄 Pulling latest changes from git...'
+            Services::SimpleLogger.info('Pulling latest changes from git...', tagged: %i[deployment git])
             git_result = system('git pull origin main')
             results << {
               step: 'git_pull',
@@ -265,7 +265,7 @@ module GlitchCube
             }
 
             # Step 2: Sync configuration to Home Assistant
-            puts '📤 Syncing configuration to Home Assistant...'
+            Services::SimpleLogger.info('Syncing configuration to Home Assistant...', tagged: %i[deployment config])
             config_result = system('bundle exec rake config:push')
             results << {
               step: 'config_sync',
@@ -275,7 +275,7 @@ module GlitchCube
 
             # Step 3: Restart Home Assistant (if config sync succeeded)
             if config_result
-              puts '🔄 Restarting Home Assistant...'
+              Services::SimpleLogger.info('Restarting Home Assistant...', tagged: %i[deployment ha_restart])
               ha_restart_result = system('ssh root@glitch.local "ha core restart"')
               results << {
                 step: 'ha_restart',
@@ -292,7 +292,7 @@ module GlitchCube
 
             # Step 4: Restart Glitch Cube services if needed
             if git_result
-              puts '🔄 Restarting Glitch Cube services...'
+              Services::SimpleLogger.info('Restarting Glitch Cube services...', tagged: %i[deployment service_restart])
               service_restart_result = restart_services
               results << {
                 step: 'service_restart',
@@ -309,13 +309,13 @@ module GlitchCube
           end
 
           # Log deployment results
-          ::Services::LoggerService.log_api_call(
-            service: 'deployment',
-            endpoint: 'execute_deployment',
-            deployment_info: deployment_info,
-            results: results,
-            overall_success: results.all? { |r| r[:success] }
-          )
+          Services::SimpleLogger.info('Deployment execution completed',
+                                      tagged: %i[deployment api_call],
+                                      service: 'deployment',
+                                      endpoint: 'execute_deployment',
+                                      deployment_info: deployment_info,
+                                      results: results,
+                                      overall_success: results.all? { |r| r[:success] })
 
           results
         end
@@ -364,21 +364,21 @@ module GlitchCube
         def self.restart_services
           # For Docker deployment, restart the containers
           if system('docker-compose ps > /dev/null 2>&1')
-            puts '🐳 Restarting Docker services...'
+            Services::SimpleLogger.info('Restarting Docker services...', tagged: %i[deployment docker])
             return system('docker-compose restart glitchcube sidekiq')
           end
 
           # For systemd deployment
           if system('systemctl is-active glitchcube.service > /dev/null 2>&1')
-            puts '🔧 Restarting systemd services...'
+            Services::SimpleLogger.info('Restarting systemd services...', tagged: %i[deployment systemd])
             return system('sudo systemctl restart glitchcube.service glitchcube-sidekiq.service')
           end
 
           # Fallback: just return true (manual restart may be needed)
-          puts '⚠️ No automatic service restart method detected'
+          Services::SimpleLogger.warn('No automatic service restart method detected', tagged: %i[deployment warning])
           true
         rescue StandardError => e
-          puts "❌ Service restart failed: #{e.message}"
+          Services::SimpleLogger.error('Service restart failed', tagged: %i[deployment error], error: e.message)
           false
         end
       end

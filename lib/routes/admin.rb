@@ -290,14 +290,14 @@ module GlitchCube
             response[:home_assistant] = true
             response[:ha_url] = ha_client.base_url || 'http://glitch.local:8123'
           rescue StandardError => e
-            puts "HA status check error: #{e.message}"
+            Services::SimpleLogger.error('HA status check error', tagged: %i[admin status error], error: e.message)
           end
 
           # Check OpenRouter - simple API key check
           begin
             response[:openrouter] = !ENV['OPENROUTER_API_KEY'].nil? && ENV['OPENROUTER_API_KEY'].length > 10
           rescue StandardError => e
-            puts "OpenRouter status check error: #{e.message}"
+            Services::SimpleLogger.error('OpenRouter status check error', tagged: %i[admin status error], error: e.message)
           end
 
           # Check Redis
@@ -313,7 +313,7 @@ module GlitchCube
               response[:redis] = redis.ping == 'PONG'
             end
           rescue StandardError => e
-            puts "Redis status check error: #{e.message}"
+            Services::SimpleLogger.error('Redis status check error', tagged: %i[admin status error], error: e.message)
           end
 
           # Get other config safely
@@ -321,7 +321,7 @@ module GlitchCube
             response[:host_ip] = '192.168.0.56' # From your logs
             response[:ai_model] = GlitchCube.config.ai.default_model || DEFAULT_AI_MODEL || 'google/gemini-2.5-flash'
           rescue StandardError => e
-            puts "Config check error: #{e.message}"
+            Services::SimpleLogger.error('Config check error', tagged: %i[admin status error], error: e.message)
           end
 
           response.to_json
@@ -495,6 +495,97 @@ module GlitchCube
           erb :admin_tools
         end
 
+        # Log viewer interface
+        app.get '/admin/logs' do
+          erb :admin_logs
+        end
+
+        # API endpoint to fetch log data
+        app.get '/admin/api/logs' do
+          content_type :json
+
+          lines = (params[:lines] || 100).to_i
+          lines = [lines, 1000].min # Cap at 1000 lines for performance
+
+          log_file = Services::SimpleLogger.log_file_path
+
+          if File.exist?(log_file)
+            # Read last N lines efficiently
+            logs = `tail -n #{lines} #{log_file}`.split("\n")
+
+            # Parse log entries
+            parsed_logs = logs.map do |line|
+              # SimpleLogger format: [HH:MM:SS.mmm] [LEVEL] [ENV] message #tag1 #tag2 (caller) key=value
+              if line =~ /^\[(\d{2}:\d{2}:\d{2}\.\d{3})\] \[(\w+)\] \[(\w+)\]\s*(.+)$/
+                timestamp = $1
+                level = $2
+                env = $3
+                rest = $4
+
+                # Extract message and tags from the rest
+                message = rest
+                tags = []
+
+                # Extract tags (format: #tag1 #tag2)
+                if rest =~ /^(.+?)\s+(#\w+.*)$/
+                  message = $1
+                  tag_part = $2
+                  tags = tag_part.scan(/#(\w+)/).flatten
+                end
+
+                # Extract metadata if present
+                metadata = {}
+                if message =~ /^(.+?) \{(.+)\}$/
+                  message = $1
+                  begin
+                    metadata = JSON.parse("{#{$2}}")
+                  rescue StandardError
+                    # Ignore malformed metadata
+                  end
+                end
+
+                {
+                  timestamp: timestamp,
+                  level: level.downcase,
+                  tags: tags,
+                  message: message,
+                  metadata: metadata,
+                  raw: line
+                }
+              else
+                # Unparsed line
+                {
+                  timestamp: Time.now.strftime('%Y-%m-%d %H:%M:%S.%L'),
+                  level: 'info',
+                  tags: [],
+                  message: line,
+                  metadata: {},
+                  raw: line
+                }
+              end
+            end
+
+            {
+              logs: parsed_logs.reverse, # Most recent first
+              total_lines: logs.size,
+              log_file: log_file
+            }.to_json
+          else
+            {
+              logs: [],
+              total_lines: 0,
+              error: 'Log file not found',
+              log_file: log_file
+            }.to_json
+          end
+        rescue StandardError => e
+          {
+            logs: [],
+            error: e.message,
+            backtrace: e.backtrace.first(3)
+          }.to_json
+        end
+
         # Tool discovery and listing endpoint
         app.get '/admin/api/tools' do
           content_type :json
@@ -522,8 +613,11 @@ module GlitchCube
             }.to_json
           rescue StandardError => e
             # Log the full error for debugging
-            puts "Tool API Error: #{e.class} - #{e.message}"
-            puts e.backtrace.first(5).join("\n") if ENV['RACK_ENV'] == 'development'
+            Services::SimpleLogger.error('Tool API Error',
+                                         tagged: %i[admin tool error],
+                                         error_class: e.class.name,
+                                         error: e.message,
+                                         backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil)
 
             status 500
             {
@@ -551,8 +645,11 @@ module GlitchCube
             status 400
             { success: false, error: "Invalid JSON: #{e.message}" }.to_json
           rescue StandardError => e
-            puts "Tool Execution Error: #{e.class} - #{e.message}"
-            puts e.backtrace.first(5).join("\n") if ENV['RACK_ENV'] == 'development'
+            Services::SimpleLogger.error('Tool Execution Error',
+                                         tagged: %i[admin tool error],
+                                         error_class: e.class.name,
+                                         error: e.message,
+                                         backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil)
 
             status 500
             {

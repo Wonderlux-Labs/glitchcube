@@ -44,9 +44,15 @@ module Services
         # Parse and return response
         parse_response(response, model)
       rescue StandardError => e
-        puts "DEBUG: Original error class: #{e.class}" if GlitchCube.config.debug?
-        puts "DEBUG: Original error message: #{e.message}" if GlitchCube.config.debug?
-        puts "DEBUG: Original error backtrace: #{e.backtrace.first(3).join("\n")}" if GlitchCube.config.debug?
+        if GlitchCube.config.debug?
+          Services::SimpleLogger.debug(
+            'LLM error details',
+            tagged: %i[llm error debug],
+            error_class: e.class.name,
+            error_message: e.message,
+            backtrace: e.backtrace&.first(3)
+          )
+        end
         handle_error(e)
       end
 
@@ -200,8 +206,14 @@ module Services
         # Log the request
         log_api_request(params)
 
-        puts "DEBUG: Calling complete with model: #{params[:model]}" if GlitchCube.config.debug?
-        puts "DEBUG: Extras: #{params[:extras].inspect}" if GlitchCube.config.debug?
+        if GlitchCube.config.debug?
+          Services::SimpleLogger.debug(
+            'Calling complete',
+            tagged: %i[llm debug],
+            model: params[:model],
+            extras: params[:extras]
+          )
+        end
 
         # Make the actual API call using the gem's signature:
         # complete(messages, model: 'model', extras: { all other params })
@@ -211,8 +223,14 @@ module Services
           extras: params[:extras]
         )
 
-        puts "DEBUG: Response class: #{response.class}" if GlitchCube.config.debug?
-        puts "DEBUG: Response: #{response.inspect[0..500]}" if GlitchCube.config.debug?
+        if GlitchCube.config.debug?
+          Services::SimpleLogger.debug(
+            'LLM response received',
+            tagged: %i[llm debug],
+            response_class: response.class.name,
+            response_preview: response.inspect[0..500]
+          )
+        end
 
         # Log the response
         duration = ((Time.now - start_time) * 1000).round
@@ -331,18 +349,36 @@ module Services
 
         begin
           attempt += 1
-          puts "🔄 LLM API attempt #{attempt}/#{max_attempts} for model: #{model}" if attempt > 1
+          if attempt > 1
+            Services::SimpleLogger.info(
+              "LLM API retry attempt #{attempt}/#{max_attempts}",
+              tagged: %i[llm retry],
+              attempt: attempt,
+              max_attempts: max_attempts,
+              model: model
+            )
+          end
 
           result = yield
 
-          puts "✅ LLM API call succeeded on attempt #{attempt}" if attempt > 1
+          if attempt > 1
+            Services::SimpleLogger.info(
+              'LLM API call succeeded on retry',
+              tagged: %i[llm retry success],
+              attempt: attempt
+            )
+          end
           return result
         rescue RateLimitError => e
           last_error = e
           if attempt < max_attempts
             # Longer wait for rate limits
             wait_time = delay * 2
-            puts "⏳ Rate limited - waiting #{wait_time}s before retry..."
+            Services::SimpleLogger.warn(
+              'Rate limited - waiting before retry',
+              tagged: %i[llm rate_limit],
+              wait_time_seconds: wait_time
+            )
             sleep(wait_time)
             delay *= 2
             retry
@@ -350,11 +386,19 @@ module Services
         rescue AuthenticationError => e
           # Never retry authentication errors
           last_error = e
-          puts '❌ Authentication failed - not retrying'
+          Services::SimpleLogger.error(
+            'Authentication failed - not retrying',
+            tagged: %i[llm auth error]
+          )
         rescue LLMError => e
           last_error = e
           if attempt < max_attempts
-            puts "⏳ LLM error - waiting #{delay}s before retry..."
+            Services::SimpleLogger.warn(
+              'LLM error - waiting before retry',
+              tagged: %i[llm error retry],
+              delay_seconds: delay,
+              error: e.message
+            )
             sleep(delay)
             delay *= 2 # Exponential backoff
             retry
@@ -362,7 +406,12 @@ module Services
         rescue StandardError => e
           last_error = e
           if attempt < max_attempts
-            puts "⏳ Unexpected error - waiting #{delay}s before retry..."
+            Services::SimpleLogger.warn(
+              'Unexpected error - waiting before retry',
+              tagged: %i[llm error retry],
+              delay_seconds: delay,
+              error: e.message
+            )
             sleep(delay)
             delay *= 2
             retry
@@ -370,7 +419,11 @@ module Services
         end
 
         # All retries exhausted
-        puts "❌ LLM API failed after #{attempt} attempts"
+        Services::SimpleLogger.error(
+          'LLM API failed after all attempts',
+          tagged: %i[llm error exhausted],
+          attempts: attempt
+        )
         raise last_error
       end
 

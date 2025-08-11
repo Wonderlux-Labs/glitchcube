@@ -13,7 +13,14 @@ module Services
       return provided_tools unless provided_tools.nil? || provided_tools.empty?
 
       tools = Services::ToolRegistryService.get_tools_for_character(persona)
-      puts "🔧 Auto-loaded #{tools&.size || 0} tools for persona '#{persona}'" if debug_mode?
+      if debug_mode?
+        Services::SimpleLogger.debug(
+          'Auto-loaded tools for persona',
+          tagged: %i[tools loading],
+          tool_count: tools&.size || 0,
+          persona: persona
+        )
+      end
       tools
     end
 
@@ -60,22 +67,39 @@ module Services
       tool_calls = llm_response.tool_calls
       return [] if tool_calls.nil? || tool_calls.empty?
 
-      puts "🔧 Executing #{tool_calls.size} tool call(s)..." if debug_mode?
+      if debug_mode?
+        Services::SimpleLogger.debug(
+          'Executing tool calls',
+          tagged: %i[tools execution],
+          tool_count: tool_calls.size
+        )
+      end
 
       # Execute tools
       tool_start = Time.now
       results = Services::ToolExecutor.execute(tool_calls, timeout: 10)
       execution_time = ((Time.now - tool_start) * 1000).round
 
-      puts "🔧 Executed #{tool_calls.size} tool calls in #{execution_time}ms" if debug_mode?
+      if debug_mode?
+        Services::SimpleLogger.debug(
+          'Tool execution completed',
+          tagged: %i[tools execution complete],
+          tool_count: tool_calls.size,
+          duration_ms: execution_time
+        )
+      end
 
       # Log tool execution
       results.each { |result| log_tool_execution(result) }
 
       results
     rescue StandardError => e
-      puts "⚠️ Tool execution failed: #{e.message}"
-      puts "Tool execution error: #{e.message}"
+      Services::SimpleLogger.error(
+        'Tool execution failed',
+        tagged: %i[tools execution error],
+        error: e.message,
+        backtrace: e.backtrace&.first(3)
+      )
       []
     end
 
@@ -106,11 +130,20 @@ module Services
         **llm_options.except(:tools, :tool_choice) # Don't allow recursive tool calls for now
       )
 
-      puts '🤖 Follow-up LLM call completed' if debug_mode?
+      if debug_mode?
+        Services::SimpleLogger.debug(
+          'Follow-up LLM call completed',
+          tagged: %i[tools llm followup]
+        )
+      end
       follow_up_response
     rescue StandardError => e
-      puts "⚠️ Failed to continue after tool execution: #{e.message}"
-      puts "⚠️ Follow-up LLM call failed: #{e.message}" if debug_mode?
+      Services::SimpleLogger.error(
+        'Failed to continue after tool execution',
+        tagged: %i[tools llm followup error],
+        error: e.message,
+        backtrace: e.backtrace&.first(3)
+      )
 
       # Return original response if continuation fails
       initial_response
@@ -135,7 +168,11 @@ module Services
         persona: persona
       )
     rescue StandardError => e
-      puts "Warning: Could not save tool interaction: #{e.message}"
+      Services::SimpleLogger.warn(
+        'Could not save tool interaction',
+        tagged: %i[tools database warning],
+        error: e.message
+      )
     end
 
     def format_tool_results_message(tool_results)
@@ -168,7 +205,13 @@ module Services
         persona: persona
       )
     rescue StandardError => e
-      puts "Failed to log tool execution: #{e.message}" if debug_mode?
+      if debug_mode?
+        Services::SimpleLogger.debug(
+          'Failed to log tool execution',
+          tagged: %i[tools logging error],
+          error: e.message
+        )
+      end
     end
 
     def debug_mode?

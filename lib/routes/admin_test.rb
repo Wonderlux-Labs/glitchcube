@@ -42,14 +42,14 @@ module GlitchCube
             if !selected_model.empty?
               # Store the selected model in the session for persistence
               session[:selected_model] = selected_model
-              puts "💾 Storing model in session: #{selected_model}" if GlitchCube.config.debug?
+              Services::SimpleLogger.debug('Storing model in session', tagged: %i[admin_test model], model: selected_model) if GlitchCube.config.debug?
             elsif session[:selected_model]
               # Use previously selected model from session
               selected_model = session[:selected_model]
-              puts "📖 Using model from session: #{selected_model}" if GlitchCube.config.debug?
+              Services::SimpleLogger.debug('Using model from session', tagged: %i[admin_test model], model: selected_model) if GlitchCube.config.debug?
             else
               selected_model = nil
-              puts '📖 Using default model' if GlitchCube.config.debug?
+              Services::SimpleLogger.debug('Using default model', tagged: %i[admin_test model]) if GlitchCube.config.debug?
             end
 
             # Call the main conversation endpoint with tool tracking
@@ -84,8 +84,10 @@ module GlitchCube
             @response_time = ((Time.now - start_time) * 1000).round
           rescue StandardError => e
             @error = "Conversation failed: #{e.message}"
-            puts "ERROR in conversation: #{e.message}"
-            puts e.backtrace.first(5).join("\n") if GlitchCube.config.debug?
+            Services::SimpleLogger.error('ERROR in conversation',
+                                         tagged: %i[admin_test conversation error],
+                                         error: e.message,
+                                         backtrace: GlitchCube.config.debug? ? e.backtrace.first(5) : nil)
           end
 
           # Reload recent conversations

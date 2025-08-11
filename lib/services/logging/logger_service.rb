@@ -183,7 +183,7 @@ module Services
       private
 
       def ensure_loggers
-        # No longer needed - SimpleLogger handles its own initialization
+        # Ensure error tracker is initialized
         @ensure_loggers ||= ErrorTracker.new
       end
 

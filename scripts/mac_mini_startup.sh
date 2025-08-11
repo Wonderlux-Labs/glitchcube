@@ -16,11 +16,15 @@ REDIS_CLI="/opt/homebrew/bin/redis-cli"
 PG_ISREADY="/opt/homebrew/bin/pg_isready"
 CURL="/usr/bin/curl"
 
+# Source shell configuration to get asdf and other tools
+source ~/.zshrc
+
 # Set up Ruby environment early
 cd "$GLITCHCUBE_DIR"
 export ASDF_DATA_DIR="$HOME/.asdf"
 ASDF="/opt/homebrew/bin/asdf"
-"$ASDF" set ruby 3.4.1
+"$ASDF" current ruby || "$ASDF" install ruby 3.4.1
+"$ASDF" local ruby 3.4.1
 "$ASDF" reshim ruby
 LOG_FILE="$LOG_DIR/startup.log"
 INITIAL_WAIT=60  # Wait 60 seconds before first attempt

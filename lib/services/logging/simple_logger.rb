@@ -76,6 +76,16 @@ module Services
         info("Performance: #{operation}", tagged: [:performance], operation: operation, duration_ms: duration, **metadata)
       end
 
+      # Public accessor for log directory path
+      def log_directory_path
+        log_directory
+      end
+
+      # Public accessor for log file path
+      def log_file_path
+        File.join(log_directory, 'current.log')
+      end
+
       private
 
       def below_log_level?(level)
@@ -143,10 +153,6 @@ module Services
         else
           File.join(root_dir, 'logs')
         end
-      end
-
-      def log_file_path
-        File.join(log_directory, 'current.log')
       end
     end
   end
