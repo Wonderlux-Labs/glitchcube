@@ -149,12 +149,22 @@ module Services
     # @return [String] The response text
     def response_text
       if parsed_content.is_a?(Hash)
-        parsed_content['response'] || parsed_content[:response] ||
-          parsed_content['text'] || parsed_content[:text] ||
-          content
-      else
-        content
+        # Try to extract the actual response text from structured output
+        text = parsed_content['response'] || parsed_content[:response] ||
+               parsed_content['text'] || parsed_content[:text]
+
+        # If we got a text response, use it
+        return text if text && !text.empty?
+
+        # Otherwise fall back to content (but log warning for debugging)
+        if defined?(Services::SimpleLogger)
+          Services::SimpleLogger.warn('response_text falling back to content',
+                                      tagged: %i[llm_response debug],
+                                      parsed_keys: parsed_content.keys,
+                                      content_preview: content&.[](0..100))
+        end
       end
+      content
     end
 
     # Extract any Home Assistant actions from structured response

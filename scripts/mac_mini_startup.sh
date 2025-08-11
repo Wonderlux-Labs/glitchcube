@@ -60,9 +60,12 @@ log "========================================="
 
 # 1. Check and start Redis
 log_info "Checking Redis..."
-if ! pgrep -x "redis-server" > /dev/null; then
-    log "Redis not running. Starting Redis..."
-    "$BREW" services start redis
+# Check if Redis is actually responding, not just if process exists
+if "$REDIS_CLI" ping > /dev/null 2>&1; then
+    log_success "Redis is running and responding"
+else
+    log "Redis not responding. Starting Redis..."
+    "$BREW" services restart redis
     sleep 3
     
     # Verify Redis started
@@ -72,8 +75,6 @@ if ! pgrep -x "redis-server" > /dev/null; then
         log_error "Failed to start Redis"
         exit 1
     fi
-else
-    log_success "Redis already running"
 fi
 
 # 2. Check and start PostgreSQL
@@ -168,7 +169,8 @@ log "Using DATABASE_URL: ${DATABASE_URL}"
 log "Waiting for database to be ready..."
 DB_READY=false
 for i in $(seq 1 30); do
-    if "$PG_ISREADY" -d "$DATABASE_URL" -q 2>/dev/null; then
+    # pg_isready doesn't work well with full DATABASE_URL, extract components
+    if "$PG_ISREADY" -h "${DATABASE_HOST:-localhost}" -p "${DATABASE_PORT:-5432}" -U "${DATABASE_USER:-postgres}" -q 2>/dev/null; then
         DB_READY=true
         log_success "Database is ready"
         break
@@ -229,10 +231,36 @@ fi
 # 7. Start Glitch Cube application
 log_info "Starting Glitch Cube application..."
 
-# Kill any existing Ruby/Sidekiq processes
+# Kill any existing Glitch Cube processes more thoroughly
 log "Stopping any existing Glitch Cube processes..."
-pkill -f "ruby app.rb" || true
+
+# Kill Sinatra app (multiple patterns to catch different invocations)
+pkill -f "ruby.*app\.rb" || true
+pkill -f "puma.*4567" || true
+pkill -f "thin.*4567" || true
+pkill -f "rackup.*4567" || true
+
+# Kill Sidekiq (multiple patterns)
 pkill -f "sidekiq" || true
+pkill -f "ruby.*sidekiq" || true
+
+# Kill any processes on port 4567
+lsof -ti:4567 | xargs kill -9 2>/dev/null || true
+
+# Give processes time to fully terminate
+sleep 3
+
+# Double-check and force kill if necessary
+if pgrep -f "ruby.*app\.rb" > /dev/null; then
+    log "Force killing remaining Ruby processes..."
+    pkill -9 -f "ruby.*app\.rb" || true
+fi
+
+if pgrep -f "sidekiq" > /dev/null; then
+    log "Force killing remaining Sidekiq processes..."
+    pkill -9 -f "sidekiq" || true
+fi
+
 sleep 2
 
 # Start the application using bin/prod (handles both Sinatra and Sidekiq)

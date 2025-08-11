@@ -135,6 +135,20 @@ class ConversationModule
       # Extract data from response object
       response_text = llm_response.response_text
 
+      # If response_text is still the full JSON, try to extract just the response field
+      if response_text&.start_with?('{') && response_text.include?('"response"')
+        begin
+          parsed = JSON.parse(response_text)
+          if parsed.is_a?(Hash) && parsed['response']
+            Services::SimpleLogger.info('Extracting response from JSON in ConversationModule',
+                                        tagged: %i[conversation debug])
+            response_text = parsed['response']
+          end
+        rescue JSON::ParserError
+          # Keep original response_text if parsing fails
+        end
+      end
+
       # Phase 3.5: Ultra-simple continuation logic with safe defaults
       # Let the LLM decide if conversation should continue
       # Default to ending conversation if unclear (safer for voice interactions)
