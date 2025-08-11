@@ -176,17 +176,78 @@ class ConversationModule
       # Only use fallback if response_text is nil or empty
       response_text = persona.generate_fallback_response(message) if response_text.nil? || response_text.strip.empty?
 
+      # For voice interactions, ALWAYS handle TTS on Sinatra side
+      tts_handled = false
+      if context[:voice_interaction]
+        # Check if speech_synthesis tool was already called
+        tts_handled = tool_calls_made.any? do |call|
+          call[:tool_name]&.include?('speech_synthesis') ||
+            call[:tool_name]&.include?('speak')
+        end
+
+        # If TTS wasn't called yet, call it now
+        if !tts_handled && response_text && !response_text.strip.empty?
+          Services::SimpleLogger.info('Voice interaction - calling TTS',
+                                      tagged: %i[conversation voice tts],
+                                      persona: persona_name)
+
+          # Use the persona's speak method to handle TTS
+          begin
+            character_service = Services::CharacterService.new(character: persona_name.to_sym)
+            character_service.speak(response_text, entity_id: 'media_player.square_voice')
+            tts_handled = true
+          rescue StandardError => e
+            Services::SimpleLogger.error('Failed to call TTS for voice interaction',
+                                         tagged: %i[conversation voice error],
+                                         error: e.message)
+          end
+        end
+
+        Services::SimpleLogger.info('Voice interaction TTS status',
+                                    tagged: %i[conversation voice],
+                                    tts_handled: tts_handled,
+                                    tools_called: tool_calls_made.map { |t| t[:tool_name] })
+      end
+
+      # Get the TTS voice for this persona
+      character_service = Services::CharacterService.new(character: persona_name.to_sym)
+      tts_config = character_service.tts_config
+
       result = {
         response: response_text,
         conversation_id: session.session_id,
         session_id: session.session_id,
         persona: persona_name,
+        tts_voice: tts_config[:voice],  # Pass the voice name for dynamic selection
+        tts_provider: tts_config[:provider],  # cloud or elevenlabs
         model: llm_response.model,
         cost: cost,
         tokens: llm_response.usage,
         continue_conversation: continue_conversation,
+        tts_handled: tts_handled,  # Flag for conversation agent
+        voice_interaction: context[:voice_interaction] || false,
         error: nil
       }
+
+      # Always include a full TTS action for voice interactions
+      # This ensures persona-specific voices are used
+      if context[:voice_interaction]
+        device_id = context[:device_id] || 'media_player.square_voice'
+
+        result[:tts_action] = {
+          service: 'tts.speak',
+          target: {
+            entity_id: "tts.#{tts_config[:provider]}_tts"
+          },
+          data: {
+            media_player_entity_id: device_id,
+            message: response_text,
+            options: {
+              voice: tts_config[:voice]
+            }
+          }
+        }
+      end
 
       # Handle all post-response side effects
       Services::ConversationSideEffectHandler.new(

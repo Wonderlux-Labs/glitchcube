@@ -19,6 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
+        vol.Optional("host", default=""): str,  # Empty default means use input_text.glitchcube_host
         vol.Optional("port", default=DEFAULT_PORT): int,
     }
 )
@@ -27,25 +28,31 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
     
-    # Try to get dynamic host from input_text entity first
-    try:
-        glitchcube_host_state = hass.states.get("input_text.glitchcube_host")
-        if glitchcube_host_state and glitchcube_host_state.state:
-            dynamic_host = glitchcube_host_state.state
-            _LOGGER.info(f"Found dynamic Glitch Cube host: {dynamic_host}")
-            host = dynamic_host
-        else:
-            # No dynamic host available - skip validation since Mac Mini may not be running yet
-            return {
-                "title": "Glitch Cube (Dynamic IP)",
-                "version": "unknown - will connect when Glitch Cube starts"
-            }
-    except Exception as e:
-        _LOGGER.warning(f"Could not read dynamic host, will connect when available: {e}")
-        return {
-            "title": "Glitch Cube (Dynamic IP)",
-            "version": "unknown - will connect when Glitch Cube starts"
-        }
+    # Determine host: explicit > dynamic > default
+    host = None
+    
+    # 1. Check if user provided an explicit host
+    if data.get("host"):
+        host = data["host"]
+        _LOGGER.info(f"Using explicit host from config: {host}")
+    else:
+        # 2. Try to get dynamic host from input_text entity
+        try:
+            glitchcube_host_state = hass.states.get("input_text.glitchcube_host")
+            if glitchcube_host_state and glitchcube_host_state.state:
+                host = glitchcube_host_state.state
+                _LOGGER.info(f"Using dynamic host from input_text: {host}")
+                # Store this in data so it gets saved
+                data["host"] = ""  # Empty means "use dynamic"
+            else:
+                # No dynamic host available - use production IP
+                host = "192.168.0.99"
+                _LOGGER.info(f"No dynamic host, using production IP: {host}")
+                data["host"] = ""  # Empty means "use dynamic"
+        except Exception as e:
+            _LOGGER.warning(f"Could not read dynamic host, using production IP: {e}")
+            host = "192.168.0.99"
+            data["host"] = ""  # Empty means "use dynamic"
     
     port = data.get("port", DEFAULT_PORT)
     url = f"http://{host}:{port}/health"

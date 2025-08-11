@@ -73,7 +73,10 @@ class BaseTool
     end
 
     # Helper: Call HA service with consistent error handling
-    def call_ha_service(domain, service, data = {}, return_response: false)
+    def call_ha_service(domain, service, data = {}, return_response: false, validate: false)
+      # Optional validation (non-blocking) - mainly for development/debugging
+      validate_ha_service_call(domain, service, data) if validate
+
       result = ha_client.call_service(domain, service, data, return_response: return_response)
 
       # If return_response is true, return the actual result
@@ -162,6 +165,26 @@ class BaseTool
       response = success ? "✅ #{message}" : "❌ #{message}"
       response += "\nData: #{data}" if data
       response
+    end
+
+    # Helper: Validate HA service call parameters (non-blocking)
+    def validate_ha_service_call(domain, service, data)
+      return unless defined?(Services::HAServiceValidator)
+
+      begin
+        validation = Services::HAServiceValidator.validate_service_call(domain, service, data, ha_client: ha_client)
+        unless validation[:valid]
+          SimpleLogger.warn('HA service validation warnings',
+                            tagged: %i[tool ha_validation],
+                            service: "#{domain}.#{service}",
+                            warnings: validation[:errors])
+        end
+      rescue StandardError => e
+        SimpleLogger.debug('HA service validation failed (non-blocking)',
+                           tagged: %i[tool ha_validation],
+                           service: "#{domain}.#{service}",
+                           error: e.message)
+      end
     end
 
     private

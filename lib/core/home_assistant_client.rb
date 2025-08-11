@@ -261,6 +261,110 @@ class HomeAssistantClient
     call_service('camera', 'snapshot', { entity_id: entity_id })
   end
 
+  # Service introspection methods for tool schema validation
+  def get_services
+    get('/api/services')
+  rescue Error => e
+    SimpleLogger.error('Failed to fetch HA services',
+                       tagged: %i[home_assistant services],
+                       error: e.message)
+    {}
+  end
+
+  def get_service_schema(domain, service)
+    services = get_services
+    service_info = services.dig(domain, service)
+
+    return nil unless service_info
+
+    # Extract parameter schema from HA service definition
+    {
+      description: service_info['description'],
+      target: service_info['target'],
+      fields: service_info['fields'] || {},
+      response: service_info['response']
+    }
+  rescue Error => e
+    SimpleLogger.error('Failed to get service schema',
+                       tagged: %i[home_assistant service_schema],
+                       domain: domain,
+                       service: service,
+                       error: e.message)
+    nil
+  end
+
+  def validate_service_call(domain, service, data)
+    schema = get_service_schema(domain, service)
+    return { valid: true, errors: [] } unless schema
+
+    errors = []
+    fields = schema[:fields] || {}
+
+    # Check required fields
+    fields.each do |field_name, field_info|
+      next unless field_info['required']
+
+      unless data.key?(field_name) || data.key?(field_name.to_s) || data.key?(field_name.to_sym)
+        errors << "Missing required field: #{field_name}"
+      end
+    end
+
+    # Validate field types and values
+    data.each do |key, value|
+      field_info = fields[key.to_s]
+      next unless field_info
+
+      # Basic type validation
+      if field_info['selector']
+        errors.concat(validate_field_selector(key, value, field_info['selector']))
+      end
+    end
+
+    { valid: errors.empty?, errors: errors, schema: schema }
+  end
+
+  private
+
+  def validate_field_selector(field_name, value, selector)
+    errors = []
+
+    case selector
+    when Hash
+      # HA uses various selector types like 'number', 'text', 'select', 'color', etc.
+      selector_type = selector.keys.first
+      selector_config = selector.values.first
+
+      case selector_type
+      when 'number'
+        if value.is_a?(Numeric)
+          min_val = selector_config&.dig('min')
+          max_val = selector_config&.dig('max')
+          errors << "Field #{field_name} must be >= #{min_val}" if min_val && value < min_val
+          errors << "Field #{field_name} must be <= #{max_val}" if max_val && value > max_val
+        else
+          errors << "Field #{field_name} must be a number, got #{value.class}"
+        end
+      when 'select'
+        options = selector_config&.dig('options')
+        if options && !options.include?(value.to_s)
+          errors << "Field #{field_name} must be one of: #{options.join(', ')}"
+        end
+      when 'text'
+        unless value.is_a?(String)
+          errors << "Field #{field_name} must be text, got #{value.class}"
+        end
+      when 'boolean'
+        unless [true, false].include?(value)
+          errors << "Field #{field_name} must be true or false"
+        end
+      end
+    end
+
+    errors
+  end
+
+  public
+
   # AWTRIX Display Control Methods
   def awtrix_display_text(text, app_name: 'glitchcube', color: '#FFFFFF', duration: 5, rainbow: false, icon: nil)
     data = {

@@ -5,6 +5,8 @@ import aiohttp
 import asyncio
 import logging
 from typing import Any
+import os
+from pathlib import Path
 
 from homeassistant.components import conversation
 from homeassistant.config_entries import ConfigEntry
@@ -21,12 +23,38 @@ from .const import (
     RESPONSE_KEY,
     ACTIONS_KEY,
     CONTINUE_KEY,
-    MOOD_KEY,
     MEDIA_KEY,
     SUPPORTED_LANGUAGES,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Set up dedicated file logging for conversation agent
+def setup_conversation_logger():
+    """Set up a dedicated logger for the conversation agent."""
+    # Create logs directory if it doesn't exist
+    log_dir = Path("/config/logs")
+    log_dir.mkdir(exist_ok=True)
+    
+    # Create a file handler for conversation logs
+    file_handler = logging.FileHandler(log_dir / "glitchcube_conversation.log")
+    file_handler.setLevel(logging.DEBUG)
+    
+    # Create formatter
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    file_handler.setFormatter(formatter)
+    
+    # Add handler to logger
+    _LOGGER.addHandler(file_handler)
+    _LOGGER.setLevel(logging.DEBUG)
+    
+    return _LOGGER
+
+# Initialize the dedicated logger
+_LOGGER = setup_conversation_logger()
 
 
 async def async_setup_entry(
@@ -45,18 +73,25 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize the conversation entity."""
         self._config_entry = config_entry
-        # Get connection details from config (all containers use host networking)
-        host = config_entry.data.get("host", DEFAULT_HOST)
+        # Get connection details from config
+        # If host is empty or missing, we'll use dynamic host from input_text
+        host = config_entry.data.get("host", "")
         port = config_entry.data.get("port", DEFAULT_PORT)
         
-        self._attr_name = f"Glitch Cube ({host}:{port})"
-        self._attr_unique_id = f"{DOMAIN}_{config_entry.entry_id}"
+        # If no host specified, we'll determine it dynamically
+        if not host:
+            self._attr_name = f"Glitch Cube (Dynamic IP:{port})"
+            # Don't set a fixed URL - we'll get it dynamically
+            self._api_url = None
+        else:
+            self._attr_name = f"Glitch Cube ({host}:{port})"
+            self._api_url = f"http://{host}:{port}/api/v1/conversation"
         
-        # Build API URL from config
-        self._api_url = f"http://{host}:{port}/api/v1/conversation"
+        self._attr_unique_id = f"{DOMAIN}_{config_entry.entry_id}"
         self._timeout = DEFAULT_TIMEOUT  # Optimized for voice interactions
         
-        _LOGGER.info("Initialized Glitch Cube conversation agent: %s", self._api_url)
+        _LOGGER.info("Initialized Glitch Cube conversation agent: %s", 
+                     self._api_url if self._api_url else "Dynamic IP mode")
 
     @property
     def supported_languages(self) -> list[str]:
@@ -65,8 +100,8 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
 
     def _get_current_api_url(self) -> str:
         """Get the current API URL, checking for dynamic host first."""
+        # Always check for dynamic host first (for dynamic IP support)
         try:
-            # Try to get dynamic host from input_text entity
             glitchcube_host_state = self.hass.states.get("input_text.glitchcube_host")
             if glitchcube_host_state and glitchcube_host_state.state:
                 dynamic_host = glitchcube_host_state.state
@@ -75,16 +110,28 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
                 _LOGGER.debug(f"Using dynamic host from input_text: {dynamic_host}")
                 return api_url
         except Exception as e:
-            _LOGGER.warning(f"Could not read dynamic host, using configured: {e}")
+            _LOGGER.warning(f"Could not read dynamic host: {e}")
         
-        # Fallback to configured API URL
-        return self._api_url
+        # If we have a configured URL, use it
+        if self._api_url:
+            return self._api_url
+        
+        # Last resort: use production IP
+        port = self._config_entry.data.get("port", DEFAULT_PORT)
+        fallback_url = f"http://192.168.0.99:{port}/api/v1/conversation"
+        _LOGGER.warning(f"No host configured and no dynamic host available, using fallback: {fallback_url}")
+        return fallback_url
 
     async def async_process(
         self, user_input: conversation.ConversationInput
     ) -> conversation.ConversationResult:
         """Process a conversation turn."""
-        _LOGGER.debug("Processing conversation: %s", user_input.text)
+        _LOGGER.info("=" * 60)
+        _LOGGER.info("NEW CONVERSATION REQUEST")
+        _LOGGER.info("User input: %s", user_input.text)
+        _LOGGER.info("Conversation ID: %s", user_input.conversation_id)
+        _LOGGER.info("Device ID: %s", user_input.device_id)
+        _LOGGER.info("Language: %s", user_input.language)
         
         try:
             # Get current API URL (may be dynamic)
@@ -151,9 +198,31 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         # Extract response text
         response_text = conversation_data.get(RESPONSE_KEY, "I didn't understand that.")
         
+        # DEBUG: Log what we're getting
+        _LOGGER.info(f"GlitchCube response data keys: {conversation_data.keys()}")
+        _LOGGER.info(f"Response text extracted: {response_text[:100]}...")
+        
         # Create intent response
         intent_response = intent.IntentResponse(language=user_input.language)
+        
+        # Get persona and TTS voice info from Sinatra
+        persona = conversation_data.get("persona", "default")
+        tts_voice = conversation_data.get("tts_voice", "JennyNeural")
+        tts_provider = conversation_data.get("tts_provider", "cloud")
+        
+        _LOGGER.info(f"Response from persona: {persona}, voice: {tts_voice}")
+        
+        # Set the speech text for the pipeline
         intent_response.async_set_speech(response_text)
+        
+        # Use TTS action from Sinatra if provided (for persona-specific voices)
+        if conversation_data.get("tts_action"):
+            tts_action = conversation_data["tts_action"]
+            _LOGGER.info(f"Using TTS action from Sinatra for {persona}: {tts_action}")
+            
+            # Set the action on the intent response
+            # This will override the pipeline's default TTS with persona-specific voice
+            intent_response.async_set_action(tts_action)
         
         # Phase 3.5: Ultra-simple continuation logic
         # Let Sinatra decide if conversation should continue based on LLM's decision
@@ -161,10 +230,11 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         # Just use continue_conversation directly - no need for inverse
         continue_conversation = conversation_data.get("continue_conversation", False)
         
-        _LOGGER.debug(
-            "Conversation result: response_length=%d, continue=%s", 
+        _LOGGER.info(
+            "Conversation result: response_length=%d, continue=%s, persona=%s", 
             len(response_text), 
-            continue_conversation
+            continue_conversation,
+            persona
         )
         
         return conversation.ConversationResult(
