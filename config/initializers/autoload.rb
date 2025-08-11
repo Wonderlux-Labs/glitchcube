@@ -134,6 +134,9 @@ module Autoloader
       ServiceRegistry.load(:simple_logger)
       ServiceRegistry.load(:logger_service)
 
+      # Load health-critical services that endpoints need immediately
+      ServiceRegistry.load(:circuit_breaker_service)
+
       # Load error handling if configured
       return unless ENV['ENABLE_ERROR_HANDLING'] != 'false'
 

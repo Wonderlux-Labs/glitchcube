@@ -23,10 +23,11 @@ puts "   Database: #{config['database']}"
 puts "   Username: #{config['username']}"
 puts "   Pool: #{config['pool']}"
 
-# Now load the main application
+# Now load the main application - this loads all the autoloader and services
 require_relative '../../app'
 
-# Load Sidekiq configuration
+# IMPORTANT: Only load Sidekiq configuration AFTER the app is loaded
+# This ensures all Services and modules are available for the middleware
 require_relative 'sidekiq'
 
 puts '✅ Sidekiq environment loaded successfully'
