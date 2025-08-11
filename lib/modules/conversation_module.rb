@@ -238,7 +238,8 @@ class ConversationModule
       # Always include a full TTS action for voice interactions
       # This ensures persona-specific voices are used
       if context[:voice_interaction] || context['voice_interaction']
-        device_id = context[:device_id] || context['device_id'] || 'media_player.square_voice'
+        # Always use square_voice for Wyoming satellite - device_id is a hash, not entity_id
+        media_player = 'media_player.square_voice'
 
         result[:tts_action] = {
           service: 'tts.speak',
@@ -246,7 +247,7 @@ class ConversationModule
             entity_id: "tts.#{tts_config[:provider]}_tts"
           },
           data: {
-            media_player_entity_id: device_id,
+            media_player_entity_id: media_player,
             message: response_text,  # Use the cleaned response_text variable that was fixed above
             options: {
               voice: tts_config[:voice]
