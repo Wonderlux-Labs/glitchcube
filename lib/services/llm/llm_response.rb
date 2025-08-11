@@ -4,7 +4,7 @@ module Services
   # The Response class represents the response received from the OpenRouter/LLM API.
   # It provides convenience methods to access structured outputs, tool calls, and parsed JSON responses.
   class LLMResponse
-    attr_reader :raw_response, :model, :usage
+    attr_reader :raw_response, :model, :usage, :expects_json
 
     # Initializes a new instance of the LLMResponse class.
     #
@@ -15,6 +15,7 @@ module Services
       @usage = response[:usage] || extract_usage
       @content = response[:content] || extract_content
       @tool_calls = response[:tool_calls]
+      @expects_json = response[:expects_json] || false
     end
 
     # Returns the main content/text from the response
@@ -153,17 +154,21 @@ module Services
         text = parsed_content['response'] || parsed_content[:response] ||
                parsed_content['text'] || parsed_content[:text]
 
-        # If we got a text response, use it
-        return text if text && !text.empty?
+        # Return the text if found (even if empty string)
+        return text unless text.nil?
 
-        # Otherwise fall back to content (but log warning for debugging)
+        # No text field found in structured response
+        # Return nil to indicate no textual response available
+        # This prevents raw JSON from being passed as response text
         if defined?(Services::SimpleLogger)
-          Services::SimpleLogger.warn('response_text falling back to content',
-                                      tagged: %i[llm_response debug],
-                                      parsed_keys: parsed_content.keys,
-                                      content_preview: content&.[](0..100))
+          Services::SimpleLogger.debug('No response/text field in structured output',
+                                       tagged: %i[llm_response structured],
+                                       parsed_keys: parsed_content.keys)
         end
+        return nil
       end
+
+      # Non-JSON content is likely plain text response - return as-is
       content
     end
 
@@ -271,10 +276,17 @@ module Services
       cleaned = @content.strip
       cleaned = cleaned.gsub(/^```json\s*/, '').gsub(/\s*```$/, '') if cleaned.include?('```')
 
-      # Only try to parse if it looks like JSON
-      return nil unless cleaned.start_with?('{') || cleaned.start_with?('[')
+      # Only try to parse if it looks like JSON or we're expecting JSON
+      return nil unless @expects_json || cleaned.start_with?('{') || cleaned.start_with?('[')
 
-      parse_json_safely(cleaned)
+      result = parse_json_safely(cleaned)
+
+      # If we expect JSON but failed to parse, try to recover it
+      if result.nil? && @expects_json && cleaned.length.positive?
+        result = recover_json(cleaned)
+      end
+
+      result
     end
 
     def parse_json_safely(str)
@@ -284,6 +296,65 @@ module Services
       JSON.parse(str)
     rescue JSON::ParserError
       nil
+    end
+
+    # Attempt to recover malformed JSON using a small LLM
+    # Only used when we explicitly expect JSON but parsing failed
+    def recover_json(malformed_json)
+      return nil unless defined?(Services::LLMService)
+
+      if defined?(Services::SimpleLogger)
+        Services::SimpleLogger.warn('Attempting JSON recovery with LLM',
+                                    tagged: %i[llm_response json_recovery],
+                                    content_preview: malformed_json[0..200])
+      end
+
+      begin
+        # Use a small, fast model to fix the JSON
+        recovery_prompt = <<~PROMPT
+          Fix this malformed JSON and return ONLY valid JSON, no explanation:
+
+          #{malformed_json}
+
+          Return ONLY the corrected JSON object/array with no additional text.
+        PROMPT
+
+        recovery_response = Services::LLMService.complete(
+          system_prompt: 'You are a JSON fixer. Return only valid JSON with no explanation.',
+          user_message: recovery_prompt,
+          model: 'meta-llama/llama-3.2-3b-instruct',  # Ultra cheap model ($0.01/1M)
+          temperature: 0,
+          max_tokens: 4000
+        )
+
+        recovered_content = if recovery_response.is_a?(Services::LLMResponse)
+                              recovery_response.content
+                            else
+                              recovery_response[:content] || recovery_response['content']
+                            end
+
+        # Clean any markdown or extra text
+        recovered_content = recovered_content.strip
+        recovered_content = recovered_content.gsub(/^```json\s*/, '').gsub(/\s*```$/, '') if recovered_content.include?('```')
+
+        # Try to parse the recovered JSON
+        recovered = JSON.parse(recovered_content)
+
+        if defined?(Services::SimpleLogger)
+          Services::SimpleLogger.info('Successfully recovered JSON',
+                                      tagged: %i[llm_response json_recovery],
+                                      keys: recovered.keys)
+        end
+
+        recovered
+      rescue StandardError => e
+        if defined?(Services::SimpleLogger)
+          Services::SimpleLogger.error('JSON recovery failed',
+                                       tagged: %i[llm_response json_recovery],
+                                       error: e.message)
+        end
+        nil
+      end
     end
   end
 end

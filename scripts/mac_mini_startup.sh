@@ -58,47 +58,41 @@ log "========================================="
 log "Starting Glitch Cube Services"
 log "========================================="
 
+# Robust service dependency management function
+wait_for_service() {
+    local service=$1
+    local check_cmd=$2
+    local max_attempts=30
+    local attempt=1
+    
+    log_info "Waiting for $service to be ready..."
+    while [ $attempt -le $max_attempts ]; do
+        if eval "$check_cmd" >/dev/null 2>&1; then
+            log_success "$service is ready"
+            return 0
+        fi
+        log "Attempt $attempt/$max_attempts: $service not ready, waiting..."
+        sleep 2
+        ((attempt++))
+    done
+    
+    log_error "$service failed to start within timeout"
+    return 1
+}
+
 # 1. Check and start Redis
-log_info "Checking Redis..."
-# Check if Redis is actually responding, not just if process exists
-if "$REDIS_CLI" ping > /dev/null 2>&1; then
-    log_success "Redis is running and responding"
-else
+if ! "$REDIS_CLI" ping 2>/dev/null | grep -q PONG; then
     log "Redis not responding. Starting Redis..."
     "$BREW" services restart redis
-    sleep 3
-    
-    # Verify Redis started
-    if "$REDIS_CLI" ping > /dev/null 2>&1; then
-        log_success "Redis started successfully"
-    else
-        log_error "Failed to start Redis"
-        exit 1
-    fi
 fi
+wait_for_service "Redis" "$REDIS_CLI ping | grep -q PONG" || exit 1
 
 # 2. Check and start PostgreSQL
-log_info "Checking PostgreSQL..."
-if ! "$PG_ISREADY" -q 2>/dev/null; then
+if ! "$PG_ISREADY" -h localhost -p 5432 -q 2>/dev/null; then
     log "PostgreSQL not running. Starting PostgreSQL..."
-    "$BREW" services start postgresql@16  # Adjust version if needed
-    sleep 5
-    
-    # Wait for PostgreSQL to be ready
-    for i in {1..10}; do
-        if "$PG_ISREADY" -q 2>/dev/null; then
-            log_success "PostgreSQL started successfully"
-            break
-        fi
-        if [ $i -eq 10 ]; then
-            log_error "Failed to start PostgreSQL"
-            exit 1
-        fi
-        sleep 2
-    done
-else
-    log_success "PostgreSQL already running"
+    "$BREW" services restart postgresql@16
 fi
+wait_for_service "PostgreSQL" "$PG_ISREADY -h localhost -p 5432 -q" || exit 1
 
 # 3. Start VMware Fusion (if not running)
 log_info "Starting VMware Fusion..."
@@ -141,148 +135,142 @@ if [ "$HASS_UP" = false ]; then
     log "Continuing anyway..."
 fi
 
-# 6. Database Setup and Migration
-log_info "Setting up database..."
+# 6. Load environment variables from .env.production if it exists
 cd "$GLITCHCUBE_DIR"
+if [ -f ".env.production" ]; then
+    log "Loading .env.production for database setup..."
+    set -a
+    source .env.production
+    set +a
+fi
 
-# Set up DATABASE_URL if not already set
-if [ -z "$DATABASE_URL" ]; then
-    # Construct DATABASE_URL from .env.production defaults
-    DATABASE_HOST=${DATABASE_HOST:-localhost}
-    DATABASE_PORT=${DATABASE_PORT:-5432}
-    DATABASE_USER=${DATABASE_USER:-postgres}
-    DATABASE_PASSWORD=${DATABASE_PASSWORD:-postgres}  # No password for local PostgreSQL
-    DATABASE_NAME=${DATABASE_NAME:-glitchcube_production}
+# Run pending migrations with retry logic
+run_migrations() {
+    log_info "Checking for pending database migrations..."
     
-    # Construct URL with or without password
-    if [ -n "$DATABASE_PASSWORD" ]; then
-        export DATABASE_URL="postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}"
-    else
-        export DATABASE_URL="postgresql://${DATABASE_USER}@${DATABASE_HOST}:${DATABASE_PORT}/${DATABASE_NAME}"
-    fi
-    log "Constructed DATABASE_URL from environment variables"
-fi
-
-log "Using DATABASE_URL: ${DATABASE_URL}"
-
-# Wait for database to be ready with timeout
-log "Waiting for database to be ready..."
-DB_READY=false
-for i in $(seq 1 30); do
-    # pg_isready doesn't work well with full DATABASE_URL, extract components
-    if "$PG_ISREADY" -h "${DATABASE_HOST:-localhost}" -p "${DATABASE_PORT:-5432}" -U "${DATABASE_USER:-postgres}" -q 2>/dev/null; then
-        DB_READY=true
-        log_success "Database is ready"
-        break
-    fi
-    log "Database not ready yet, attempt $i/30..."
-    sleep 2
-done
-
-if [ "$DB_READY" = false ]; then
-    log_error "Database failed to become ready after 60 seconds"
-    exit 1
-fi
-
-# Ensure dependencies are installed first
-if [ -f "Gemfile" ]; then
-    log "Installing/checking Ruby dependencies..."
-    "$RUBY_PATH/bundle" check || "$RUBY_PATH/bundle" install
-fi
-
-# Create database if it doesn't exist (idempotent)
-log "Ensuring database exists..."
-if "$RUBY_PATH/bundle" exec rake db:create 2>/dev/null; then
-    log_success "Database creation successful or already exists"
-else
-    log_error "Database creation failed"
-    exit 1
-fi
-
-# Ensure PostGIS extension is available
-log "Checking PostGIS extension availability..."
-if ! "$PSQL" -d "$DATABASE_NAME" -c "CREATE EXTENSION IF NOT EXISTS postgis;" 2>/dev/null; then
-    log "PostGIS extension not available, attempting to install..."
-    # Try to reinstall PostGIS and restart PostgreSQL
-    "$BREW" reinstall postgis
-    "$BREW" services restart postgresql@16
-    sleep 5
+    # Ensure database exists first
+    "$RUBY_PATH/bundle" exec rake db:create 2>/dev/null || true
     
-    # Try again
-    if "$PSQL" -d "$DATABASE_NAME" -c "CREATE EXTENSION IF NOT EXISTS postgis;" 2>/dev/null; then
-        log_success "PostGIS extension installed successfully"
-    else
-        log_error "Failed to install PostGIS extension - migrations may fail"
-        # Don't exit here, let the migration fail and handle it gracefully
-    fi
-else
-    log_success "PostGIS extension is available"
-fi
+    # Run migrations with retry logic
+    local max_retries=3
+    local retry=1
+    
+    while [ $retry -le $max_retries ]; do
+        if "$RUBY_PATH/bundle" exec rake db:migrate 2>/dev/null; then
+            log_success "Database migrations completed successfully"
+            return 0
+        else
+            log "Migration attempt $retry/$max_retries failed"
+            if [ $retry -lt $max_retries ]; then
+                log "Retrying in 5 seconds..."
+                sleep 5
+            fi
+            ((retry++))
+        fi
+    done
+    
+    log_error "Migrations failed after $max_retries attempts - app may handle it"
+    return 1
+}
 
-# Run database migrations (idempotent)
-log "Running database migrations..."
-if "$RUBY_PATH/bundle" exec rake db:migrate; then
-    log_success "Database migrations completed successfully"
-else
-    log_error "Database migrations failed"
-    exit 1
-fi
+run_migrations || true  # Don't exit on migration failure
 
 # 7. Start Glitch Cube application
 log_info "Starting Glitch Cube application..."
 
-# Kill any existing Glitch Cube processes more thoroughly
-log "Stopping any existing Glitch Cube processes..."
+# Clean up existing processes with proper signal escalation
+cleanup_processes() {
+    log "Stopping any existing Glitch Cube processes..."
+    
+    # First try graceful termination with TERM signal
+    pkill -TERM -f "ruby.*app\.rb" 2>/dev/null || true
+    pkill -TERM -f "sidekiq" 2>/dev/null || true
+    pkill -TERM -f "puma.*4567" 2>/dev/null || true
+    pkill -TERM -f "thin.*4567" 2>/dev/null || true
+    
+    # Give processes time to terminate gracefully
+    sleep 3
+    
+    # Check if processes are still running and force kill if necessary
+    if pgrep -f "ruby.*app\.rb" > /dev/null 2>&1; then
+        log "Force killing remaining Ruby processes..."
+        pkill -KILL -f "ruby.*app\.rb" 2>/dev/null || true
+    fi
+    
+    if pgrep -f "sidekiq" > /dev/null 2>&1; then
+        log "Force killing remaining Sidekiq processes..."
+        pkill -KILL -f "sidekiq" 2>/dev/null || true
+    fi
+    
+    # Ensure port 4567 is free
+    if lsof -ti:4567 > /dev/null 2>&1; then
+        log "Force killing processes on port 4567..."
+        lsof -ti:4567 | xargs kill -9 2>/dev/null || true
+    fi
+    
+    sleep 2
+    
+    # Verify ports are free
+    if lsof -i:4567 > /dev/null 2>&1; then
+        log_error "WARNING: Port 4567 still in use after cleanup"
+    fi
+}
 
-# Kill Sinatra app (multiple patterns to catch different invocations)
-pkill -f "ruby.*app\.rb" || true
-pkill -f "puma.*4567" || true
-pkill -f "thin.*4567" || true
-pkill -f "rackup.*4567" || true
+cleanup_processes
 
-# Kill Sidekiq (multiple patterns)
-pkill -f "sidekiq" || true
-pkill -f "ruby.*sidekiq" || true
+# Change to the GlitchCube directory
+cd "$GLITCHCUBE_DIR"
 
-# Kill any processes on port 4567
-lsof -ti:4567 | xargs kill -9 2>/dev/null || true
+# Environment is already loaded above for database setup
 
-# Give processes time to fully terminate
-sleep 3
-
-# Double-check and force kill if necessary
-if pgrep -f "ruby.*app\.rb" > /dev/null; then
-    log "Force killing remaining Ruby processes..."
-    pkill -9 -f "ruby.*app\.rb" || true
-fi
-
-if pgrep -f "sidekiq" > /dev/null; then
-    log "Force killing remaining Sidekiq processes..."
-    pkill -9 -f "sidekiq" || true
-fi
-
-sleep 2
-
-# Start the application using bin/prod (handles both Sinatra and Sidekiq)
+# Start the application using bin/prod in the background
 log_info "Starting Glitch Cube application using bin/prod..."
 export RACK_ENV=production
+export APP_ENV=production
 
-# Use bin/prod which starts both Sinatra and Sidekiq in production mode
-cd "$GLITCHCUBE_DIR"
-RACK_ENV=production ./bin/prod > "$GLITCHCUBE_DIR/logs/glitchcube.log" 2>&1 &
+# Run bin/prod in background, which handles both Sinatra and Sidekiq
+nohup ./bin/prod > "$GLITCHCUBE_DIR/logs/glitchcube.log" 2>&1 &
 GLITCHCUBE_PID=$!
 
 # Give it time to start
 sleep 10
 
-# Check if Sinatra is responding
-if "$CURL" -s -o /dev/null -w "%{http_code}" "http://localhost:4567/health" | grep -q "200"; then
-    log_success "Glitch Cube API is running on port 4567"
-    log_success "Glitch Cube PID: $GLITCHCUBE_PID"
-else
-    log_error "Glitch Cube API failed to start"
+# Verify application started with health check
+verify_app_startup() {
+    local max_attempts=10
+    local attempt=1
+    
+    log "Verifying Glitch Cube startup..."
+    while [ $attempt -le $max_attempts ]; do
+        if "$CURL" -s -o /dev/null -w "%{http_code}" "http://localhost:4567/health" | grep -q "200"; then
+            log_success "Glitch Cube API is running on port 4567"
+            log_success "Glitch Cube PID: $GLITCHCUBE_PID"
+            
+            # Store PID for monitoring
+            echo $GLITCHCUBE_PID > "$GLITCHCUBE_DIR/logs/glitchcube.pid"
+            return 0
+        fi
+        
+        log "Attempt $attempt/$max_attempts: Waiting for app to respond..."
+        sleep 3
+        ((attempt++))
+    done
+    
+    log_error "Glitch Cube API failed to start after $max_attempts attempts"
     log "Check logs at $GLITCHCUBE_DIR/logs/glitchcube.log"
-fi
+    
+    # Show last few lines of log for debugging
+    if [ -f "$GLITCHCUBE_DIR/logs/glitchcube.log" ]; then
+        log "Last 10 lines of application log:"
+        tail -10 "$GLITCHCUBE_DIR/logs/glitchcube.log" | while read line; do
+            log "  $line"
+        done
+    fi
+    
+    return 1
+}
+
+verify_app_startup
 
 # 8. Final status check
 log "========================================="

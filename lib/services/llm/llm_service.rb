@@ -43,7 +43,7 @@ module Services
         end
 
         # Parse and return response
-        parse_response(response, model)
+        parse_response(response, model, options)
       rescue StandardError => e
         if GlitchCube.config.debug?
           Services::SimpleLogger.debug(
@@ -240,7 +240,7 @@ module Services
         response
       end
 
-      def parse_response(response, model)
+      def parse_response(response, model, options = {})
         # Safely extract model from response
         response_model = safe_extract(response) { |r| r[:model] || r['model'] } || model
 
@@ -250,7 +250,8 @@ module Services
           model: response_model,
           content: extract_content(response),
           usage: extract_usage(response),
-          tool_calls: extract_tool_calls(response)
+          tool_calls: extract_tool_calls(response),
+          expects_json: options[:response_format].present?
         )
       end
 

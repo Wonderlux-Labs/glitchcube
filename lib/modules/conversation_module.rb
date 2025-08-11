@@ -135,19 +135,11 @@ class ConversationModule
       # Extract data from response object
       response_text = llm_response.response_text
 
-      # If response_text is still the full JSON, try to extract just the response field
-      if response_text&.start_with?('{') && response_text.include?('"response"')
-        begin
-          parsed = JSON.parse(response_text)
-          if parsed.is_a?(Hash) && parsed['response']
-            Services::SimpleLogger.info('Extracting response from JSON in ConversationModule',
-                                        tagged: %i[conversation debug])
-            response_text = parsed['response']
-          end
-        rescue JSON::ParserError
-          # Keep original response_text if parsing fails
-        end
-      end
+      # response_text is now reliable from LLMResponse class
+      # It returns either:
+      # - The extracted text from structured response
+      # - The raw content if not structured
+      # - nil if structured but no text field
 
       # Phase 3.5: Ultra-simple continuation logic with safe defaults
       # Let the LLM decide if conversation should continue
@@ -255,7 +247,7 @@ class ConversationModule
           },
           data: {
             media_player_entity_id: device_id,
-            message: result[:response],  # Use the cleaned response from result, not response_text
+            message: response_text,  # Use the cleaned response_text variable that was fixed above
             options: {
               voice: tts_config[:voice]
             }
