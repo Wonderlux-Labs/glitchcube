@@ -54,7 +54,27 @@ module GlitchCube
 end
 
 # Define global modules if they don't exist
-module Services; end unless defined?(Services)
+unless defined?(Services)
+  module Services
+    def self.const_missing(name)
+      # Check if constant was already loaded by another thread
+      return const_get(name) if const_defined?(name)
+
+      # Try to load the service via ServiceRegistry
+      service_name = name.to_s.gsub(/([a-z])([A-Z])/, '\1_\2').downcase.to_sym
+
+      if defined?(ServiceRegistry) && ServiceRegistry.registered_services.include?(service_name)
+        ServiceRegistry.load(service_name)
+        # After loading, the constant should exist
+        if const_defined?(name)
+          return const_get(name)
+        end
+      end
+
+      super
+    end
+  end
+end
 module Utils; end unless defined?(Utils)
 
 # Create alias for Services within GlitchCube namespace

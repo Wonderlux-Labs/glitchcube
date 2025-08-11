@@ -16,9 +16,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     GPSMap.Controls.init();
     console.log('✅ Controls initialized');
     
-    // Load landmarks
-    await GPSMap.API.loadLandmarks();
-    console.log('✅ Landmarks loaded');
+    // Load only initial critical features (trash fence + major landmarks)
+    await GPSMap.API.loadInitialData();
+    console.log('✅ Initial features loaded');
     
     // Load route history
     await GPSMap.API.loadRouteHistory();
@@ -27,16 +27,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Load home location
     await GPSMap.API.loadHomeLocation();
     console.log('✅ Home location loaded');
-    
-    // Load GIS data (streets, plazas, toilets)
-    await GPSMap.API.loadStreets();
-    console.log('✅ Streets loaded');
-    
-    await GPSMap.API.loadPlazas();
-    console.log('✅ Plazas loaded');
-    
-    await GPSMap.API.loadToilets();
-    console.log('✅ Toilets loaded');
     
     // Initial location update
     await GPSMap.API.updateLocation();
@@ -52,6 +42,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     console.log('🔥 GPS Map initialization complete!');
     console.log('Tracking via Home Assistant device tracker');
+    console.log('Streets, landmarks, and toilets load on-demand via toggles');
     
   } catch (error) {
     console.error('❌ Initialization failed:', error);

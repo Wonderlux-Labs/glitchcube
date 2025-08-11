@@ -99,7 +99,7 @@ bin/dev
 # Start production server (app + Sidekiq)
 bin/prod
 
-# Interactive console with app loaded
+# Interactive console with app loaded (IMPORTANT: Use this for debugging/commands!)
 bin/console
 
 # Run tests with VCR options
@@ -128,6 +128,60 @@ rake deploy:push["message"]  # Deploy to production
 rake deploy:quick     # Quick deploy with timestamp
 rake deploy:pull      # Manual pull from GitHub (on Mac Mini)
 rake deploy:check     # Check for updates (on Mac Mini)
+```
+
+### Interactive Console Usage
+
+The `bin/console` command gives you a Ruby console with the entire GlitchCube application loaded. This is perfect for:
+
+**Debugging & Inspection:**
+```ruby
+# Check current simulation status
+gps = Services::GpsTrackingService.new
+location = gps.current_location
+puts "#{location[:lat]}, #{location[:lng]} - #{location[:source]}"
+
+# Check database connections
+Landmark.active.count
+Street.active.count
+Conversation.recent.limit(3)
+
+# Inspect Redis data
+require 'redis'
+redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+redis.get('current_cube_location')
+```
+
+**Manual Simulation Control:**
+```ruby
+# Manually trigger simulation worker
+Jobs::SimulateCubeMovementWorker.perform_async
+
+# Clear simulation and restart
+redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+redis.del('current_cube_location')
+
+# Check landmarks near current position
+location = Services::GpsTrackingService.new.current_location
+Landmark.within_meters(location[:lng], location[:lat], 500).limit(5).map(&:name)
+```
+
+**Cache & Service Management:**
+```ruby
+# Clear all caches
+Services::GisCacheService.clear_cache!
+
+# Test services
+Services::HomeAssistantClient.new.test_connection
+```
+
+**Spatial Queries (PostGIS):**
+```ruby
+# Find nearest streets to a location
+Street.nearest(lng: -119.20, lat: 40.78, limit: 3).map(&:name)
+
+# Check if coordinates are within trash fence
+Boundary.cube_within_fence?(40.78, -119.20)
 ```
 
 ## Common Tasks

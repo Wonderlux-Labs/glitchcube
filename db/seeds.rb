@@ -21,11 +21,7 @@ begin
   # - Streets from street_lines.geojson (if Street model exists)
   Landmark.import_from_gis_data('data/gis')
 
-  # Create trash fence boundary
-  if defined?(Boundary)
-    puts '🚧 Creating Burning Man perimeter (trash fence)...'
-    Boundary.create_trash_fence!
-  end
+  # Trash fence is already imported from trash_fence.geojson above
 
   # Report what was imported
   landmark_count = Landmark.count

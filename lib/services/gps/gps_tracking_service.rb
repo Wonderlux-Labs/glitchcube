@@ -10,12 +10,15 @@ module Services
       @ha_client = ::HomeAssistantClient.new
     end
 
-    # Get current GPS coordinates - tries HA first, then simulation, then random landmark
+    # Get current GPS coordinates - tries HA first, then simulation, then initialize simulation
     def current_location
       # Check for simulation mode first
       if Cube::Settings.simulate_cube_movement?
         sim_location = load_simulation_location
         return sim_location if sim_location
+
+        # No simulation data in Redis yet - initialize it with a starting location
+        return initialize_simulation_location
       end
 
       # Try real GPS from Home Assistant
@@ -50,7 +53,7 @@ module Services
         # GPS unavailable - will use random landmark
       end
 
-      # No GPS available - pick random landmark
+      # No GPS available - pick random landmark (only called when not in simulation mode)
       random_landmark_location
     end
 
@@ -67,19 +70,8 @@ module Services
       distance = Utils::BrcCoordinateService.distance_between_points(the_man[:lat], the_man[:lng], lat, lng)
       distance_str = "#{format('%.2f', distance)} mi from The Man"
 
-      # Section logic: classify area into "In The City", "Inner Playa", etc.
-      section =
-        if brc_area.include?('Esplanade') || brc_area =~ /\d{1,2}:\d{2}/
-          'In The City'
-        elsif brc_area.include?('Inner Playa')
-          'Inner Playa'
-        elsif brc_area.include?('Outer Playa')
-          'Outer Playa'
-        elsif brc_area.include?('Deep Playa')
-          'Deep Playa'
-        else
-          'Unknown Area'
-        end
+      # Use improved area classification that understands horseshoe geometry
+      section = Utils::BrcCoordinateService.brc_area_classification(lat, lng)
 
       if nearby_landmarks.any?
         context = nearby_landmarks.first[:context]
@@ -87,7 +79,6 @@ module Services
         {
           context: context,
           landmark_name: landmark_name,
-          brc_area: brc_area,
           section: section,
           distance_from_man: distance_str
         }
@@ -95,7 +86,6 @@ module Services
         {
           context: '',
           landmark_name: nil,
-          brc_area: brc_area,
           section: section,
           distance_from_man: distance_str
         }
@@ -168,6 +158,58 @@ module Services
     end
 
     private
+
+    def initialize_simulation_location
+      # Pick ONE random landmark and save it to Redis to start simulation
+      landmark = Landmark.active.order('RANDOM()').first
+      lat = landmark.latitude.to_f
+      lng = landmark.longitude.to_f
+
+      # Create location data
+      coords = {
+        lat: lat,
+        lng: lng,
+        timestamp: Time.now.utc.iso8601,
+        address: brc_address_from_coordinates(lat, lng),
+        context: location_context(lat, lng),
+        destination: nil, # Will be set when simulation worker picks a destination
+        source: 'simulation_init'
+      }
+
+      # Save to Redis immediately so subsequent calls use this location
+      begin
+        require 'redis'
+        redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+        redis.setex('current_cube_location', 300, JSON.generate(coords)) # 5 minute TTL
+
+        Services::LoggerService.log_api_call(
+          service: 'GPS Tracking',
+          endpoint: 'initialize_simulation_location',
+          message: "Initialized simulation at #{landmark.name} (#{lat}, #{lng})",
+          success: true
+        )
+      rescue StandardError => e
+        Services::LoggerService.log_api_call(
+          service: 'GPS Tracking',
+          endpoint: 'initialize_simulation_location',
+          error: "Failed to save initial location to Redis: #{e.message}",
+          success: false
+        )
+      end
+
+      # Return the location data
+      {
+        lat: lat,
+        lng: lng,
+        timestamp: Time.now,
+        accuracy: nil,
+        battery: nil,
+        address: coords[:address],
+        **(ctx = coords[:context]).is_a?(Hash) ? ctx : { context: ctx },
+        destination: coords[:destination],
+        source: 'simulation_init'
+      }
+    end
 
     def load_simulation_location
       require 'redis'

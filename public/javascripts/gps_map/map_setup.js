@@ -26,8 +26,7 @@ GPSMap.MapSetup = {
     // Create layer groups
     this.createLayerGroups();
     
-    // Add trash fence perimeter
-    this.addTrashFence(goldenSpike);
+    // Trash fence loaded from database via API
     
     return this.map;
   },
@@ -60,26 +59,14 @@ GPSMap.MapSetup = {
   
   // Create layer groups for organization
   createLayerGroups: function() {
-    this.layers.streets = L.layerGroup().addTo(this.map);
-    this.layers.landmarks = L.layerGroup().addTo(this.map);
+    this.layers.boundaries = L.layerGroup().addTo(this.map); // Always show boundaries (trash fence)
+    this.layers.streets = L.layerGroup(); // Load on-demand
+    this.layers.landmarks = L.layerGroup().addTo(this.map); // Show landmarks by default
+    this.layers.toilets = L.layerGroup(); // Load on-demand
     this.layers.proximity = L.layerGroup().addTo(this.map);
-    this.layers.trashFence = L.layerGroup();
-    this.layers.plazas = L.layerGroup();
+    this.layers.plazas = L.layerGroup(); // Deprecated - part of landmarks now
   },
   
-  // Add trash fence perimeter
-  addTrashFence: function(center) {
-    const trashFenceRadius = 5280; // ~1 mile radius in feet
-    
-    L.circle(center, {
-      color: '#666',
-      fillColor: 'transparent',
-      fillOpacity: 0,
-      radius: trashFenceRadius,
-      weight: 2,
-      dashArray: '10, 5'
-    }).addTo(this.map).bindPopup('🚫 Trash Fence Perimeter');
-  },
   
   // Center map on Golden Spike
   centerOnGoldenSpike: function() {

@@ -17,10 +17,12 @@ module Autoloader
       load_critical_services
 
       # Phase 3: Load other non-lazy components
+      # IMPORTANT: load_base_classes MUST come before load_core
+      # because ErrorHandling module is needed by HomeAssistantClient
+      load_base_classes
       load_core
       load_config
       load_utilities
-      load_base_classes
       load_personas
       load_tools
 
@@ -134,9 +136,6 @@ module Autoloader
       ServiceRegistry.load(:simple_logger)
       ServiceRegistry.load(:logger_service)
 
-      # Load health-critical services that endpoints need immediately
-      ServiceRegistry.load(:circuit_breaker_service)
-
       # Load error handling if configured
       return unless ENV['ENABLE_ERROR_HANDLING'] != 'false'
 
@@ -162,7 +161,7 @@ module Autoloader
       # Core infrastructure that other files depend on
       require_if_exists 'lib/core/circuit_breaker'
       require_if_exists 'lib/core/error_handler_integration'
-      # HomeAssistantClient needs ErrorHandling module loaded first
+      require_if_exists 'lib/core/home_assistant_client'
     end
 
     def load_config
@@ -185,9 +184,6 @@ module Autoloader
       Dir[File.join(root, 'lib', 'modules', '*.rb')].each do |f|
         require f unless f.include?('error_handling')
       end
-
-      # Now load HomeAssistantClient after ErrorHandling module is available
-      require_if_exists 'lib/core/home_assistant_client'
 
       # Base tool class before specific tools
       require_if_exists 'lib/tools/base_tool'

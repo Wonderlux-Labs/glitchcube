@@ -38,20 +38,8 @@ ActiveRecord::Schema[7.1].define(version: 20_250_806_160_924) do
     t.index ['service'], name: 'index_api_calls_on_service'
   end
 
-  create_table 'boundaries', force: :cascade do |t|
-    t.string 'name', null: false
-    t.string 'boundary_type', null: false
-    t.jsonb 'coordinates', default: [], null: false
-    t.text 'description'
-    t.jsonb 'properties', default: {}
-    t.boolean 'active', default: true
-    t.datetime 'created_at', null: false
-    t.datetime 'updated_at', null: false
-    t.index ['active'], name: 'index_boundaries_on_active'
-    t.index ['boundary_type'], name: 'index_boundaries_on_boundary_type'
-    t.index ['coordinates'], name: 'index_boundaries_on_coordinates', using: :gin
-    t.index ['name'], name: 'index_boundaries_on_name'
-  end
+  # Could not dump table "boundaries" because of following StandardError
+  #   Unknown type 'geometry(Polygon,4326)' for column 'geom'
 
   create_table 'conversations', force: :cascade do |t|
     t.string 'session_id', null: false
@@ -132,20 +120,8 @@ ActiveRecord::Schema[7.1].define(version: 20_250_806_160_924) do
     t.check_constraint 'srid > 0 AND srid <= 998999', name: 'spatial_ref_sys_srid_check'
   end
 
-  create_table 'streets', force: :cascade do |t|
-    t.string 'name', null: false
-    t.string 'street_type', null: false
-    t.integer 'width', null: false
-    t.jsonb 'coordinates', default: [], null: false
-    t.jsonb 'properties', default: {}
-    t.boolean 'active', default: true
-    t.datetime 'created_at', null: false
-    t.datetime 'updated_at', null: false
-    t.index ['active'], name: 'index_streets_on_active'
-    t.index ['coordinates'], name: 'index_streets_on_coordinates', using: :gin
-    t.index ['name'], name: 'index_streets_on_name'
-    t.index ['street_type'], name: 'index_streets_on_street_type'
-  end
+  # Could not dump table "streets" because of following StandardError
+  #   Unknown type 'geometry(LineString,4326)' for column 'geom'
 
   create_table 'topology', id: :serial, force: :cascade do |t|
     t.string 'name', null: false

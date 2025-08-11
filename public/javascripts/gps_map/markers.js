@@ -9,17 +9,48 @@ GPSMap.Markers = {
   routeMarkers: [],
   
   // Create or update cube marker
-  updateCubeMarker: function(lat, lng, address) {
+  updateCubeMarker: function(lat, lng, locationData) {
     // Remove existing marker
     if (this.cubeMarker) {
       GPSMap.MapSetup.map.removeLayer(this.cubeMarker);
+    }
+    
+    // Create detailed popup content using same data as top info bar
+    let popupContent = '🎲 Glitch Cube Location<br>';
+    
+    if (typeof locationData === 'object' && locationData !== null) {
+      // Prioritize street address over landmark name (same logic as updateInfoPanels)
+      let address = 'Black Rock City';
+      if (locationData.address) {
+        address = locationData.address;
+        // Add landmark context if available
+        if (locationData.landmark_name && locationData.landmark_name !== locationData.address) {
+          address += ` (Near ${locationData.landmark_name})`;
+        }
+      } else if (locationData.landmark_name) {
+        address = locationData.landmark_name;
+      }
+      
+      const section = locationData.section || '';
+      const distance = locationData.distance_from_man || '';
+      
+      popupContent += address;
+      if (section) {
+        popupContent += `<br><strong>${section}</strong>`;
+      }
+      if (distance) {
+        popupContent += `<br>${distance}`;
+      }
+    } else {
+      // Fallback if passed as string (backwards compatibility)
+      popupContent += (locationData || 'Black Rock City');
     }
     
     // Create new marker
     const cubeIcon = GPSMap.Icons.createCustomIcon('cube', 36);
     this.cubeMarker = L.marker([lat, lng], { icon: cubeIcon })
       .addTo(GPSMap.MapSetup.map)
-      .bindPopup('🎲 Glitch Cube Location<br>' + (address || 'Black Rock City'));
+      .bindPopup(popupContent);
     
     return this.cubeMarker;
   },

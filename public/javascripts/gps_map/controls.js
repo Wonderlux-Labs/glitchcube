@@ -2,79 +2,82 @@
 window.GPSMap = window.GPSMap || {};
 
 GPSMap.Controls = {
-  // Control states
+  // Simple control states
   showRoute: false,
-  showPlazas: false,
-  showPortos: false,
-  showMedical: false,
-  showLandmarks: false,
+  showLandmarks: true, // Everything loaded by default except toilets
+  showToilets: false,
   
   // Initialize control handlers
   init: function() {
-    // Route toggle (default active)
-    document.getElementById('routeToggle').addEventListener('click', () => {
+    this.initRouteToggle();
+    this.initLandmarksToggle();
+    this.initToiletsToggle();
+    this.initCenterButton();
+  },
+  
+  initRouteToggle: function() {
+    const btn = document.getElementById('routeToggle');
+    if (!btn) return;
+    
+    btn.addEventListener('click', () => {
       this.showRoute = !this.showRoute;
-      const btn = document.getElementById('routeToggle');
       const showing = GPSMap.Markers.toggleRouteHistory();
       btn.classList.toggle('active', showing);
       btn.textContent = showing ? 'HIDE route' : 'SHOW route';
     });
-    
-    // Plaza toggle
-    document.getElementById('plazaToggle').addEventListener('click', () => {
-      this.showPlazas = !this.showPlazas;
-      const btn = document.getElementById('plazaToggle');
-      btn.classList.toggle('active', this.showPlazas);
-      btn.textContent = this.showPlazas ? 'HIDE plazas' : 'SHOW plazas';
-      
-      if (this.showPlazas) {
-        GPSMap.MapSetup.layers.plazas.addTo(GPSMap.MapSetup.map);
-      } else {
-        GPSMap.MapSetup.map.removeLayer(GPSMap.MapSetup.layers.plazas);
-      }
-    });
-    
-    // Medical toggle
-    document.getElementById('medicalToggle').addEventListener('click', () => {
-      this.showMedical = !this.showMedical;
-      const btn = document.getElementById('medicalToggle');
-      btn.classList.toggle('active', this.showMedical);
-      btn.textContent = this.showMedical ? 'HIDE medical' : 'SHOW medical';
-      this.updateLandmarkVisibility();
-    });
-    
-    // Landmarks toggle
-    document.getElementById('landmarksToggle').addEventListener('click', () => {
-      this.showLandmarks = !this.showLandmarks;
-      const btn = document.getElementById('landmarksToggle');
-      btn.classList.toggle('active', this.showLandmarks);
-      btn.textContent = this.showLandmarks ? 'HIDE landmarks' : 'SHOW landmarks';
-      this.updateLandmarkVisibility();
-    });
-    
-    // Portos toggle
-    document.getElementById('portosToggle').addEventListener('click', () => {
-      this.showPortos = !this.showPortos;
-      const btn = document.getElementById('portosToggle');
-      btn.classList.toggle('active', this.showPortos);
-      btn.textContent = this.showPortos ? 'HIDE portos' : 'SHOW portos';
-      this.updateLandmarkVisibility();
-    });
-    
-    // Center map button
-    document.getElementById('centerToggle').addEventListener('click', () => {
-      GPSMap.Markers.centerOnCube();
-    });
-    
-    // Route is hidden by default, user can click to show
   },
   
-  // Update landmark visibility based on toggle states
-  updateLandmarkVisibility: function() {
-    GPSMap.Landmarks.updateLandmarkVisibility(
-      this.showPortos,
-      this.showMedical,
-      this.showLandmarks
-    );
+  initLandmarksToggle: function() {
+    const btn = document.getElementById('landmarksToggle');
+    if (!btn) return;
+    
+    // Set initial state - landmarks shown by default
+    btn.classList.add('active');
+    
+    btn.addEventListener('click', () => {
+      this.showLandmarks = !this.showLandmarks;
+      btn.classList.toggle('active', this.showLandmarks);
+      btn.textContent = this.showLandmarks ? 'HIDE landmarks' : 'SHOW landmarks';
+      
+      if (this.showLandmarks) {
+        GPSMap.MapSetup.layers.landmarks.addTo(GPSMap.MapSetup.map);
+      } else {
+        GPSMap.MapSetup.map.removeLayer(GPSMap.MapSetup.layers.landmarks);
+      }
+    });
+  },
+  
+  initToiletsToggle: function() {
+    const btn = document.getElementById('portosToggle');
+    if (!btn) return;
+    
+    btn.addEventListener('click', async () => {
+      this.showToilets = !this.showToilets;
+      btn.classList.toggle('active', this.showToilets);
+      btn.textContent = this.showToilets ? 'HIDE toilets' : 'SHOW toilets';
+      
+      if (this.showToilets) {
+        // Load toilets on demand
+        btn.textContent = 'Loading...';
+        await GPSMap.API.loadToiletsNearby();
+        btn.textContent = 'HIDE toilets';
+        if (GPSMap.MapSetup.layers.toilets) {
+          GPSMap.MapSetup.layers.toilets.addTo(GPSMap.MapSetup.map);
+        }
+      } else {
+        if (GPSMap.MapSetup.layers.toilets) {
+          GPSMap.MapSetup.map.removeLayer(GPSMap.MapSetup.layers.toilets);
+        }
+      }
+    });
+  },
+  
+  initCenterButton: function() {
+    const btn = document.getElementById('centerToggle');
+    if (!btn) return;
+    
+    btn.addEventListener('click', () => {
+      GPSMap.Markers.centerOnCube();
+    });
   }
 };

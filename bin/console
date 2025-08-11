@@ -14,13 +14,11 @@ Dotenv.load('.env', '.env.defaults')
 # Set the environment
 ENV['RACK_ENV'] ||= 'development'
 
-# Require the main app and all dependencies
+# Load the app properly with all its initializers and correct load order
+require_relative '../app'
 
-# Load all lib files
-Dir[File.join(__dir__, '../lib/**/*.rb')].each { |f| require f }
-
-# Load all models if using ActiveRecord
-if defined?(ActiveRecord)
+# Models should already be loaded by the app, but load them if not
+if defined?(ActiveRecord) && !defined?(Conversation)
   Dir[File.join(__dir__, '../app/models/**/*.rb')].each { |f| require f }
 end
 
@@ -32,10 +30,10 @@ module ConsoleHelpers
     # Clear Ruby's loaded features for our app files
     $LOADED_FEATURES.reject! { |f| f.include?('/glitchcube/') }
 
-    # Reload lib files
-    Dir[File.join(__dir__, '../lib/**/*.rb')].each { |f| load f }
+    # Reload the app with proper load order
+    load File.join(__dir__, '../app.rb')
 
-    # Reload models
+    # Reload models if needed
     if defined?(ActiveRecord)
       Dir[File.join(__dir__, '../app/models/**/*.rb')].each { |f| load f }
     end

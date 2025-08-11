@@ -89,8 +89,7 @@ module DatabaseConfig
       config['encoding'] ||= 'unicode'
       config['pool'] ||= ENV.fetch('DB_POOL_SIZE', 5).to_i
 
-      # Handle PostGIS adapter
-      config['adapter'] = 'postgresql' if config['adapter'] == 'postgis'
+      # Keep PostGIS adapter as-is (don't convert to postgresql)
 
       config
     end

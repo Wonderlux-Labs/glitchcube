@@ -46,7 +46,10 @@ class ServiceRegistry
 
         # Get service info
         service = @services[name]
-        raise ServiceNotFoundError, "Service #{name} not registered" unless service
+        unless service
+          caller_info = caller(1, 1).first
+          raise ServiceNotFoundError, "Service #{name} not registered (called from: #{caller_info})"
+        end
 
         # Mark as loading to detect circular deps
         @loading.add(name)
@@ -68,7 +71,10 @@ class ServiceRegistry
           full_path += '.rb' unless full_path.end_with?('.rb')
 
           # Load the service file
-          raise ServiceNotFoundError, "Service file not found: #{full_path}" unless File.exist?(full_path)
+          unless File.exist?(full_path)
+            caller_info = caller(1, 1).first
+            raise ServiceNotFoundError, "Service file not found: #{full_path} (called from: #{caller_info})"
+          end
 
           require full_path
           @loaded[name] = true
@@ -116,7 +122,10 @@ class ServiceRegistry
       end
 
       service = @services[name]
-      raise ServiceNotFoundError, "Service #{name} not registered" unless service
+      unless service
+        caller_info = caller(1, 1).first
+        raise ServiceNotFoundError, "Service #{name} not registered (called from: #{caller_info})"
+      end
 
       @loading.add(name)
 
@@ -133,7 +142,10 @@ class ServiceRegistry
 
         full_path += '.rb' unless full_path.end_with?('.rb')
 
-        raise ServiceNotFoundError, "Service file not found: #{full_path}" unless File.exist?(full_path)
+        unless File.exist?(full_path)
+          caller_info = caller(1, 1).first
+          raise ServiceNotFoundError, "Service file not found: #{full_path} (called from: #{caller_info})"
+        end
 
         require full_path
         @loaded[name] = true

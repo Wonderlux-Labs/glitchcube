@@ -163,27 +163,226 @@ module GlitchCube
           # GeoJSON data endpoints for map overlay
           app.get '/api/v1/gis/streets' do
             content_type :json
-            send_file File.join(settings.root, 'data/gis/street_lines.geojson')
+
+            # Use cached data for this expensive operation
+            result = Services::GisCacheService.cached_streets
+            json(result)
           end
 
           app.get '/api/v1/gis/toilets' do
             content_type :json
-            send_file File.join(settings.root, 'data/gis/toilets.geojson')
+
+            # Use cached data for this expensive operation
+            result = Services::GisCacheService.cached_toilets
+            json(result)
           end
 
           app.get '/api/v1/gis/blocks' do
             content_type :json
-            send_file File.join(settings.root, 'data/gis/city_blocks.geojson')
+
+            # Use cached data for this expensive operation
+            result = Services::GisCacheService.cached_city_blocks
+            json(result)
           end
 
           app.get '/api/v1/gis/plazas' do
             content_type :json
-            send_file File.join(settings.root, 'data/gis/plazas.geojson')
+
+            # Use cached data for this expensive operation
+            result = Services::GisCacheService.cached_plazas
+            json(result)
+          end
+
+          # Viewport-based endpoints for progressive loading
+          app.get '/api/v1/gis/streets/viewport' do
+            content_type :json
+
+            # Get viewport bounds from params
+            sw_lng = params[:sw_lng]&.to_f
+            sw_lat = params[:sw_lat]&.to_f
+            ne_lng = params[:ne_lng]&.to_f
+            ne_lat = params[:ne_lat]&.to_f
+
+            if sw_lng && sw_lat && ne_lng && ne_lat
+              # Use PostGIS spatial query for viewport
+              streets = Street.active
+                              .within_viewport(sw_lng, sw_lat, ne_lng, ne_lat)
+                              .limit(100) # Limit for performance
+
+              features = streets.map do |street|
+                {
+                  type: 'Feature',
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: street.coordinates
+                  },
+                  properties: {
+                    id: street.id,
+                    name: street.name,
+                    street_type: street.street_type,
+                    width: street.width
+                  }
+                }
+              end
+
+              json({
+                     type: 'FeatureCollection',
+                     features: features,
+                     count: features.length,
+                     source: 'viewport_query'
+                   })
+            else
+              status 400
+              json({ error: 'Missing viewport bounds parameters' })
+            end
+          end
+
+          app.get '/api/v1/gis/landmarks/nearby' do
+            content_type :json
+
+            lat = params[:lat]&.to_f
+            lng = params[:lng]&.to_f
+            radius = (params[:radius] || 1000).to_f # Default 1km radius
+
+            if lat && lng
+              # Use PostGIS proximity query
+              landmarks = Landmark.within_meters(lng, lat, radius)
+                                  .limit(50) # Limit for performance
+
+              features = landmarks.map do |landmark|
+                {
+                  name: landmark.name,
+                  lat: landmark.latitude.to_f,
+                  lng: landmark.longitude.to_f,
+                  type: landmark.landmark_type,
+                  distance: landmark.respond_to?(:distance_meters) ? landmark.distance_meters : nil,
+                  description: landmark.description
+                }
+              end
+
+              json({
+                     landmarks: features,
+                     count: features.length,
+                     center: { lat: lat, lng: lng },
+                     radius: radius,
+                     source: 'proximity_query'
+                   })
+            else
+              status 400
+              json({ error: 'Missing lat/lng parameters' })
+            end
+          end
+
+          app.get '/api/v1/gis/blocks/viewport' do
+            content_type :json
+
+            sw_lng = params[:sw_lng]&.to_f
+            sw_lat = params[:sw_lat]&.to_f
+            ne_lng = params[:ne_lng]&.to_f
+            ne_lat = params[:ne_lat]&.to_f
+
+            if sw_lng && sw_lat && ne_lng && ne_lat
+              # Use PostGIS spatial query for viewport
+              blocks = Boundary.active
+                               .where(boundary_type: 'city_block')
+                               .where('geom && ST_MakeEnvelope(?, ?, ?, ?, 4326)', sw_lng, sw_lat, ne_lng, ne_lat)
+                               .limit(50) # Limit for performance
+
+              features = blocks.map do |block|
+                {
+                  type: 'Feature',
+                  geometry: {
+                    type: 'Polygon',
+                    coordinates: block.coordinates
+                  },
+                  properties: {
+                    id: block.id,
+                    name: block.name
+                  }
+                }
+              end
+
+              json({
+                     type: 'FeatureCollection',
+                     features: features,
+                     count: features.length,
+                     source: 'viewport_query'
+                   })
+            else
+              status 400
+              json({ error: 'Missing viewport bounds parameters' })
+            end
+          end
+
+          # Load everything except toilets - full map view
+          app.get '/api/v1/gis/initial' do
+            content_type :json
+
+            # Load trash fence and all landmarks except toilets
+            fence = Boundary.trash_fence
+            all_landmarks = Landmark.active.where.not(landmark_type: 'toilet')
+
+            features = []
+
+            # Add trash fence
+            if fence
+              features << {
+                type: 'Feature',
+                geometry: {
+                  type: 'Polygon',
+                  coordinates: fence.coordinates
+                },
+                properties: {
+                  id: "boundary-#{fence.id}",
+                  name: fence.name,
+                  feature_type: 'boundary'
+                }
+              }
+            end
+
+            # Add all landmarks (except toilets)
+            all_landmarks.each do |landmark|
+              feature_type = case landmark.landmark_type
+                             when 'center', 'sacred', 'gathering' then 'major_landmark'
+                             else 'landmark'
+                             end
+
+              features << {
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: [landmark.longitude.to_f, landmark.latitude.to_f]
+                },
+                properties: {
+                  id: "landmark-#{landmark.id}",
+                  name: landmark.name,
+                  feature_type: feature_type,
+                  landmark_type: landmark.landmark_type
+                }
+              }
+            end
+
+            json({
+                   type: 'FeatureCollection',
+                   features: features,
+                   count: features.length,
+                   source: 'initial_load'
+                 })
           end
 
           app.get '/api/v1/gis/trash_fence' do
             content_type :json
-            send_file File.join(settings.root, 'data/gis/trash_fence.geojson')
+
+            # Use cached data for this expensive operation
+            result = Services::GisCacheService.cached_trash_fence
+            json(result)
+          end
+
+          # Clear GIS cache endpoint
+          app.delete '/api/v1/gis/cache' do
+            content_type :json
+            success = Services::GisCacheService.clear_cache!
+            json({ success: success, message: 'GIS cache cleared' })
           end
 
           app.get '/api/v1/gps/landmarks' do
