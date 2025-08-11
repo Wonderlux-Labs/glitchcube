@@ -37,10 +37,8 @@ RSpec.describe Services::LLMService do
       end
 
       context 'with retries enabled' do
-        around do |example|
-          ENV['ENABLE_RETRIES'] = 'true'
-          example.run
-          ENV.delete('ENABLE_RETRIES')
+        before do
+          stub_const('ENV', ENV.to_h.merge('ENABLE_RETRIES' => 'true'))
         end
 
         it 'retries on rate limit errors', :vcr do

@@ -146,16 +146,14 @@ module Autoloader
     def load_all_services_for_tests
       # Load all registered services for test environment
       # This ensures specs can reference Services::ClassName directly
-      puts 'Loading all services for test environment...' if ENV['DEBUG']
       ServiceRegistry.registered_services.each do |service|
         ServiceRegistry.load(service)
       rescue StandardError => e
         # Skip services that have issues loading
-        puts "Warning: Could not load service #{service}: #{e.message}"
+        # Use stderr for warnings since logger may not be available yet
+        warn "Warning: Could not load service #{service}: #{e.message}"
       end
     end
-
-    private
 
     def load_core
       # Core infrastructure that other files depend on

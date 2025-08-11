@@ -18,7 +18,9 @@ if ENV.fetch('CI', false) || ENV.fetch('WITH_COVERAGE', false)
   end
 end
 
-ENV['RACK_ENV'] = 'test'
+# Ensure we're in test environment
+# This is the only place where we set ENV directly at startup
+ENV['RACK_ENV'] ||= 'test'
 
 # Load environment variables - CI can override by setting before .env load
 # Priority: .env > .env.test > .env.defaults (Dotenv.load uses first-wins)

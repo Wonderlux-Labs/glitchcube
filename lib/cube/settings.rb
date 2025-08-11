@@ -5,6 +5,9 @@ module Cube
     class << self
       # Feature Toggles
       def simulate_cube_movement?
+        # Check for override first
+        return @overrides[:simulate_cube_movement] if overridden?(:simulate_cube_movement)
+
         # Default: true in development, false in production
         # Can be overridden with SIMULATE_CUBE_MOVEMENT env var
         if ENV.key?('SIMULATE_CUBE_MOVEMENT')
