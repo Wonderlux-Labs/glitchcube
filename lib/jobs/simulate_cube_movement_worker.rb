@@ -60,11 +60,11 @@ module Jobs
                   {
                     'destinations' => default_destinations,
                     'movement' => {
-                      'speed' => 0.002, # 5x faster movement
+                      'speed' => 0.00008, # MUCH smaller steps for gradual movement
                       'arrival_threshold' => 0.0005,
-                      'update_interval' => 15, # Update every 3 seconds instead of 10
+                      'update_interval' => 3, # Update every 3 seconds
                       'max_duration' => 1800,
-                      'wander_factor' => 0.2
+                      'wander_factor' => 0.05 # Minimal wandering
                     },
                     'start_location' => {
                       'lat' => 40.7840,
@@ -107,22 +107,38 @@ module Jobs
     end
 
     def load_current_location
+      # First try to load from Redis (current location)
+      begin
+        require 'redis'
+        redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+        cached = redis.get('current_cube_location')
+        if cached
+          coords = JSON.parse(cached)
+          logger.info "📍 Resuming simulation from Redis: #{coords['lat']}, #{coords['lng']}"
+          return { lat: coords['lat'], lng: coords['lng'] }
+        end
+      rescue StandardError => e
+        logger.warn "Could not load from Redis: #{e.message}"
+      end
+
+      # Then try the file system
       if File.exist?(SIM_FILE)
         begin
           coords = JSON.parse(File.read(SIM_FILE))
+          logger.info "📍 Resuming simulation from file: #{coords['lat']}, #{coords['lng']}"
           return { lat: coords['lat'], lng: coords['lng'] }
         rescue StandardError
           # Fall through to default
         end
       end
 
-      # No existing simulation - pick a random starting destination
-      random_start = @config['destinations'].sample
-      logger.info "🎯 Starting simulation at random location: #{random_start['name']}"
+      # No existing simulation - start at a known location (don't warp)
+      start_location = @config['start_location']
+      logger.info "🎯 Starting NEW simulation at: #{start_location['name']}"
 
       {
-        lat: random_start['lat'],
-        lng: random_start['lng']
+        lat: start_location['lat'],
+        lng: start_location['lng']
       }
     end
 
@@ -225,6 +241,10 @@ module Jobs
       require 'redis'
       redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
       redis.setex('current_cube_location', 300, JSON.generate(coords))
+
+      # Also save to file as backup
+      ensure_directory(File.dirname(SIM_FILE))
+      File.write(SIM_FILE, JSON.pretty_generate(coords))
 
       # Save history
       save_history

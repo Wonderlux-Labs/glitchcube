@@ -22,7 +22,16 @@ GPSMap.Landmarks = {
   // Add landmarks to map
   addLandmarksToMap: function() {
     this.landmarks.forEach(landmark => {
-      const landmarkIcon = GPSMap.Icons.createLandmarkIcon(landmark.type, 24);
+      // Use custom icons for special landmarks, emoji for others
+      let landmarkIcon;
+      if (landmark.type === 'center') {
+        landmarkIcon = GPSMap.Icons.createCustomIcon('man', 24);
+      } else if (landmark.type === 'sacred') {
+        landmarkIcon = GPSMap.Icons.createCustomIcon('temple', 24);
+      } else {
+        landmarkIcon = GPSMap.Icons.createLandmarkIcon(landmark.type, 24);
+      }
+      
       landmark.marker = L.marker([landmark.lat, landmark.lng], {
         icon: landmarkIcon
       });
@@ -98,11 +107,25 @@ GPSMap.Landmarks = {
         
         // Highlight landmarks within proximity threshold
         if (distance <= GPSMap.Utils.PROXIMITY_THRESHOLD_METERS) {
-          const proximityIcon = GPSMap.Icons.createLandmarkIcon(landmark.type, 28);
+          let proximityIcon;
+          if (landmark.type === 'center') {
+            proximityIcon = GPSMap.Icons.createCustomIcon('man', 28);
+          } else if (landmark.type === 'sacred') {
+            proximityIcon = GPSMap.Icons.createCustomIcon('temple', 28);
+          } else {
+            proximityIcon = GPSMap.Icons.createLandmarkIcon(landmark.type, 28);
+          }
           proximityIcon.options.className += ' proximity-highlight';
           landmark.marker.setIcon(proximityIcon);
         } else {
-          const normalIcon = GPSMap.Icons.createLandmarkIcon(landmark.type, 24);
+          let normalIcon;
+          if (landmark.type === 'center') {
+            normalIcon = GPSMap.Icons.createCustomIcon('man', 24);
+          } else if (landmark.type === 'sacred') {
+            normalIcon = GPSMap.Icons.createCustomIcon('temple', 24);
+          } else {
+            normalIcon = GPSMap.Icons.createLandmarkIcon(landmark.type, 24);
+          }
           landmark.marker.setIcon(normalIcon);
         }
       }

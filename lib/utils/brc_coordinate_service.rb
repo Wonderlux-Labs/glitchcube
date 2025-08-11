@@ -34,30 +34,33 @@ module Utils
     STREETS_BY_DISTANCE = STREET_DISTANCES.sort_by { |_name, dist| dist }.map(&:first).freeze
 
     class << self
-      # Convert GPS coordinates to BRC address format
+      # Convert GPS coordinates to BRC address format using PostGIS street data
       def brc_address_from_coordinates(lat, lng)
-        # Calculate distance from GOLDEN_SPIKE_COORDS
+        # Use PostGIS to find actual nearest street intersections (coordinate order fixed)
+        if defined?(Street) && Street.table_exists?
+          intersection = Street.nearest_intersection(lat, lng)
+
+          if intersection[:radial] && intersection[:arc]
+            return "#{intersection[:radial]} & #{intersection[:arc]}"
+          end
+        end
+
+        # Fallback to mathematical calculation if no PostGIS data available
         distance = distance_between_points(GOLDEN_SPIKE_COORDS[:lat], GOLDEN_SPIKE_COORDS[:lng], lat, lng)
 
-        # Get radial street (time-based) using GOLDEN_SPIKE_COORDS as center
-        bearing = bearing_between_points(GOLDEN_SPIKE_COORDS[:lat], GOLDEN_SPIKE_COORDS[:lng], lat, lng)
-        radial_street = bearing_to_time_street(bearing)
+        # If within city street radius, calculate intersection mathematically
+        if distance <= 1.1 # Within Kilgore street radius
+          bearing = bearing_between_points(GOLDEN_SPIKE_COORDS[:lat], GOLDEN_SPIKE_COORDS[:lng], lat, lng)
+          radial_street = bearing_to_time_street(bearing)
+          concentric_street = distance_to_concentric_street(distance)
 
-        # Check if we're in deep playa (beyond the city)
-        if distance > 1.2 # Beyond Kilgore distance
-          return 'Deep Playa'
-        elsif distance > 1.09 # Beyond last street but not deep playa
-          return 'Outer Playa'
+          if radial_street && concentric_street
+            return "#{radial_street} & #{concentric_street}"
+          end
         end
 
-        # Get concentric street (lettered/named) using REAL distances
-        concentric_street = distance_to_concentric_street(distance)
-
-        if radial_street && concentric_street
-          "#{radial_street} & #{concentric_street}"
-        else
-          'Inner Playa'
-        end
+        # Beyond city streets - classify as playa location
+        classify_playa_location(lat, lng)
       end
 
       # Calculate distance between two GPS points (in miles)
@@ -75,7 +78,72 @@ module Utils
         GOLDEN_SPIKE_COORDS
       end
 
+      # Get BRC area classification (Inner Playa, Deep Playa, etc.)
+      def brc_area_classification(lat, lng)
+        # Calculate distance from center to determine city vs playa
+        distance = distance_between_points(GOLDEN_SPIKE_COORDS[:lat], GOLDEN_SPIKE_COORDS[:lng], lat, lng)
+
+        # If between Esplanade and outermost streets, classify as city
+        if distance.between?(STREET_DISTANCES['Esplanade'], 1.1)
+          # Also check city block boundaries if available for confirmation
+          if defined?(Boundary) && Boundary.table_exists? && Boundary.in_city?(lat, lng)
+            return 'In The City'
+          end
+
+          # If in street radius, assume city
+          return 'In The City'
+        end
+
+        # Inside Esplanade or beyond city streets - classify as playa
+        classify_playa_location(lat, lng)
+      end
+
       private
+
+      # Classify playa location accounting for horseshoe geometry
+      def classify_playa_location(lat, lng)
+        # Distance from The Man
+        distance = distance_between_points(GOLDEN_SPIKE_COORDS[:lat], GOLDEN_SPIKE_COORDS[:lng], lat, lng)
+
+        # Bearing from The Man to determine position on horseshoe
+        bearing = bearing_between_points(GOLDEN_SPIKE_COORDS[:lat], GOLDEN_SPIKE_COORDS[:lng], lat, lng)
+
+        # Check if we're within the Temple area (Inner Playa boundary)
+        temple_coords = { lat: 40.7775, lng: -119.2030 } # Approximate Temple location
+        distance_from_temple = distance_between_points(temple_coords[:lat], temple_coords[:lng], lat, lng)
+
+        # Horseshoe geometry:
+        # - Inner Playa: Between Esplanade and Temple area (roughly up to ~0.8 miles from center)
+        # - Deep Playa: Beyond Temple area
+        # - At 2:00 and 10:00 positions, you go almost directly from city to Deep Playa
+
+        # Convert bearing to time for position checking
+        time_position = bearing_to_approximate_time(bearing)
+
+        # Check if we're at the "wings" of the horseshoe (2:00 or 10:00 areas)
+        is_at_horseshoe_wings = time_position && (time_position <= 3.0 || time_position >= 9.0)
+
+        if distance <= 0.5 || (!is_at_horseshoe_wings && distance <= 1.2 && distance_from_temple <= 0.8)
+          # Very close to center OR (not at wings AND near temple area)
+          'Inner Playa'
+        else
+          # At the wings OR far from center or well beyond Temple - all Deep Playa
+          'Deep Playa'
+        end
+      end
+
+      # Convert bearing to approximate time (for horseshoe wing detection)
+      def bearing_to_approximate_time(bearing)
+        # Simplified version of bearing_to_time_street that returns decimal time
+        normalized_bearing = bearing % 360
+        hour_decimal = 6.0 + ((normalized_bearing - 180.0) / 30.0)
+
+        # Wrap around at 12
+        hour_decimal %= 12
+        hour_decimal = 12 if hour_decimal.zero?
+
+        hour_decimal
+      end
 
       # Convert distance to BRC concentric street using REAL data
       def distance_to_concentric_street(distance_miles)

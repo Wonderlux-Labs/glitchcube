@@ -11,8 +11,8 @@ GPSMap.API = {
       const data = await response.json();
       
       if (data.lat && data.lng) {
-        // Update cube marker
-        GPSMap.Markers.updateCubeMarker(data.lat, data.lng, data.address);
+        // Update cube marker with full location context
+        GPSMap.Markers.updateCubeMarker(data.lat, data.lng, data);
         
         // Update info panels
         this.updateInfoPanels(data);
@@ -47,12 +47,18 @@ GPSMap.API = {
     const coordinatesEl = document.getElementById('coordinates');
     const simModeIndicator = document.getElementById('simModeIndicator');
     
-    // Update address
+    // Update address - prioritize street address over landmark name
     let addressStr = '';
-    if (data.landmark_name) {
-      addressStr = data.landmark_name;
-    } else if (data.address) {
+    if (data.address) {
       addressStr = data.address;
+      // Add landmark context if available
+      if (data.landmark_name && data.landmark_name !== data.address) {
+        addressStr += ` (Near ${data.landmark_name})`;
+      }
+    } else if (data.landmark_name) {
+      addressStr = data.landmark_name;
+    } else {
+      addressStr = 'Black Rock City';
     }
     addressBar.textContent = addressStr;
     
@@ -111,20 +117,124 @@ GPSMap.API = {
     }
   },
   
-  // Load landmarks
-  loadLandmarks: async function() {
+  // Load initial critical features only
+  loadInitialData: async function() {
     try {
-      const response = await fetch(window.APP_CONFIG.api.landmarksEndpoint);
+      const response = await fetch('/api/v1/gis/initial');
       const data = await response.json();
       
-      if (data.landmarks && data.landmarks.length > 0) {
-        GPSMap.Landmarks.loadLandmarks(data.landmarks);
-        console.log(`✅ Loaded ${data.landmarks.length} landmarks from database`);
-      } else {
-        console.warn('No landmarks loaded from database');
+      if (data.features) {
+        data.features.forEach(feature => {
+          if (feature.properties.feature_type === 'boundary') {
+            // Add trash fence
+            if (feature.geometry.type === 'Polygon') {
+              const coords = feature.geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
+              L.polygon(coords, {
+                color: '#FF6B6B',
+                fillColor: 'transparent',
+                fillOpacity: 0,
+                weight: 2,
+                dashArray: '10, 5',
+                interactive: false // Don't intercept clicks
+              }).addTo(GPSMap.MapSetup.layers.boundaries);
+            }
+          } else if (feature.properties.feature_type === 'major_landmark') {
+            // Add major landmarks (Man, Temple, Center Camp)
+            const lat = feature.geometry.coordinates[1];
+            const lng = feature.geometry.coordinates[0];
+            
+            // Use custom SVG icons for special landmarks
+            let icon;
+            if (feature.properties.landmark_type === 'center') {
+              icon = GPSMap.Icons.createCustomIcon('man', 32);
+            } else if (feature.properties.landmark_type === 'sacred') {
+              icon = GPSMap.Icons.createCustomIcon('temple', 32);
+            } else {
+              icon = GPSMap.Icons.createLandmarkIcon(feature.properties.landmark_type, 32);
+            }
+            
+            L.marker([lat, lng], { icon: icon })
+              .addTo(GPSMap.MapSetup.layers.landmarks)
+              .bindPopup(`<strong>${feature.properties.name}</strong>`);
+          } else if (feature.properties.feature_type === 'landmark') {
+            // Add all other landmarks (plazas, medical, art, etc.)
+            const lat = feature.geometry.coordinates[1];
+            const lng = feature.geometry.coordinates[0];
+            
+            // Use custom icons for special landmarks, emoji for others
+            let icon;
+            if (feature.properties.landmark_type === 'center') {
+              icon = GPSMap.Icons.createCustomIcon('man', 20);
+            } else if (feature.properties.landmark_type === 'sacred') {
+              icon = GPSMap.Icons.createCustomIcon('temple', 20);
+            } else {
+              icon = GPSMap.Icons.createLandmarkIcon(feature.properties.landmark_type, 20);
+            }
+            
+            L.marker([lat, lng], { icon: icon })
+              .addTo(GPSMap.MapSetup.layers.landmarks)
+              .bindPopup(`<strong>${feature.properties.name}</strong>`);
+          }
+        });
+        console.log(`✅ Loaded ${data.count} initial features`);
       }
     } catch (error) {
-      console.error('Error loading landmarks:', error);
+      console.error('Error loading initial data:', error);
+    }
+  },
+  
+  // Load toilets near current location
+  loadToiletsNearby: async function() {
+    try {
+      let lat, lng;
+      
+      // Use cube location if available
+      if (GPSMap.Markers.cubeMarker) {
+        const pos = GPSMap.Markers.cubeMarker.getLatLng();
+        lat = pos.lat;
+        lng = pos.lng;
+      } else {
+        // Use map center
+        const center = GPSMap.MapSetup.map.getCenter();
+        lat = center.lat;
+        lng = center.lng;
+      }
+      
+      const params = new URLSearchParams({
+        lat: lat,
+        lng: lng,
+        radius: 1000 // 1km radius for toilets
+      });
+      
+      // Create a new layer group for toilets if it doesn't exist
+      if (!GPSMap.MapSetup.layers.toilets) {
+        GPSMap.MapSetup.layers.toilets = L.layerGroup();
+      }
+      
+      // Clear existing toilets
+      GPSMap.MapSetup.layers.toilets.clearLayers();
+      
+      const response = await fetch(`/api/v1/gis/landmarks/nearby?${params}`);
+      const data = await response.json();
+      
+      if (data.landmarks) {
+        // Filter for toilets only
+        const toilets = data.landmarks.filter(l => l.type === 'toilet');
+        
+        toilets.forEach(toilet => {
+          L.marker([toilet.lat, toilet.lng], {
+            icon: L.divIcon({
+              className: 'toilet-marker',
+              html: '🚽',
+              iconSize: [20, 20]
+            })
+          }).addTo(GPSMap.MapSetup.layers.toilets)
+            .bindPopup(toilet.name || 'Portable Toilet');
+        });
+        console.log(`Loaded ${toilets.length} nearby toilets`);
+      }
+    } catch (error) {
+      console.error('Error loading toilets:', error);
     }
   },
   
@@ -139,89 +249,6 @@ GPSMap.API = {
       }
     } catch (error) {
       console.error('Error loading home location:', error);
-    }
-  },
-  
-  // Load streets from GIS API
-  loadStreets: async function() {
-    try {
-      const response = await fetch(window.APP_CONFIG.api.streetsEndpoint);
-      const data = await response.json();
-      
-      if (data.streets && data.streets.length > 0) {
-        // Add streets to the map
-        data.streets.forEach(street => {
-          if (street.geometry && street.geometry.coordinates) {
-            const coords = street.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-            L.polyline(coords, {
-              color: '#8B4513',
-              weight: 2,
-              opacity: 0.6
-            }).addTo(GPSMap.MapSetup.layers.streets)
-              .bindPopup(street.properties?.name || 'Street');
-          }
-        });
-        console.log(`Loaded ${data.streets.length} streets`);
-      }
-    } catch (error) {
-      console.error('Error loading streets:', error);
-    }
-  },
-  
-  // Load plazas from GIS API
-  loadPlazas: async function() {
-    try {
-      const response = await fetch(window.APP_CONFIG.api.plazasEndpoint);
-      const data = await response.json();
-      
-      if (data.plazas && data.plazas.length > 0) {
-        // Add plazas to the map
-        data.plazas.forEach(plaza => {
-          if (plaza.geometry && plaza.geometry.coordinates) {
-            const coords = plaza.geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
-            L.polygon(coords, {
-              color: '#FF6B6B',
-              fillColor: '#FF6B6B',
-              fillOpacity: 0.3,
-              weight: 2
-            }).addTo(GPSMap.MapSetup.layers.plazas)
-              .bindPopup(plaza.properties?.name || 'Plaza');
-          }
-        });
-        console.log(`Loaded ${data.plazas.length} plazas`);
-      }
-    } catch (error) {
-      console.error('Error loading plazas:', error);
-    }
-  },
-  
-  // Load toilets from GIS API
-  loadToilets: async function() {
-    try {
-      const response = await fetch(window.APP_CONFIG.api.toiletsEndpoint);
-      const data = await response.json();
-      
-      if (data.toilets && data.toilets.length > 0) {
-        // Add toilet markers to landmarks layer
-        data.toilets.forEach(toilet => {
-          if (toilet.geometry && toilet.geometry.coordinates) {
-            const lat = toilet.geometry.coordinates[1];
-            const lng = toilet.geometry.coordinates[0];
-            
-            L.marker([lat, lng], {
-              icon: L.divIcon({
-                className: 'toilet-marker',
-                html: '🚽',
-                iconSize: [20, 20]
-              })
-            }).addTo(GPSMap.MapSetup.layers.landmarks)
-              .bindPopup(toilet.properties?.name || 'Portable Toilet');
-          }
-        });
-        console.log(`Loaded ${data.toilets.length} toilets`);
-      }
-    } catch (error) {
-      console.error('Error loading toilets:', error);
     }
   }
 };

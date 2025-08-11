@@ -64,44 +64,41 @@ GPSMap.Icons = {
       },
       temple: {
         svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="${templeGradId}" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9" />
-              <stop offset="100%" style="stop-color:#cccccc;stop-opacity:0.9" />
-            </linearGradient>
-          </defs>
-          <circle cx="16" cy="16" r="14" fill="url(#${templeGradId})" stroke="#fff" stroke-width="2"/>
-          <path d="M6 20 L16 8 L26 20 L24 20 L24 24 L8 24 L8 20 Z" fill="#1a0d00"/>
-          <rect x="10" y="12" width="2" height="12" fill="#666"/>
-          <rect x="15" y="12" width="2" height="12" fill="#666"/>
-          <rect x="20" y="12" width="2" height="12" fill="#666"/>
+          <!-- Clean temple silhouette -->
+          <g fill="#8B7355" stroke="#654321" stroke-width="1">
+            <!-- Temple roof -->
+            <path d="M6 20 L16 8 L26 20 L24 20 L24 24 L8 24 L8 20 Z"/>
+            <!-- Columns -->
+            <rect x="10" y="12" width="2" height="12"/>
+            <rect x="15" y="12" width="2" height="12"/>
+            <rect x="20" y="12" width="2" height="12"/>
+            <!-- Base -->
+            <rect x="7" y="24" width="18" height="2" rx="1"/>
+          </g>
         </svg>`,
         className: 'temple-marker sacred-glow',
-        color: '#ffffff'
+        color: '#8B7355'
       },
       man: {
         svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <radialGradient id="${manGradId}" cx="50%" cy="30%">
-              <stop offset="0%" style="stop-color:#ff4444;stop-opacity:1" />
-              <stop offset="100%" style="stop-color:#cc0000;stop-opacity:1" />
-            </radialGradient>
-            <filter id="${fireGlowId}">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-              <feMerge> 
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
-          <circle cx="16" cy="16" r="14" fill="url(#${manGradId})" stroke="#fff" stroke-width="2" filter="url(#${fireGlowId})"/>
-          <path d="M16 6 L18 10 L16 14 L14 10 Z" fill="#fff"/>
-          <circle cx="16" cy="12" r="2" fill="#fff"/>
-          <rect x="14" y="14" width="4" height="8" fill="#fff"/>
-          <path d="M12 18 L16 22 M20 18 L16 22 M16 22 L16 26" stroke="#fff" stroke-width="2" fill="none"/>
+          <!-- Iconic Burning Man silhouette -->
+          <g transform="translate(16,16) scale(1.0) translate(-16,-16)" fill="#8B4513" stroke="#654321" stroke-width="1">
+            <!-- Head -->
+            <circle cx="16" cy="7" r="2"/>
+            <!-- Body/torso -->
+            <rect x="14.5" y="9" width="3" height="8" rx="0.5"/>
+            <!-- Arms raised high and wide -->
+            <line x1="14.5" y1="11" x2="10" y2="5" stroke-width="2" stroke-linecap="round"/>
+            <line x1="17.5" y1="11" x2="22" y2="5" stroke-width="2" stroke-linecap="round"/>
+            <!-- Legs spread -->
+            <line x1="15" y1="17" x2="12" y2="23" stroke-width="2" stroke-linecap="round"/>
+            <line x1="17" y1="17" x2="20" y2="23" stroke-width="2" stroke-linecap="round"/>
+            <!-- Base/platform -->
+            <rect x="10" y="23" width="12" height="2" rx="1" fill="#654321"/>
+          </g>
         </svg>`,
         className: 'man-marker beacon-effect',
-        color: '#ff4444'
+        color: '#8B4513'
       },
       medical: {
         svg: `<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -176,11 +173,11 @@ GPSMap.Icons = {
       'ranger': '👮'
     };
     
-    const emoji = icons[type] || '📍';
+    const emoji = icons[type] || '🏕️'; // Use tent instead of red pin
     
     return L.divIcon({
       className: 'landmark-icon',
-      html: `<div style="font-size: ${Math.floor(size * 0.8)}px; text-align: center;">${emoji}</div>`,
+      html: `<div style="font-size: ${Math.floor(size * 0.8)}px; text-align: center; filter: sepia(1) hue-rotate(30deg) saturate(0.8);">${emoji}</div>`,
       iconSize: [size, size],
       iconAnchor: [size/2, size/2]
     });

@@ -96,6 +96,13 @@ RSpec.configure do |config|
       ActiveRecord::Base.connection
       # Run any pending migrations
       ActiveRecord::Migration.maintain_test_schema!
+
+      # Load seed data for tests - skip if running location specs
+      # Location specs will handle their own GIS data loading
+      unless RSpec.configuration.files_to_run.any? { |f| f.include?('location_specs') }
+        puts '🌱 Loading seed data for test suite...'
+        load File.expand_path('../db/seeds.rb', __dir__)
+      end
     rescue ActiveRecord::NoDatabaseError
       # Database doesn't exist, create it
       puts 'Creating test database...'

@@ -59,13 +59,12 @@ class Landmark < ActiveRecord::Base
 
   def distance_from(lat, lng)
     if has_spatial_data?
-      # Use PostGIS for precise distance calculation with sanitized inputs
-      lat_safe = self.class.connection.quote(lat.to_f)
-      lng_safe = self.class.connection.quote(lng.to_f)
-      point = "ST_SetSRID(ST_MakePoint(#{lng_safe}, #{lat_safe}), 4326)"
-      result = self.class.connection.execute(
-        "SELECT ST_Distance(location::geography, (#{point})::geography) as distance"
-      ).first
+      # Use PostGIS for precise distance calculation (SQL injection safe)
+      sql = "SELECT ST_Distance(location::geography, ST_Point(?, ?)::geography) as distance
+             FROM landmarks WHERE id = ?"
+      result = self.class.connection.select_one(
+        self.class.sanitize_sql([sql, lng.to_f, lat.to_f, id])
+      )
       result['distance'].to_f / 1609.34 # Convert meters to miles
     else
       # Fallback to geocoder
@@ -100,6 +99,22 @@ class Landmark < ActiveRecord::Base
     within_radius(lat, lng, radius_km).active
   end
 
+  # Helper methods for key landmarks
+  def self.center_camp
+    where(name: 'Center Camp', landmark_type: 'gathering').first ||
+      where(name: 'Center Camp').first
+  end
+
+  def self.the_man
+    where(name: 'The Man', landmark_type: 'center').first ||
+      where(name: 'The Man').first
+  end
+
+  def self.the_temple
+    where(name: 'The Temple', landmark_type: 'sacred').first ||
+      where(name: 'The Temple').first
+  end
+
   def self.by_distance_from(lat, lng)
     if postgis_available?
       # Use PostGIS for efficient distance-based ordering with sanitized inputs
@@ -114,6 +129,64 @@ class Landmark < ActiveRecord::Base
       active.sort_by { |landmark| landmark.distance_from(lat, lng) }
     end
   end
+
+  # Modern PostGIS scope for finding nearest landmarks
+  # Usage: Landmark.nearest(lng, lat, 10) or Landmark.nearest(lng: -119.20, lat: 40.78, limit: 5)
+  scope :nearest, lambda { |*args|
+    if args.first.is_a?(Hash)
+      opts = args.first
+      lng = opts[:lng] || opts[:longitude]
+      lat = opts[:lat] || opts[:latitude]
+      limit = opts[:limit] || 10
+    else
+      lng, lat, limit = args
+      limit ||= 10
+    end
+
+    raise ArgumentError, 'Must provide lng and lat coordinates' unless lng && lat
+
+    if postgis_available? && column_names.include?('location')
+      # Use PostGIS spatial column with sanitized inputs (idiomatic approach)
+      point_sql = sanitize_sql_array(
+        ['ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography', lng.to_f, lat.to_f]
+      )
+
+      active
+        .select("#{table_name}.*, ST_Distance(#{table_name}.location::geography, #{point_sql}) AS distance_meters")
+        .order(Arel.sql("#{table_name}.location::geography <-> #{point_sql}"))
+        .limit(limit)
+    else
+      # Fallback to lat/lng columns for non-PostGIS environments
+      by_distance_from(lat, lng).limit(limit)
+    end
+  }
+
+  # Scope for finding landmarks within a specific radius (meters)
+  scope :within_meters, lambda { |lng, lat, meters|
+    raise ArgumentError, 'Must provide lng, lat, and meters' unless lng && lat && meters
+
+    if postgis_available? && column_names.include?('location')
+      point_sql = sanitize_sql_array(
+        ['ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography', lng.to_f, lat.to_f]
+      )
+
+      where("ST_DWithin(#{table_name}.location::geography, #{point_sql}, ?)", meters.to_f)
+    else
+      # Fallback to approximate calculation
+      radius_miles = meters.to_f / 1609.34
+      near_location(lat, lng, radius_miles)
+    end
+  }
+
+  # Scope for finding landmarks within a bounding box
+  scope :within_bounds, lambda { |sw_lng, sw_lat, ne_lng, ne_lat|
+    if postgis_available? && column_names.include?('location')
+      box = "POLYGON((#{sw_lng} #{sw_lat}, #{sw_lng} #{ne_lat}, #{ne_lng} #{ne_lat}, #{ne_lng} #{sw_lat}, #{sw_lng} #{sw_lat}))"
+      where("ST_Within(location, ST_GeomFromText('SRID=4326;#{box}'))")
+    else
+      where(latitude: sw_lat..ne_lat, longitude: sw_lng..ne_lng)
+    end
+  }
 
   def self.postgis_available?
     @postgis_available ||= begin
@@ -130,13 +203,14 @@ class Landmark < ActiveRecord::Base
     import_from_plazas_geojson(File.join(gis_data_path, 'plazas.geojson'))
     import_from_cpns_geojson(File.join(gis_data_path, 'cpns.geojson'))
 
-    # Also import streets if Street model exists
+    # Import streets if Street model exists
     Street.import_from_geojson(File.join(gis_data_path, 'street_lines.geojson')) if defined?(Street)
 
-    # Import city blocks if Boundary model exists
+    # Import boundaries if Boundary model exists
     return unless defined?(Boundary)
 
-    Boundary.import_from_city_blocks(File.join(gis_data_path, 'city_blocks.geojson'))
+    Boundary.import_from_geojson(File.join(gis_data_path, 'city_blocks.geojson'), 'city_block')
+    Boundary.import_from_geojson(File.join(gis_data_path, 'trash_fence.geojson'), 'fence')
   end
 
   private
