@@ -2,7 +2,7 @@
 # This allows Home Assistant to call any AI model for text generation
 
 glitchcube_llm_complete:
-  url: "http://{{ states('sensor.glitchcube_host_ip') }}:4567/api/v1/llm/complete"
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/llm/complete"
   method: POST
   headers:
     Content-Type: "application/json"

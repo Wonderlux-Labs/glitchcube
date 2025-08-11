@@ -1,0 +1,86 @@
+# Automation to handle deployment notifications from GitHub
+# This receives the webhook and triggers deployment on the host system
+
+- id: github_deployment_webhook
+  alias: "GitHub Deployment Ready"
+  description: "Handle deployment webhook from GitHub Actions"
+  trigger:
+    - platform: webhook
+      webhook_id: deployment_ready
+      allowed_methods:
+        - POST
+      local_only: false
+  condition: []
+  action:
+    # Log the deployment request
+    - service: system_log.write
+      data:
+        message: "Deployment webhook received from GitHub"
+        level: info
+    
+    # Set deployment status
+    - service: input_boolean.turn_on
+      data:
+        entity_id: input_boolean.deployment_in_progress
+    
+    # Update deployment timestamp
+    - service: input_text.set_value
+      data:
+        entity_id: input_text.last_deployment_time
+        value: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+    
+    # Update deployment commit
+    - service: input_text.set_value
+      data:
+        entity_id: input_text.last_deployment_commit
+        value: "{{ trigger.json.commit[:7] if trigger.json.commit else 'unknown' }}"
+    
+    # Notify that deployment is starting
+    - service: notify.persistent_notification
+      data:
+        title: "🚀 Deployment Starting"
+        message: |
+          GitHub Actions triggered deployment
+          Commit: {{ trigger.json.commit[:7] if trigger.json.commit else 'unknown' }}
+          Branch: {{ trigger.json.branch if trigger.json.branch else 'unknown' }}
+          Actor: {{ trigger.json.actor if trigger.json.actor else 'unknown' }}
+    
+    # Execute deployment on host via SSH
+    - service: shell_command.deploy_glitchcube
+    
+    # Wait for host to be ready
+    - delay:
+        seconds: 10
+    
+    # Deploy HA config from host to VM
+    - service: shell_command.deploy_hass_config
+    
+    # Wait for HA restart
+    - delay:
+        seconds: 30
+    
+    # Mark deployment complete
+    - service: input_boolean.turn_off
+      data:
+        entity_id: input_boolean.deployment_in_progress
+    
+    # Send success notification
+    - service: notify.persistent_notification
+      data:
+        title: "✅ Deployment Complete"
+        message: |
+          Successfully deployed commit {{ trigger.json.commit[:7] if trigger.json.commit else 'unknown' }}
+          Message: {{ trigger.json.message if trigger.json.message else 'No message' }}
+
+- id: manual_deployment_trigger
+  alias: "Manual Deployment"
+  description: "Manually trigger deployment from HA"
+  trigger:
+    - platform: state
+      entity_id: input_button.deploy_now
+  action:
+    - service: shell_command.deploy_full
+    - service: notify.persistent_notification
+      data:
+        title: "🚀 Manual Deployment"
+        message: "Deployment initiated manually"

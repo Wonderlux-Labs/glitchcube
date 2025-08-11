@@ -428,6 +428,21 @@ Managed by Sidekiq with Redis:
 4. Re-record cassettes when API responses change: `VCR_RECORD=true bundle exec rspec`
 5. Keep tests green before committing
 
+### Testing Philosophy
+
+**What we test:**
+- ✅ User-facing behavior and outcomes
+- ✅ Integration between system components
+- ✅ Error handling for real failure scenarios
+- ✅ Business logic and domain rules
+
+**What we DON'T test:**
+- ❌ Ruby language features (JSON parsing, class variables)
+- ❌ Test double implementations
+- ❌ Object identity and singleton patterns
+- ❌ Protected/private method implementations
+- ❌ Standard library behavior
+
 ### 🔴 MANDATORY: Test-Driven Todo Management
 **When using todos for development tasks, you MUST follow this tight testing loop:**
 

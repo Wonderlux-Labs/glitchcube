@@ -15,15 +15,16 @@ namespace :config do
       '--exclude=.cloud', '--exclude=deps', '--exclude=llmvision',
       '--exclude=home-assistant.log*', '--exclude=*.db*',
       '--exclude=secrets.yaml', '--exclude=.DS_Store',
-      '--exclude=**/__pycache__/', '--exclude=*.pyc'
+      '--exclude=**/__pycache__/', '--exclude=*.pyc',
+      '--exclude=logs/', '--exclude=*.log'
     ].join(' ')
 
     # Include patterns for YAML and our custom component
     includes = [
       '--include=*/', '--include=*.yaml', '--include=*.yml',
-      '--include=custom_components/', '--include=custom_components/glitchcube_conversation/',
+      '--include=custom_components/glitchcube_conversation/',
       '--include=custom_components/glitchcube_conversation/**',
-      '--exclude=custom_components/*',
+      '--exclude=custom_components/**',
       '--exclude=*'
     ].join(' ')
 
@@ -69,10 +70,11 @@ namespace :config do
       '--exclude=home-assistant.log*', '--exclude=*.db*',
       '--exclude=secrets.yaml', '--exclude=.DS_Store',
       '--exclude=**/__pycache__/', '--exclude=*.pyc',
+      '--exclude=logs/', '--exclude=*.log',
       '--include=*/', '--include=*.yaml', '--include=*.yml',
-      '--include=custom_components/', '--include=custom_components/glitchcube_conversation/',
+      '--include=custom_components/glitchcube_conversation/',
       '--include=custom_components/glitchcube_conversation/**',
-      '--exclude=custom_components/*',
+      '--exclude=custom_components/**',
       '--exclude=*',
       "#{LOCAL_CONFIG_PATH}/",
       "#{REMOTE_HOST}:#{REMOTE_CONFIG_PATH}/"
