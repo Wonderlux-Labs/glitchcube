@@ -5,7 +5,7 @@ module Services
   class ToolRegistryService
     # Persona to tool mapping
     PERSONA_TOOLS = {
-      'buddy' => [SpeechTool, DisplayTool],
+      'buddy' => [LightingTool],
       'jax' => [SpeechTool, LightingTool],
       'lomi' => [SpeechTool, DisplayTool],
       'zorp' => [SpeechTool, LightingTool, DisplayTool]

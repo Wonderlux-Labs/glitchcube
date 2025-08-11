@@ -35,12 +35,12 @@ class ConversationModule
     # Use persona from context or instance default
     persona_name = persona || context[:persona] || @default_persona
 
-    # Create persona instance
-    persona = Personas::BasePersona.create(persona_name, context)
+    # Create persona instance (keep persona_name separate from persona object)
+    persona_instance = Personas::BasePersona.create(persona_name, context)
 
     # Load persona-specific tools if not already provided
     if context[:tools].nil? || context[:tools].empty?
-      context[:tools] = persona.tool_schemas
+      context[:tools] = persona_instance.tool_schemas
       Services::SimpleLogger.debug('Auto-loaded tools for persona', tagged: [:tools], persona: persona_name, count: context[:tools]&.size || 0)
     end
 
@@ -71,7 +71,7 @@ class ConversationModule
     # Enrich context with sensor data and defaults
     context = Services::ContextEnrichmentService.enrich(context)
 
-    system_prompt = build_system_prompt(persona, context)
+    system_prompt = build_system_prompt(persona_instance, context)
 
     # Prepare structured output schema based on context
     response_schema = get_response_schema(context)
@@ -83,15 +83,25 @@ class ConversationModule
       llm_options = {
         model: context[:model] || GlitchCube.config.ai.default_model,
         temperature: context[:temperature] || GlitchCube.config.conversation&.temperature || 0.8,
-        max_tokens: context[:max_tokens] || GlitchCube.config.conversation&.max_tokens || 200,
+        max_tokens: context[:max_tokens] || GlitchCube.config.conversation&.max_tokens || GlitchCube.config.ai.max_tokens,
         timeout: context[:timeout] || GlitchCube.config.conversation&.completion_timeout || 20
       }
 
-      # Add structured output if schema is provided
-      llm_options[:response_format] = GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(response_schema) if response_schema
+      # CRITICAL FIX: Check for tools FIRST, as we can't use both tools and structured output together
+      using_tools = context[:tools].present? && !context[:tools].empty?
 
-      # Configure tool support via tool handler
-      llm_options = tool_handler.configure_llm_options(llm_options, context[:tools])
+      if using_tools
+        # Native tool calling - let LLM decide when to use tools
+        llm_options[:tools] = context[:tools]
+        llm_options[:tool_choice] = 'auto'
+        # Use higher token limit for tool calls to allow multiple tool calls
+        llm_options[:max_tokens] = context[:max_tokens] || GlitchCube.config.ai.max_tool_tokens
+        Services::SimpleLogger.debug('Tool calling enabled', tagged: %i[conversation tools], max_tokens: llm_options[:max_tokens])
+        # DO NOT set response_format when using tools!
+      elsif response_schema
+        # Structured output - only when NOT using tools
+        llm_options[:response_format] = GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(response_schema)
+      end
 
       # Get conversation history for context (doesn't include current message yet)
       conversation_history = session.messages_for_llm
@@ -121,7 +131,8 @@ class ConversationModule
       Time.now
       llm_response = Services::LLMService.complete_with_messages(
         messages: messages,
-        **llm_options
+        model: llm_options[:model],
+        **llm_options.except(:model)
       )
 
       Services::SimpleLogger.debug('LLM response received', tagged: %i[conversation llm], response_preview: llm_response.response_text&.[](0..50))
@@ -129,28 +140,31 @@ class ConversationModule
       response_time_ms = ((Time.now - start_time) * 1000).round
 
       # Check for and execute tool calls
-      llm_response = tool_handler.handle_tool_calls(llm_response, messages, llm_options)
-      tool_calls_made = tool_handler.last_tool_calls_made
-
-      # Extract data from response object
-      response_text = llm_response.response_text
-
-      # response_text is now reliable from LLMResponse class
-      # It returns either:
-      # - The extracted text from structured response
-      # - The raw content if not structured
-      # - nil if structured but no text field
-
-      # Phase 3.5: Ultra-simple continuation logic with safe defaults
-      # Let the LLM decide if conversation should continue
-      # Default to ending conversation if unclear (safer for voice interactions)
-      continue_conversation = llm_response.continue_conversation?
-
-      # Safe default: if nil or unclear, end the conversation
-      if continue_conversation.nil?
-        Services::SimpleLogger.debug('No continuation signal from LLM, ending conversation', tagged: [:conversation])
-        continue_conversation = false
+      if llm_response.tool_calls.present?
+        Services::SimpleLogger.debug('Tool calls detected', tagged: %i[conversation tools], count: llm_response.tool_calls.size)
+        llm_response = handle_native_tool_response(llm_response, messages, llm_options, response_schema, session: session)
+        tool_calls_made = @last_tool_calls || []
+        Services::SimpleLogger.debug('Tool execution completed', tagged: %i[conversation tools], tool_count: tool_calls_made&.size)
+      else
+        tool_calls_made = []
       end
+
+      # Extract and validate response data - handle both structured and plain text
+      # Check if we have structured content or plain text
+      raw_response_data = if llm_response.parsed_content.is_a?(Hash) && !llm_response.parsed_content.empty?
+                            # Structured response
+                            llm_response.parsed_content
+                          elsif llm_response.content.is_a?(String) && !llm_response.content.strip.empty?
+                            # Plain text response - pass it as-is to validate_response
+                            llm_response.content
+                          else
+                            # Fallback to empty hash
+                            {}
+                          end
+
+      validated_response = validate_response(raw_response_data, persona_instance)
+      response_text = validated_response['response']
+      continue_conversation = validated_response['continue_conversation']
 
       # Debug trace: Check if response_text is nil
       if response_text.nil?
@@ -180,7 +194,7 @@ class ConversationModule
       )
 
       # Only use fallback if response_text is nil or empty
-      response_text = persona.generate_fallback_response(message) if response_text.nil? || response_text.strip.empty?
+      response_text = persona_instance.generate_fallback_response(message) if response_text.nil? || response_text.strip.empty?
 
       # For assist satellites, TTS is handled by the pipeline
       # We don't need to call TTS explicitly here
@@ -257,6 +271,159 @@ class ConversationModule
 
   private
 
+  def handle_native_tool_response(llm_response, messages, llm_options, response_schema, _session: nil)
+    @last_tool_calls = []
+    tool_results = []
+
+    # Execute each tool call
+    Services::SimpleLogger.debug('Processing tool calls', tagged: %i[conversation tools], tool_count: llm_response.tool_calls.size)
+    llm_response.tool_calls.each do |tool_call|
+      # Handle both symbol and string keys using with_indifferent_access
+      tool_call = tool_call.with_indifferent_access if tool_call.respond_to?(:with_indifferent_access)
+      function_name = tool_call['function']['name']
+      arguments = begin
+        JSON.parse(tool_call['function']['arguments'])
+      rescue StandardError
+        {}
+      end
+
+      Services::SimpleLogger.info('Executing tool',
+                                  tagged: %i[conversation tools],
+                                  tool: function_name,
+                                  arguments: arguments)
+
+      # Execute the tool
+      tool_call_hash = { name: function_name, arguments: arguments }
+      results = Services::ToolExecutor.execute([tool_call_hash])
+      result = results.first
+
+      # Track what we called
+      @last_tool_calls << {
+        tool_name: function_name,
+        arguments: arguments,
+        result: result
+      }
+
+      # Collect results in OpenAI tool result format
+      tool_content = if result.is_a?(Hash)
+                       result.to_json  # Convert hash to JSON string for OpenAI format
+                     else
+                       result.to_s
+                     end
+
+      tool_result = {
+        tool_call_id: tool_call['id'] || tool_call[:id],
+        role: 'tool',
+        name: function_name,
+        content: tool_content
+      }
+      tool_results << tool_result
+    end
+
+    # PROPER TWO-STEP PATTERN as identified by zen chat:
+    # Step 1: Tools executed ✅
+    # Step 2: Make second LLM call with FULL conversation history including tool results
+
+    # Build the updated conversation history for the second LLM call
+    updated_messages = messages.dup
+
+    # Check if model supports structured output ONCE and reuse
+    model_supports_structured = GlitchCube::ModelPresets.supports_structured_output?(llm_options[:model])
+
+    # Enhance system prompt to ALWAYS ask for JSON response
+    # This ensures we get structured data even without response_format
+    json_instruction = if model_supports_structured && response_schema
+                         # Model supports structured output, just remind it
+                         "\n\nIMPORTANT: Respond with valid JSON."
+                       else
+                         # Model doesn't support structured output, be explicit but concise
+                         "\n\nRespond ONLY with JSON: {\"response\": \"your message acknowledging the tool actions and continuing naturally with the conversation\", \"continue_conversation\": true/false based on context}"
+                       end
+
+    # Enhance the system message with JSON instruction
+    if updated_messages.first[:role] == 'system'
+      updated_messages[0] = {
+        role: 'system',
+        content: updated_messages[0][:content] + json_instruction
+      }
+    end
+
+    # Add the assistant's message with tool_calls to conversation history
+    updated_messages << llm_response.message_data
+
+    # Add all tool results to conversation history
+    tool_results.each do |tool_result|
+      updated_messages << tool_result
+    end
+
+    Services::SimpleLogger.debug('Updated conversation for second call',
+                                 tagged: %i[conversation tools],
+                                 message_count: updated_messages.size)
+
+    # Second call options - ALWAYS ask for JSON but only enforce if model supports it
+    second_call_options = {
+      model: llm_options[:model],
+      temperature: llm_options[:temperature],
+      max_tokens: GlitchCube.config.ai.max_tool_tokens,  # Use config value
+      reasoning: { max_tokens: 500 }  # More reasoning tokens but still controlled
+      # Only use response_format if model supports it AND we have a schema
+      # Some models (like older Claude) don't support structured output
+      # CRITICAL: No tools in second call - we want conversational response, not more tool calls
+    }
+
+    # Reuse the model check from above - no need to check again
+    if model_supports_structured && response_schema
+      second_call_options[:response_format] = response_schema
+    end
+
+    Services::SimpleLogger.debug('Second LLM call options',
+                                 tagged: %i[conversation tools],
+                                 model: second_call_options[:model],
+                                 max_tokens: second_call_options[:max_tokens],
+                                 has_reasoning: second_call_options[:reasoning].present?)
+
+    begin
+      # Log the complete request being sent
+      Services::SimpleLogger.debug('Second LLM call request',
+                                   tagged: %i[conversation tools llm_request],
+                                   message_count: updated_messages.size,
+                                   options: second_call_options)
+
+      # Second LLM call with complete context - this is where BUDDY becomes context-aware
+      follow_up_response = Services::LLMService.complete_with_messages(
+        messages: updated_messages,
+        model: second_call_options[:model],
+        **second_call_options.except(:model)
+      )
+
+      # Log the complete response received
+      Services::SimpleLogger.debug('Second LLM call response',
+                                   tagged: %i[conversation tools llm_response],
+                                   response_preview: follow_up_response.content&.[](0..100),
+                                   usage: follow_up_response.usage,
+                                   model: follow_up_response.model)
+
+      follow_up_response
+    rescue StandardError => e
+      Services::SimpleLogger.error('Context-aware follow-up LLM call failed in handle_native_tool_response',
+                                   tagged: %i[conversation tools error],
+                                   error: e.message,
+                                   backtrace: e.backtrace.first(3))
+      raise e  # Re-raise so it gets handled by the main error handler
+    end
+  end
+
+  def summarize_tool_results(tool_results)
+    # Simple summary of what was accomplished
+    if tool_results.any?
+      # Extract the content from each tool result
+      tool_summaries = tool_results.map { |result| result[:content] || 'completed successfully' }
+      tool_summaries.join(', ')
+    else
+      'completed some actions'
+    end
+  end
+
   def get_response_schema(context)
     # Load schema class if not already loaded
     begin
@@ -279,17 +446,17 @@ class ConversationModule
     end
   end
 
-  def build_system_prompt(persona, context)
+  def build_system_prompt(persona_instance, context)
     # Build enriched context - include response_format flag if we have a schema
     enriched_context = context.merge(
-      current_persona: persona.name,
+      current_persona: persona_instance.name,
       session_id: context[:session_id] || SecureRandom.uuid,
       interaction_count: context[:interaction_count] || 1,
       response_format: context[:response_format] || !get_response_schema(context).nil?
     )
 
     # Generate system prompt from persona
-    base_prompt = persona.generate_system_prompt
+    base_prompt = persona_instance.generate_system_prompt
 
     # Add relevant context and memories if available
     final_prompt = Services::ContextInjectionService.inject_context(base_prompt, enriched_context)
@@ -297,5 +464,67 @@ class ConversationModule
     Services::SimpleLogger.debug('System prompt generated', tagged: %i[conversation prompt], char_count: final_prompt.length)
 
     final_prompt
+  end
+
+  def validate_response(response_data, persona_instance)
+    # Handle different response types
+    validated = if response_data.is_a?(Hash)
+                  # Already a hash (structured response)
+                  response_data.dup
+                elsif response_data.is_a?(String) && !response_data.strip.empty?
+                  # Plain text response - create a hash with the text as the response
+                  Services::SimpleLogger.debug('Converting plain text response to structured format',
+                                               tagged: %i[conversation validation],
+                                               text_length: response_data.length)
+                  {
+                    'response' => response_data.strip,
+                    'continue_conversation' => false,  # Default for plain text
+                    'inner_thoughts' => ''
+                  }
+                else
+                  # Empty or nil - create empty hash
+                  {}
+                end
+
+    # Validate response text - most critical field
+    response_str = validated['response'].to_s
+    if validated['response'].nil? || response_str.strip.empty?
+      validated['response'] = persona_instance.generate_fallback_response('I understand.')
+      Services::SimpleLogger.warn('Response text was nil/empty, using fallback',
+                                  tagged: %i[conversation validation])
+    else
+      validated['response'] = response_str
+    end
+
+    # Validate continue_conversation - ensure it's a boolean
+    case validated['continue_conversation']
+    when true, false
+      # Already valid boolean
+    when 'true', 1, '1'
+      validated['continue_conversation'] = true
+    when 'false', 0, '0', nil
+      validated['continue_conversation'] = false
+    else
+      validated['continue_conversation'] = false
+      Services::SimpleLogger.debug('continue_conversation not boolean, defaulting to false',
+                                   tagged: %i[conversation validation],
+                                   original_value: validated['continue_conversation'].inspect)
+    end
+
+    # Validate inner_thoughts - optional but ensure string if present
+    validated['inner_thoughts'] = if validated['inner_thoughts']
+                                    validated['inner_thoughts'].to_s
+                                  else
+                                    ''
+                                  end
+
+    # Ensure response isn't too long for voice interactions
+    if validated['response'].length > 500
+      Services::SimpleLogger.warn('Response very long, might need truncation',
+                                  tagged: %i[conversation validation],
+                                  length: validated['response'].length)
+    end
+
+    validated
   end
 end

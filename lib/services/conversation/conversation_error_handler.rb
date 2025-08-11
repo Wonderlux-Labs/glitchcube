@@ -101,7 +101,7 @@ module Services
 
       {
         response: response_text,
-        persona: 'neutral',
+        persona: persona,  # Preserve original persona instead of hardcoding 'neutral'
         error: 'general_error',
         conversation_id: session&.session_id,
         session_id: session&.session_id,

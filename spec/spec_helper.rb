@@ -73,7 +73,7 @@ RSpec.configure do |config|
 
   # Global timeout for all examples - tests should be fast!
   config.around do |example|
-    timeout_seconds = ENV['TEST_TIMEOUT']&.to_i || 10 # 10 second default
+    timeout_seconds = ENV['TEST_TIMEOUT']&.to_i || 120 # 120 second default for LLM tests
 
     begin
       Timeout.timeout(timeout_seconds) do
@@ -142,7 +142,7 @@ RSpec.configure do |config|
     # Ensure AI config is available
     if defined?(GlitchCube) && GlitchCube.respond_to?(:config) && GlitchCube.config.ai.nil?
       GlitchCube.config.ai = OpenStruct.new(
-        default_model: 'google/gemini-2.5-flash',
+        default_model: 'anthropic/claude-sonnet-4',
         temperature: 0.8,
         max_tokens: 200
       )
@@ -407,7 +407,7 @@ if ENV['CI'] == 'true'
 elsif ENV['VCR_OVERRIDE'] == 'true'
   # Force recording of new episodes when explicitly requested
   VCR.configure do |config|
-    config.default_cassette_options = config.default_cassette_options.merge(record: :new_episodes)
+    config.default_cassette_options = config.default_cassette_options.merge(record: :all)
   end
   puts '🎥 Recording Mode: VCR will record new episodes to cassettes'
   puts '   Remember to commit new/updated cassettes!'

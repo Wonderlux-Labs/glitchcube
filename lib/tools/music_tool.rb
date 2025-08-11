@@ -20,7 +20,7 @@ class MusicTool < BaseTool
   end
 
   # Search for music in Music Assistant
-  def self.search_music(query:, limit: 5)
+  def self.search_music(query:, limit: 5, **_kwargs)
     return format_response(false, 'Query is required for music search') if query.nil? || query.empty?
 
     begin

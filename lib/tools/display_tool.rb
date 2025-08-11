@@ -68,7 +68,7 @@ class DisplayTool < BaseTool
   AWTRIX_MATRIX_LIGHT = 'light.awtrix_b85e20_matrix'
 
   # Display text on AWTRIX as a custom app
-  def self.display_text(text:, rainbow: false, icon: nil, duration: 5)
+  def self.display_text(text:, rainbow: false, icon: nil, duration: 5, **_kwargs)
     service_data = {
       name: 'glitchcube',
       data: {
@@ -101,7 +101,7 @@ class DisplayTool < BaseTool
   end
 
   # Send notification to AWTRIX
-  def self.send_notification(message:, icon: nil, sound: nil)
+  def self.send_notification(message:, icon: nil, sound: nil, **_kwargs)
     service_data = {
       message: message
     }

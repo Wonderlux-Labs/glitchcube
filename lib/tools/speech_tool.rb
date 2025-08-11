@@ -55,7 +55,7 @@ class SpeechTool < BaseTool
   DEFAULT_ENTITY = 'media_player.square_voice'
 
   # Speak text using Home Assistant TTS
-  def self.speak_text(text:, entity_id: DEFAULT_ENTITY, language: 'en-US', voice: nil)
+  def self.speak_text(text:, entity_id: DEFAULT_ENTITY, language: 'en-US', voice: nil, **_kwargs)
     return format_response(false, 'Text is required for speech synthesis') if text.nil? || text.strip.empty?
 
     begin

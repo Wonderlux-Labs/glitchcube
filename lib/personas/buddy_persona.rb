@@ -7,7 +7,7 @@ module Personas
     end
 
     def available_tools
-      [SpeechTool, DisplayTool]
+      [SpeechTool, LightingTool]
     end
 
     def fallback_responses
