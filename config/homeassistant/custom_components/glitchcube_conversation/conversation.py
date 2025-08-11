@@ -136,12 +136,14 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         try:
             # Get current API URL (may be dynamic)
             api_url = self._get_current_api_url()
+            _LOGGER.info("Using API URL: %s", api_url)
             
             # Phase 3.5: Ultra-simple session management
             # Just use HA's conversation_id as our session ID
             # HA already tracks multi-turn conversations for us
             # No state tracking needed in the agent - keep it stateless
             session_id = f"voice_{user_input.conversation_id}"
+            _LOGGER.info("Session ID: %s", session_id)
             
             # Prepare request payload for Sinatra app  
             payload = {
@@ -161,6 +163,8 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
                 }
             }
             
+            _LOGGER.debug("Sending payload to Sinatra: %s", payload)
+            
             # Call Sinatra app using dynamic URL
             timeout = aiohttp.ClientTimeout(total=self._timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -169,6 +173,7 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
                     json=payload,
                     headers={"Content-Type": "application/json"}
                 ) as response:
+                    _LOGGER.info("Sinatra response status: %d", response.status)
                     if response.status != 200:
                         raise ConversationError(f"API error: {response.status}")
                     
@@ -198,9 +203,11 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         # Extract response text
         response_text = conversation_data.get(RESPONSE_KEY, "I didn't understand that.")
         
-        # DEBUG: Log what we're getting
-        _LOGGER.info(f"GlitchCube response data keys: {conversation_data.keys()}")
-        _LOGGER.info(f"Response text extracted: {response_text[:100]}...")
+        # Log complete response details
+        _LOGGER.info("=" * 40)
+        _LOGGER.info("SINATRA RESPONSE DETAILS")
+        _LOGGER.info("Response keys: %s", list(conversation_data.keys()))
+        _LOGGER.info("Response text: %s", response_text[:200] if len(response_text) > 200 else response_text)
         
         # Create intent response
         intent_response = intent.IntentResponse(language=user_input.language)
@@ -210,7 +217,9 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         tts_voice = conversation_data.get("tts_voice", "JennyNeural")
         tts_provider = conversation_data.get("tts_provider", "cloud")
         
-        _LOGGER.info(f"Response from persona: {persona}, voice: {tts_voice}")
+        _LOGGER.info("Persona: %s", persona)
+        _LOGGER.info("TTS Voice: %s", tts_voice)
+        _LOGGER.info("TTS Provider: %s", tts_provider)
         
         # Set the speech text for the pipeline
         intent_response.async_set_speech(response_text)
@@ -218,11 +227,13 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         # Use TTS action from Sinatra if provided (for persona-specific voices)
         if conversation_data.get("tts_action"):
             tts_action = conversation_data["tts_action"]
-            _LOGGER.info(f"Using TTS action from Sinatra for {persona}: {tts_action}")
+            _LOGGER.info("TTS Action provided by Sinatra")
+            _LOGGER.debug("TTS Action details: %s", tts_action)
             
             # Set the action on the intent response
             # This will override the pipeline's default TTS with persona-specific voice
             intent_response.async_set_action(tts_action)
+            _LOGGER.info("TTS action set on intent response")
         
         # Phase 3.5: Ultra-simple continuation logic
         # Let Sinatra decide if conversation should continue based on LLM's decision
@@ -230,12 +241,12 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         # Just use continue_conversation directly - no need for inverse
         continue_conversation = conversation_data.get("continue_conversation", False)
         
-        _LOGGER.info(
-            "Conversation result: response_length=%d, continue=%s, persona=%s", 
-            len(response_text), 
-            continue_conversation,
-            persona
-        )
+        _LOGGER.info("=" * 40)
+        _LOGGER.info("FINAL RESULT")
+        _LOGGER.info("Response length: %d", len(response_text))
+        _LOGGER.info("Continue conversation: %s", continue_conversation)
+        _LOGGER.info("Persona: %s", persona)
+        _LOGGER.info("=" * 60)
         
         return conversation.ConversationResult(
             conversation_id=user_input.conversation_id,
