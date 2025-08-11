@@ -208,7 +208,7 @@ module Services
         when TrueClass, FalseClass
           { type: 'boolean', description: 'Test parameter' }
         else
-          { type: 'string', description: 'Test parameter' }
+          { type: 'string', description: 'Test parameter (converted to string)' }
         end
       end
     end

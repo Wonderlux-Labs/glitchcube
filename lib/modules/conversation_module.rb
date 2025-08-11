@@ -166,7 +166,7 @@ class ConversationModule
       # Check for and execute tool calls
       if llm_response.tool_calls.present?
         Services::SimpleLogger.debug('Tool calls detected', tagged: %i[conversation tools], count: llm_response.tool_calls.size)
-        llm_response = handle_native_tool_response(llm_response, messages, llm_options, response_schema, session: session)
+        llm_response = handle_native_tool_response(llm_response, messages, llm_options, response_schema, _session: session)
         tool_calls_made = @last_tool_calls || []
         Services::SimpleLogger.debug('Tool execution completed', tagged: %i[conversation tools], tool_count: tool_calls_made&.size)
       else
@@ -292,7 +292,7 @@ class ConversationModule
 
   private
 
-  def handle_native_tool_response(llm_response, messages, llm_options, response_schema, session: nil)
+  def handle_native_tool_response(llm_response, messages, llm_options, response_schema, _session: nil)
     @last_tool_calls = []
     tool_results = []
 

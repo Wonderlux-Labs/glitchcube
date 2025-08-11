@@ -429,7 +429,7 @@ module GlitchCube
                   distance_text: distance < 100 ? "#{distance.round(0)}m" : "#{(distance / 1000.0).round(1)}km"
                 }
               end
-                                        .sort_by { |l| l[:distance_meters] }
+                                         .sort_by { |l| l[:distance_meters] }
 
               # Response for external app
               response_data = {
