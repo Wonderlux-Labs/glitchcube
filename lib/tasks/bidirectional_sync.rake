@@ -20,7 +20,11 @@ namespace :config do
 
     # Include patterns for YAML and our custom component
     includes = [
-      '--include=*/', '--include=*.yaml', '--include=*.yml',
+      '--include=*/',
+      '--include=*.yaml', '--include=*.yml',
+      '--include=**/*.yaml', '--include=**/*.yml',
+      '--include=packages/',
+      '--include=packages/**',
       '--include=custom_components/glitchcube_conversation/',
       '--include=custom_components/glitchcube_conversation/**',
       '--exclude=custom_components/**',
@@ -74,7 +78,11 @@ namespace :config do
     ] + exclude_patterns.map { |p| "--exclude=#{p}" }
 
     includes = [
-      '--include=*/', '--include=*.yaml', '--include=*.yml',
+      '--include=**/',
+      '--include=*.yaml', '--include=*.yml',
+      '--include=**/*.yaml', '--include=**/*.yml',
+      '--include=packages/',
+      '--include=packages/**',
       '--include=custom_components/glitchcube_conversation/',
       '--include=custom_components/glitchcube_conversation/**',
       '--exclude=custom_components/**',

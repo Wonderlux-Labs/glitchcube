@@ -45,9 +45,7 @@ automation:
     trigger:
       - platform: state
         entity_id:
-          - input_boolean.conversation_active
-          - input_boolean.maintenance_mode
-          - input_boolean.offline_mode
+          - assist_satt
     action:
       - choose:
           - conditions:

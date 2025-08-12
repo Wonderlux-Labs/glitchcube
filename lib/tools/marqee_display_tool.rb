@@ -8,7 +8,7 @@ class DisplayTool < BaseTool
   end
 
   def self.description
-    'Control AWTRIX 32x8 LED matrix display. Supports text display, notifications, and mood lighting.'
+    'Control AWTRIX 32x8 LED matrix display for scrolling text, notifications, and visual feedback. Primary display for Glitch Cube status and messages.'
   end
 
   def self.category

@@ -8,7 +8,7 @@ class MusicTool < BaseTool
   end
 
   def self.description
-    'Control Music Assistant for audio playbook and music management on the Glitch Cube. Supports search, playback control, and status queries.'
+    'Control music playback using Music Assistant. Use music_assistant.search to find tracks, then music_assistant.play_media to play them. Main speaker: cube_music.'
   end
 
   def self.category
@@ -16,7 +16,7 @@ class MusicTool < BaseTool
   end
 
   def self.tool_prompt
-    'Search music with search(), queue and play tracks with play(), stop playback with stop().'
+    'Search music with music_assistant.search service, play with music_assistant.play_media service. Speaker entity: media_player.cube_music.'
   end
 
   # List of available tool methods for this class

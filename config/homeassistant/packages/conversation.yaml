@@ -41,40 +41,12 @@ input_text:
     max: 32
     icon: mdi:robot
 
-input_number:
-  conversation_history_days:
-    name: Conversation History Days
-    initial: 7
-    min: 1
-    max: 30
-    step: 1
-    unit_of_measurement: days
-
   active_conversation_count:
     name: Active Conversation Count
     initial: 0
     min: 0
     max: 100
     step: 1
-
-###############################################################################
-# TEMPLATE SENSORS
-###############################################################################
-template:
-  - sensor:
-      - name: "Conversation Status"
-        state: >
-          {% if is_state('input_boolean.conversation_active', 'on') %}
-            Active - {{ states('input_text.current_persona') }}
-          {% else %}
-            {{ states('input_text.conversation_state') }}
-          {% endif %}
-        icon: >
-          {% if is_state('input_boolean.conversation_active', 'on') %}
-            mdi:microphone
-          {% else %}
-            mdi:microphone-off
-          {% endif %}
 
 ###############################################################################
 # AUTOMATIONS

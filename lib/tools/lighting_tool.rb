@@ -8,7 +8,7 @@ class LightingTool < BaseTool
   end
 
   def self.description
-    'Control cube RGB lighting with specific methods for each action. Targets: cube, cart, voice_ring, matrix, indicators, all. Colors: hex "#FF0000" or RGB [255,0,0]'
+    'Control physical RGB LED lights on Glitch Cube hardware. Main lights: cube (main LED strips), cart (mobile unit LEDs), awtrix_mood_light (32x8 LED matrix ambient). Colors: hex "#FF0000" or RGB [255,0,0]'
   end
 
   def self.category
@@ -16,7 +16,7 @@ class LightingTool < BaseTool
   end
 
   def self.tool_prompt
-    'Control RGB lighting with set_light(), turn_off_light(), set_effect(). Targets: cube, cart, voice_ring, matrix, indicators, all.'
+    'Control RGB lighting with set_light(), turn_off_light(), set_effect(). Main targets: cube (LED strips), cart (mobile LEDs), awtrix_mood_light (matrix ambient). Use "all" for everything.'
   end
 
   # List of available tool methods for this class
@@ -194,12 +194,13 @@ class LightingTool < BaseTool
     format_response(false, "Failed to turn off #{target}: #{e.message}")
   end
 
-  # Known entity mappings for our hardware
+  # Known entity mappings for our hardware - simplified to actual used lights
   LIGHTS = {
-    'cube' => 'light.cube_light',
-    'cart' => 'light.cart_light',
-    'voice_ring' => 'light.cube_voice_ring',
-    'matrix' => 'light.awtrix_b85e20_matrix',
+    'cube' => 'light.cube_light',  # Main Govee LED strips on cube structure
+    'cart' => 'light.cart_light',  # LED strips on mobile cart
+    'awtrix_mood_light' => 'light.awtrix_b85e20_matrix',  # Awtrix 32x8 LED matrix ambient lighting
+    'matrix' => 'light.awtrix_b85e20_matrix',  # Alias for backward compatibility
+    'voice_ring' => 'light.cube_voice_ring',  # Voice indicator ring (rarely used)
     'indicator_1' => 'light.awtrix_b85e20_indicator_1',
     'indicator_2' => 'light.awtrix_b85e20_indicator_2',
     'indicator_3' => 'light.awtrix_b85e20_indicator_3'
@@ -207,7 +208,7 @@ class LightingTool < BaseTool
 
   GROUPS = {
     'all' => LIGHTS.values,
-    'ambient' => ['light.cube_light', 'light.cart_light'],
+    'ambient' => ['light.cube_light', 'light.cart_light', 'light.awtrix_b85e20_matrix'],  # Main ambient lighting
     'indicators' => ['light.awtrix_b85e20_indicator_1', 'light.awtrix_b85e20_indicator_2', 'light.awtrix_b85e20_indicator_3']
   }.freeze
 

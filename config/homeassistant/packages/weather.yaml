@@ -45,19 +45,6 @@ template:
             mdi:weather-partly-cloudy
           {% endif %}
 
-      - name: "Weather Alert Status"
-        state: >
-          {% set temp = states('sensor.playaweather_temperature')|float(-999) %}
-          {% if temp > 100 %}
-            extreme_heat
-          {% elif temp < 40 %}
-            cold_warning
-          {% elif states('sensor.playaweather_wind_speed')|float(0) > 30 %}
-            wind_advisory
-          {% else %}
-            normal
-          {% endif %}
-
 ###############################################################################
 # AUTOMATIONS
 ###############################################################################
@@ -83,38 +70,6 @@ automation:
         entity_id: input_button.update_weather_context
     action:
       - service: script.update_all_weather_context
-      - service: notify.persistent_notification
-        data:
-          title: "🌤️ Weather Updated"
-          message: "Weather forecast has been refreshed"
-
-  - id: weather_extreme_alert
-    alias: "Weather - Extreme Conditions Alert"
-    description: "Alert on extreme weather conditions"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.playaweather_temperature
-        above: 100
-      - platform: numeric_state
-        entity_id: sensor.playaweather_temperature
-        below: 40
-      - platform: numeric_state
-        entity_id: sensor.playaweather_wind_speed
-        above: 30
-    action:
-      - service: notify.persistent_notification
-        data:
-          title: "⚠️ Extreme Weather Alert"
-          message: >
-            {% set temp = states('sensor.playaweather_temperature')|float(-999) %}
-            {% set wind = states('sensor.playaweather_wind_speed')|float(0) %}
-            {% if temp > 100 %}
-              Extreme heat warning: {{ temp }}°F
-            {% elif temp < 40 %}
-              Cold warning: {{ temp }}°F
-            {% elif wind > 30 %}
-              High wind advisory: {{ wind }}mph
-            {% endif %}
 
 ###############################################################################
 # SCRIPTS
