@@ -180,6 +180,28 @@ def configure_database!
 
   ActiveRecord::Base.establish_connection(config)
 
+  # Register PostGIS types to prevent unknown OID warnings
+  if %w[postgis postgresql].include?(config['adapter'])
+    begin
+      connection = ActiveRecord::Base.connection
+      if connection.adapter_name == 'PostgreSQL'
+        # Get the OIDs for geometry and geography types
+        result = connection.execute("SELECT oid, typname FROM pg_type WHERE typname IN ('geometry', 'geography')")
+        result.each do |row|
+          oid = row['oid'].to_i
+          typename = row['typname']
+          # Register as a string type to prevent warnings
+          # The actual geometry handling is done by PostGIS adapter
+          connection.send(:type_map).register_type(oid) do |_, _, sql_type|
+            ActiveRecord::Type::String.new(sql_type: sql_type)
+          end
+        end
+      end
+    rescue StandardError => e
+      puts "[WARNING] Could not register PostGIS types: #{e.message}"
+    end
+  end
+
   # Enable query logging in development
   return unless DatabaseConfig.environment == 'development'
 

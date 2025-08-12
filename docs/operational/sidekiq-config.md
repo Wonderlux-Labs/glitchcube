@@ -45,7 +45,6 @@ Jobs are defined in `/config/sidekiq/sidekiq_cron.yml`:
 - `HostRegistrationWorker` - IP registration with Home Assistant
 - `InitialHostRegistrationWorker` - Initial setup registration
 - `MissedDeploymentWorker` - Handle deployment notifications
-- `SimulateCubeMovementWorker` - GPS simulation
 
 ### Low Queue
 - `PersonalityMemoryJob` - Extract conversation memories

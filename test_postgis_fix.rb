@@ -5,7 +5,6 @@
 
 require_relative 'config/app_dependencies'
 require_relative 'app/models/street'
-require_relative 'lib/utils/brc_coordinate_service'
 
 puts '=== Testing PostGIS Coordinate Fix ==='
 puts
@@ -28,22 +27,6 @@ test_coordinates.each_with_index do |coord, index|
   puts "  Arc: #{intersection[:arc]}"
   puts "  Distances: radial=#{intersection[:radial_distance]&.round(2)}m, arc=#{intersection[:arc_distance]&.round(2)}m"
 
-  # Test mathematical calculation for comparison
-  golden_spike = Utils::BrcCoordinateService.golden_spike_coordinates
-  manual_distance = Utils::BrcCoordinateService.distance_between_points(
-    golden_spike[:lat], golden_spike[:lng], coord[:lat], coord[:lng]
-  )
-  manual_bearing = Utils::BrcCoordinateService.bearing_between_points(
-    golden_spike[:lat], golden_spike[:lng], coord[:lat], coord[:lng]
-  )
-
-  puts 'Manual calculation:'
-  puts "  Distance: #{manual_distance.round(3)} miles"
-  puts "  Bearing: #{manual_bearing.round(1)}°"
-
-  # Test the full address resolution
-  address = Utils::BrcCoordinateService.brc_address_from_coordinates(coord[:lat], coord[:lng])
-  puts "  Final address: #{address}"
   puts
 end
 

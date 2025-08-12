@@ -59,7 +59,9 @@ GPSMap.MapSetup = {
   
   // Create layer groups for organization
   createLayerGroups: function() {
+    this.layers.zones = L.layerGroup(); // Zone boundaries (not shown by default)
     this.layers.boundaries = L.layerGroup().addTo(this.map); // Always show boundaries (trash fence)
+    this.layers.cityBlocks = L.layerGroup(); // City blocks - available but not shown
     this.layers.streets = L.layerGroup(); // Load on-demand
     this.layers.landmarks = L.layerGroup().addTo(this.map); // Show landmarks by default
     this.layers.toilets = L.layerGroup(); // Load on-demand

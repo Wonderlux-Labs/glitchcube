@@ -1,159 +1,164 @@
 # frozen_string_literal: true
 
+# DONT CHANGE THIS IMPLMENTATION JUST USE IT OR EXTEND IT MUCH BETTER NOW
+
 module Services
   class LocationContextService
-    THE_MAN_COORDS = { lat: 40.78696345, lng: -119.2030071 }.freeze
+    attr_reader :lat, :lng, :lat_lng
 
-    class << self
-      # Get comprehensive location context
-      def full_context(lat, lng)
+    def self.full_context(lat, lng)
+      new(lat, lng).full_context
+    end
+
+    def initialize(lat, lng)
+      @lat = lat.to_f
+      @lng = lng.to_f
+      @lat_lng = { lat: @lat, lng: @lng }
+    end
+
+    # Get comprehensive location context
+    # only thing that needs to go to ext service
+    def full_context
+      cache_key = "location_context:#{lat.round(6)},#{lng.round(6)}"
+
+      # Try cache first
+      begin
+        redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+        cached_result = redis.get(cache_key)
+        return JSON.parse(cached_result, symbolize_names: true) if cached_result
+      rescue StandardError
+        # Cache unavailable, compute directly
+      end
+
+      result = {
+        zone: zone,
+        address: address,
+        intersection: nearest_intersection,
+        landmarks: nearby_landmarks(5),
+        within_fence: within_fence?,
+        city_block: city_block,
+        distance_from_man: distance_from_man,
+        nearest_porto: nearest_porto,
+        lat_lng: lat_lng
+      }
+
+      # Cache for 5 minutes (ignore if Redis fails)
+      begin
+        redis ||= Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+        redis.setex(cache_key, 300, result.to_json)
+      rescue StandardError
+        # Cache write failed, but we still return the result
+      end
+
+      result
+    end
+
+    # Zone determination methods
+    def zone
+      return :outside_event unless within_fence?
+      return :city if in_city?
+      return :inner_playa if near_the_man?
+
+      :deep_playa
+    end
+
+    # Boundary checks
+    def within_fence?
+      Boundary.cube_within_fence?(lat, lng)
+    end
+
+    def in_city?
+      Boundary.in_city?(lat, lng)
+    end
+
+    def near_the_man?(radius_meters = 757)
+      the_man = Landmark.find_by(name: 'The Man')
+      return false unless the_man
+
+      nearby = Landmark.nearest(lat: lat, lng: lng, limit: 1, max_distance_meters: radius_meters)
+      nearby.any? && nearby.first.id == the_man.id
+    end
+
+    # Address and location info
+    def address
+      return nil unless zone == :city
+
+      intersection_data = nearest_intersection
+      "#{intersection_data[:radial]} & #{intersection_data[:arc]}"
+    end
+
+    def nearest_intersection
+      Street.nearest_intersection(lat, lng)
+    end
+
+    def city_block
+      block = Boundary.containing_city_block(lat, lng)
+      return nil unless block
+
+      {
+        name: block.name,
+        id: block.properties['fid']
+      }
+    end
+
+    # Landmark methods
+    def nearby_landmarks(limit = 3)
+      landmarks = Landmark.nearest(lat: lat, lng: lng, limit: limit)
+      landmarks.map do |lm|
         {
-          zone: determine_zone(lat, lng),
-          address: get_address(lat, lng),
-          intersection: Street.nearest_intersection(lat, lng),
-          landmarks: nearby_landmarks(lat, lng),
-          within_fence: Boundary.cube_within_fence?(lat, lng),
-          city_block: get_city_block(lat, lng),
-          distance_from_man: distance_from_man(lat, lng)
+          name: lm.name,
+          type: lm.landmark_type,
+          distance_meters: lm.distance_meters
         }
       end
+    end
 
-      # Determine which zone we're in
-      def determine_zone(lat, lng)
-        # Check if we're outside the fence
-        unless Boundary.cube_within_fence?(lat, lng)
-          return 'Outside Event'
-        end
+    def nearest_landmark_of_type(type)
+      return nearby_landmarks if type == :all
 
-        # Check if we're in a city block
-        if Boundary.in_city?(lat, lng)
-          return 'In The City'
-        end
+      Landmark.where(landmark_type: type).nearest(lat: lat, lng: lng)
+    end
 
-        # Get distance from The Man to determine playa zone
-        distance = Utils::BrcCoordinateService.distance_between_points(
-          THE_MAN_COORDS[:lat], THE_MAN_COORDS[:lng], lat, lng
-        )
+    def nearest_porto
+      nearest_landmark_of_type('toilet')
+    end
 
-        # Based on BRC layout:
-        # - Inner Playa: Between Esplanade and The Man (< 0.47 miles)
-        # - Mid Playa: Between city and deep playa (0.47 - 1.0 miles)
-        # - Deep Playa: Far from city (> 1.0 miles)
+    # Distance calculations - now using clean PostGIS helpers
+    def distance_from_man
+      the_man = Landmark.the_man
+      return 'Unknown' unless the_man
 
-        if distance < 0.47  # Inside Esplanade
-          'Inner Playa'
-        elsif distance < 1.0
-          'Mid Playa'
-        else
-          'Deep Playa'
-        end
-      end
+      distance_meters = the_man.distance_from(lat, lng)
+      format_distance(distance_meters)
+    end
 
-      # Get BRC address or playa description
-      def get_address(lat, lng)
-        # First try to get street intersection
-        intersection = Street.nearest_intersection(lat, lng)
+    def distance_to(other_lat, other_lng)
+      distance_meters = Landmark.distance_between(lat, lng, other_lat, other_lng)
+      format_distance(distance_meters)
+    end
 
-        # If we have both streets and they're close, use that
-        if intersection[:radial] && intersection[:arc] &&
-           intersection[:radial_distance] < 100 && intersection[:arc_distance] < 100
-          return "#{intersection[:radial]} & #{intersection[:arc]}"
-        end
+    def distance_to_landmark(landmark_name)
+      landmark = Landmark.find_by(name: landmark_name)
+      return 'Unknown' unless landmark
 
-        # Otherwise fall back to zone description
-        zone = determine_zone(lat, lng)
-        case zone
-        when 'In The City'
-          # Try to get nearest streets even if not at intersection
-          if intersection[:radial] && intersection[:arc]
-            "Near #{intersection[:radial]} & #{intersection[:arc]}"
-          else
-            'In The City'
-          end
-        when 'Inner Playa'
-          # Might be near an art piece or between streets
-          bearing = Utils::BrcCoordinateService.bearing_between_points(
-            THE_MAN_COORDS[:lat], THE_MAN_COORDS[:lng], lat, lng
-          )
-          time = bearing_to_clock(bearing)
-          "Inner Playa near #{time}"
-        when 'Deep Playa'
-          # Far out, use bearing from Man
-          bearing = Utils::BrcCoordinateService.bearing_between_points(
-            THE_MAN_COORDS[:lat], THE_MAN_COORDS[:lng], lat, lng
-          )
-          time = bearing_to_clock(bearing)
-          "Deep Playa towards #{time}"
-        else
-          zone
-        end
-      end
+      distance_meters = landmark.distance_from(lat, lng)
+      format_distance(distance_meters)
+    end
 
-      # Get nearby landmarks with context
-      def nearby_landmarks(lat, lng, limit = 3)
-        landmarks = Landmark.nearest(lat: lat, lng: lng, limit: limit)
-        landmarks.map do |lm|
-          {
-            name: lm.name,
-            type: lm.landmark_type,
-            distance_meters: lm.distance_meters
-          }
-        end
-      end
+    # Convenience methods for quick checks
+    def burning_man_location?
+      within_fence?
+    end
 
-      # Get city block info if in one
-      def get_city_block(lat, lng)
-        block = Boundary.containing_city_block(lat, lng)
-        return nil unless block
+    private
 
-        {
-          name: block.name,
-          id: block.properties['fid']
-        }
-      end
+    def format_distance(distance_meters)
+      distance_miles = distance_meters / 1609.34
 
-      # Calculate distance from The Man
-      def distance_from_man(lat, lng)
-        distance_miles = Utils::BrcCoordinateService.distance_between_points(
-          THE_MAN_COORDS[:lat], THE_MAN_COORDS[:lng], lat, lng
-        )
-
-        # Convert to feet if close
-        if distance_miles < 0.1
-          "#{(distance_miles * 5280).round} feet"
-        else
-          "#{distance_miles.round(2)} miles"
-        end
-      end
-
-      private
-
-      # Convert bearing to clock position
-      def bearing_to_clock(bearing)
-        # Normalize bearing to 0-360
-        bearing %= 360
-
-        # BRC uses clock positions where 3:00 is due north (0°)
-        # Adjust bearing so 0° = 3:00
-        adjusted = (bearing + 90) % 360
-
-        # Convert to clock position
-        hour = (adjusted / 30).round
-        hour = 12 if hour.zero?
-
-        # Get minutes for more precision
-        minutes = ((adjusted % 30) * 2).round
-
-        if minutes.zero?
-          "#{hour}:00"
-        elsif minutes == 30
-          "#{hour}:30"
-        elsif minutes < 30
-          "#{hour}:#{minutes.to_s.rjust(2, '0')}"
-        else
-          next_hour = hour == 12 ? 1 : hour + 1
-          "#{hour}:#{60 - minutes}"
-        end
+      if distance_miles < 0.1
+        "#{(distance_miles * 5280).round} feet"
+      else
+        "#{distance_miles.round(2)} miles"
       end
     end
   end

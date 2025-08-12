@@ -1,346 +1,137 @@
 # frozen_string_literal: true
 
-# Dependencies are loaded by app.rb
-
+# Simple service to get GPS coordinates from Home Assistant
+# All location context comes from LocationContextService
 module Services
   class GpsTrackingService
-    include Utils::LocationHelper
-
     def initialize
       @ha_client = ::HomeAssistantClient.new
     end
 
-    # Get current GPS coordinates - tries HA first, then simulation, then initialize simulation
+    # Get current GPS coordinates with full location context
     def current_location
-      # Check for simulation mode first
-      if Cube::Settings.simulate_cube_movement?
-        sim_location = load_simulation_location
-        return sim_location if sim_location
+      # Check for spoofed GPS first (development only), then Home Assistant, then fallback
+      coords = fetch_spoofed_location || fetch_from_home_assistant || random_landmark_location
 
-        # No simulation data in Redis yet - initialize it with a starting location
-        return initialize_simulation_location
+      # Get full context from LocationContextService (this is cached)
+      context = Services::LocationContextService.full_context(coords[:lat], coords[:lng])
+
+      # Merge GPS metadata with location context
+      coords.merge(context)
+    end
+
+    # DEPRECATED - just use LocationContextService.full_context instead
+    def brc_address_from_coordinates(lat, lng)
+      Services::LocationContextService.full_context(lat, lng)[:address]
+    end
+
+    # Get proximity data for map reactions using LocationContextService
+    def proximity_data(lat, lng)
+      context = Services::LocationContextService.full_context(lat, lng)
+      landmarks = context[:landmarks] || []
+
+      {
+        landmarks: landmarks,
+        portos: context[:nearest_porto] ? [context[:nearest_porto]] : [],
+        map_mode: determine_map_mode_from_landmarks(landmarks),
+        visual_effects: determine_visual_effects_from_landmarks(landmarks)
+      }
+    end
+
+    private
+
+    def fetch_spoofed_location
+      # Only allow spoofed locations in development
+      return nil unless ENV['RACK_ENV'] == 'development'
+
+      begin
+        redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+        spoofed_data = redis.get('current_cube_location')
+        return nil unless spoofed_data
+
+        data = JSON.parse(spoofed_data, symbolize_names: true)
+        {
+          lat: data[:lat],
+          lng: data[:lng],
+          timestamp: Time.parse(data[:timestamp]),
+          accuracy: nil,
+          battery: nil,
+          source: 'spoofed'
+        }
+      rescue StandardError
+        nil
+      end
+    end
+
+    def determine_map_mode_from_landmarks(landmarks)
+      return 'normal' if landmarks.empty?
+
+      primary = landmarks.first
+      case primary[:type]
+      when 'sacred' then 'temple'
+      when 'center' then 'man'
+      when 'medical' then 'emergency'
+      when 'service' then 'service'
+      else 'landmark'
+      end
+    end
+
+    def determine_visual_effects_from_landmarks(landmarks)
+      effects = []
+
+      landmarks.each do |landmark|
+        case landmark[:type]
+        when 'sacred'
+          effects << { type: 'aura', color: 'white', intensity: 'soft' }
+        when 'center'
+          effects << { type: 'pulse', color: 'orange', intensity: 'strong' }
+        when 'medical'
+          effects << { type: 'beacon', color: 'red', intensity: 'steady' }
+        when 'service'
+          effects << { type: 'glow', color: 'blue', intensity: 'medium' }
+        end
       end
 
-      # Try real GPS from Home Assistant
+      effects
+    end
+
+    def fetch_from_home_assistant
       device_tracker_entity = begin
         GlitchCube.config.gps.device_tracker_entity
       rescue StandardError
         'device_tracker.glitch_cube'
       end
 
-      begin
-        entity_state = @ha_client.states.find { |state| state['entity_id'] == device_tracker_entity }
+      entity_state = @ha_client.states.find { |state| state['entity_id'] == device_tracker_entity }
+      return nil unless entity_state && entity_state['attributes']
 
-        if entity_state && entity_state['attributes']
-          lat = entity_state['attributes']['latitude']&.to_f
-          lng = entity_state['attributes']['longitude']&.to_f
-
-          if lat && lng
-            return {
-              lat: lat,
-              lng: lng,
-              timestamp: Time.parse(entity_state['last_updated']),
-              accuracy: entity_state['attributes']['gps_accuracy'],
-              battery: entity_state['attributes']['battery_level'],
-              address: brc_address_from_coordinates(lat, lng),
-              # Flatten context/distance hash if returned by location_context
-              **(ctx = location_context(lat, lng)).is_a?(Hash) ? ctx : { context: ctx },
-              source: 'gps'
-            }
-          end
-        end
-      rescue StandardError
-        # GPS unavailable - will use random landmark
-      end
-
-      # No GPS available - pick random landmark (only called when not in simulation mode)
-      random_landmark_location
-    end
-
-    # Convert GPS coordinates to Burning Man address format
-    def brc_address_from_coordinates(lat, lng)
-      Utils::BrcCoordinateService.brc_address_from_coordinates(lat, lng)
-    end
-
-    # Get contextual location description with proximity detection
-    def location_context(lat, lng)
-      nearby_landmarks = detect_nearby_landmarks(lat, lng)
-      brc_area = Utils::BrcCoordinateService.brc_address_from_coordinates(lat, lng)
-      the_man = Utils::BrcCoordinateService.golden_spike_coordinates
-      distance = Utils::BrcCoordinateService.distance_between_points(the_man[:lat], the_man[:lng], lat, lng)
-      distance_str = "#{format('%.2f', distance)} mi from The Man"
-
-      # Use improved area classification that understands horseshoe geometry
-      section = Utils::BrcCoordinateService.brc_area_classification(lat, lng)
-
-      if nearby_landmarks.any?
-        context = nearby_landmarks.first[:context]
-        landmark_name = nearby_landmarks.first[:name]
-        {
-          context: context,
-          landmark_name: landmark_name,
-          section: section,
-          distance_from_man: distance_str
-        }
-      else
-        {
-          context: '',
-          landmark_name: nil,
-          section: section,
-          distance_from_man: distance_str
-        }
-      end
-    end
-
-    # Detect nearby landmarks and return proximity info
-    def detect_nearby_landmarks(lat, lng)
-      all_nearby = []
-
-      # Only show major landmarks: plazas, center camp, rods road, the man, big landmarks
-      # Skip toilets/portos since they're funny but not needed
-      landmark_queries = {
-        'center' => Utils::GeoConstants::PROXIMITY_DISTANCES[:camps],     # Center Camp, The Man
-        'sacred' => Utils::GeoConstants::PROXIMITY_DISTANCES[:camps],     # Temple
-        'plaza' => Utils::GeoConstants::PROXIMITY_DISTANCES[:camps],      # Plazas
-        'service' => Utils::GeoConstants::PROXIMITY_DISTANCES[:services], # Rods Road
-        'art' => Utils::GeoConstants::PROXIMITY_DISTANCES[:art]           # Big art installations
-      }
-
-      # Query each landmark type with its appropriate radius
-      landmark_queries.each do |type, radius|
-        type_landmarks = Landmark.active
-                                 .where(landmark_type: type)
-                                 .near_location(lat, lng, radius)
-
-        type_landmarks.each do |landmark|
-          distance = landmark.distance_from(lat, lng)
-          all_nearby << {
-            name: landmark.name,
-            type: landmark.landmark_type,
-            distance: distance,
-            context: landmark.description || "Near #{landmark.name}"
-          }
-        end
-      end
-
-      # Get any other landmark types with default proximity (25 feet)
-      other_types = Landmark.active
-                            .where.not(landmark_type: landmark_queries.keys)
-                            .near_location(lat, lng, Utils::GeoConstants::PROXIMITY_DISTANCES[:landmarks])
-
-      other_types.each do |landmark|
-        distance = landmark.distance_from(lat, lng)
-        all_nearby << {
-          name: landmark.name,
-          type: landmark.landmark_type,
-          distance: distance,
-          context: landmark.description || "Near #{landmark.name}"
-        }
-      end
-
-      # Sort by distance and remove duplicates
-      all_nearby.uniq { |l| l[:name] }.sort_by { |l| l[:distance] }
-    end
-
-    # Get proximity data for map reactions
-    def proximity_data(lat, lng)
-      nearby_landmarks = detect_nearby_landmarks(lat, lng)
-
-      # Check porto clusters
-      nearby_portos = detect_nearby_portos(lat, lng)
-
-      {
-        landmarks: nearby_landmarks,
-        portos: nearby_portos,
-        map_mode: determine_map_mode(nearby_landmarks),
-        visual_effects: determine_visual_effects(nearby_landmarks)
-      }
-    end
-
-    private
-
-    def initialize_simulation_location
-      # Pick ONE random landmark and save it to Redis to start simulation
-      landmark = Landmark.active.order('RANDOM()').first
-      lat = landmark.latitude.to_f
-      lng = landmark.longitude.to_f
-
-      # Create location data
-      coords = {
-        lat: lat,
-        lng: lng,
-        timestamp: Time.now.utc.iso8601,
-        address: brc_address_from_coordinates(lat, lng),
-        context: location_context(lat, lng),
-        destination: nil, # Will be set when simulation worker picks a destination
-        source: 'simulation_init'
-      }
-
-      # Save to Redis immediately so subsequent calls use this location
-      begin
-        require 'redis'
-        redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
-        redis.setex('current_cube_location', 300, JSON.generate(coords)) # 5 minute TTL
-
-        Services::LoggerService.log_api_call(
-          service: 'GPS Tracking',
-          endpoint: 'initialize_simulation_location',
-          message: "Initialized simulation at #{landmark.name} (#{lat}, #{lng})",
-          success: true
-        )
-      rescue StandardError => e
-        Services::LoggerService.log_api_call(
-          service: 'GPS Tracking',
-          endpoint: 'initialize_simulation_location',
-          error: "Failed to save initial location to Redis: #{e.message}",
-          success: false
-        )
-      end
-
-      # Return the location data
-      {
-        lat: lat,
-        lng: lng,
-        timestamp: Time.now,
-        accuracy: nil,
-        battery: nil,
-        address: coords[:address],
-        **(ctx = coords[:context]).is_a?(Hash) ? ctx : { context: ctx },
-        destination: coords[:destination],
-        source: 'simulation_init'
-      }
-    end
-
-    def load_simulation_location
-      require 'redis'
-      redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
-      coords_json = redis.get('current_cube_location')
-      return nil unless coords_json
-
-      coords = JSON.parse(coords_json)
-      lat = coords['lat']
-      lng = coords['lng']
+      lat = entity_state['attributes']['latitude']&.to_f
+      lng = entity_state['attributes']['longitude']&.to_f
+      return nil unless lat && lng
 
       {
         lat: lat,
         lng: lng,
-        timestamp: begin
-          Time.parse(coords['timestamp'])
-        rescue StandardError
-          Time.now
-        end,
-        accuracy: nil,
-        battery: nil,
-        address: coords['address'], # Use cached address from Redis
-        # Recompute context/distance for simulation
-        **(ctx = location_context(lat, lng)).is_a?(Hash) ? ctx : { context: ctx },
-        destination: coords['destination'], # Include destination for movement info
-        source: 'simulation'
+        timestamp: Time.parse(entity_state['last_updated']),
+        accuracy: entity_state['attributes']['gps_accuracy'],
+        battery: entity_state['attributes']['battery_level'],
+        source: 'gps'
       }
-    rescue StandardError => e
-      Services::LoggerService.log_api_call(
-        service: 'GPS Tracking',
-        endpoint: 'load_simulation_location',
-        error: "Error reading simulation from Redis: #{e.message}",
-        success: false
-      )
+    rescue StandardError
       nil
     end
 
     def random_landmark_location
-      # Pick a random landmark from database
       landmark = Landmark.active.order('RANDOM()').first
-      lat = landmark.latitude.to_f
-      lng = landmark.longitude.to_f
 
       {
-        lat: lat,
-        lng: lng,
+        lat: landmark.latitude.to_f,
+        lng: landmark.longitude.to_f,
         timestamp: Time.now,
         accuracy: nil,
         battery: nil,
-        address: brc_address_from_coordinates(lat, lng),
-        **(ctx = location_context(lat, lng)).is_a?(Hash) ? ctx : { context: ctx },
-        source: 'random_location'
+        source: 'random_landmark'
       }
-    end
-
-    # Detect nearby porto clusters using spatial database queries
-    def detect_nearby_portos(lat, lng)
-      # Use spatial query for toilet landmarks
-      toilet_landmarks = Landmark.active
-                                 .where(landmark_type: 'toilet')
-                                 .near_location(lat, lng, Utils::GeoConstants::PROXIMITY_DISTANCES[:toilets])
-
-      nearby_portos = toilet_landmarks.map do |toilet|
-        {
-          name: toilet.name,
-          distance: toilet.distance_from(lat, lng),
-          type: 'toilet'
-        }
-      end
-
-      # Sort by distance
-      nearby_portos.sort_by { |p| p[:distance] }
-    end
-
-    # Determine map visual mode based on proximity
-    def determine_map_mode(nearby_landmarks)
-      return 'normal' if nearby_landmarks.empty?
-
-      primary_landmark = nearby_landmarks.first
-      case primary_landmark[:type]
-      when 'sacred'
-        'temple' # Desaturated, reverent colors
-      when 'center'
-        'man' # Bright, energetic colors
-      when 'medical'
-        'emergency' # Red highlights, clear navigation
-      when 'service'
-        'service' # Blue highlights for utilities
-      else
-        'landmark' # Enhanced visibility
-      end
-    end
-
-    # Determine visual effects for map display
-    def determine_visual_effects(nearby_landmarks)
-      effects = []
-
-      nearby_landmarks.each do |landmark|
-        case landmark[:type]
-        when 'sacred'
-          effects << {
-            type: 'aura',
-            color: 'white',
-            intensity: 'soft',
-            description: 'Sacred space - respectful proximity'
-          }
-        when 'center'
-          effects << {
-            type: 'pulse',
-            color: 'orange',
-            intensity: 'strong',
-            description: 'Center of the burn - high energy'
-          }
-        when 'medical'
-          effects << {
-            type: 'beacon',
-            color: 'red',
-            intensity: 'steady',
-            description: 'Emergency services nearby'
-          }
-        when 'service'
-          effects << {
-            type: 'glow',
-            color: 'blue',
-            intensity: 'medium',
-            description: 'Services available'
-          }
-        end
-      end
-
-      effects
     end
   end
 end

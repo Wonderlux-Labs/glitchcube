@@ -117,9 +117,45 @@ GPSMap.API = {
     }
   },
   
+  // City blocks data available but not displayed on map
+  // Backend uses this for zone determination only
+  loadCityBlocks: async function() {
+    // City blocks are used by backend only for zone determination
+    // Not displayed on frontend map per requirements
+    console.log('City blocks available for backend zone calculations only');
+  },
+  
   // Load initial critical features only
   loadInitialData: async function() {
     try {
+      // Load city blocks first
+      await this.loadCityBlocks();
+      
+      // Inner Playa boundary data available for backend calculations
+      // Not displayed on map per requirements
+      try {
+        const zonesResponse = await fetch('/api/v1/gis/zones');
+        const zonesData = await zonesResponse.json();
+        
+        if (zonesData.features) {
+          // Store inner playa boundary data for backend use
+          // This is the 0.47 mi radius from The Man
+          zonesData.features.forEach(feature => {
+            if (feature.geometry.type === 'Polygon') {
+              // Store boundary data but don't display it
+              if (feature.properties.zone_type === 'inner_playa') {
+                // Available for backend zone calculations
+                console.log('Inner Playa boundary (0.47mi) loaded for backend use');
+              }
+            }
+          });
+          // Zone boundary data loaded for backend use only
+          console.log('Zone boundaries loaded for backend calculations');
+        }
+      } catch (zoneError) {
+        console.log('Zone boundaries not available:', zoneError);
+      }
+      
       const response = await fetch('/api/v1/gis/initial');
       const data = await response.json();
       

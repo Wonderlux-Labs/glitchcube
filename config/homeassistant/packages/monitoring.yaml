@@ -112,23 +112,23 @@ automation:
           alerts: "{{ states('input_text.consolidated_alert_message') }}"
           count: "{{ states('sensor.alert_count') }}"
 
-  - id: temperature_alert
-    alias: "Monitoring - Temperature Alert"
-    description: "Monitor temperature and set critical flag"
-    trigger:
-      - platform: numeric_state
-        entity_id: sensor.temperature
-        above: 40
-    action:
-      - service: input_boolean.turn_on
-        target:
-          entity_id: input_boolean.temp_critical
-      - service: script.awtrix_control
-        data:
-          text: "TEMP HIGH {{ states('sensor.temperature') }}°C"
-          icon: "2315"
-          color: "FF0000"
-          duration: 10
+  # - id: temperature_alert
+  #   alias: "Monitoring - Temperature Alert"
+  #   description: "Monitor temperature and set critical flag"
+  #   trigger:
+  #     - platform: numeric_state
+  #       entity_id: sensor.temperature
+  #       above: 40
+  #   action:
+  #     - service: input_boolean.turn_on
+  #       target:
+  #         entity_id: input_boolean.temp_critical
+  #     - service: script.awtrix_control
+  #       data:
+  #         text: "TEMP HIGH {{ states('sensor.temperature') }}°C"
+  #         icon: "2315"
+  #         color: "FF0000"
+  #         duration: 10
 
   - id: app_health_alert
     alias: "Monitoring - App Health Alert"

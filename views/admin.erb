@@ -101,15 +101,50 @@
   </style>
 </head>
 <body>
-  <div style="margin-bottom: 20px;">
-    <a href="/admin/scenarios" style="color: #00ff41; text-decoration: none; font-weight: bold;">🧪 Scenarios</a> |
-    <a href="/admin/errors" style="color: #ff3333; text-decoration: none;">🐛 Errors</a> |
-    <a href="/admin/tools" style="color: #ffff00; text-decoration: none;">🔧 Tools</a> |
-    <a href="/admin/logs" style="color: #00ffff; text-decoration: none;">📋 Logs</a> |
-    <a href="/health" style="color: #888; text-decoration: none;">System Status</a>
+  <!-- Navigation Bar -->
+  <div style="margin-bottom: 20px; padding: 15px; border: 1px solid #0f0; background: #001100;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <strong style="color: #00ff00;">ADMIN SECTIONS:</strong>
+        <a href="/admin" style="color: #0f0; text-decoration: none; margin: 0 10px;">🏠 Home</a> |
+        <a href="/admin/scenarios" style="color: #00ff41; text-decoration: none; font-weight: bold;">🧪 Scenarios</a> |
+        <a href="/admin/benchmarks" style="color: #ffaa00; text-decoration: none;">📊 Benchmarks</a> |
+        <a href="/admin/errors" style="color: #ff3333; text-decoration: none;">🐛 Errors</a> |
+        <a href="/admin/tools" style="color: #ffff00; text-decoration: none;">🔧 Tools</a> |
+        <a href="/admin/logs" style="color: #00ffff; text-decoration: none;">📋 Logs</a>
+      </div>
+      <div>
+        <a href="/api/health" style="color: #888; text-decoration: none; font-size: 12px;">💚 Health Check</a>
+      </div>
+    </div>
   </div>
 
-  <h1>🎲 GLITCH CUBE ADMIN - SIMPLE</h1>
+  <h1>🎲 GLITCH CUBE ADMIN - CONVERSATION TESTING</h1>
+  
+  <!-- Quick Access Dashboard -->
+  <div class="panel" style="margin-bottom: 20px;">
+    <h2>⚡ Quick Access</h2>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+      <div style="border: 1px solid #0f0; padding: 10px; text-align: center;">
+        <h3 style="color: #00ff41; margin: 5px 0;">🧪 Testing</h3>
+        <a href="/admin/scenarios" style="color: #0f0; text-decoration: none; display: block; margin: 5px;">→ Model Scenarios</a>
+        <a href="/admin/benchmarks" style="color: #0f0; text-decoration: none; display: block; margin: 5px;">→ Benchmarks</a>
+        <a href="/admin/tools" style="color: #0f0; text-decoration: none; display: block; margin: 5px;">→ Tool Testing</a>
+      </div>
+      <div style="border: 1px solid #0f0; padding: 10px; text-align: center;">
+        <h3 style="color: #ffaa00; margin: 5px 0;">📊 Monitoring</h3>
+        <a href="/admin/logs" style="color: #0f0; text-decoration: none; display: block; margin: 5px;">→ Live Logs</a>
+        <a href="/admin/errors" style="color: #0f0; text-decoration: none; display: block; margin: 5px;">→ Error Tracking</a>
+        <a href="/api/health" style="color: #0f0; text-decoration: none; display: block; margin: 5px;">→ Health Status</a>
+      </div>
+      <div style="border: 1px solid #0f0; padding: 10px; text-align: center;">
+        <h3 style="color: #00ffff; margin: 5px 0;">🔍 Debugging</h3>
+        <a href="#" onclick="checkStatus(); return false;" style="color: #0f0; text-decoration: none; display: block; margin: 5px;">→ System Status</a>
+        <a href="#" onclick="refreshSessions(); return false;" style="color: #0f0; text-decoration: none; display: block; margin: 5px;">→ Session History</a>
+        <a href="#" onclick="loadMemories('recent'); return false;" style="color: #0f0; text-decoration: none; display: block; margin: 5px;">→ Memory Viewer</a>
+      </div>
+    </div>
+  </div>
   
   <div class="grid">
     <!-- Left Column: Conversation Testing -->

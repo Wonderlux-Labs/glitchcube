@@ -102,9 +102,41 @@ module GlitchCube
         # Main scenarios interface
         app.get '/admin/scenarios' do
           @scenarios = SCENARIOS
-          @model_categories = get_available_models
-          @models = get_flat_model_list # For backwards compatibility
-          @recent_comparisons = get_recent_comparisons
+
+          # Get available models directly
+          @model_categories = {
+            'Free Models (Recommended for Testing)' => GlitchCube::ModelPresets::FREE_MODELS,
+            'Cheap Models with Tools' => GlitchCube::ModelPresets::CHEAP_TOOLS_MODELS,
+            'Conversation Models' => GlitchCube::ModelPresets::CONVERSATION_MODELS,
+            'Vision Models' => GlitchCube::ModelPresets::VISION_MODELS,
+            'Premium Models (Higher Cost)' => GlitchCube::ModelPresets::PREMIUM_MODELS
+          }
+
+          # Flat list for backwards compatibility
+          @models = @model_categories.values.flatten.uniq.reject { |model| GlitchCube::ModelPresets.blacklisted?(model) }
+
+          # Get recent comparisons
+          begin
+            redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+            comparison_ids = redis.lrange('recent_scenario_comparisons', 0, 9)
+
+            @recent_comparisons = []
+            comparison_ids.each do |id|
+              data = redis.get("scenario_comparison:#{id}")
+              next unless data
+
+              comparison = JSON.parse(data)
+              @recent_comparisons << {
+                id: comparison['id'],
+                scenario_id: comparison['scenario_id'],
+                scenario_name: SCENARIOS[comparison['scenario_id']]&.dig(:name) || 'Unknown',
+                models_count: comparison['results']&.size || 0,
+                timestamp: comparison['timestamp']
+              }
+            end
+          rescue Redis::CannotConnectError
+            @recent_comparisons = []
+          end
           @free_models = GlitchCube::ModelPresets::FREE_MODELS
           erb :admin_scenarios
         end

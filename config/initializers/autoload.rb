@@ -87,11 +87,11 @@ module Autoloader
       ServiceRegistry.register(:context_enrichment_service, 'services/memory/context_enrichment_service',
                                dependencies: %i[logger_service context_retrieval_service])
 
-      # GPS services
-      ServiceRegistry.register(:gps_cache_service, 'services/gps/gps_cache_service',
+      # GPS/GIS services
+      ServiceRegistry.register(:location_context_service, 'services/gps/location_context_service',
                                dependencies: [:logger_service])
       ServiceRegistry.register(:gps_tracking_service, 'services/gps/gps_tracking_service',
-                               dependencies: %i[logger_service gps_cache_service])
+                               dependencies: %i[logger_service location_context_service])
 
       # Conversation services
       ServiceRegistry.register(:conversation_handler_service, 'services/conversation/conversation_handler_service',

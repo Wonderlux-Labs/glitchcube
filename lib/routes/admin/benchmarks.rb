@@ -2,6 +2,7 @@
 
 require 'sinatra/base'
 require 'json'
+require 'fileutils'
 
 module GlitchCube
   module Routes
@@ -9,7 +10,11 @@ module GlitchCube
       def self.registered(app)
         # Main benchmark page
         app.get '/admin/benchmarks' do
-          @scenarios = Dir.glob('benchmark_scenarios/*.yaml').map do |file|
+          # Ensure benchmark_scenarios directory exists
+          scenarios_dir = 'benchmark_scenarios'
+          FileUtils.mkdir_p(scenarios_dir) unless File.directory?(scenarios_dir)
+
+          @scenarios = Dir.glob("#{scenarios_dir}/*.yaml").map do |file|
             scenario = YAML.load_file(file).deep_symbolize_keys
             scenario[:filename] = File.basename(file)
             scenario
@@ -18,8 +23,31 @@ module GlitchCube
           @default_models = Services::ModelBenchmarkRunner::DEFAULT_MODELS
           @all_models = Services::ModelBenchmarkRunner::ALL_AVAILABLE_MODELS
 
-          # Load any existing results
-          @recent_results = load_recent_results
+          # Load any existing results inline
+          begin
+            results_dir = 'benchmark_results'
+            FileUtils.mkdir_p(results_dir) unless File.directory?(results_dir)
+
+            result_files = Dir.glob("#{results_dir}/*.json")
+                              .sort_by { |f| File.mtime(f) }
+                              .reverse
+                              .first(10)
+
+            @recent_results = if result_files.empty?
+                                []
+                              else
+                                result_files.map do |file|
+                                  data = JSON.parse(File.read(file), symbolize_names: true)
+                                  {
+                                    filename: File.basename(file),
+                                    timestamp: File.mtime(file),
+                                    data: data
+                                  }
+                                end
+                              end
+          rescue StandardError => e
+            @recent_results = []
+          end
 
           erb :admin_benchmarks
         end
@@ -96,10 +124,16 @@ module GlitchCube
       private
 
       def self.load_recent_results(limit = 10)
-        result_files = Dir.glob('benchmark_results/*.json')
+        # Ensure the results directory exists
+        results_dir = 'benchmark_results'
+        FileUtils.mkdir_p(results_dir) unless File.directory?(results_dir)
+
+        result_files = Dir.glob("#{results_dir}/*.json")
                           .sort_by { |f| File.mtime(f) }
                           .reverse
                           .first(limit)
+
+        return [] if result_files.empty?
 
         result_files.map do |file|
           data = JSON.parse(File.read(file), symbolize_names: true)
@@ -110,7 +144,7 @@ module GlitchCube
           }
         end
       rescue StandardError => e
-        Services::SimpleLogger.error('Failed to load results', error: e.message)
+        Services::SimpleLogger.error('Failed to load results', error: e.message) if defined?(Services::SimpleLogger)
         []
       end
 

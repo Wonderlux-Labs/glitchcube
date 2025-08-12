@@ -37,17 +37,7 @@ Thread-safe caching layer for GPS operations.
 
 ### 2. Coordinate Systems
 
-#### BrcCoordinateService (`lib/utils/brc_coordinate_service.rb`)
-Converts GPS coordinates to Burning Man's time-and-street addressing.
-
-**Constants:**
-- `GOLDEN_SPIKE_COORDS` - Single source of truth for city center (40.78696345, -119.2030071)
-- `STREET_DISTANCES` - Real distances from GIS data (Esplanade to Kilgore)
-
-**Key Methods:**
-- `brc_address_from_coordinates(lat, lng)` - Converts GPS to "6:30 & Esplanade" format
-- `distance_between_points` - Haversine distance calculation
-- `bearing_between_points` - Bearing calculation for time streets
+Coordinate conversion functionality has been deprecated and removed from the codebase.
 
 **BRC Street System:**
 - **Radial Streets:** Clock positions (2:00 to 10:00)

@@ -12,7 +12,7 @@ module GlitchCube
 
           # Simple coords endpoint - just lat/lng
           app.get '/api/v1/gps/coords' do
-            location = ::Services::GpsCacheService.cached_location
+            location = ::Services::GpsTrackingService.new.current_location
 
             if location&.dig(:lat) && location[:lng]
               json({
@@ -38,23 +38,17 @@ module GlitchCube
             content_type :json
 
             begin
-              # Use cached location data (1-minute TTL)
-              location = ::Services::GpsCacheService.cached_location
+              # Get current location with full context
+              location = ::Services::GpsTrackingService.new.current_location
 
               if location.nil?
                 status 503 # Service Unavailable
                 json({
                        error: 'GPS tracking not available',
-                       message: 'No GPS data - simulation not running and no Home Assistant connection',
+                       message: 'No GPS data - no Home Assistant connection',
                        timestamp: Time.now.utc.iso8601
                      })
               else
-                # Add cached proximity data for map reactions
-                if location[:lat] && location[:lng]
-                  proximity = ::Services::GpsCacheService.cached_proximity(location[:lat], location[:lng])
-                  location[:proximity] = proximity
-                end
-
                 json(location)
               end
             rescue StandardError => e
@@ -71,11 +65,11 @@ module GlitchCube
             content_type :json
 
             begin
-              # Use cached location data
-              current_loc = ::Services::GpsCacheService.cached_location
+              # Get current location
+              current_loc = ::Services::GpsTrackingService.new.current_location
 
               if current_loc && current_loc[:lat] && current_loc[:lng]
-                proximity = ::Services::GpsCacheService.cached_proximity(current_loc[:lat], current_loc[:lng])
+                proximity = ::Services::GpsTrackingService.new.proximity_data(current_loc[:lat], current_loc[:lng])
                 json(proximity)
               else
                 json({ landmarks: [], portos: [], map_mode: 'normal', visual_effects: [] })
@@ -385,7 +379,27 @@ module GlitchCube
             json({ success: success, message: 'GIS cache cleared' })
           end
 
-          # External map app endpoint - includes location with rich proximity context
+          # Temporary endpoint for zone boundaries visualization
+          app.get '/api/v1/gis/zones' do
+            content_type :json
+
+            zones_dir = File.expand_path('../../../data/boundaries/zones', __dir__)
+            all_features = []
+
+            # Load all zone files
+            Dir.glob(File.join(zones_dir, '*.geojson')).each do |file|
+              data = JSON.parse(File.read(file))
+              all_features.concat(data['features']) if data['features']
+            end
+
+            json({
+                   type: 'FeatureCollection',
+                   features: all_features,
+                   source: 'generated_zones'
+                 })
+          end
+
+          # External map app endpoint - FAST Redis-only response
           app.get '/api/v1/gps/cube_current_loc' do
             content_type :json
 
@@ -395,9 +409,8 @@ module GlitchCube
             headers 'Access-Control-Allow-Headers' => 'Content-Type'
 
             begin
-              # Get current location with full context
-              gps_service = ::Services::GpsTrackingService.new
-              location = gps_service.current_location
+              # Get GPS coordinates
+              location = ::Services::GpsTrackingService.new.current_location
 
               if location.nil? || !location[:lat] || !location[:lng]
                 status 503
@@ -408,66 +421,14 @@ module GlitchCube
                             })
               end
 
-              # Get proximity context
-              lat = location[:lat]
-              lng = location[:lng]
-              proximity = ::Services::GpsCacheService.cached_proximity(lat, lng)
+              # Get full context (hits Redis cache first, then LocationContextService)
+              context = Services::LocationContextService.full_context(location[:lat], location[:lng])
 
-              # Find nearest intersection/street
-              gps_service = ::Services::GpsTrackingService.new
-              brc_address = gps_service.brc_address_from_coordinates(lat, lng)
-
-              # Get nearby landmarks
-              nearby_landmarks = Landmark.within_meters(lng, lat, 1000)
-                                         .limit(10)
-                                         .map do |landmark|
-                distance = gps_service.haversine_distance(lat, lng, landmark.latitude.to_f, landmark.longitude.to_f)
-                {
-                  name: landmark.name,
-                  type: landmark.landmark_type,
-                  distance_meters: distance.round(0),
-                  distance_text: distance < 100 ? "#{distance.round(0)}m" : "#{(distance / 1000.0).round(1)}km"
-                }
-              end
-                                         .sort_by { |l| l[:distance_meters] }
-
-              # Response for external app
-              response_data = {
-                # Core location
-                lat: lat,
-                lng: lng,
-                timestamp: location[:timestamp] || Time.now.utc.iso8601,
-
-                # Context information
-                address: brc_address || location[:address],
-                context: location[:context],
-                section: location[:section],
-                distance_from_man: location[:distance_from_man],
-
-                # Proximity data
-                nearest_intersection: brc_address,
-                nearby_landmarks: nearby_landmarks.take(5),
-
-                # Visual/map context
-                map_mode: proximity[:map_mode] || 'normal',
-                visual_effects: proximity[:visual_effects] || [],
-
-                # Source info
-                source: location[:source] || 'unknown',
-                last_update: Time.now.utc.iso8601
-              }
-
-              # Add closest landmark for context
-              if nearby_landmarks.any?
-                closest = nearby_landmarks.first
-                response_data[:closest_landmark] = if closest[:distance_meters] < 200 # Very close
-                                                     "at #{closest[:name]}"
-                                                   elsif closest[:distance_meters] < 500 # Nearby
-                                                     "near #{closest[:name]} (#{closest[:distance_text]})"
-                                                   else
-                                                     "#{closest[:distance_text]} from #{closest[:name]}"
-                                                   end
-              end
+              # Merge GPS metadata with full context
+              response_data = location.merge(context).merge({
+                                                              source: location[:source] || 'unknown',
+                                                              last_update: Time.now.utc.iso8601
+                                                            })
 
               json(response_data)
             rescue StandardError => e

@@ -288,9 +288,4 @@ rest_command:
     url: "{{ states('input_text.glitchcube_host') }}/api/updates/check"
     method: GET
 
-###############################################################################
-# SHELL COMMANDS
-###############################################################################
-shell_command:
-  deploy_glitchcube: "cd /path/to/glitchcube && git pull && bundle install && bundle exec rake deploy"
-  restart_glitchcube: "systemctl restart glitchcube"
+# Shell commands are defined in configuration.yaml to avoid duplication

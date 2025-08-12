@@ -1,300 +1,302 @@
 # frozen_string_literal: true
 
-require 'sidekiq'
-require 'json'
-require 'fileutils'
+# # frozen_string_literal: true
 
-module Jobs
-  class SimulateCubeMovementWorker
-    include Sidekiq::Worker
-    include Utils::LocationHelper
+# require 'sidekiq'
+# require 'json'
+# require 'fileutils'
 
-    # File paths for simulation data
-    CONFIG_FILE = File.expand_path('../../data/simulation/gps_simulation_config.json', __dir__)
-    SIM_FILE = File.expand_path('../../data/simulation/current_coordinates.json', __dir__)
-    HISTORY_FILE = File.expand_path('../../data/simulation/route_history.json', __dir__)
-    DEST_FILE = File.expand_path('../../data/simulation/current_destination.json', __dir__)
-    STEP_FILE = File.expand_path('../../data/simulation/movement_step.txt', __dir__)
+# module Jobs
+#   class SimulateCubeMovementWorker
+#     include Sidekiq::Worker
+#     include Utils::LocationHelper
 
-    def perform
-      return unless Cube::Settings.simulate_cube_movement?
+#     # File paths for simulation data
+#     CONFIG_FILE = File.expand_path('../../data/simulation/gps_simulation_config.json', __dir__)
+#     SIM_FILE = File.expand_path('../../data/simulation/current_coordinates.json', __dir__)
+#     HISTORY_FILE = File.expand_path('../../data/simulation/route_history.json', __dir__)
+#     DEST_FILE = File.expand_path('../../data/simulation/current_destination.json', __dir__)
+#     STEP_FILE = File.expand_path('../../data/simulation/movement_step.txt', __dir__)
 
-      load_configuration
-      @start_time = Time.now
-      @current_location = load_current_location
-      @destination = load_or_pick_destination
-      @route_history = load_history
+#     def perform
+#       return unless Cube::Settings.simulate_cube_movement?
 
-      logger.info '🎲 Starting cube movement simulation'
-      logger.info "   Current: #{format_location(@current_location)}"
-      logger.info "   Destination: #{@destination[:name]}"
+#       load_configuration
+#       @start_time = Time.now
+#       @current_location = load_current_location
+#       @destination = load_or_pick_destination
+#       @route_history = load_history
 
-      while should_continue?
-        move_toward_destination
-        save_current_state
-        log_movement
+#       logger.info '🎲 Starting cube movement simulation'
+#       logger.info "   Current: #{format_location(@current_location)}"
+#       logger.info "   Destination: #{@destination[:name]}"
 
-        # Check if we've arrived
-        if arrived_at_destination?
-          logger.info "✅ Arrived at #{@destination[:name]}!"
-          pick_new_destination
-        end
+#       while should_continue?
+#         move_toward_destination
+#         save_current_state
+#         log_movement
 
-        sleep @config['movement']['update_interval']
-      end
+#         # Check if we've arrived
+#         if arrived_at_destination?
+#           logger.info "✅ Arrived at #{@destination[:name]}!"
+#           pick_new_destination
+#         end
 
-      logger.info '🛑 Stopping cube movement simulation (time limit reached)'
-    end
+#         sleep @config['movement']['update_interval']
+#       end
 
-    private
+#       logger.info '🛑 Stopping cube movement simulation (time limit reached)'
+#     end
 
-    def logger
-      Services::SimpleLogger
-    end
+#     private
 
-    def load_configuration
-      @config = if File.exist?(CONFIG_FILE)
-                  JSON.parse(File.read(CONFIG_FILE))
-                else
-                  # Default configuration if file doesn't exist
-                  {
-                    'destinations' => default_destinations,
-                    'movement' => {
-                      'speed' => 0.00008, # MUCH smaller steps for gradual movement
-                      'arrival_threshold' => 0.0005,
-                      'update_interval' => 3, # Update every 3 seconds
-                      'max_duration' => 1800,
-                      'wander_factor' => 0.05 # Minimal wandering
-                    },
-                    'start_location' => {
-                      'lat' => 40.7840,
-                      'lng' => -119.2060,
-                      'name' => '6:00 & Kilgore'
-                    }
-                  }
-                end
-    end
+#     def logger
+#       Services::SimpleLogger
+#     end
 
-    def default_destinations
-      # Load destinations from database landmarks instead of hardcoded
-      begin
-        landmarks = Landmark.active.limit(10).map do |landmark|
-          {
-            'name' => landmark.name,
-            'lat' => landmark.latitude.to_f,
-            'lng' => landmark.longitude.to_f,
-            'type' => landmark.landmark_type
-          }
-        end
+#     def load_configuration
+#       @config = if File.exist?(CONFIG_FILE)
+#                   JSON.parse(File.read(CONFIG_FILE))
+#                 else
+#                   # Default configuration if file doesn't exist
+#                   {
+#                     'destinations' => default_destinations,
+#                     'movement' => {
+#                       'speed' => 0.00008, # MUCH smaller steps for gradual movement
+#                       'arrival_threshold' => 0.0005,
+#                       'update_interval' => 3, # Update every 3 seconds
+#                       'max_duration' => 1800,
+#                       'wander_factor' => 0.05 # Minimal wandering
+#                     },
+#                     'start_location' => {
+#                       'lat' => 40.7840,
+#                       'lng' => -119.2060,
+#                       'name' => '6:00 & Kilgore'
+#                     }
+#                   }
+#                 end
+#     end
 
-        # Return database landmarks if available
-        return landmarks if landmarks.any?
-      rescue StandardError => e
-        logger.warn "Could not load landmarks from database: #{e.message}"
-      end
+#     def default_destinations
+#       # Load destinations from database landmarks instead of hardcoded
+#       begin
+#         landmarks = Landmark.active.limit(10).map do |landmark|
+#           {
+#             'name' => landmark.name,
+#             'lat' => landmark.latitude.to_f,
+#             'lng' => landmark.longitude.to_f,
+#             'type' => landmark.landmark_type
+#           }
+#         end
 
-      # Fallback to core destinations if database unavailable
-      [
-        { 'name' => 'Center Camp', 'lat' => 40.786958, 'lng' => -119.202994, 'type' => 'gathering' },
-        { 'name' => 'The Man', 'lat' => 40.786963, 'lng' => -119.203007, 'type' => 'center' },
-        { 'name' => 'The Temple', 'lat' => 40.791815, 'lng' => -119.196622, 'type' => 'sacred' }
-      ]
-    end
+#         # Return database landmarks if available
+#         return landmarks if landmarks.any?
+#       rescue StandardError => e
+#         logger.warn "Could not load landmarks from database: #{e.message}"
+#       end
 
-    def should_continue?
-      (Time.now - @start_time) < @config['movement']['max_duration'] &&
-        Cube::Settings.simulate_cube_movement?
-    end
+#       # Fallback to core destinations if database unavailable
+#       [
+#         { 'name' => 'Center Camp', 'lat' => 40.786958, 'lng' => -119.202994, 'type' => 'gathering' },
+#         { 'name' => 'The Man', 'lat' => 40.786963, 'lng' => -119.203007, 'type' => 'center' },
+#         { 'name' => 'The Temple', 'lat' => 40.791815, 'lng' => -119.196622, 'type' => 'sacred' }
+#       ]
+#     end
 
-    def load_current_location
-      # First try to load from Redis (current location)
-      begin
-        require 'redis'
-        redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
-        cached = redis.get('current_cube_location')
-        if cached
-          coords = JSON.parse(cached)
-          logger.info "📍 Resuming simulation from Redis: #{coords['lat']}, #{coords['lng']}"
-          return { lat: coords['lat'], lng: coords['lng'] }
-        end
-      rescue StandardError => e
-        logger.warn "Could not load from Redis: #{e.message}"
-      end
+#     def should_continue?
+#       (Time.now - @start_time) < @config['movement']['max_duration'] &&
+#         Cube::Settings.simulate_cube_movement?
+#     end
 
-      # Then try the file system
-      if File.exist?(SIM_FILE)
-        begin
-          coords = JSON.parse(File.read(SIM_FILE))
-          logger.info "📍 Resuming simulation from file: #{coords['lat']}, #{coords['lng']}"
-          return { lat: coords['lat'], lng: coords['lng'] }
-        rescue StandardError
-          # Fall through to default
-        end
-      end
+#     def load_current_location
+#       # First try to load from Redis (current location)
+#       begin
+#         require 'redis'
+#         redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+#         cached = redis.get('current_cube_location')
+#         if cached
+#           coords = JSON.parse(cached)
+#           logger.info "📍 Resuming simulation from Redis: #{coords['lat']}, #{coords['lng']}"
+#           return { lat: coords['lat'], lng: coords['lng'] }
+#         end
+#       rescue StandardError => e
+#         logger.warn "Could not load from Redis: #{e.message}"
+#       end
 
-      # No existing simulation - start at a known location (don't warp)
-      start_location = @config['start_location']
-      logger.info "🎯 Starting NEW simulation at: #{start_location['name']}"
+#       # Then try the file system
+#       if File.exist?(SIM_FILE)
+#         begin
+#           coords = JSON.parse(File.read(SIM_FILE))
+#           logger.info "📍 Resuming simulation from file: #{coords['lat']}, #{coords['lng']}"
+#           return { lat: coords['lat'], lng: coords['lng'] }
+#         rescue StandardError
+#           # Fall through to default
+#         end
+#       end
 
-      {
-        lat: start_location['lat'],
-        lng: start_location['lng']
-      }
-    end
+#       # No existing simulation - start at a known location (don't warp)
+#       start_location = @config['start_location']
+#       logger.info "🎯 Starting NEW simulation at: #{start_location['name']}"
 
-    def load_or_pick_destination
-      if File.exist?(DEST_FILE)
-        begin
-          dest = JSON.parse(File.read(DEST_FILE))
-          found = @config['destinations'].find { |d| d['name'] == dest['name'] }
-          return found.transform_keys(&:to_sym) if found
-        rescue StandardError
-          # Fall through
-        end
-      end
-      pick_random_destination
-    end
+#       {
+#         lat: start_location['lat'],
+#         lng: start_location['lng']
+#       }
+#     end
 
-    def pick_random_destination
-      # Don't pick current location as destination
-      available = @config['destinations'].reject do |dest|
-        distance = haversine_distance(
-          @current_location[:lat], @current_location[:lng],
-          dest['lat'], dest['lng']
-        )
-        distance < 0.1 # Less than ~100m away
-      end
+#     def load_or_pick_destination
+#       if File.exist?(DEST_FILE)
+#         begin
+#           dest = JSON.parse(File.read(DEST_FILE))
+#           found = @config['destinations'].find { |d| d['name'] == dest['name'] }
+#           return found.transform_keys(&:to_sym) if found
+#         rescue StandardError
+#           # Fall through
+#         end
+#       end
+#       pick_random_destination
+#     end
 
-      destination = available.sample.transform_keys(&:to_sym)
-      save_destination(destination)
-      destination
-    end
+#     def pick_random_destination
+#       # Don't pick current location as destination
+#       available = @config['destinations'].reject do |dest|
+#         distance = haversine_distance(
+#           @current_location[:lat], @current_location[:lng],
+#           dest['lat'], dest['lng']
+#         )
+#         distance < 0.1 # Less than ~100m away
+#       end
 
-    def pick_new_destination
-      @destination = pick_random_destination
-      logger.info "🎯 New destination: #{@destination[:name]}"
-    end
+#       destination = available.sample.transform_keys(&:to_sym)
+#       save_destination(destination)
+#       destination
+#     end
 
-    def move_toward_destination
-      # Calculate direction to destination
-      lat_diff = @destination[:lat] - @current_location[:lat]
-      lng_diff = @destination[:lng] - @current_location[:lng]
+#     def pick_new_destination
+#       @destination = pick_random_destination
+#       logger.info "🎯 New destination: #{@destination[:name]}"
+#     end
 
-      # Normalize the movement vector
-      distance = Math.sqrt((lat_diff**2) + (lng_diff**2))
+#     def move_toward_destination
+#       # Calculate direction to destination
+#       lat_diff = @destination[:lat] - @current_location[:lat]
+#       lng_diff = @destination[:lng] - @current_location[:lng]
 
-      return unless distance.positive?
+#       # Normalize the movement vector
+#       distance = Math.sqrt((lat_diff**2) + (lng_diff**2))
 
-      # Add some randomness to movement (wandering)
-      wander = @config['movement']['wander_factor']
-      speed = @config['movement']['speed']
-      lat_move = ((lat_diff / distance) * speed) + (rand(-wander..wander) * speed)
-      lng_move = ((lng_diff / distance) * speed) + (rand(-wander..wander) * speed)
+#       return unless distance.positive?
 
-      @current_location[:lat] += lat_move
-      @current_location[:lng] += lng_move
+#       # Add some randomness to movement (wandering)
+#       wander = @config['movement']['wander_factor']
+#       speed = @config['movement']['speed']
+#       lat_move = ((lat_diff / distance) * speed) + (rand(-wander..wander) * speed)
+#       lng_move = ((lng_diff / distance) * speed) + (rand(-wander..wander) * speed)
 
-      # Add to history
-      @route_history << {
-        lat: @current_location[:lat],
-        lng: @current_location[:lng],
-        timestamp: Time.now.utc.iso8601,
-        destination: @destination[:name]
-      }
+#       @current_location[:lat] += lat_move
+#       @current_location[:lng] += lng_move
 
-      # Keep history to last 100 points
-      @route_history = @route_history.last(100)
-    end
+#       # Add to history
+#       @route_history << {
+#         lat: @current_location[:lat],
+#         lng: @current_location[:lng],
+#         timestamp: Time.now.utc.iso8601,
+#         destination: @destination[:name]
+#       }
 
-    def arrived_at_destination?
-      threshold = @config['movement']['arrival_threshold']
-      lat_diff = (@destination[:lat] - @current_location[:lat]).abs
-      lng_diff = (@destination[:lng] - @current_location[:lng]).abs
+#       # Keep history to last 100 points
+#       @route_history = @route_history.last(100)
+#     end
 
-      lat_diff < threshold && lng_diff < threshold
-    end
+#     def arrived_at_destination?
+#       threshold = @config['movement']['arrival_threshold']
+#       lat_diff = (@destination[:lat] - @current_location[:lat]).abs
+#       lng_diff = (@destination[:lng] - @current_location[:lng]).abs
 
-    def save_current_state
-      # Calculate BRC address
-      gps_service = Services::GpsTrackingService.new
-      address = gps_service.brc_address_from_coordinates(
-        @current_location[:lat],
-        @current_location[:lng]
-      )
-      context = gps_service.location_context(
-        @current_location[:lat],
-        @current_location[:lng]
-      )
+#       lat_diff < threshold && lng_diff < threshold
+#     end
 
-      # Save current coordinates to Redis
-      coords = {
-        lat: @current_location[:lat].round(8),  # Match database precision (10,8)
-        lng: @current_location[:lng].round(8),  # Match database precision (11,8)
-        timestamp: Time.now.utc.iso8601,
-        address: address,
-        context: context,
-        destination: @destination[:name],
-        source: 'simulation'
-      }
+#     def save_current_state
+#       # Calculate BRC address
+#       gps_service = Services::GpsTrackingService.new
+#       address = gps_service.brc_address_from_coordinates(
+#         @current_location[:lat],
+#         @current_location[:lng]
+#       )
+#       context = gps_service.location_context(
+#         @current_location[:lat],
+#         @current_location[:lng]
+#       )
 
-      # Store in Redis with 5 minute TTL
-      require 'redis'
-      redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
-      redis.setex('current_cube_location', 300, JSON.generate(coords))
+#       # Save current coordinates to Redis
+#       coords = {
+#         lat: @current_location[:lat].round(8),  # Match database precision (10,8)
+#         lng: @current_location[:lng].round(8),  # Match database precision (11,8)
+#         timestamp: Time.now.utc.iso8601,
+#         address: address,
+#         context: context,
+#         destination: @destination[:name],
+#         source: 'simulation'
+#       }
 
-      # Also save to file as backup
-      ensure_directory(File.dirname(SIM_FILE))
-      File.write(SIM_FILE, JSON.pretty_generate(coords))
+#       # Store in Redis with 5 minute TTL
+#       require 'redis'
+#       redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+#       redis.setex('current_cube_location', 300, JSON.generate(coords))
 
-      # Save history
-      save_history
-    end
+#       # Also save to file as backup
+#       ensure_directory(File.dirname(SIM_FILE))
+#       File.write(SIM_FILE, JSON.pretty_generate(coords))
 
-    def save_history
-      ensure_directory(File.dirname(HISTORY_FILE))
-      File.write(HISTORY_FILE, JSON.pretty_generate(@route_history))
-    end
+#       # Save history
+#       save_history
+#     end
 
-    def load_history
-      if File.exist?(HISTORY_FILE)
-        begin
-          JSON.parse(File.read(HISTORY_FILE))
-        rescue StandardError
-          []
-        end
-      else
-        []
-      end
-    end
+#     def save_history
+#       ensure_directory(File.dirname(HISTORY_FILE))
+#       File.write(HISTORY_FILE, JSON.pretty_generate(@route_history))
+#     end
 
-    def save_destination(destination)
-      ensure_directory(File.dirname(DEST_FILE))
-      File.write(DEST_FILE, JSON.pretty_generate(destination))
-    end
+#     def load_history
+#       if File.exist?(HISTORY_FILE)
+#         begin
+#           JSON.parse(File.read(HISTORY_FILE))
+#         rescue StandardError
+#           []
+#         end
+#       else
+#         []
+#       end
+#     end
 
-    def ensure_directory(dir)
-      FileUtils.mkdir_p(dir) unless File.directory?(dir)
-    end
+#     def save_destination(destination)
+#       ensure_directory(File.dirname(DEST_FILE))
+#       File.write(DEST_FILE, JSON.pretty_generate(destination))
+#     end
 
-    def calculate_distance_to_destination
-      haversine_distance(
-        @current_location[:lat], @current_location[:lng],
-        @destination[:lat], @destination[:lng]
-      )
-    end
+#     def ensure_directory(dir)
+#       FileUtils.mkdir_p(dir) unless File.directory?(dir)
+#     end
 
-    def format_location(loc)
-      "#{loc[:lat].round(8)}, #{loc[:lng].round(8)}" # Consistent database precision
-    end
+#     def calculate_distance_to_destination
+#       haversine_distance(
+#         @current_location[:lat], @current_location[:lng],
+#         @destination[:lat], @destination[:lng]
+#       )
+#     end
 
-    def log_movement
-      distance = calculate_distance_to_destination
-      meters = (distance * 1609.34).round
-      logger.info "📍 Cube at: #{format_location(@current_location)} | " \
-                  "Heading to: #{@destination[:name]} (#{meters}m away)"
-    end
+#     def format_location(loc)
+#       "#{loc[:lat].round(8)}, #{loc[:lng].round(8)}" # Consistent database precision
+#     end
 
-    # Use consistent distance calculation from LocationHelper
-    # (already included at top of class)
-  end
-end
+#     def log_movement
+#       distance = calculate_distance_to_destination
+#       meters = (distance * 1609.34).round
+#       logger.info "📍 Cube at: #{format_location(@current_location)} | " \
+#                   "Heading to: #{@destination[:name]} (#{meters}m away)"
+#     end
+
+#     # Use consistent distance calculation from LocationHelper
+#     # (already included at top of class)
+#   end
+# end

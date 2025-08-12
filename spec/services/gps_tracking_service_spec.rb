@@ -8,28 +8,24 @@ RSpec.describe Services::GpsTrackingService do
 
   before do
     allow(HomeAssistantClient).to receive(:new).and_return(ha_client)
-  end
 
-  describe '#initialize' do
-    it 'creates a HomeAssistantClient instance', :vcr do
-      expect(HomeAssistantClient).to receive(:new)
-      described_class.new
-    end
+    # Mock LocationContextService to avoid complex setup
+    allow(Services::LocationContextService).to receive(:full_context).and_return({
+                                                                                   zone: :city,
+                                                                                   address: '6:00 & Esplanade',
+                                                                                   within_fence: true,
+                                                                                   distance_from_man: '0.5 miles',
+                                                                                   landmarks: []
+                                                                                 })
   end
 
   describe '#current_location' do
-    let(:device_tracker_entity) { 'device_tracker.glitch_cube' }
-
-    before do
-      allow(GlitchCube.config.gps).to receive(:device_tracker_entity).and_return(device_tracker_entity)
-    end
-
-    context 'when Home Assistant returns valid GPS data' do
+    context 'with Home Assistant GPS data' do
       let(:ha_states) do
         [{
-          'entity_id' => device_tracker_entity,
+          'entity_id' => 'device_tracker.glitch_cube',
           'state' => 'home',
-          'last_updated' => Time.now.iso8601,
+          'last_updated' => '2025-01-01T12:00:00Z',
           'attributes' => {
             'latitude' => 40.7863,
             'longitude' => -119.2065,
@@ -41,148 +37,172 @@ RSpec.describe Services::GpsTrackingService do
 
       before do
         allow(ha_client).to receive(:states).and_return(ha_states)
+        allow(GlitchCube.config.gps).to receive(:device_tracker_entity).and_return('device_tracker.glitch_cube')
       end
 
-      it 'returns formatted GPS data', :vcr do
+      it 'returns GPS data merged with location context' do
         result = service.current_location
 
+        # GPS metadata
         expect(result).to include(
           lat: 40.7863,
           lng: -119.2065,
+          source: 'gps',
           accuracy: 10,
           battery: 85
         )
         expect(result[:timestamp]).to be_a(Time)
-        expect(result[:address]).to be_a(String)
-        expect(result[:context]).to be_a(String)
+
+        # Location context
+        expect(result).to include(
+          zone: :city,
+          address: '6:00 & Esplanade',
+          within_fence: true,
+          distance_from_man: '0.5 miles'
+        )
       end
     end
 
-    context 'when Home Assistant returns no GPS data' do
+    context 'with no GPS data available' do
       before do
         allow(ha_client).to receive(:states).and_return([])
       end
 
-      it 'returns random landmark location when no GPS data available', :vcr do
+      it 'falls back to random landmark location' do
         result = service.current_location
 
-        # Should return a random landmark location
         expect(result[:lat]).to be_a(Float)
         expect(result[:lng]).to be_a(Float)
-        expect(result[:source]).to eq('random_location')
+        expect(result[:source]).to eq('random_landmark')
         expect(result[:accuracy]).to be_nil
         expect(result[:battery]).to be_nil
-        expect(result[:timestamp]).to be_a(Time)
 
-        # Should have computed BRC address and context
-        expect(result[:address]).to be_a(String)
-        expect(result[:section]).to be_a(String)
-        expect(result[:distance_from_man]).to match(/\d+\.\d+ mi from The Man/)
+        # Should still have location context
+        expect(result[:zone]).to eq(:city)
+        expect(result[:address]).to eq('6:00 & Esplanade')
       end
     end
 
-    context 'when Home Assistant raises an error' do
+    context 'with spoofed GPS (development mode)' do
+      let(:redis) { instance_double(Redis) }
+      let(:spoofed_location) do
+        {
+          lat: 40.7800,
+          lng: -119.2100,
+          timestamp: Time.now.iso8601,
+          source: 'admin_spoof',
+          name: 'Test Location'
+        }
+      end
+
       before do
-        allow(ha_client).to receive(:states).and_raise(StandardError.new('Connection failed'))
+        allow(Redis).to receive(:new).and_return(redis)
+        allow(redis).to receive(:get).with('current_cube_location').and_return(spoofed_location.to_json)
+        allow(ENV).to receive(:[]).with('RACK_ENV').and_return('development')
+        allow(ENV).to receive(:[]).with('REDIS_URL').and_return('redis://localhost:6379/0')
       end
 
-      it 'returns random landmark location when error occurs', :vcr do
+      it 'uses spoofed location when available in development' do
         result = service.current_location
 
-        # Should fallback to random landmark location on error
-        expect(result[:lat]).to be_a(Float)
-        expect(result[:lng]).to be_a(Float)
-        expect(result[:source]).to eq('random_location')
-        expect(result[:accuracy]).to be_nil
-        expect(result[:battery]).to be_nil
-        expect(result[:timestamp]).to be_a(Time)
+        expect(result[:lat]).to eq(40.7800)
+        expect(result[:lng]).to eq(-119.2100)
+        expect(result[:source]).to eq('spoofed')
+        expect(result[:name]).to eq('Test Location')
 
-        # Should have computed BRC address and context
-        expect(result[:address]).to be_a(String)
-        expect(result[:section]).to be_a(String)
-        expect(result[:distance_from_man]).to match(/\d+\.\d+ mi from The Man/)
+        # Should still get location context
+        expect(result[:zone]).to eq(:city)
       end
     end
   end
 
-  # NOTE: track_movement method doesn't exist in the service
-  # These tests are commented out but kept for reference if the method is added later
-  # describe '#track_movement' do
-  #   # Test implementation would go here
-  # end
+  describe '#proximity_data' do
+    let(:context_with_landmarks) do
+      {
+        landmarks: [
+          { name: 'The Man', type: 'center', distance_meters: 100 },
+          { name: 'Temple', type: 'sacred', distance_meters: 200 }
+        ],
+        nearest_porto: { name: 'Porto 1', type: 'toilet', distance_meters: 50 }
+      }
+    end
 
-  describe '#detect_nearby_landmarks' do
-    context 'at Burning Man' do
-      it 'detects when at Center Camp', :vcr do
-        # Get Center Camp's actual coordinates from database
-        center_camp_landmark = Landmark.find_by(name: 'Center Camp')
-        skip 'Center Camp landmark not found in database' unless center_camp_landmark
+    before do
+      allow(Services::LocationContextService).to receive(:full_context)
+        .with(40.7863, -119.2065)
+        .and_return(context_with_landmarks)
+    end
 
-        landmarks = service.detect_nearby_landmarks(center_camp_landmark.latitude, center_camp_landmark.longitude)
+    it 'returns formatted proximity data with map mode and visual effects' do
+      result = service.proximity_data(40.7863, -119.2065)
 
-        center_camp = landmarks.find { |l| l[:name] == 'Center Camp' }
-        expect(center_camp).not_to be_nil
-        expect(center_camp[:distance]).to be < 0.01 # Should be very close
-      end
+      expect(result).to include(
+        landmarks: context_with_landmarks[:landmarks],
+        portos: [context_with_landmarks[:nearest_porto]],
+        map_mode: 'man' # 'center' type maps to 'man' mode
+      )
 
-      it 'detects multiple landmarks when in range', :vcr do
-        # Find The Man coordinates and test nearby detection
-        the_man_landmark = Landmark.find_by(name: 'The Man')
-        skip 'The Man landmark not found in database' unless the_man_landmark
+      # Visual effects should include both center (pulse) and sacred (aura) effects
+      expect(result[:visual_effects]).to include(
+        { type: 'pulse', color: 'orange', intensity: 'strong' },
+        { type: 'aura', color: 'white', intensity: 'soft' }
+      )
+    end
 
-        landmarks = service.detect_nearby_landmarks(the_man_landmark.latitude, the_man_landmark.longitude)
+    it 'handles empty landmarks gracefully' do
+      allow(Services::LocationContextService).to receive(:full_context).and_return({ landmarks: [] })
 
-        expect(landmarks).to be_an(Array)
-        expect(landmarks).not_to be_empty
-        # Should detect at least The Man
-        expect(landmarks.map { |l| l[:name] }).to include('The Man')
-      end
+      result = service.proximity_data(40.7863, -119.2065)
 
-      it 'returns empty array when far from all landmarks', :vcr do
-        # Far away location (San Francisco)
-        landmarks = service.detect_nearby_landmarks(37.7749, -122.4194)
-
-        expect(landmarks).to eq([])
-      end
+      expect(result[:map_mode]).to eq('normal')
+      expect(result[:visual_effects]).to eq([])
     end
   end
 
-  # NOTE: journey_summary method doesn't exist in the service
-  # These tests are commented out but kept for reference if the method is added later
-  # describe '#journey_summary' do
-  #   # Test implementation would go here
-  # end
+  describe '#brc_address_from_coordinates (deprecated)' do
+    it 'delegates to LocationContextService' do
+      expect(Services::LocationContextService).to receive(:full_context)
+        .with(40.7863, -119.2065)
+        .and_return({ address: '6:00 & Esplanade' })
 
-  describe 'LocationHelper integration' do
-    it 'has access to haversine_distance method', :vcr do
-      expect(service).to respond_to(:haversine_distance)
-    end
-
-    it 'calculates distance correctly', :vcr do
-      # Test the haversine_distance method that was missing
-      distance = service.haversine_distance(40.7864, -119.2065, 40.7900, -119.2100)
-
-      expect(distance).to be_a(Float)
-      expect(distance).to be > 0
-      expect(distance).to be < 1 # Should be less than 1 mile for these coordinates
-    end
-
-    it 'has access to distance_from method', :vcr do
-      expect(service).to respond_to(:distance_from)
-    end
-
-    it 'has access to coordinates method', :vcr do
-      expect(service).to respond_to(:coordinates)
+      result = service.brc_address_from_coordinates(40.7863, -119.2065)
+      expect(result).to eq('6:00 & Esplanade')
     end
   end
 
-  describe 'error handling' do
-    it 'handles missing configuration gracefully', :vcr do
-      allow(GlitchCube.config).to receive(:gps).and_raise(NoMethodError)
-      allow(ha_client).to receive(:states).and_return([])
+  describe 'private methods' do
+    describe '#determine_map_mode_from_landmarks' do
+      it 'maps landmark types to visual modes' do
+        landmarks = [{ type: 'sacred' }]
+        result = service.send(:determine_map_mode_from_landmarks, landmarks)
+        expect(result).to eq('temple')
 
-      # Should fall back to ENV variable
-      expect { service.current_location }.not_to raise_error
+        landmarks = [{ type: 'center' }]
+        result = service.send(:determine_map_mode_from_landmarks, landmarks)
+        expect(result).to eq('man')
+
+        landmarks = [{ type: 'medical' }]
+        result = service.send(:determine_map_mode_from_landmarks, landmarks)
+        expect(result).to eq('emergency')
+      end
+    end
+
+    describe '#determine_visual_effects_from_landmarks' do
+      it 'creates visual effects based on landmark types' do
+        landmarks = [
+          { type: 'sacred' },
+          { type: 'center' },
+          { type: 'medical' }
+        ]
+
+        result = service.send(:determine_visual_effects_from_landmarks, landmarks)
+
+        expect(result).to include(
+          { type: 'aura', color: 'white', intensity: 'soft' },
+          { type: 'pulse', color: 'orange', intensity: 'strong' },
+          { type: 'beacon', color: 'red', intensity: 'steady' }
+        )
+      end
     end
   end
 end

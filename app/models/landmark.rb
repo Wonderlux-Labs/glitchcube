@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# TODO: CLEAN ALL THE NON POSTGIS STUFF UP
 class Landmark < ActiveRecord::Base
   # Callbacks
   before_save :update_spatial_location
