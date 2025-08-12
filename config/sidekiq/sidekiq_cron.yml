@@ -15,3 +15,27 @@ personality_memory:
   class: "Jobs::PersonalityMemoryJob"
   queue: low
   description: "Extract and store interesting memories from recent conversations"
+
+personal_summarizer:
+  cron: "5 * * * *"  # 5 minutes past every hour
+  class: "Jobs::PersonalSummarizerJob"
+  queue: summaries
+  description: "Summarize cube's internal state and thoughts from the past hour"
+
+interaction_summarizer:
+  cron: "10 * * * *"  # 10 minutes past every hour
+  class: "Jobs::InteractionSummarizerJob"
+  queue: summaries
+  description: "Summarize social dynamics and human interactions from the past hour"
+
+event_memory_summarizer:
+  cron: "15 * * * *"  # 15 minutes past every hour
+  class: "Jobs::EventMemorySummarizerJob"
+  queue: summaries
+  description: "Identify and summarize significant moments from the past hour"
+
+daily_summary:
+  cron: "0 1 * * *"  # 1:00 AM every day
+  class: "Jobs::DailySummaryJob"
+  queue: summaries
+  description: "Consolidate hourly summaries into comprehensive daily summary"

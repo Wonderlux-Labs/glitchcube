@@ -3,6 +3,9 @@
 module Services
   class ConversationSummarizer
     def initialize(limit: 50, start_time: nil, end_time: nil)
+      @limit = limit
+      @start_time = start_time
+      @end_time = end_time
       @messages = Message.where(created_at > time)
       @llm_service = Services::LLMService
     end
