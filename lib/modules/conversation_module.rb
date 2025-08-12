@@ -485,6 +485,14 @@ class ConversationModule
     # Add relevant context and memories if available
     final_prompt = Services::ContextInjectionService.inject_context(base_prompt, enriched_context)
 
+    # CRITICAL: Always add JSON formatting instructions for non-tool responses
+    # This ensures consistent response format for Home Assistant voice pipeline
+    unless context[:tools].present? && !context[:tools].empty?
+      json_instruction = "\n\nIMPORTANT: Your response MUST be valid JSON in this exact format:\n" \
+                         '{"response": "your complete message here", "continue_conversation": true/false, "inner_thoughts": "optional internal thoughts"}'
+      final_prompt += json_instruction
+    end
+
     Services::SimpleLogger.debug('System prompt generated', tagged: %i[conversation prompt], char_count: final_prompt.length)
 
     final_prompt
@@ -496,17 +504,29 @@ class ConversationModule
                   # Already a hash (structured response)
                   response_data.dup
                 elsif response_data.is_a?(String) && !response_data.strip.empty?
-                  # Plain text response - create a hash with the text as the response
-                  Services::SimpleLogger.debug('Converting plain text response to structured format',
-                                               tagged: %i[conversation validation],
-                                               text_length: response_data.length)
-                  {
-                    'response' => response_data.strip,
-                    'continue_conversation' => false,  # Default for plain text
-                    'inner_thoughts' => ''
-                  }
+                  # Try to parse as JSON first
+                  begin
+                    parsed = JSON.parse(response_data)
+                    Services::SimpleLogger.debug('Successfully parsed JSON response',
+                                                 tagged: %i[conversation validation])
+                    parsed
+                  rescue JSON::ParserError => e
+                    # Log parsing failure for debugging
+                    Services::SimpleLogger.warn('Failed to parse LLM response as JSON, treating as plain text',
+                                                tagged: %i[conversation validation error],
+                                                error: e.message,
+                                                response_preview: response_data[0..100])
+                    # Plain text response - create a hash with the text as the response
+                    {
+                      'response' => response_data.strip,
+                      'continue_conversation' => true,  # Default to true for voice interactions
+                      'inner_thoughts' => ''
+                    }
+                  end
                 else
                   # Empty or nil - create empty hash
+                  Services::SimpleLogger.warn('Response data was nil or empty',
+                                              tagged: %i[conversation validation error])
                   {}
                 end
 

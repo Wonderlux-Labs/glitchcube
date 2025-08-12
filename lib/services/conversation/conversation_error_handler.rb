@@ -137,6 +137,14 @@ module Services
     end
 
     def log_error
+      # Log to SimpleLogger for debug visibility
+      Services::SimpleLogger.error("Conversation error: #{error.class.name} - #{error.message}",
+                                   tagged: %i[conversation error],
+                                   error_class: error.class.name,
+                                   persona: persona,
+                                   session_id: session&.session_id)
+
+      # Also track in LoggerService for production monitoring
       Services::LoggerService.track_error(
         'ConversationModule',
         error.message
