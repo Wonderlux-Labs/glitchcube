@@ -1,0 +1,240 @@
+# System Package - Core cube system management and state
+
+###############################################################################
+# INPUT HELPERS
+###############################################################################
+input_boolean:
+  cube_is_moving:
+    name: Cube Is Moving
+    initial: false
+    icon: mdi:cube-scan
+
+  cube_stable:
+    name: Cube Stable
+    initial: true
+    icon: mdi:cube
+
+  cube_stopped_moving:
+    name: Cube Stopped Moving
+    initial: false
+    icon: mdi:cube-off
+
+  cube_tilted:
+    name: Cube Tilted
+    initial: false
+    icon: mdi:angle-acute
+    
+  maintenance_mode:
+    name: Maintenance Mode
+    initial: false
+    icon: mdi:wrench
+    
+  offline_mode:
+    name: Offline Mode
+    initial: false
+    icon: mdi:cloud-off
+    
+  auto_recovery_enabled:
+    name: Auto Recovery Enabled
+    initial: true
+    icon: mdi:backup-restore
+    
+  trigger_restart:
+    name: Trigger Restart
+    initial: false
+    icon: mdi:restart
+    
+  glitchcube_auto_deploy_enabled:
+    name: GlitchCube Auto Deploy Enabled
+    initial: false
+    icon: mdi:rocket-launch-outline
+    
+  glitchcube_update_pending:
+    name: GlitchCube Update Pending  
+    initial: false
+    icon: mdi:update
+
+input_text:
+  glitchcube_host:
+    name: GlitchCube Host
+    initial: "http://localhost:4567"
+    max: 128
+    icon: mdi:server
+    
+  restart_auth_token:
+    name: Restart Auth Token
+    initial: "your-secure-token-here"
+    max: 255
+    icon: mdi:key
+
+###############################################################################
+# TEMPLATE SENSORS
+###############################################################################
+template:
+  - sensor:
+      - name: "System Status"
+        state: >
+          {% if is_state('input_boolean.maintenance_mode', 'on') %}
+            Maintenance
+          {% elif is_state('input_boolean.offline_mode', 'on') %}
+            Offline
+          {% elif is_state('input_boolean.trigger_restart', 'on') %}
+            Restarting
+          {% else %}
+            Online
+          {% endif %}
+        icon: >
+          {% if is_state('input_boolean.maintenance_mode', 'on') %}
+            mdi:wrench
+          {% elif is_state('input_boolean.offline_mode', 'on') %}
+            mdi:cloud-off
+          {% else %}
+            mdi:check-circle
+          {% endif %}
+      
+      - name: "Cube Motion Status"
+        state: >
+          {% if is_state('input_boolean.cube_is_moving', 'on') %}
+            Moving
+          {% elif is_state('input_boolean.cube_tilted', 'on') %}
+            Tilted
+          {% elif is_state('input_boolean.cube_stable', 'on') %}
+            Stable
+          {% else %}
+            Unknown
+          {% endif %}
+
+###############################################################################
+# AUTOMATIONS
+###############################################################################
+automation:
+  - id: manage_offline_mode
+    alias: "System - Manage Offline Mode"
+    description: "Automatically manage offline mode based on connectivity"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.internet_connected
+        to: "off"
+        for:
+          minutes: 5
+    condition:
+      - condition: state
+        entity_id: input_boolean.maintenance_mode
+        state: "off"
+    action:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.offline_mode
+      - service: notify.persistent_notification
+        data:
+          message: "GlitchCube entering offline mode due to connectivity issues"
+          title: "Offline Mode Activated"
+
+  - id: auto_recovery
+    alias: "System - Auto Recovery"
+    description: "Attempt to recover from errors automatically"
+    trigger:
+      - platform: state
+        entity_id: sensor.glitchcube_health
+        to: "error"
+        for:
+          minutes: 5
+    condition:
+      - condition: state
+        entity_id: input_boolean.auto_recovery_enabled
+        state: "on"
+    action:
+      - service: script.emergency_shutdown
+      - delay:
+          seconds: 30
+      - service: shell_command.restart_glitchcube
+      - service: notify.persistent_notification
+        data:
+          message: "Auto-recovery initiated for GlitchCube"
+          title: "System Recovery"
+
+  - id: entity_change_monitor
+    alias: "System - Entity Change Monitor"
+    description: "Monitor critical entity changes"
+    trigger:
+      - platform: state
+        entity_id:
+          - input_boolean.maintenance_mode
+          - input_boolean.offline_mode
+          - input_boolean.trigger_restart
+    action:
+      - service: webhook.send
+        data:
+          webhook_id: entity_change
+          entity_id: "{{ trigger.entity_id }}"
+          old_state: "{{ trigger.from_state.state }}"
+          new_state: "{{ trigger.to_state.state }}"
+
+###############################################################################
+# SCRIPTS
+###############################################################################
+script:
+  emergency_shutdown:
+    alias: "Emergency Shutdown"
+    mode: single
+    sequence:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.maintenance_mode
+      - service: light.turn_off
+        target:
+          entity_id: all
+      - service: media_player.media_stop
+        target:
+          entity_id: all
+      - service: script.awtrix_control
+        data:
+          text: "EMERGENCY STOP"
+          icon: "1349"
+          color: "FF0000"
+          duration: 10
+      - service: notify.persistent_notification
+        data:
+          message: "Emergency shutdown activated"
+          title: "System Emergency"
+
+  toggle_offline_mode:
+    alias: "Toggle Offline Mode"
+    mode: single
+    sequence:
+      - service: input_boolean.toggle
+        target:
+          entity_id: input_boolean.offline_mode
+      - service: script.awtrix_control
+        data:
+          text: >
+            {% if is_state('input_boolean.offline_mode', 'on') %}
+              Offline Mode
+            {% else %}
+              Online Mode
+            {% endif %}
+          icon: >
+            {% if is_state('input_boolean.offline_mode', 'on') %}
+              11055
+            {% else %}
+              11056
+            {% endif %}
+          duration: 5
+
+  glitchcube_restart:
+    alias: "GlitchCube Restart"
+    mode: single
+    sequence:
+      - condition: template
+        value_template: "{{ states('input_text.restart_auth_token') != 'your-secure-token-here' }}"
+      - service: rest_command.restart_glitchcube
+        data:
+          auth_token: "{{ states('input_text.restart_auth_token') }}"
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.trigger_restart
+      - delay:
+          seconds: 10
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.trigger_restart

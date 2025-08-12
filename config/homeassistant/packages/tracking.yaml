@@ -1,0 +1,197 @@
+# Tracking Package - Movement, GPS, and human detection
+
+###############################################################################
+# INPUT HELPERS
+###############################################################################
+input_boolean:
+  motion_detected:
+    name: Motion Detected
+    initial: false
+    icon: mdi:motion-sensor
+
+  human_detected:
+    name: Human Detected
+    initial: false
+    icon: mdi:human
+
+input_datetime:
+  last_interaction:
+    name: Last Interaction
+    has_date: true
+    has_time: true
+    icon: mdi:clock-outline
+
+input_text:
+  last_interaction_time:
+    name: Last Interaction Time
+    initial: "Never"
+    max: 32
+    icon: mdi:clock
+
+input_number:
+  glitch_cube_prev_lat:
+    name: Previous Latitude
+    initial: 40.7865
+    min: -90
+    max: 90
+    step: 0.0001
+    mode: box
+    
+  glitch_cube_prev_lng:
+    name: Previous Longitude
+    initial: -119.2065
+    min: -180
+    max: 180
+    step: 0.0001
+    mode: box
+
+###############################################################################
+# TEMPLATE SENSORS
+###############################################################################
+template:
+  - sensor:
+      - name: "Movement Status"
+        state: >
+          {% if is_state('input_boolean.cube_is_moving', 'on') %}
+            Moving
+          {% elif is_state('input_boolean.motion_detected', 'on') %}
+            Motion Detected
+          {% elif is_state('input_boolean.human_detected', 'on') %}
+            Human Present
+          {% else %}
+            Idle
+          {% endif %}
+        icon: >
+          {% if is_state('input_boolean.cube_is_moving', 'on') %}
+            mdi:run-fast
+          {% elif is_state('input_boolean.motion_detected', 'on') %}
+            mdi:motion-sensor
+          {% elif is_state('input_boolean.human_detected', 'on') %}
+            mdi:human
+          {% else %}
+            mdi:sleep
+          {% endif %}
+
+      - name: "GPS Coordinates"
+        state: >
+          {{ states('input_number.glitch_cube_prev_lat') }}, {{ states('input_number.glitch_cube_prev_lng') }}
+        attributes:
+          latitude: "{{ states('input_number.glitch_cube_prev_lat') }}"
+          longitude: "{{ states('input_number.glitch_cube_prev_lng') }}"
+
+###############################################################################
+# AUTOMATIONS
+###############################################################################
+automation:
+  - id: movement_tracking
+    alias: "Tracking - Movement Detection"
+    description: "Track when movement is detected"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.motion_sensor
+        to: "on"
+    action:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.motion_detected
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.last_interaction
+        data:
+          datetime: "{{ now() }}"
+      - service: webhook.send
+        data:
+          webhook_id: movement_detected
+          timestamp: "{{ now().isoformat() }}"
+      - delay:
+          seconds: 30
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.motion_detected
+
+  - id: update_last_interaction
+    alias: "Tracking - Update Last Interaction"
+    description: "Update last interaction time"
+    trigger:
+      - platform: state
+        entity_id:
+          - input_boolean.conversation_active
+          - input_boolean.motion_detected
+          - input_boolean.human_detected
+        to: "on"
+    action:
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.last_interaction
+        data:
+          datetime: "{{ now() }}"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.last_interaction_time
+        data:
+          value: "{{ now().strftime('%H:%M') }}"
+
+  - id: human_detection_camera
+    alias: "Tracking - Human Detection via Camera"
+    description: "Detect humans using camera vision"
+    trigger:
+      - platform: time_pattern
+        minutes: "/10"
+    condition:
+      - condition: state
+        entity_id: input_boolean.maintenance_mode
+        state: "off"
+    action:
+      - service: script.analyze_camera
+      - wait_template: "{{ states('input_text.camera_vision_analysis') != 'unknown' }}"
+        timeout: "00:00:30"
+      - condition: template
+        value_template: "{{ 'person' in states('input_text.camera_vision_analysis').lower() }}"
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.human_detected
+      - delay:
+          minutes: 5
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.human_detected
+
+###############################################################################
+# SCRIPTS
+###############################################################################
+script:
+  analyze_camera:
+    alias: "Analyze Camera Feed"
+    mode: single
+    sequence:
+      - service: camera.snapshot
+        target:
+          entity_id: camera.glitchcube_camera
+        data:
+          filename: "/tmp/camera_snapshot.jpg"
+      - service: rest_command.analyze_vision
+        data:
+          image_path: "/tmp/camera_snapshot.jpg"
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.camera_vision_analysis
+        data:
+          value: "{{ state_attr('sensor.vision_analysis', 'result') }}"
+
+  update_gps_location:
+    alias: "Update GPS Location"
+    mode: single
+    sequence:
+      - service: rest_command.get_gps_location
+      - wait_template: "{{ states('sensor.gps_location') != 'unknown' }}"
+        timeout: "00:00:10"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.glitch_cube_prev_lat
+        data:
+          value: "{{ state_attr('sensor.gps_location', 'latitude') }}"
+      - service: input_number.set_value
+        target:
+          entity_id: input_number.glitch_cube_prev_lng
+        data:
+          value: "{{ state_attr('sensor.gps_location', 'longitude') }}"

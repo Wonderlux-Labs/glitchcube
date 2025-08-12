@@ -1,0 +1,208 @@
+# Deployment Package - Everything deployment-related in one place!
+
+###############################################################################
+# INPUT HELPERS
+###############################################################################
+input_boolean:
+  deployment_in_progress:
+    name: Deployment In Progress
+    initial: false
+    icon: mdi:rocket-launch
+
+  auto_deploy_enabled:
+    name: Auto Deploy Enabled
+    initial: true
+    icon: mdi:update
+
+input_text:
+  deployment_status:
+    name: Deployment Status
+    initial: idle
+    max: 64
+
+  last_deployment_commit:
+    name: Last Deployment Commit
+    initial: none
+    max: 255
+
+  deployment_message:
+    name: Deployment Message
+    initial: ""
+    max: 255
+
+  last_commit_hash:
+    name: Last Commit Hash
+    initial: "unknown"
+    max: 40
+    icon: mdi:git
+
+input_datetime:
+  last_deployment_datetime:
+    name: Last Deployment DateTime
+    has_date: true
+    has_time: true
+    icon: mdi:clock-check
+
+input_button:
+  deploy_now:
+    name: Deploy Now
+    icon: mdi:rocket
+
+###############################################################################
+# TEMPLATE SENSORS
+###############################################################################
+template:
+  - sensor:
+      - name: "Deployment Status Display"
+        state: >
+          {% if is_state('input_boolean.deployment_in_progress', 'on') %}
+            Deploying
+          {% else %}
+            {{ states('input_text.deployment_status') }}
+          {% endif %}
+        icon: >
+          {% if is_state('input_boolean.deployment_in_progress', 'on') %}
+            mdi:rocket-launch
+          {% else %}
+            mdi:check-circle
+          {% endif %}
+
+      - name: "Last Deployment Age"
+        state: >
+          {% set last = states('input_datetime.last_deployment_datetime') %}
+          {% if last not in ['unknown', 'unavailable'] %}
+            {{ relative_time(strptime(last, '%Y-%m-%d %H:%M:%S')) }}
+          {% else %}
+            Never
+          {% endif %}
+        icon: mdi:clock-outline
+
+###############################################################################
+# AUTOMATIONS
+###############################################################################
+automation:
+  - id: github_deployment_webhook
+    alias: "Deployment - GitHub Webhook"
+    description: "Handle deployment webhook from GitHub Actions"
+    trigger:
+      - platform: webhook
+        webhook_id: deployment_ready
+        allowed_methods:
+          - POST
+        local_only: false
+    action:
+      # Log the deployment request
+      - service: system_log.write
+        data:
+          message: "Deployment webhook received from GitHub"
+          level: info
+      
+      # Set deployment status
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.deployment_in_progress
+      
+      # Update deployment timestamp
+      - service: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.last_deployment_datetime
+        data:
+          datetime: "{{ now() }}"
+      
+      # Update deployment commit
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.last_deployment_commit
+        data:
+          value: "{{ trigger.json.commit[:7] if trigger.json.commit else 'unknown' }}"
+      
+      # Notify that deployment is starting
+      - service: notify.persistent_notification
+        data:
+          title: "🚀 Deployment Starting"
+          message: |
+            GitHub Actions triggered deployment
+            Commit: {{ trigger.json.commit[:7] if trigger.json.commit else 'unknown' }}
+            Branch: {{ trigger.json.branch if trigger.json.branch else 'unknown' }}
+            Actor: {{ trigger.json.actor if trigger.json.actor else 'unknown' }}
+      
+      # Execute deployment script
+      - service: script.execute_deployment
+      
+      # Mark deployment complete
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.deployment_in_progress
+      
+      # Send success notification
+      - service: notify.persistent_notification
+        data:
+          title: "✅ Deployment Complete"
+          message: |
+            Successfully deployed commit {{ trigger.json.commit[:7] if trigger.json.commit else 'unknown' }}
+            Message: {{ trigger.json.message if trigger.json.message else 'No message' }}
+
+  - id: manual_deployment_trigger
+    alias: "Deployment - Manual Trigger"
+    description: "Manually trigger deployment from HA"
+    trigger:
+      - platform: state
+        entity_id: input_button.deploy_now
+    action:
+      - service: script.execute_deployment
+      - service: notify.persistent_notification
+        data:
+          title: "🚀 Manual Deployment"
+          message: "Deployment initiated manually"
+
+  - id: auto_deploy_check
+    alias: "Deployment - Auto Deploy Check"
+    description: "Check for updates periodically"
+    trigger:
+      - platform: time_pattern
+        hours: "*/6"  # Every 6 hours
+    condition:
+      - condition: state
+        entity_id: input_boolean.auto_deploy_enabled
+        state: "on"
+    action:
+      - service: rest_command.check_for_updates
+
+###############################################################################
+# SCRIPTS
+###############################################################################
+script:
+  execute_deployment:
+    alias: "Execute Deployment"
+    mode: single
+    sequence:
+      # Execute deployment on host via SSH
+      - service: shell_command.deploy_glitchcube
+      
+      # Wait for host to be ready
+      - delay:
+          seconds: 10
+      
+      # Deploy HA config from host to VM
+      - service: shell_command.deploy_hass_config
+      
+      # Wait for HA restart
+      - delay:
+          seconds: 30
+      
+      # Check health
+      - service: rest_command.glitchcube_health_check
+
+  rollback_deployment:
+    alias: "Rollback Deployment"
+    mode: single
+    sequence:
+      - service: system_log.write
+        data:
+          message: "Rollback initiated"
+          level: warning
+      - service: shell_command.rollback_deployment
+      - service: notify.persistent_notification
+        data:
+          title: "⏪ Rollback Complete"
+          message: "System rolled back to previous version"

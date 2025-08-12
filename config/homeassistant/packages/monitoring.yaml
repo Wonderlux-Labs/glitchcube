@@ -1,0 +1,254 @@
+# Monitoring Package - Health checks, alerts, and monitoring
+
+###############################################################################
+# INPUT HELPERS
+###############################################################################
+input_boolean:
+  battery_low:
+    name: Battery Low
+    initial: false
+    icon: mdi:battery-alert
+
+  temp_critical:
+    name: Temperature Critical
+    initial: false
+    icon: mdi:thermometer-alert
+    
+  resources_low:
+    name: Resources Low
+    initial: false
+    icon: mdi:alert-circle
+
+input_text:
+  consolidated_alert_message:
+    name: Consolidated Alert Message
+    initial: "No alerts"
+    max: 255
+    icon: mdi:message-alert
+
+###############################################################################
+# TEMPLATE SENSORS
+###############################################################################
+template:
+  - sensor:
+      - name: "Health Status"
+        state: >
+          {% if is_state('input_boolean.battery_low', 'on') or 
+                is_state('input_boolean.temp_critical', 'on') or
+                is_state('input_boolean.resources_low', 'on') %}
+            Alert
+          {% else %}
+            Healthy
+          {% endif %}
+        icon: >
+          {% if is_state('input_boolean.battery_low', 'on') %}
+            mdi:battery-alert
+          {% elif is_state('input_boolean.temp_critical', 'on') %}
+            mdi:thermometer-alert
+          {% elif is_state('input_boolean.resources_low', 'on') %}
+            mdi:alert-circle
+          {% else %}
+            mdi:check-circle
+          {% endif %}
+          
+      - name: "Alert Count"
+        state: >
+          {{ [
+            is_state('input_boolean.battery_low', 'on'),
+            is_state('input_boolean.temp_critical', 'on'),
+            is_state('input_boolean.resources_low', 'on')
+          ] | select('eq', true) | list | count }}
+        unit_of_measurement: "alerts"
+
+  - binary_sensor:
+      - name: "Consolidated Alerts"
+        state: >
+          {{ states('sensor.alert_count') | int > 0 }}
+        attributes:
+          battery_low: "{{ is_state('input_boolean.battery_low', 'on') }}"
+          temp_critical: "{{ is_state('input_boolean.temp_critical', 'on') }}"
+          resources_low: "{{ is_state('input_boolean.resources_low', 'on') }}"
+          alert_count: "{{ states('sensor.alert_count') }}"
+          message: "{{ states('input_text.consolidated_alert_message') }}"
+
+###############################################################################
+# AUTOMATIONS
+###############################################################################
+automation:
+  - id: consolidated_alert_notification
+    alias: "Monitoring - Consolidated Alert Notification"
+    description: "Send consolidated alerts every 30 minutes"
+    trigger:
+      - platform: time_pattern
+        minutes: "/30"
+    condition:
+      - condition: state
+        entity_id: binary_sensor.consolidated_alerts
+        state: "on"
+    action:
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.consolidated_alert_message
+        data:
+          value: >
+            {% set alerts = [] %}
+            {% if is_state('input_boolean.battery_low', 'on') %}
+              {% set alerts = alerts + ['Battery Low'] %}
+            {% endif %}
+            {% if is_state('input_boolean.temp_critical', 'on') %}
+              {% set alerts = alerts + ['Temperature Critical'] %}
+            {% endif %}
+            {% if is_state('input_boolean.resources_low', 'on') %}
+              {% set alerts = alerts + ['Resources Low'] %}
+            {% endif %}
+            {{ alerts | join(', ') }}
+      - service: notify.persistent_notification
+        data:
+          message: "{{ states('input_text.consolidated_alert_message') }}"
+          title: "GlitchCube Alerts ({{ states('sensor.alert_count') }})"
+      - service: webhook.send
+        data:
+          webhook_id: consolidated_alerts
+          alerts: "{{ states('input_text.consolidated_alert_message') }}"
+          count: "{{ states('sensor.alert_count') }}"
+
+  - id: temperature_alert
+    alias: "Monitoring - Temperature Alert"
+    description: "Monitor temperature and set critical flag"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.temperature
+        above: 40
+    action:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.temp_critical
+      - service: script.awtrix_control
+        data:
+          text: "TEMP HIGH {{ states('sensor.temperature') }}°C"
+          icon: "2315"
+          color: "FF0000"
+          duration: 10
+
+  - id: app_health_alert
+    alias: "Monitoring - App Health Alert"
+    description: "Monitor application health status"
+    trigger:
+      - platform: state
+        entity_id: sensor.glitchcube_health
+        to: "error"
+    action:
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.resources_low
+      - service: notify.persistent_notification
+        data:
+          message: "GlitchCube health check failed"
+          title: "Application Health Alert"
+
+  - id: daily_health_summary
+    alias: "Monitoring - Daily Health Summary"
+    description: "Send daily health summary"
+    trigger:
+      - platform: time
+        at: "09:00:00"
+    action:
+      - service: script.generate_health_report
+
+  - id: update_sensors
+    alias: "Monitoring - Update Sensor States"
+    description: "Periodically update sensor states"
+    trigger:
+      - platform: time_pattern
+        minutes: "/5"
+    action:
+      - service: homeassistant.update_entity
+        target:
+          entity_id:
+            - sensor.glitchcube_health
+            - sensor.temperature
+            - sensor.humidity
+
+  - id: update_external_status_page
+    alias: "Monitoring - Update External Status Page"
+    description: "Update external monitoring service"
+    trigger:
+      - platform: state
+        entity_id:
+          - sensor.health_status
+          - binary_sensor.consolidated_alerts
+    action:
+      - service: rest_command.update_status_page
+        data:
+          status: "{{ states('sensor.health_status') }}"
+          alerts: "{{ states('binary_sensor.consolidated_alerts') }}"
+
+  - id: internet_connectivity_alert
+    alias: "Monitoring - Internet Connectivity Alert"
+    description: "Alert when internet connection is lost"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.internet_connected
+        to: "off"
+        for:
+          minutes: 2
+    action:
+      - service: script.awtrix_control
+        data:
+          text: "NO INTERNET"
+          icon: "11055"
+          color: "FFA500"
+          duration: 10
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.offline_mode
+
+###############################################################################
+# SCRIPTS
+###############################################################################
+script:
+  generate_health_report:
+    alias: "Generate Health Report"
+    mode: single
+    sequence:
+      - variables:
+          battery_status: "{{ 'Low' if is_state('input_boolean.battery_low', 'on') else 'Normal' }}"
+          temp_status: "{{ 'Critical' if is_state('input_boolean.temp_critical', 'on') else 'Normal' }}"
+          resource_status: "{{ 'Low' if is_state('input_boolean.resources_low', 'on') else 'Normal' }}"
+      - service: notify.persistent_notification
+        data:
+          message: |
+            Daily Health Report
+            -------------------
+            Battery: {{ battery_status }}
+            Temperature: {{ temp_status }}
+            Resources: {{ resource_status }}
+            System: {{ states('sensor.system_status') }}
+            Conversations Today: {{ states('counter.daily_conversations') }}
+          title: "GlitchCube Daily Report"
+      - service: webhook.send
+        data:
+          webhook_id: daily_health_report
+          battery: "{{ battery_status }}"
+          temperature: "{{ temp_status }}"
+          resources: "{{ resource_status }}"
+
+  reset_all_sensors:
+    alias: "Reset All Sensors"
+    mode: single
+    sequence:
+      - service: input_boolean.turn_off
+        target:
+          entity_id:
+            - input_boolean.battery_low
+            - input_boolean.temp_critical
+            - input_boolean.resources_low
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.consolidated_alert_message
+        data:
+          value: "No alerts"
+      - service: notify.persistent_notification
+        data:
+          message: "All monitoring sensors have been reset"
+          title: "Sensors Reset"

@@ -1,0 +1,296 @@
+# Integrations Package - Webhooks, external services, and API integrations
+
+###############################################################################
+# INPUT HELPERS
+###############################################################################
+input_text:
+  current_weather:
+    name: Current Weather
+    initial: "Unknown"
+    max: 128
+    icon: mdi:weather-partly-cloudy
+
+###############################################################################
+# AUTOMATIONS
+###############################################################################
+automation:
+  - id: webhook_updates
+    alias: "Integrations - Process Webhook Updates"
+    description: "Handle incoming webhook requests"
+    trigger:
+      - platform: webhook
+        webhook_id: glitchcube_update
+        allowed_methods:
+          - POST
+          - PUT
+    action:
+      - choose:
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json.type == 'conversation' }}"
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.conversation_active
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.current_persona
+                data:
+                  value: "{{ trigger.json.persona | default('Buddy') }}"
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json.type == 'deployment' }}"
+            sequence:
+              - service: input_boolean.turn_on
+                target:
+                  entity_id: input_boolean.deployment_in_progress
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.deployment_status
+                data:
+                  value: "{{ trigger.json.status }}"
+          - conditions:
+              - condition: template
+                value_template: "{{ trigger.json.type == 'weather' }}"
+            sequence:
+              - service: input_text.set_value
+                target:
+                  entity_id: input_text.current_weather
+                data:
+                  value: "{{ trigger.json.conditions }}"
+
+  - id: weather_context_update
+    alias: "Integrations - Weather Context Update"
+    description: "Update weather context periodically"
+    trigger:
+      - platform: time_pattern
+        hours: "/6"
+    action:
+      - service: script.weather_context_update
+
+  - id: proactive_behaviors
+    alias: "Integrations - Proactive Behaviors"
+    description: "Trigger proactive behaviors based on context"
+    trigger:
+      - platform: time_pattern
+        minutes: "/30"
+    condition:
+      - condition: state
+        entity_id: input_boolean.maintenance_mode
+        state: "off"
+      - condition: state
+        entity_id: input_boolean.offline_mode
+        state: "off"
+    action:
+      - choose:
+          - conditions:
+              - condition: numeric_state
+                entity_id: sensor.temperature
+                above: 35
+            sequence:
+              - service: script.speak_with_persona
+                data:
+                  message: "Whew, it's getting hot out here! Stay hydrated, friend!"
+          - conditions:
+              - condition: state
+                entity_id: input_boolean.human_detected
+                state: "on"
+              - condition: template
+                value_template: "{{ (as_timestamp(now()) - as_timestamp(states('input_datetime.last_interaction'))) > 3600 }}"
+            sequence:
+              - service: script.speak_with_persona
+                data:
+                  message: "Hey there! I noticed you nearby. Want to chat?"
+          - conditions:
+              - condition: time
+                after: "22:00:00"
+                before: "06:00:00"
+            sequence:
+              - service: script.awtrix_control
+                data:
+                  text: "ZZZ..."
+                  icon: "1499"
+                  color: "0000FF"
+                  duration: 10
+
+  - id: attention_seeking_when_lonely
+    alias: "Glitch Cube - Attention Seeking When Lonely"
+    description: "Cube seeks attention after no interaction for 30 minutes"
+    trigger:
+      - platform: state
+        entity_id: sensor.glitchcube_last_interaction
+        for:
+          minutes: 30
+    condition:
+      - condition: time
+        after: "09:00:00"
+        before: "22:00:00"
+    action:
+      - service: rest_command.glitchcube_proactive
+        data:
+          endpoint: "proactive/attention"
+          level: "moderate"
+
+  - id: desperate_for_attention
+    alias: "Glitch Cube - Desperate for Attention"
+    description: "Cube gets really dramatic after 2 hours of no interaction"
+    trigger:
+      - platform: state
+        entity_id: sensor.glitchcube_last_interaction
+        for:
+          hours: 2
+    condition:
+      - condition: time
+        after: "10:00:00"
+        before: "20:00:00"
+    action:
+      - service: rest_command.glitchcube_proactive
+        data:
+          endpoint: "proactive/attention"
+          level: "desperate"
+
+  - id: morning_greeting
+    alias: "Glitch Cube - Morning Greeting"
+    description: "Cube greets the morning"
+    trigger:
+      - platform: time
+        at: "08:00:00"
+    action:
+      - service: rest_command.glitchcube_proactive
+        data:
+          endpoint: "proactive/morning"
+
+  - id: motion_detected_commentary
+    alias: "Glitch Cube - Motion Detected Commentary"
+    description: "Cube comments when it sees motion after being idle"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.glitchcube_motion
+        from: "off"
+        to: "on"
+    condition:
+      - condition: state
+        entity_id: sensor.glitchcube_last_interaction
+        for:
+          minutes: 10
+    action:
+      - service: rest_command.glitchcube_proactive
+        data:
+          endpoint: "proactive/custom"
+          prompt: "You just detected motion after being alone! Express excitement about seeing someone. Use speech and lights to greet them warmly."
+
+  - id: battery_low_drama
+    alias: "Glitch Cube - Battery Low Drama"
+    description: "Cube dramatically announces low battery"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.glitchcube_battery
+        below: 20
+    action:
+      - service: rest_command.glitchcube_proactive
+        data:
+          endpoint: "proactive/custom"
+          prompt: "Your battery is at {{ states('sensor.glitchcube_battery') }}%! Dramatically express your need for power, sing about electricity, flash warning colors!"
+
+###############################################################################
+# SCRIPTS
+###############################################################################
+script:
+  weather_context_update:
+    alias: "Update Weather Context"
+    mode: single
+    sequence:
+      - service: weather.get_forecast
+        target:
+          entity_id: weather.home
+        data:
+          type: daily
+        response_variable: daily_forecast
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.weather_forecast_24h
+        data:
+          value: >
+            {% set forecast = daily_forecast.forecast[0] %}
+            {{ forecast.condition }} {{ forecast.temperature }}°C
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.current_weather
+        data:
+          value: "{{ states('weather.home') }}"
+      - service: webhook.send
+        data:
+          webhook_id: weather_updated
+          conditions: "{{ states('weather.home') }}"
+          temperature: "{{ state_attr('weather.home', 'temperature') }}"
+
+  update_all_weather_context:
+    alias: "Update All Weather Context"
+    mode: single
+    sequence:
+      - service: script.weather_context_update
+      - service: weather.get_forecast
+        target:
+          entity_id: weather.home
+        data:
+          type: daily
+        response_variable: forecast_data
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.weather_forecast_5day
+        data:
+          value: >
+            {% set days = forecast_data.forecast[:5] %}
+            {% set summary = [] %}
+            {% for day in days %}
+              {% set summary = summary + [day.condition] %}
+            {% endfor %}
+            {{ summary | join(', ') }}
+
+###############################################################################
+# REST COMMANDS
+###############################################################################
+rest_command:
+  restart_glitchcube:
+    url: "{{ states('input_text.glitchcube_host') }}/api/restart"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ auth_token }}"
+    content_type: "application/json"
+
+  update_status_page:
+    url: "https://status.example.com/api/update"
+    method: POST
+    payload: '{"status": "{{ status }}", "alerts": "{{ alerts }}"}'
+    content_type: "application/json"
+
+  analyze_vision:
+    url: "{{ states('input_text.glitchcube_host') }}/api/vision/analyze"
+    method: POST
+    payload: '{"image_path": "{{ image_path }}"}'
+    content_type: "application/json"
+
+  get_gps_location:
+    url: "{{ states('input_text.glitchcube_host') }}/api/gps/location"
+    method: GET
+
+  glitchcube_proactive:
+    url: "{{ states('input_text.glitchcube_host') }}/api/{{ endpoint }}"
+    method: POST
+    payload: '{"level": "{{ level | default(\"moderate\") }}", "prompt": "{{ prompt | default(\"\") }}"}'
+    content_type: "application/json"
+    
+  glitchcube_health_check:
+    url: "{{ states('input_text.glitchcube_host') }}/api/health"
+    method: GET
+    
+  check_for_updates:
+    url: "{{ states('input_text.glitchcube_host') }}/api/updates/check"
+    method: GET
+
+###############################################################################
+# SHELL COMMANDS
+###############################################################################
+shell_command:
+  deploy_glitchcube: "cd /path/to/glitchcube && git pull && bundle install && bundle exec rake deploy"
+  restart_glitchcube: "systemctl restart glitchcube"
