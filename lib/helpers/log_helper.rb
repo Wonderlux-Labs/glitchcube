@@ -1,37 +1,42 @@
 # frozen_string_literal: true
 
+# LogHelper delegates to SimpleLogger for proper file logging
+# This maintains backward compatibility while ensuring logs go to files
 module LogHelper
   def self.log(message, level = :info)
-    timestamp = Time.now.strftime('%Y-%m-%d %H:%M:%S.%L')
-    formatted = "[#{timestamp}] #{message}"
-
+    # Map LogHelper levels to SimpleLogger methods
     case level
     when :error
-      puts "❌ #{formatted}"
+      Services::SimpleLogger.error(message, tagged: [:log_helper])
     when :warning
-      puts "⚠️  #{formatted}"
+      Services::SimpleLogger.warn(message, tagged: [:log_helper])
     when :success
-      puts "✅ #{formatted}"
+      Services::SimpleLogger.info("✅ #{message}", tagged: %i[log_helper success])
     when :debug
-      puts "🔍 #{formatted}" if ENV['DEBUG']
+      Services::SimpleLogger.debug(message, tagged: [:log_helper])
     else
-      puts formatted
+      Services::SimpleLogger.info(message, tagged: [:log_helper])
     end
   end
 
   def self.error(message)
-    log(message, :error)
+    Services::SimpleLogger.error(message, tagged: [:log_helper])
   end
 
   def self.warning(message)
-    log(message, :warning)
+    Services::SimpleLogger.warn(message, tagged: [:log_helper])
   end
 
   def self.success(message)
-    log(message, :success)
+    Services::SimpleLogger.info("✅ #{message}", tagged: %i[log_helper success])
   end
 
   def self.debug(message)
-    log(message, :debug)
+    Services::SimpleLogger.debug(message, tagged: [:log_helper])
+  end
+
+  # Compatibility method for structured logging
+  def self.info(message, metadata = {})
+    Services::SimpleLogger.info(message, tagged: [:log_helper], **metadata)
   end
 end

@@ -1,8 +1,0 @@
-restart_level:
-  name: "Restart Level"
-  options:
-    - soft
-    - hard
-    - nuclear
-  initial: soft
-  icon: mdi:gauge

@@ -51,6 +51,7 @@ recorder:
       - sensor.installation_health
       - sensor.last_interaction_time
       - sensor.current_persona
+      - sensor.glitch_cube_consolidated_alerts
 # Enable recorder with MariaDB for better performance
 
 # HTTP configuration for webhooks
@@ -78,16 +79,20 @@ diagnostics:
 automation yaml: !include_dir_merge_list automations/
 automation ui: !include automations.yaml
 
-script ui: !include scripts.yaml
-script yaml: !include_dir_merge_named scripts/
+script: !include_dir_merge_named scripts/
 
-# Include all input helpers (merge from multiple files)
-input_datetime: !include_dir_merge_named input_helpers/input_datetime/
-input_text: !include_dir_merge_named input_helpers/input_text/
-input_number: !include_dir_merge_named input_helpers/input_number/
-input_boolean: !include_dir_merge_named input_helpers/input_boolean/
-input_select: !include_dir_merge_named input_helpers/input_select/
-input_button: !include_dir_merge_named input_helpers/input_button/
+# Input Helpers Configuration
+# Domain-organized in subfolders (conversation/, deployment/, weather/, etc.)
+# Each domain folder contains type-specific files (input_boolean.yaml, input_text.yaml, etc.)
+# UI-created helpers will be stored in Home Assistant's .storage/core.config_entries
+
+# Merge all input helpers from domain subfolders
+input_boolean: !include_dir_merge_named input_helpers/
+input_text: !include_dir_merge_named input_helpers/
+input_number: !include_dir_merge_named input_helpers/
+input_datetime: !include_dir_merge_named input_helpers/
+input_select: !include_dir_merge_named input_helpers/
+input_button: !include_dir_merge_named input_helpers/
 
 # Include counters
 counter:

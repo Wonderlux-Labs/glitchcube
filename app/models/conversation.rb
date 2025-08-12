@@ -9,6 +9,11 @@ class Conversation < ActiveRecord::Base
   scope :active, -> { where(ended_at: nil) }
   scope :by_persona, ->(persona) { where(persona: persona) }
 
+  # Accessor for flow_data that ensures it's always a hash
+  def flow_data
+    self[:flow_data] ||= {}
+  end
+
   # End the conversation
   def end!
     update!(ended_at: Time.current) unless ended_at

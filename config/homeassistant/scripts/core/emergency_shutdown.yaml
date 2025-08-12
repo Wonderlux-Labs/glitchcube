@@ -1,0 +1,7 @@
+emergency_shutdown:
+  alias: "Emergency Shutdown Sequence"
+  sequence:
+    - service: tts.cloud_say
+      data:
+        media_player_entity_id: "media_player.glitchcube_speaker"
+        message: "Initiating emergency shutdown. Please stand clear."

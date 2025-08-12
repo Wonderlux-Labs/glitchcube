@@ -58,7 +58,11 @@ class HomeAssistantClient
       get('/api/states')
     end
   rescue CircuitBreaker::CircuitOpenError => e
-    puts "⚠️  Home Assistant circuit breaker is open: #{e.message}"
+    Services::SimpleLogger.warn(
+      'Home Assistant circuit breaker is open',
+      tagged: %i[home_assistant circuit_breaker],
+      error: e.message
+    )
     # Return empty states when circuit is open
     []
   end
@@ -72,7 +76,11 @@ class HomeAssistantClient
       get("/api/states/#{entity_id}")
     end
   rescue CircuitBreaker::CircuitOpenError => e
-    puts "⚠️  Home Assistant circuit breaker is open: #{e.message}"
+    Services::SimpleLogger.warn(
+      'Home Assistant circuit breaker is open',
+      tagged: %i[home_assistant circuit_breaker],
+      error: e.message
+    )
     # Return default state when circuit is open
     { 'state' => 'unavailable', 'attributes' => {} }
   end
@@ -111,7 +119,11 @@ class HomeAssistantClient
       post(path, data)
     end
   rescue CircuitBreaker::CircuitOpenError => e
-    puts "⚠️  Home Assistant circuit breaker is open: #{e.message}"
+    Services::SimpleLogger.warn(
+      'Home Assistant circuit breaker is open',
+      tagged: %i[home_assistant circuit_breaker],
+      error: e.message
+    )
     raise Error, 'Home Assistant temporarily unavailable'
   end
 
@@ -136,7 +148,13 @@ class HomeAssistantClient
     provider = voice_options[:tts] || :cloud
 
     begin
-      LogHelper.log("🔊 TTS Request: '#{message}' to #{target_entity} via #{provider}")
+      Services::SimpleLogger.info(
+        'TTS Request',
+        tagged: %i[tts home_assistant],
+        message: message,
+        target: target_entity,
+        provider: provider
+      )
 
       case provider
       when :elevenlabs
@@ -145,19 +163,28 @@ class HomeAssistantClient
         speak_with_cloud(message, target_entity, voice_options)
       end
     rescue Error => e
-      LogHelper.error("Home Assistant TTS failed: #{e.message}")
-      LogHelper.error("   Provider: #{provider}")
-      LogHelper.error("   Entity: #{target_entity}")
-      LogHelper.error("   Message: #{message}")
-      LogHelper.error("   Error Class: #{e.class}")
-      LogHelper.warning('Continuing without TTS')
+      Services::SimpleLogger.error(
+        'Home Assistant TTS failed',
+        tagged: %i[tts home_assistant error],
+        provider: provider,
+        entity: target_entity,
+        message: message,
+        error_class: e.class.name,
+        error: e.message
+      )
+      Services::SimpleLogger.warn('Continuing without TTS', tagged: %i[tts fallback])
       false
     rescue StandardError => e
-      LogHelper.error("Unexpected TTS error: #{e.class} - #{e.message}")
-      LogHelper.error("   Provider: #{provider}")
-      LogHelper.error("   Entity: #{target_entity}")
-      LogHelper.error("   Message: #{message}")
-      LogHelper.error("   Backtrace: #{e.backtrace.first(3).join("\n   ")}")
+      Services::SimpleLogger.error(
+        'Unexpected TTS error',
+        tagged: %i[tts home_assistant unexpected],
+        provider: provider,
+        entity: target_entity,
+        message: message,
+        error_class: e.class.name,
+        error: e.message,
+        backtrace: e.backtrace.first(3)
+      )
       false
     end
   end
@@ -180,7 +207,12 @@ class HomeAssistantClient
       }
 
       result = call_service('script', 'glitchcube_cloud_speak', script_params)
-      LogHelper.success("Queued Cloud TTS: Voice=#{script_params[:voice]}, Response=#{result.inspect}")
+      Services::SimpleLogger.info(
+        'Queued Cloud TTS',
+        tagged: %i[tts cloud success],
+        voice: script_params[:voice],
+        response: result
+      )
     else
       # Direct TTS call (original behavior for testing or when queue is disabled)
       tts_params = {
@@ -193,7 +225,11 @@ class HomeAssistantClient
       tts_params[:options] = { voice: voice_options[:voice] } if voice_options[:voice]
 
       result = call_service('tts', 'cloud_say', tts_params)
-      LogHelper.success("Direct Cloud TTS: Response=#{result.inspect}")
+      Services::SimpleLogger.info(
+        'Direct Cloud TTS',
+        tagged: %i[tts cloud success],
+        response: result
+      )
     end
 
     true
@@ -220,7 +256,12 @@ class HomeAssistantClient
       }
 
       result = call_service('script', 'glitchcube_elevenlabs_speak', script_params)
-      LogHelper.success("Queued ElevenLabs TTS: Voice=#{voice_id}, Response=#{result.inspect}")
+      Services::SimpleLogger.info(
+        'Queued ElevenLabs TTS',
+        tagged: %i[tts elevenlabs success],
+        voice: voice_id,
+        response: result
+      )
     else
       # Direct TTS call (original behavior for testing or when queue is disabled)
       tts_params = {
@@ -234,7 +275,11 @@ class HomeAssistantClient
       }
 
       result = call_service('tts', 'speak', tts_params)
-      LogHelper.success("Direct ElevenLabs TTS: Response=#{result.inspect}")
+      Services::SimpleLogger.info(
+        'Direct ElevenLabs TTS',
+        tagged: %i[tts elevenlabs success],
+        response: result
+      )
     end
 
     true

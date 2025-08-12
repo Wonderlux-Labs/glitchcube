@@ -197,6 +197,7 @@ class ConversationModule
       validated_response = validate_response(raw_response_data, persona_instance)
       response_text = validated_response['response']
       continue_conversation = validated_response['continue_conversation']
+      inner_thoughts = validated_response['inner_thoughts']
 
       # Debug trace: Check if response_text is nil
       if response_text.nil?
@@ -221,7 +222,8 @@ class ConversationModule
         response_time_ms: response_time_ms,
         metadata: {
           continue_conversation: continue_conversation,
-          tool_calls: tool_calls_made
+          tool_calls: tool_calls_made,
+          inner_thoughts: inner_thoughts
         }
       )
 
@@ -312,7 +314,14 @@ class ConversationModule
       function_name = tool_call['function']['name']
       arguments = begin
         JSON.parse(tool_call['function']['arguments'])
-      rescue StandardError
+      rescue StandardError => e
+        Services::SimpleLogger.warn(
+          'Failed to parse tool call arguments',
+          tagged: %i[conversation tools json_parse],
+          tool: function_name,
+          error: e.message,
+          raw_arguments: tool_call['function']['arguments']
+        )
         {}
       end
 

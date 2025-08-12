@@ -106,8 +106,18 @@ class GlitchCubeApp < Sinatra::Base
   # Request logging for all endpoints
   before do
     @request_start_time = Time.now
-    # Immediate debug logging for connection troubleshooting
-    Services::SimpleLogger.info(
+    # Use debug level for high-frequency endpoints
+    log_level = case request.path
+                when '/health', '/health/push', '/api/v1/system/health'
+                  :debug
+                when %r{^/api/v1/gps/}
+                  request.get? ? :debug : :info
+                else
+                  :info
+                end
+
+    Services::SimpleLogger.send(
+      log_level,
       'Incoming request',
       tagged: %i[request incoming],
       method: request.request_method,

@@ -1,0 +1,81 @@
+- id: '1754758130173'
+  alias: Health Summarizer (LLM)
+  description: LLM health summarizer
+  triggers:
+  - trigger: time_pattern
+    hours: /1
+    minutes: '22'
+  conditions: []
+  actions:
+  - action: rest_command.glitchcube_llm_complete
+    metadata: {}
+    data:
+      model: deepseek/deepseek-chat-v3-0324
+      prompt: Tell me a bedtime story
+    response_variable: llm_response
+  - action: persistent_notification.create
+    metadata: {}
+    data:
+      message: '{{ llm_response }}'
+  mode: single
+- id: '1754883709868'
+  alias: GitHub Deployment Ready (automations UI)
+  description: Handle deployment webhook from GitHub Actions
+  triggers:
+  - webhook_id: deployment_ready
+    allowed_methods:
+    - POST
+    local_only: false
+    trigger: webhook
+  conditions: []
+  actions:
+  - data:
+      message: Deployment webhook received from GitHub
+      level: info
+    action: system_log.write
+  - data:
+      entity_id: input_boolean.deployment_in_progress
+    action: input_boolean.turn_on
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: input_datetime.last_deployment_datetime
+    data:
+      datetime: '{{ now() }}'
+  - action: input_text.set_value
+    data:
+      value: '{{ trigger.json.commit[:7] if trigger.json.commit else ''unknown'' }}'
+  - data:
+      title: "\U0001F680 Deployment Starting"
+      message: 'GitHub Actions triggered deployment
+
+        Commit: {{ trigger.json.commit[:7] if trigger.json.commit else ''unknown''
+        }}
+
+        Branch: {{ trigger.json.branch if trigger.json.branch else ''unknown'' }}
+
+        Actor: {{ trigger.json.actor if trigger.json.actor else ''unknown'' }}
+
+        '
+    action: notify.persistent_notification
+  - action: shell_command.deploy_glitchcube
+    data: {}
+  - delay:
+      seconds: 10
+  - action: shell_command.deploy_hass_config
+    data: {}
+  - delay:
+      seconds: 30
+  - data:
+      entity_id: input_boolean.deployment_in_progress
+    action: input_boolean.turn_off
+  - data:
+      title: ✅ Deployment Complete
+      message: 'Successfully deployed commit {{ trigger.json.commit[:7] if trigger.json.commit
+        else ''unknown'' }}
+
+        Message: {{ trigger.json.message if trigger.json.message else ''No message''
+        }}
+
+        '
+    action: notify.persistent_notification
+  mode: single

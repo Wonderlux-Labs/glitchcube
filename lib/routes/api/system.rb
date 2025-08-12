@@ -18,7 +18,12 @@ module GlitchCube
                 redis_url = GlitchCube.config.redis_url || 'redis://localhost:6379'
                 redis = Redis.new(url: redis_url)
                 redis.ping == 'PONG'
-              rescue StandardError
+              rescue StandardError => e
+                Services::SimpleLogger.warn(
+                  'Redis health check failed',
+                  tagged: %i[health_check redis],
+                  error: e.message
+                )
                 false
               end
 
@@ -33,6 +38,11 @@ module GlitchCube
                                   total: Sidekiq::Queue.new.size
                                 }
                               rescue StandardError => e
+                                Services::SimpleLogger.warn(
+                                  'Sidekiq queue check failed',
+                                  tagged: %i[health_check sidekiq],
+                                  error: e.message
+                                )
                                 { error: e.message }
                               end
                             else
@@ -42,7 +52,12 @@ module GlitchCube
               # Check database
               db_ok = begin
                 Memory.connection.active?
-              rescue StandardError
+              rescue StandardError => e
+                Services::SimpleLogger.warn(
+                  'Database health check failed',
+                  tagged: %i[health_check database],
+                  error: e.message
+                )
                 false
               end
 
@@ -50,7 +65,12 @@ module GlitchCube
               ha_ok = begin
                 client = ::Services::HomeAssistantClient.new
                 client.ping
-              rescue StandardError
+              rescue StandardError => e
+                Services::SimpleLogger.warn(
+                  'Home Assistant health check failed',
+                  tagged: %i[health_check home_assistant],
+                  error: e.message
+                )
                 false
               end
 

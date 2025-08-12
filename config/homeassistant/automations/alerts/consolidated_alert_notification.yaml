@@ -1,0 +1,92 @@
+# Consolidated Alert Notification Automation
+# Triggers when any alert becomes active and creates a persistent notification
+# with details about all active alerts
+
+- id: consolidated_alert_notification
+  alias: "Consolidated Health Alert Notification"
+  description: "Send persistent notification when any health alert becomes active"
+  trigger:
+    - platform: state
+      entity_id: sensor.glitch_cube_consolidated_alerts
+      from: "off"
+      to: "on"
+  action:
+    - service: notify.persistent_notification
+      data:
+        title: "🚨 Glitch Cube System Alerts"
+        message: >
+          {% set alerts = state_attr('sensor.glitch_cube_consolidated_alerts', 'active_alerts') %}
+          {% set critical = alerts | selectattr('type', 'eq', 'critical') | list %}
+          {% set warnings = alerts | selectattr('type', 'eq', 'warning') | list %}
+          
+          **{{ state_attr('sensor.glitch_cube_consolidated_alerts', 'summary') }}**
+          
+          {% if critical | length > 0 %}
+          **🔴 Critical Issues:**
+          {% for alert in critical %}
+          • {{ alert.title }}: {{ alert.message }} (since {{ alert.since }})
+          {% endfor %}
+          
+          {% endif %}
+          {% if warnings | length > 0 %}
+          **🟡 Warnings:**
+          {% for alert in warnings %}
+          • {{ alert.title }}: {{ alert.message }} (since {{ alert.since }})
+          {% endfor %}
+          {% endif %}
+          
+          *Last updated: {{ state_attr('sensor.glitch_cube_consolidated_alerts', 'last_updated') }}*
+        notification_id: "glitch_cube_consolidated_alerts"
+
+- id: consolidated_alert_cleared
+  alias: "Clear Consolidated Alert Notification"
+  description: "Clear persistent notification when all alerts are resolved"
+  trigger:
+    - platform: state
+      entity_id: sensor.glitch_cube_consolidated_alerts
+      from: "on"
+      to: "off"
+  action:
+    - service: notify.persistent_notification
+      data:
+        message: clear_notification
+        notification_id: "glitch_cube_consolidated_alerts"
+
+- id: consolidated_alert_update
+  alias: "Update Consolidated Alert Notification"
+  description: "Update persistent notification when alerts change while active"
+  trigger:
+    - platform: state
+      entity_id: sensor.glitch_cube_consolidated_alerts
+      attribute: active_alerts
+  condition:
+    - condition: state
+      entity_id: sensor.glitch_cube_consolidated_alerts
+      state: "on"
+  action:
+    - service: notify.persistent_notification
+      data:
+        title: "🚨 Glitch Cube System Alerts (Updated)"
+        message: >
+          {% set alerts = state_attr('sensor.glitch_cube_consolidated_alerts', 'active_alerts') %}
+          {% set critical = alerts | selectattr('type', 'eq', 'critical') | list %}
+          {% set warnings = alerts | selectattr('type', 'eq', 'warning') | list %}
+          
+          **{{ state_attr('sensor.glitch_cube_consolidated_alerts', 'summary') }}**
+          
+          {% if critical | length > 0 %}
+          **🔴 Critical Issues:**
+          {% for alert in critical %}
+          • {{ alert.title }}: {{ alert.message }} (since {{ alert.since }})
+          {% endfor %}
+          
+          {% endif %}
+          {% if warnings | length > 0 %}
+          **🟡 Warnings:**
+          {% for alert in warnings %}
+          • {{ alert.title }}: {{ alert.message }} (since {{ alert.since }})
+          {% endfor %}
+          {% endif %}
+          
+          *Last updated: {{ state_attr('sensor.glitch_cube_consolidated_alerts', 'last_updated') }}*
+        notification_id: "glitch_cube_consolidated_alerts"

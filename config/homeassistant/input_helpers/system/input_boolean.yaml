@@ -1,0 +1,35 @@
+# System-related boolean inputs
+glitchcube_update_pending:
+  name: Glitchcube Update Pending
+  initial: false
+  icon: mdi:update
+
+motion_detected:
+  name: Motion Detected
+  initial: false
+  icon: mdi:motion-sensor
+
+human_detected:
+  name: Human Detected
+  initial: false
+  icon: mdi:human
+
+cube_is_moving:
+  name: Cube Is Moving
+  initial: false
+  icon: mdi:cube-send
+
+cube_stopped_moving:
+  name: Cube Stopped Moving
+  initial: false
+  icon: mdi:cube-off-outline
+
+cube_tilted:
+  name: Cube Tilted
+  initial: false
+  icon: mdi:rotate-3d-variant
+
+cube_stable:
+  name: Cube Stable
+  initial: true
+  icon: mdi:cube-outline

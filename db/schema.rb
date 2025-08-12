@@ -56,6 +56,8 @@ ActiveRecord::Schema[7.1].define(version: 20_250_806_160_924) do
     t.string 'ha_conversation_id'
     t.string 'ha_device_id'
     t.boolean 'continue_conversation', default: true
+    t.jsonb 'flow_data', default: {}, null: false, comment: 'Stores conversation flow data including inner_thoughts, proactive_behaviors, and other persona-specific data'
+    t.index ['flow_data'], name: 'index_conversations_on_flow_data', using: :gin
     t.index %w[ha_conversation_id ended_at], name: 'index_conversations_on_ha_conversation_id_and_ended_at'
     t.index ['ha_conversation_id'], name: 'index_conversations_on_ha_conversation_id'
     t.index ['ha_device_id'], name: 'index_conversations_on_ha_device_id'

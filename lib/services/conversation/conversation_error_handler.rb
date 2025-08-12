@@ -58,7 +58,11 @@ module Services
 
       Services::ConversationFeedbackService.new.set_state(:error)
     rescue StandardError => e
-      puts "Warning: Could not set error LED state: #{e.message}"
+      Services::SimpleLogger.warn(
+        'Could not set error LED state',
+        tagged: %i[conversation led_feedback],
+        error: e.message
+      )
     end
 
     def handle_rate_limit
@@ -118,7 +122,11 @@ module Services
         persona: persona
       )
     rescue StandardError => e
-      puts "Warning: Could not record error response: #{e.message}"
+      Services::SimpleLogger.warn(
+        'Could not record error response',
+        tagged: %i[conversation error_recording],
+        error: e.message
+      )
     end
 
     def generate_offline_response
@@ -150,7 +158,11 @@ module Services
         error.message
       )
     rescue StandardError => e
-      puts "Warning: Could not log error: #{e.message}"
+      Services::SimpleLogger.warn(
+        'Could not log error',
+        tagged: %i[conversation error_logging],
+        error: e.message
+      )
     end
   end
 end

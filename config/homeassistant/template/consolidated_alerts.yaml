@@ -1,0 +1,220 @@
+# Consolidated Alert System Template Sensor
+# This sensor consolidates all health checks into one central alert system
+# State: 'on' when any alert is active, 'off' when all systems healthy
+# Attributes: Contains detailed information about each active alert
+
+template:
+  - sensor:
+      - name: "Glitch Cube Consolidated Alerts"
+        unique_id: "glitchcube_consolidated_alerts"
+        state: >
+          {% set alerts = namespace(count=0, list=[]) %}
+          
+          {# Check App Health #}
+          {% if states('sensor.glitch_cube_app_health') == 'offline' %}
+            {% set alerts.count = alerts.count + 1 %}
+            {% set alerts.list = alerts.list + [{
+              'id': 'app_health',
+              'type': 'critical',
+              'title': 'App Offline',
+              'message': 'Glitch Cube app has been offline',
+              'entity': 'sensor.glitch_cube_app_health',
+              'since': states.sensor.glitch_cube_app_health.last_changed,
+              'icon': 'mdi:application-off'
+            }] %}
+          {% endif %}
+          
+          {# Check Internet Connectivity #}
+          {% if states('sensor.internet_connectivity') == 'disconnected' %}
+            {% set alerts.count = alerts.count + 1 %}
+            {% set alerts.list = alerts.list + [{
+              'id': 'internet_connectivity',
+              'type': 'warning',
+              'title': 'Internet Disconnected',
+              'message': 'Starlink connection lost',
+              'entity': 'sensor.internet_connectivity',
+              'since': states.sensor.internet_connectivity.last_changed,
+              'icon': 'mdi:wifi-off'
+            }] %}
+          {% endif %}
+          
+          {# Check API Health #}
+          {% if states('sensor.glitchcube_api_health') in ['unhealthy', 'unavailable'] %}
+            {% set alerts.count = alerts.count + 1 %}
+            {% set alerts.list = alerts.list + [{
+              'id': 'api_health',
+              'type': 'critical',
+              'title': 'API Unhealthy',
+              'message': 'Glitch Cube API is ' + states('sensor.glitchcube_api_health'),
+              'entity': 'sensor.glitchcube_api_health',
+              'since': states.sensor.glitchcube_api_health.last_changed,
+              'icon': 'mdi:api-off'
+            }] %}
+          {% endif %}
+          
+          {# Check Error Rate #}
+          {% if states('sensor.glitchcube_error_rate') | int(0) > 50 %}
+            {% set alerts.count = alerts.count + 1 %}
+            {% set alerts.list = alerts.list + [{
+              'id': 'high_error_rate',
+              'type': 'warning',
+              'title': 'High Error Rate',
+              'message': 'Error rate is ' + states('sensor.glitchcube_error_rate') + '%',
+              'entity': 'sensor.glitchcube_error_rate',
+              'since': states.sensor.glitchcube_error_rate.last_changed,
+              'icon': 'mdi:alert-circle'
+            }] %}
+          {% endif %}
+          
+          {# Check Battery Level #}
+          {% if states('sensor.glitchcube_battery') | int(100) < 20 %}
+            {% set alerts.count = alerts.count + 1 %}
+            {% set alerts.list = alerts.list + [{
+              'id': 'low_battery',
+              'type': 'warning',
+              'title': 'Low Battery',
+              'message': 'Battery at ' + states('sensor.glitchcube_battery') + '%',
+              'entity': 'sensor.glitchcube_battery',
+              'since': states.sensor.glitchcube_battery.last_changed,
+              'icon': 'mdi:battery-low'
+            }] %}
+          {% endif %}
+          
+          {# Check Temperature (if composite temp > 180F) #}
+          {% if states('sensor.macmini_composite_temperature') | int(0) > 180 %}
+            {% set alerts.count = alerts.count + 1 %}
+            {% set alerts.list = alerts.list + [{
+              'id': 'high_temperature',
+              'type': 'critical',
+              'title': 'High Temperature',
+              'message': 'System temperature is ' + states('sensor.macmini_composite_temperature') + '°F',
+              'entity': 'sensor.macmini_composite_temperature',
+              'since': states.sensor.macmini_composite_temperature.last_changed,
+              'icon': 'mdi:thermometer-alert'
+            }] %}
+          {% endif %}
+          
+          {# Return state based on alert count #}
+          {{ 'on' if alerts.count > 0 else 'off' }}
+        
+        attributes:
+          alert_count: >
+            {% set alerts = namespace(count=0) %}
+            {% if states('sensor.glitch_cube_app_health') == 'offline' %}
+              {% set alerts.count = alerts.count + 1 %}
+            {% endif %}
+            {% if states('sensor.internet_connectivity') == 'disconnected' %}
+              {% set alerts.count = alerts.count + 1 %}
+            {% endif %}
+            {% if states('sensor.glitchcube_api_health') in ['unhealthy', 'unavailable'] %}
+              {% set alerts.count = alerts.count + 1 %}
+            {% endif %}
+            {% if states('sensor.glitchcube_error_rate') | int(0) > 50 %}
+              {% set alerts.count = alerts.count + 1 %}
+            {% endif %}
+            {% if states('sensor.glitchcube_battery') | int(100) < 20 %}
+              {% set alerts.count = alerts.count + 1 %}
+            {% endif %}
+            {% if states('sensor.macmini_composite_temperature') | int(0) > 180 %}
+              {% set alerts.count = alerts.count + 1 %}
+            {% endif %}
+            {{ alerts.count }}
+          
+          active_alerts: >
+            {% set alerts = [] %}
+            {% if states('sensor.glitch_cube_app_health') == 'offline' %}
+              {% set alerts = alerts + [{
+                'id': 'app_health',
+                'type': 'critical',
+                'title': 'App Offline',
+                'message': 'Glitch Cube app has been offline',
+                'entity': 'sensor.glitch_cube_app_health',
+                'since': states.sensor.glitch_cube_app_health.last_changed | as_timestamp | timestamp_custom('%H:%M:%S'),
+                'icon': 'mdi:application-off'
+              }] %}
+            {% endif %}
+            {% if states('sensor.internet_connectivity') == 'disconnected' %}
+              {% set alerts = alerts + [{
+                'id': 'internet_connectivity',
+                'type': 'warning',
+                'title': 'Internet Disconnected',
+                'message': 'Starlink connection lost',
+                'entity': 'sensor.internet_connectivity',
+                'since': states.sensor.internet_connectivity.last_changed | as_timestamp | timestamp_custom('%H:%M:%S'),
+                'icon': 'mdi:wifi-off'
+              }] %}
+            {% endif %}
+            {% if states('sensor.glitchcube_api_health') in ['unhealthy', 'unavailable'] %}
+              {% set alerts = alerts + [{
+                'id': 'api_health',
+                'type': 'critical',
+                'title': 'API Unhealthy',
+                'message': 'Glitch Cube API is ' + states('sensor.glitchcube_api_health'),
+                'entity': 'sensor.glitchcube_api_health',
+                'since': states.sensor.glitchcube_api_health.last_changed | as_timestamp | timestamp_custom('%H:%M:%S'),
+                'icon': 'mdi:api-off'
+              }] %}
+            {% endif %}
+            {% if states('sensor.glitchcube_error_rate') | int(0) > 50 %}
+              {% set alerts = alerts + [{
+                'id': 'high_error_rate',
+                'type': 'warning',
+                'title': 'High Error Rate',
+                'message': 'Error rate is ' + states('sensor.glitchcube_error_rate') + '%',
+                'entity': 'sensor.glitchcube_error_rate',
+                'since': states.sensor.glitchcube_error_rate.last_changed | as_timestamp | timestamp_custom('%H:%M:%S'),
+                'icon': 'mdi:alert-circle'
+              }] %}
+            {% endif %}
+            {% if states('sensor.glitchcube_battery') | int(100) < 20 %}
+              {% set alerts = alerts + [{
+                'id': 'low_battery',
+                'type': 'warning',
+                'title': 'Low Battery',
+                'message': 'Battery at ' + states('sensor.glitchcube_battery') + '%',
+                'entity': 'sensor.glitchcube_battery',
+                'since': states.sensor.glitchcube_battery.last_changed | as_timestamp | timestamp_custom('%H:%M:%S'),
+                'icon': 'mdi:battery-low'
+              }] %}
+            {% endif %}
+            {% if states('sensor.macmini_composite_temperature') | int(0) > 180 %}
+              {% set alerts = alerts + [{
+                'id': 'high_temperature',
+                'type': 'critical',
+                'title': 'High Temperature',
+                'message': 'System temperature is ' + states('sensor.macmini_composite_temperature') + '°F',
+                'entity': 'sensor.macmini_composite_temperature',
+                'since': states.sensor.macmini_composite_temperature.last_changed | as_timestamp | timestamp_custom('%H:%M:%S'),
+                'icon': 'mdi:thermometer-alert'
+              }] %}
+            {% endif %}
+            {{ alerts }}
+          
+          critical_alerts: >
+            {{ state_attr('sensor.glitch_cube_consolidated_alerts', 'active_alerts') | selectattr('type', 'eq', 'critical') | list }}
+          
+          warning_alerts: >
+            {{ state_attr('sensor.glitch_cube_consolidated_alerts', 'active_alerts') | selectattr('type', 'eq', 'warning') | list }}
+          
+          summary: >
+            {% set count = state_attr('sensor.glitch_cube_consolidated_alerts', 'alert_count') | int(0) %}
+            {% if count == 0 %}
+              All systems healthy
+            {% else %}
+              {{ count }} active alert{{ 's' if count != 1 else '' }}
+            {% endif %}
+          
+          last_updated: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+        
+        icon: >
+          {% set count = state_attr('sensor.glitch_cube_consolidated_alerts', 'alert_count') | int(0) %}
+          {% set critical = state_attr('sensor.glitch_cube_consolidated_alerts', 'critical_alerts') | length %}
+          {% if critical > 0 %}
+            mdi:alert-circle
+          {% elif count > 0 %}
+            mdi:alert
+          {% else %}
+            mdi:check-circle
+          {% endif %}
+        
+        device_class: problem

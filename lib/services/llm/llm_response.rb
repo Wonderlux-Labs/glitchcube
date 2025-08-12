@@ -127,21 +127,15 @@ module Services
 
     # For conversation responses - check if should continue
     #
-    # @return [Boolean, nil] Whether to continue conversation, or nil if not specified
+    # @return [Boolean] Whether to continue conversation, defaults to false
     def continue_conversation?
       if parsed_content.is_a?(Hash)
-        # Explicit value if present
+        # Check for the continue_conversation field in parsed JSON
         return parsed_content['continue_conversation'] if parsed_content.key?('continue_conversation')
         return parsed_content[:continue_conversation] if parsed_content.key?(:continue_conversation)
       end
 
-      # Fallback: try to extract from response text if it looks like JSON
-      if content&.include?('"continue_conversation"')
-        match = content.match(/"continue_conversation"\s*:\s*(true|false)/)
-        return match[1] == 'true' if match
-      end
-
-      # Return nil when not specified, let ConversationModule decide the safe default
+      # Default to false if not specified or not JSON
       false
     end
 
@@ -151,7 +145,9 @@ module Services
     def response_text
       if parsed_content.is_a?(Hash)
         # Try to extract the actual response text from structured output
-        text = parsed_content['response'] || parsed_content[:response] ||
+        # Prioritize speak_to_user for the new schema, fall back to response/text
+        text = parsed_content['speak_to_user'] || parsed_content[:speak_to_user] ||
+               parsed_content['response'] || parsed_content[:response] ||
                parsed_content['text'] || parsed_content[:text]
 
         # Return the text if found (even if empty string)
@@ -217,6 +213,15 @@ module Services
       parsed_content['request_action'] || parsed_content[:request_action]
     end
 
+    # Extract proactive behaviors from structured response
+    #
+    # @return [Array, nil] Proactive behaviors or nil
+    def proactive_behaviors
+      return nil unless parsed_content.is_a?(Hash)
+
+      parsed_content['proactive_behaviors'] || parsed_content[:proactive_behaviors]
+    end
+
     # Calculate cost for this response
     #
     # @return [Float] The cost in dollars
@@ -276,17 +281,11 @@ module Services
       cleaned = @content.strip
       cleaned = cleaned.gsub(/^```json\s*/, '').gsub(/\s*```$/, '') if cleaned.include?('```')
 
-      # Only try to parse if it looks like JSON or we're expecting JSON
-      return nil unless @expects_json || cleaned.start_with?('{') || cleaned.start_with?('[')
+      # Only try to parse if it looks like JSON
+      return nil unless cleaned.start_with?('{') || cleaned.start_with?('[')
 
-      result = parse_json_safely(cleaned)
-
-      # If we expect JSON but failed to parse, try to recover it
-      if result.nil? && @expects_json && cleaned.length.positive?
-        result = recover_json(cleaned)
-      end
-
-      result
+      # Simple parse with no recovery attempt
+      parse_json_safely(cleaned)
     end
 
     def parse_json_safely(str)
@@ -296,65 +295,6 @@ module Services
       JSON.parse(str)
     rescue JSON::ParserError
       nil
-    end
-
-    # Attempt to recover malformed JSON using a small LLM
-    # Only used when we explicitly expect JSON but parsing failed
-    def recover_json(malformed_json)
-      return nil unless defined?(Services::LLMService)
-
-      if defined?(Services::SimpleLogger)
-        Services::SimpleLogger.warn('Attempting JSON recovery with LLM',
-                                    tagged: %i[llm_response json_recovery],
-                                    content_preview: malformed_json[0..200])
-      end
-
-      begin
-        # Use a small, fast model to fix the JSON
-        recovery_prompt = <<~PROMPT
-          Fix this malformed JSON and return ONLY valid JSON, no explanation:
-
-          #{malformed_json}
-
-          Return ONLY the corrected JSON object/array with no additional text.
-        PROMPT
-
-        recovery_response = Services::LLMService.complete(
-          system_prompt: 'You are a JSON fixer. Return only valid JSON with no explanation.',
-          user_message: recovery_prompt,
-          model: 'meta-llama/llama-3.2-3b-instruct',  # Ultra cheap model ($0.01/1M)
-          temperature: 0,
-          max_tokens: 4000
-        )
-
-        recovered_content = if recovery_response.is_a?(Services::LLMResponse)
-                              recovery_response.content
-                            else
-                              recovery_response[:content] || recovery_response['content']
-                            end
-
-        # Clean any markdown or extra text
-        recovered_content = recovered_content.strip
-        recovered_content = recovered_content.gsub(/^```json\s*/, '').gsub(/\s*```$/, '') if recovered_content.include?('```')
-
-        # Try to parse the recovered JSON
-        recovered = JSON.parse(recovered_content)
-
-        if defined?(Services::SimpleLogger)
-          Services::SimpleLogger.info('Successfully recovered JSON',
-                                      tagged: %i[llm_response json_recovery],
-                                      keys: recovered.keys)
-        end
-
-        recovered
-      rescue StandardError => e
-        if defined?(Services::SimpleLogger)
-          Services::SimpleLogger.error('JSON recovery failed',
-                                       tagged: %i[llm_response json_recovery],
-                                       error: e.message)
-        end
-        nil
-      end
     end
   end
 end

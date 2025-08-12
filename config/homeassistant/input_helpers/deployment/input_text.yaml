@@ -1,0 +1,15 @@
+# Deployment-related text inputs
+deployment_status:
+  name: Deployment Status
+  initial: idle
+  max: 64
+
+last_deployment_commit:
+  name: Last Deployment Commit
+  initial: none
+  max: 255
+
+deployment_message:
+  name: Deployment Message
+  initial: ""
+  max: 255

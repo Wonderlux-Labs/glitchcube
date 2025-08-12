@@ -1,0 +1,10 @@
+# Deployment-related booleans
+deployment_in_progress:
+  name: Deployment In Progress
+  initial: false
+  icon: mdi:rocket-launch
+
+auto_deploy_enabled:
+  name: Auto Deploy Enabled
+  initial: true
+  icon: mdi:update

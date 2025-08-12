@@ -68,6 +68,19 @@ module Services
                         (extra[:completion_tokens] || 0)
         }
         updates[:persona] = extra[:persona] if extra[:persona]
+
+        # Store inner_thoughts in flow_data if present
+        if extra[:metadata] && extra[:metadata][:inner_thoughts].present?
+          flow_data = @conversation.flow_data || {}
+          flow_data['inner_thoughts'] ||= []
+          flow_data['inner_thoughts'] << {
+            'timestamp' => Time.now.iso8601,
+            'persona' => extra[:persona],
+            'thought' => extra[:metadata][:inner_thoughts]
+          }
+          updates[:flow_data] = flow_data
+        end
+
         @conversation.update!(updates)
       end
 
