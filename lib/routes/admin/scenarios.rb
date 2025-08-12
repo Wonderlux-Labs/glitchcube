@@ -105,6 +105,7 @@ module GlitchCube
           @model_categories = get_available_models
           @models = get_flat_model_list # For backwards compatibility
           @recent_comparisons = get_recent_comparisons
+          @free_models = GlitchCube::ModelPresets::FREE_MODELS
           erb :admin_scenarios
         end
 

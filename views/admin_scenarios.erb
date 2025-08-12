@@ -323,7 +323,7 @@
             <% models.each do |model| %>
               <label class="model-checkbox" data-category="<%= category.gsub(/[^a-zA-Z0-9]/, '_') %>">
                 <input type="checkbox" name="model" value="<%= model %>" 
-                       <%= (category.include?('Free') || model.include?('free')) ? 'checked' : '' %>>
+                       <%= @free_models.include?(model) ? 'checked' : '' %>>
                 <span style="font-size: 11px;"><%= model.gsub(':', ': ') %></span>
               </label>
             <% end %>

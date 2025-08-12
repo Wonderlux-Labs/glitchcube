@@ -262,7 +262,7 @@
         </div>
       </div>
       
-      <% if ENV['RACK_ENV'] == 'development' || ENV['RACK_ENV'] == 'test' %>
+      <% if @show_gps_spoofing %>
       <div class="panel">
         <h2>📍 GPS Location Spoofing</h2>
         <div class="small" style="color: #ffaa00; margin-bottom: 10px;">⚠️ Development Only - Not available in production</div>

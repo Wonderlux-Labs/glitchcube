@@ -19,6 +19,9 @@ module GlitchCube
             @current_location = { error: e.message }
           end
 
+          # Security check: GPS spoofing only available in development/test
+          @show_gps_spoofing = %w[development test].include?(ENV.fetch('RACK_ENV', nil))
+
           erb :admin
         end
 

@@ -3,6 +3,23 @@
 require 'spec_helper'
 
 RSpec.describe Services::ToolExecutor do
+  # Test tool for stubbing
+  let(:test_tool) do
+    Class.new do
+      def self.available_tools
+        %w[speak_text]
+      end
+
+      def self.speak_text(**args)
+        "Speech synthesized: #{args[:text]}"
+      end
+    end
+  end
+
+  before do
+    # Stub the tool_classes method to return our test tool
+    allow(described_class).to receive(:tool_classes).and_return([test_tool])
+  end
   describe '.execute' do
     context 'with a valid tool' do
       let(:tool_call) do
@@ -14,9 +31,6 @@ RSpec.describe Services::ToolExecutor do
       end
 
       it 'executes the tool and returns success' do
-        # Mock SpeechTool which should exist
-        allow(SpeechTool).to receive(:speak_text).and_return('Speech synthesized: Hello world')
-
         results = described_class.execute([tool_call])
         result = results.first
 
@@ -56,7 +70,8 @@ RSpec.describe Services::ToolExecutor do
       end
 
       it 'catches the error and returns error result' do
-        allow(SpeechTool).to receive(:speak_text).and_raise(StandardError, 'Speech synthesis failed')
+        # Make the test tool raise an error
+        allow(test_tool).to receive(:speak_text).and_raise(StandardError, 'Speech synthesis failed')
 
         results = described_class.execute([tool_call])
         result = results.first
@@ -81,8 +96,9 @@ RSpec.describe Services::ToolExecutor do
       end
 
       it 'executes all tools and returns results array' do
-        allow(SpeechTool).to receive(:speak_text).with(text: 'First message').and_return('Speech 1')
-        allow(SpeechTool).to receive(:speak_text).with(text: 'Second message').and_return('Speech 2')
+        # Allow the test tool to handle both calls
+        allow(test_tool).to receive(:speak_text).with(text: 'First message').and_return('Speech 1')
+        allow(test_tool).to receive(:speak_text).with(text: 'Second message').and_return('Speech 2')
 
         results = described_class.execute(tool_calls)
 
