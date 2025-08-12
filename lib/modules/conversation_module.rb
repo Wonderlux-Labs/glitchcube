@@ -556,51 +556,29 @@ class ConversationModule
   end
 
   def validate_response(llm_response, persona_instance)
-    # Trust the LLMResponse abstraction - it has already done the parsing
-    validated = llm_response.parsed_content
+    # Rely on the enhanced LLMResponse helpers to correctly interpret the output.
+    response_text = llm_response.response_text
+    continue_conversation = llm_response.continue_conversation?
+    inner_thoughts = llm_response.inner_thoughts
 
-    # If parsing failed, parsed_content will be nil. Handle fallbacks.
-    unless validated
-      Services::SimpleLogger.info('Response was not valid JSON, attempting recovery',
-                                  tagged: %i[conversation validation],
-                                  response_preview: llm_response.content.to_s[0..100])
-
-      # Attempt recovery as a last resort
-      validated = recover_json_response(llm_response.content)
-
-      unless validated
-        # If recovery also fails, create a fallback structure from raw text
-        Services::SimpleLogger.warn('JSON recovery failed, using plain text fallback',
-                                    tagged: %i[conversation validation])
-        validated = {
-          'response' => llm_response.content.to_s.strip,
-          'continue_conversation' => false,  # Safe default: end the conversation
-          'inner_thoughts' => ''
-        }
-      end
-    end
-
-    # Ensure we have an indifferent hash for consistent access
-    validated = validated.with_indifferent_access
-
-    # Use symbol access since we have an indifferent hash
-    # Validate response text - most critical field
-    response_str = validated[:response].to_s
-    if validated[:response].nil? || response_str.strip.empty?
-      validated[:response] = persona_instance.generate_fallback_response('I understand.')
-      Services::SimpleLogger.warn('Response text was nil/empty, using fallback',
+    # If response_text is nil or empty, use the persona's fallback.
+    # This correctly handles cases where JSON was valid but missing the 'response' key,
+    # or where a plain text response was empty.
+    if response_text.nil? || response_text.strip.empty?
+      Services::SimpleLogger.warn('Response text was nil/empty, using fallback.',
                                   tagged: %i[conversation validation])
-    else
-      validated[:response] = response_str
+      response_text = persona_instance.generate_fallback_response('I understand.')
     end
 
-    # Coerce continue_conversation to a strict boolean
-    validated[:continue_conversation] = [true, 'true', 1, '1'].include?(validated[:continue_conversation])
+    # The response from the LLM is now validated and structured.
+    # We return a consistent hash for downstream processing.
+    validated = {
+      response: response_text,
+      continue_conversation: continue_conversation,
+      inner_thoughts: inner_thoughts
+    }.with_indifferent_access # Keep for consistency with consumers
 
-    # Ensure inner_thoughts is a string
-    validated[:inner_thoughts] = validated[:inner_thoughts].to_s
-
-    # Ensure response isn't too long for voice interactions
+    # Optional: Keep length validation if needed.
     if validated[:response].length > 500
       Services::SimpleLogger.warn('Response very long, might need truncation',
                                   tagged: %i[conversation validation],

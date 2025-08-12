@@ -142,12 +142,11 @@ module Services
     # @return [Boolean] Whether to continue conversation, defaults to false
     def continue_conversation?
       if parsed_content.is_a?(Hash) && parsed_content.key?(:continue_conversation)
-        # Check for the continue_conversation field in parsed JSON
-        return parsed_content[:continue_conversation]
+        # Check for the continue_conversation field in parsed JSON and coerce to a strict boolean
+        [true, 'true', 1, '1'].include?(parsed_content[:continue_conversation])
+      else
+        parsed_content.nil? && content.present?
       end
-
-      # Default to false if not specified or not JSON
-      false
     end
 
     # Get the main response text (handles structured and unstructured)
@@ -183,7 +182,7 @@ module Services
     STRUCTURED_OUTPUT_KEYS = {
       ha_actions: :actions,
       lighting: :lighting,
-      inner_thoughts: :inner_thoughts,
+      # inner_thoughts handled explicitly below for better control
       memory_note: :memory_note,
       request_action: :request_action,
       proactive_behaviors: :proactive_behaviors
@@ -195,6 +194,20 @@ module Services
 
         parsed_content[key]
       end
+    end
+
+    # Explicit inner_thoughts method with intelligent handling for both JSON and plain text
+    #
+    # @return [String] The inner thoughts or a default message
+    def inner_thoughts
+      if parsed_content.is_a?(Hash) && parsed_content.key?(:inner_thoughts)
+        return parsed_content[:inner_thoughts].to_s
+      end
+
+      # Provide a default thought for plain text responses for better debugging
+      return 'Response was plain text, not JSON.' if parsed_content.nil? && content.present?
+
+      '' # Default empty string
     end
 
     # Calculate cost for this response
