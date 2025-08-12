@@ -35,7 +35,7 @@ module Services
         messages: messages,
         model: GlitchCube.config.ai.default_model,
         temperature: 0.3,
-        max_tokens: 200
+        max_tokens: 500  # Increased for better summaries
       )
 
       parse_summary(response.response_text)

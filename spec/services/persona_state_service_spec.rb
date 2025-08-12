@@ -15,6 +15,10 @@ RSpec.describe Services::PersonaStateService do
     allow(described_class).to receive(:redis_available?).and_return(true)
     allow(HomeAssistantClient).to receive(:new).and_return(ha_client)
 
+    # Stub cleanup methods that might be called
+    allow(redis_client).to receive(:del).and_return(1)
+    allow(redis_client).to receive(:keys).and_return([])
+
     # Register personas for testing
     Personas::PersonaFactory.register_all
   end

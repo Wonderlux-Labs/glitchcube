@@ -184,7 +184,7 @@ module Cube
       end
 
       def ai_max_tokens
-        ENV.fetch('AI_MAX_TOKENS', '200').to_i
+        ENV.fetch('AI_MAX_TOKENS', '2000').to_i
       end
 
       def max_session_messages

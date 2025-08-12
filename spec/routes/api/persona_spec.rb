@@ -18,6 +18,11 @@ RSpec.describe 'Persona API Endpoints' do
     Services::PersonaStateService.clear_state!
   end
 
+  after do
+    # Clear state after each test to prevent pollution
+    Services::PersonaStateService.clear_state!
+  end
+
   describe 'GET /api/v1/persona' do
     it 'returns the current persona' do
       get '/api/v1/persona'
