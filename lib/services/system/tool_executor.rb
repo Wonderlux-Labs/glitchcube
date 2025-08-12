@@ -181,17 +181,27 @@ module Services
 
     # Lazy-loaded tool registry
     def self.tool_classes
-      @tool_classes ||= [
-        # Only load tool classes if they're defined
-        defined?(::SpeechTool) ? ::SpeechTool : nil,
-        defined?(::DisplayTool) ? ::DisplayTool : nil,
-        defined?(::LightingTool) ? ::LightingTool : nil,
-        defined?(::TestTool) ? ::TestTool : nil,
-        defined?(::MusicTool) ? ::MusicTool : nil,
-        defined?(::CameraTool) ? ::CameraTool : nil,
-        defined?(::ErrorHandlingTool) ? ::ErrorHandlingTool : nil,
-        defined?(::ConversationFeedbackTool) ? ::ConversationFeedbackTool : nil
-      ].compact
+      @tool_classes ||= begin
+        classes = [
+          # Only load tool classes if they're defined
+          defined?(::SpeechTool) ? ::SpeechTool : nil,
+          defined?(::DisplayTool) ? ::DisplayTool : nil,
+          defined?(::LightingTool) ? ::LightingTool : nil,
+          defined?(::TestTool) ? ::TestTool : nil,
+          defined?(::MusicTool) ? ::MusicTool : nil,
+          defined?(::CameraTool) ? ::CameraTool : nil,
+          defined?(::ErrorHandlingTool) ? ::ErrorHandlingTool : nil,
+          defined?(::ConversationFeedbackTool) ? ::ConversationFeedbackTool : nil
+        ].compact
+
+        SimpleLogger.info('🧰 Tool classes loaded at startup',
+                          tagged: %i[tool_executor initialization],
+                          tool_classes: classes.map(&:name),
+                          tool_count: classes.size,
+                          available_methods: classes.flat_map { |tc| tc.respond_to?(:available_tools) ? tc.available_tools : [] })
+
+        classes
+      end
     end
 
     # Alias for backward compatibility
