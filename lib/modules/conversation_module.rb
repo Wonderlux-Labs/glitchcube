@@ -219,7 +219,17 @@ class ConversationModule
       )
 
       # Only use fallback if response_text is nil or empty
-      response_text = persona_instance.generate_fallback_response(message) if response_text.nil? || response_text.strip.empty?
+      if response_text.nil? || response_text.strip.empty?
+        Services::SimpleLogger.error('LLM response was empty, using fallback response',
+                                     tagged: %i[conversation fallback error],
+                                     llm_response_content: llm_response.content,
+                                     llm_response_parsed: llm_response.parsed_content,
+                                     llm_response_raw: llm_response.raw_response&.slice('choices'),
+                                     session_id: session.session_id,
+                                     persona: persona_name,
+                                     model: llm_response.model)
+        response_text = persona_instance.generate_fallback_response(message)
+      end
 
       # For assist satellites, TTS is handled by the pipeline
       # We don't need to call TTS explicitly here
@@ -565,8 +575,12 @@ class ConversationModule
     # This correctly handles cases where JSON was valid but missing the 'response' key,
     # or where a plain text response was empty.
     if response_text.nil? || response_text.strip.empty?
-      Services::SimpleLogger.warn('Response text was nil/empty, using fallback.',
-                                  tagged: %i[conversation validation])
+      Services::SimpleLogger.error('Response validation failed - empty response',
+                                   tagged: %i[conversation validation error],
+                                   llm_content: llm_response.content,
+                                   llm_parsed: llm_response.parsed_content,
+                                   llm_raw_choices: llm_response.raw_response&.dig('choices'),
+                                   model: llm_response.model)
       response_text = persona_instance.generate_fallback_response('I understand.')
     end
 
