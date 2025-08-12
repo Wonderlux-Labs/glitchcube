@@ -5,7 +5,7 @@
 ###############################################################################
 input_text:
   current_weather:
-    name: Current Weather
+    name: Current Weather BRC
     initial: "Unknown"
     max: 128
     icon: mdi:weather-partly-cloudy

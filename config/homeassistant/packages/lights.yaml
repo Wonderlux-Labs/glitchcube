@@ -45,7 +45,7 @@ automation:
     trigger:
       - platform: state
         entity_id:
-          - assist_satt
+          - assist_satellite.square_voice
     action:
       - choose:
           - conditions:

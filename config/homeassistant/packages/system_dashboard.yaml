@@ -1,0 +1,240 @@
+###############################################################################
+# System Dashboard Package
+# Provides comprehensive entity monitoring and system status
+###############################################################################
+
+###############################################################################
+# LOVELACE DASHBOARDS
+###############################################################################
+lovelace:
+  mode: yaml
+  resources:
+    # Required custom cards (install via HACS)
+    - url: /hacsfiles/lovelace-auto-entities/auto-entities.js
+      type: module
+    - url: /hacsfiles/lovelace-collapsible-cards/collapsible-cards.js
+      type: module
+    - url: /hacsfiles/button-card/button-card.js
+      type: module
+  dashboards:
+    system-dashboard:
+      mode: yaml
+      filename: dashboards/system-dashboard.yaml
+      title: System Status
+      icon: mdi:cog
+      show_in_sidebar: true
+      require_admin: true
+
+###############################################################################
+# TEMPLATE SENSORS FOR SYSTEM MONITORING
+###############################################################################
+template:
+  - sensor:
+    - name: "Total Entity Count"
+      unique_id: total_entity_count
+      state: "{{ states | count }}"
+      icon: mdi:counter
+      attributes:
+        last_updated: "{{ now() }}"
+
+    - name: "Unavailable Entity Count"
+      unique_id: unavailable_entity_count
+      state: >
+        {{ states | selectattr('state', 'in', ['unavailable', 'unknown']) 
+           | rejectattr('entity_id', 'search', 'browser_mod')
+           | rejectattr('entity_id', 'search', 'spotify')
+           | list | count }}
+      icon: mdi:alert-circle
+      state_class: measurement
+      attributes:
+        entities: >
+          {{ states | selectattr('state', 'in', ['unavailable', 'unknown'])
+             | rejectattr('entity_id', 'search', 'browser_mod')
+             | rejectattr('entity_id', 'search', 'spotify')
+             | map(attribute='entity_id') | list }}
+
+    - name: "System Health Score"
+      unique_id: system_health_score
+      unit_of_measurement: "%"
+      state: >
+        {% set total = states | count %}
+        {% set unavailable = states | selectattr('state', 'in', ['unavailable', 'unknown']) | list | count %}
+        {% if total > 0 %}
+          {{ ((total - unavailable) / total * 100) | round(1) }}
+        {% else %}
+          0
+        {% endif %}
+      icon: >
+        {% set score = states('sensor.system_health_score') | float(0) %}
+        {% if score >= 95 %}
+          mdi:shield-check
+        {% elif score >= 85 %}
+          mdi:shield
+        {% elif score >= 75 %}
+          mdi:shield-alert
+        {% else %}
+          mdi:shield-off
+        {% endif %}
+
+    - name: "Entities by Domain"
+      unique_id: entities_by_domain
+      state: "{{ states | count }} total"
+      attributes:
+        domains: >
+          {% set ns = namespace(domains={}) %}
+          {% for state in states %}
+            {% set domain = state.entity_id.split('.')[0] %}
+            {% if domain in ns.domains %}
+              {% set ns.domains = dict(ns.domains, **{domain: ns.domains[domain] + 1}) %}
+            {% else %}
+              {% set ns.domains = dict(ns.domains, **{domain: 1}) %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.domains }}
+
+    - name: "Orphaned Entities"
+      unique_id: orphaned_entities
+      state: >
+        {% set ns = namespace(orphaned=[]) %}
+        {% for state in states %}
+          {% if state.attributes.get('restored', false) == true %}
+            {% set ns.orphaned = ns.orphaned + [state.entity_id] %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.orphaned | count }}
+      icon: mdi:ghost
+      attributes:
+        entities: >
+          {% set ns = namespace(orphaned=[]) %}
+          {% for state in states %}
+            {% if state.attributes.get('restored', false) == true %}
+              {% set ns.orphaned = ns.orphaned + [state.entity_id] %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.orphaned }}
+
+###############################################################################
+# SCRIPTS
+###############################################################################
+script:
+  diagnose_unavailable_entities:
+    alias: "Diagnose Unavailable Entities"
+    icon: mdi:stethoscope
+    sequence:
+      - service: system_log.write
+        data:
+          message: >
+            Unavailable entities found: 
+            {{ states | selectattr('state', 'in', ['unavailable', 'unknown']) 
+               | map(attribute='entity_id') | list | join(', ') }}
+          level: warning
+      
+      - service: persistent_notification.create
+        data:
+          title: "Unavailable Entities Report"
+          message: >
+            ## System Status
+            - **Total Entities:** {{ states | count }}
+            - **Unavailable:** {{ states | selectattr('state', 'in', ['unavailable', 'unknown']) | list | count }}
+            - **Health Score:** {{ states('sensor.system_health_score') }}%
+            
+            ## Unavailable Entities:
+            {% for entity in states | selectattr('state', 'in', ['unavailable', 'unknown']) %}
+            - {{ entity.entity_id }} ({{ entity.domain }})
+            {% endfor %}
+          notification_id: unavailable_entities_report
+
+  cleanup_orphaned_entities:
+    alias: "Cleanup Orphaned Entities"
+    icon: mdi:broom
+    sequence:
+      - service: recorder.purge_entities
+        data:
+          entity_id: >
+            {% set ns = namespace(orphaned=[]) %}
+            {% for state in states %}
+              {% if state.attributes.get('restored', false) == true %}
+                {% set ns.orphaned = ns.orphaned + [state.entity_id] %}
+              {% endif %}
+            {% endfor %}
+            {{ ns.orphaned }}
+      
+      - service: persistent_notification.create
+        data:
+          title: "Orphaned Entities Cleanup"
+          message: >
+            Attempted to clean up {{ states('sensor.orphaned_entities') }} orphaned entities.
+            
+            You may need to restart Home Assistant for changes to take effect.
+          notification_id: orphaned_cleanup
+
+###############################################################################
+# AUTOMATIONS
+###############################################################################
+automation:
+  - id: monitor_system_health
+    alias: "System - Monitor Health"
+    description: "Alert when system health drops below threshold"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.system_health_score
+        below: 85
+        for:
+          minutes: 5
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "⚠️ System Health Alert"
+          message: >
+            System health has dropped to {{ states('sensor.system_health_score') }}%
+            
+            Unavailable entities: {{ states('sensor.unavailable_entity_count') }}
+            
+            Run diagnose_unavailable_entities script for details.
+          notification_id: system_health_alert
+
+  - id: daily_orphaned_entity_check
+    alias: "System - Daily Orphaned Entity Check"
+    description: "Check for orphaned entities daily"
+    trigger:
+      - platform: time
+        at: "03:00:00"
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.orphaned_entities
+        above: 0
+    action:
+      - service: persistent_notification.create
+        data:
+          title: "👻 Orphaned Entities Found"
+          message: >
+            Found {{ states('sensor.orphaned_entities') }} orphaned entities.
+            
+            These are entities that were restored from the database but no longer exist.
+            
+            Consider running the cleanup_orphaned_entities script.
+          notification_id: orphaned_entities_found
+
+###############################################################################
+# INPUT HELPERS
+###############################################################################
+input_boolean:
+  system_monitoring_enabled:
+    name: System Monitoring Enabled
+    icon: mdi:monitor-eye
+    initial: true
+
+  auto_cleanup_orphaned:
+    name: Auto Cleanup Orphaned Entities
+    icon: mdi:auto-fix
+    initial: false
+
+input_number:
+  health_alert_threshold:
+    name: Health Alert Threshold
+    icon: mdi:alert
+    min: 50
+    max: 100
+    step: 5
+    initial: 85
+    unit_of_measurement: "%"

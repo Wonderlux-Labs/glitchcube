@@ -33,20 +33,20 @@ input_text:
   current_track:
     name: Current Track
     initial: "No music playing"
-    max: 128
+    max: 255
 
   current_persona:
     name: Current Persona
     initial: "Buddy"
     max: 32
     icon: mdi:robot
-
+    
+input_number:
   active_conversation_count:
     name: Active Conversation Count
     initial: 0
     min: 0
     max: 100
-    step: 1
 
 ###############################################################################
 # AUTOMATIONS

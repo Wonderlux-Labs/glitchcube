@@ -1,0 +1,549 @@
+# System Status Dashboard
+# Comprehensive view of all entities organized by domain with unavailable entity monitoring
+
+title: System Status
+path: system
+icon: mdi:cog
+cards:
+  # System Health Overview
+  - type: vertical-stack
+    cards:
+      - type: custom:button-card
+        name: System Health
+        icon: mdi:server
+        entity: sensor.system_health_score
+        show_state: true
+        show_label: true
+        label: |
+          [[[
+            return `${states['sensor.unavailable_entity_count'].state} unavailable | ${states['sensor.total_entity_count'].state} total`;
+          ]]]
+        styles:
+          card:
+            - height: 80px
+          state:
+            - font-size: 24px
+            - font-weight: bold
+        state:
+          - value: 95
+            operator: '>='
+            styles:
+              card:
+                - background: var(--success-color)
+              icon:
+                - color: white
+          - value: 85
+            operator: '>='
+            styles:
+              card:
+                - background: var(--warning-color)
+              icon:
+                - color: white
+          - value: 0
+            operator: '>='
+            styles:
+              card:
+                - background: var(--error-color)
+              icon:
+                - color: white
+
+  # System Resources Grid
+  - type: grid
+    columns: 4
+    cards:
+      - type: gauge
+        entity: sensor.processor_use
+        name: CPU
+        needle: true
+        severity:
+          green: 0
+          yellow: 60
+          red: 80
+      - type: gauge
+        entity: sensor.memory_use_percent
+        name: Memory
+        needle: true
+        severity:
+          green: 0
+          yellow: 70
+          red: 85
+      - type: gauge
+        entity: sensor.disk_use_percent
+        name: Disk
+        needle: true
+        severity:
+          green: 0
+          yellow: 70
+          red: 90
+      - type: gauge
+        entity: sensor.processor_temperature
+        name: CPU Temp
+        needle: true
+        unit: "°C"
+        severity:
+          green: 0
+          yellow: 60
+          red: 80
+
+  # Detailed System Monitors
+  - type: entities
+    title: "🖥️ System Monitors"
+    state_color: true
+    entities:
+      - entity: sensor.uptime
+        name: Uptime
+        icon: mdi:clock-check
+      - entity: sensor.last_boot
+        name: Last Boot
+        icon: mdi:restart
+      - type: divider
+      - entity: sensor.processor_use
+        name: CPU Usage
+      - entity: sensor.processor_temperature
+        name: CPU Temperature
+      - entity: sensor.load_1m
+        name: Load (1m)
+      - entity: sensor.load_5m
+        name: Load (5m)
+      - entity: sensor.load_15m
+        name: Load (15m)
+      - type: divider
+      - entity: sensor.memory_use_percent
+        name: Memory Usage
+      - entity: sensor.memory_use
+        name: Memory Used
+      - entity: sensor.memory_free
+        name: Memory Free
+      - entity: sensor.swap_use_percent
+        name: Swap Usage
+      - type: divider
+      - entity: sensor.disk_use_percent
+        name: Disk Usage
+      - entity: sensor.disk_use
+        name: Disk Used
+      - entity: sensor.disk_free
+        name: Disk Free
+      - type: divider
+      - entity: sensor.ipv4_address_eth0
+        name: IPv4 Address
+        icon: mdi:ip-network
+      - entity: sensor.network_in_eth0
+        name: Network In
+        icon: mdi:download
+      - entity: sensor.network_out_eth0
+        name: Network Out
+        icon: mdi:upload
+
+  # Database and Recorder Stats
+  - type: entities
+    title: "💾 Database & Recorder"
+    state_color: true
+    entities:
+      - entity: sensor.database_size
+        name: Database Size
+        icon: mdi:database
+      - entity: sensor.recorder_backlog
+        name: Recorder Backlog
+        icon: mdi:playlist-play
+      - entity: sensor.recorder_queue_length
+        name: Recorder Queue
+        icon: mdi:format-list-numbered
+
+  # Home Assistant Core Info
+  - type: entities
+    title: "🏠 Home Assistant Core"
+    state_color: true
+    entities:
+      - entity: sensor.current_version
+        name: Current Version
+        icon: mdi:home-assistant
+      - entity: sensor.latest_version
+        name: Latest Version
+        icon: mdi:cloud-download
+      - entity: update.home_assistant_core_update
+        name: Core Update Available
+      - entity: sensor.home_assistant_log_size
+        name: Log Size
+        icon: mdi:file-document
+      - entity: sensor.config_size
+        name: Config Size
+        icon: mdi:folder-cog
+
+  # Integration and Component Health
+  - type: entities
+    title: "🔌 Integration Health"
+    state_color: true
+    entities:
+      - entity: binary_sensor.home_assistant_integration_helios_weather
+        name: Helios Weather
+      - entity: binary_sensor.home_assistant_integration_awtrix
+        name: AWTRIX Display
+      - entity: binary_sensor.home_assistant_integration_music_assistant
+        name: Music Assistant
+      - entity: binary_sensor.home_assistant_integration_mqtt
+        name: MQTT
+      - entity: binary_sensor.home_assistant_integration_esphome
+        name: ESPHome
+
+  # Critical: Unavailable Entities
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "⚠️ Unavailable Entities"
+      state_color: true
+      show_header_toggle: false
+    filter:
+      include:
+        - state: "unavailable"
+        - state: "unknown"
+      exclude:
+        - entity_id: "*browser_mod*"
+        - entity_id: "*spotify*"
+        - entity_id: "*sonos*"
+    sort:
+      method: domain
+    show_empty: true
+    empty:
+      type: custom:button-card
+      name: "✅ All Entities Available"
+      icon: mdi:check-circle
+      styles:
+        card:
+          - background: var(--success-color)
+          - color: white
+          - height: 60px
+
+  # Lights Domain
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "💡 Lights"
+      state_color: true
+      show_header_toggle: true
+    filter:
+      include:
+        - domain: light
+      exclude:
+        - state: "unavailable"
+    sort:
+      method: name
+    show_empty: false
+
+  # Switches Domain
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "🔌 Switches"
+      state_color: true
+      show_header_toggle: true
+    filter:
+      include:
+        - domain: switch
+      exclude:
+        - state: "unavailable"
+    sort:
+      method: name
+    show_empty: false
+
+  # Sensors Domain (collapsible due to high count)
+  - type: custom:collapsible-cards
+    title: "📊 Sensors"
+    defaultOpen: false
+    cards:
+      - type: custom:auto-entities
+        card:
+          type: entities
+          state_color: true
+        filter:
+          include:
+            - domain: sensor
+          exclude:
+            - state: "unavailable"
+            - entity_id: "*_browser_*"
+        sort:
+          method: name
+        show_empty: false
+
+  # Binary Sensors Domain
+  - type: custom:collapsible-cards
+    title: "🔲 Binary Sensors"
+    defaultOpen: false
+    cards:
+      - type: custom:auto-entities
+        card:
+          type: entities
+          state_color: true
+        filter:
+          include:
+            - domain: binary_sensor
+          exclude:
+            - state: "unavailable"
+        sort:
+          method: name
+        show_empty: false
+
+  # Input Helpers Section
+  - type: vertical-stack
+    title: "🎛️ Input Helpers"
+    cards:
+      # Input Booleans
+      - type: custom:auto-entities
+        card:
+          type: entities
+          title: "Input Booleans"
+          state_color: true
+        filter:
+          include:
+            - domain: input_boolean
+        sort:
+          method: name
+        show_empty: false
+
+      # Input Numbers
+      - type: custom:auto-entities
+        card:
+          type: entities
+          title: "Input Numbers"
+          state_color: true
+        filter:
+          include:
+            - domain: input_number
+        sort:
+          method: name
+        show_empty: false
+
+      # Input Text
+      - type: custom:auto-entities
+        card:
+          type: entities
+          title: "Input Text"
+          state_color: true
+        filter:
+          include:
+            - domain: input_text
+        sort:
+          method: name
+        show_empty: false
+
+      # Input Select
+      - type: custom:auto-entities
+        card:
+          type: entities
+          title: "Input Select"
+          state_color: true
+        filter:
+          include:
+            - domain: input_select
+        sort:
+          method: name
+        show_empty: false
+
+  # Media Players
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "🎵 Media Players"
+      state_color: true
+    filter:
+      include:
+        - domain: media_player
+      exclude:
+        - state: "unavailable"
+    sort:
+      method: name
+    show_empty: false
+
+  # Climate Devices
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "🌡️ Climate"
+      state_color: true
+    filter:
+      include:
+        - domain: climate
+      exclude:
+        - state: "unavailable"
+    sort:
+      method: name
+    show_empty: false
+
+  # Device Trackers
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "📍 Device Trackers"
+      state_color: true
+    filter:
+      include:
+        - domain: device_tracker
+      exclude:
+        - state: "unavailable"
+    sort:
+      method: name
+    show_empty: false
+
+  # Automations
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "⚙️ Automations"
+      state_color: true
+    filter:
+      include:
+        - domain: automation
+      exclude:
+        - state: "unavailable"
+    sort:
+      method: name
+    show_empty: false
+
+  # Scripts
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "📜 Scripts"
+      state_color: true
+    filter:
+      include:
+        - domain: script
+      exclude:
+        - state: "unavailable"
+    sort:
+      method: name
+    show_empty: false
+
+  # Persons
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "👤 Persons"
+      state_color: true
+    filter:
+      include:
+        - domain: person
+    sort:
+      method: name
+    show_empty: false
+
+  # Zones
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "📍 Zones"
+      state_color: true
+    filter:
+      include:
+        - domain: zone
+    sort:
+      method: name
+    show_empty: false
+
+  # Conversation Agents
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "🗣️ Conversation Agents"
+      state_color: true
+    filter:
+      include:
+        - domain: conversation
+        - domain: assist_satellite
+        - entity_id: "*conversation*"
+        - entity_id: "*assist*"
+    sort:
+      method: name
+    show_empty: false
+
+  # Weather
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "☁️ Weather"
+      state_color: true
+    filter:
+      include:
+        - domain: weather
+        - entity_id: "*weather*"
+    sort:
+      method: name
+    show_empty: false
+
+  # Cameras
+  - type: custom:auto-entities
+    card:
+      type: entities
+      title: "📷 Cameras"
+      state_color: true
+    filter:
+      include:
+        - domain: camera
+      exclude:
+        - state: "unavailable"
+    sort:
+      method: name
+    show_empty: false
+
+  # All Other Entities (catch-all)
+  - type: custom:collapsible-cards
+    title: "📦 Other Entities"
+    defaultOpen: false
+    cards:
+      - type: custom:auto-entities
+        card:
+          type: entities
+          state_color: true
+        filter:
+          exclude:
+            - domain: light
+            - domain: switch
+            - domain: sensor
+            - domain: binary_sensor
+            - domain: input_boolean
+            - domain: input_number
+            - domain: input_text
+            - domain: input_select
+            - domain: media_player
+            - domain: climate
+            - domain: device_tracker
+            - domain: automation
+            - domain: script
+            - domain: person
+            - domain: zone
+            - domain: conversation
+            - domain: weather
+            - domain: camera
+            - domain: assist_satellite
+            - state: "unavailable"
+        sort:
+          method: domain
+        show_empty: false
+
+  # Statistics Card
+  - type: custom:auto-entities
+    card:
+      type: markdown
+      title: "📈 Entity Statistics"
+    filter:
+      template: |
+        {% set ns = namespace(total=0, unavailable=0, domains={}) %}
+        {% for state in states %}
+          {% set ns.total = ns.total + 1 %}
+          {% if state.state in ['unavailable', 'unknown'] %}
+            {% set ns.unavailable = ns.unavailable + 1 %}
+          {% endif %}
+          {% set domain = state.entity_id.split('.')[0] %}
+          {% if domain in ns.domains %}
+            {% set ns.domains = dict(ns.domains, **{domain: ns.domains[domain] + 1}) %}
+          {% else %}
+            {% set ns.domains = dict(ns.domains, **{domain: 1}) %}
+          {% endif %}
+        {% endfor %}
+        **Total Entities:** {{ ns.total }}
+        **Unavailable:** {{ ns.unavailable }}
+        **Available:** {{ ns.total - ns.unavailable }}
+        
+        **By Domain:**
+        {% for domain, count in ns.domains.items() | sort(attribute='1', reverse=True) %}
+        - **{{ domain }}:** {{ count }}
+        {% endfor %}
