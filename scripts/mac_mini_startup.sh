@@ -135,16 +135,10 @@ if [ "$HASS_UP" = false ]; then
     log "Continuing anyway..."
 fi
 
-# 6. Load environment variables from .env.production if it exists
+# 6. Change to GlitchCube directory and update code
 cd "$GLITCHCUBE_DIR"
-if [ -f ".env.production" ]; then
-    log "Loading .env.production for database setup..."
-    set -a
-    source .env.production
-    set +a
-fi
 
-# Pull latest code from git (if available)
+# Pull latest code from git FIRST (before loading env or running migrations)
 log_info "Checking for code updates..."
 if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
     if git pull --rebase 2>/dev/null; then
@@ -162,6 +156,14 @@ if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
     fi
 else
     log "Git not available or not a git repository"
+fi
+
+# Load environment variables from .env.production if it exists
+if [ -f ".env.production" ]; then
+    log "Loading .env.production for database setup..."
+    set -a
+    source .env.production
+    set +a
 fi
 
 # Run pending migrations with retry logic
