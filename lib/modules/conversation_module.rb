@@ -403,7 +403,7 @@ class ConversationModule
       model: GlitchCube.config.ai.default_model,  # Switch back to default conversation model
       temperature: llm_options[:temperature],
       max_tokens: GlitchCube.config.ai.max_tool_tokens,  # Use config value
-      reasoning: { max_tokens: 500 }  # More reasoning tokens but still controlled
+      reasoning: { max_tokens: 1000 }  # Balanced for speed with limited tools
       # Only use response_format if model supports it AND we have a schema
       # Some models (like older Claude) don't support structured output
       # CRITICAL: No tools in second call - we want conversational response, not more tool calls

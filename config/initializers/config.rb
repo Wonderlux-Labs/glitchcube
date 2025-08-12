@@ -3,6 +3,14 @@
 require 'ostruct'
 require 'securerandom'
 
+PROD_MINI_URL = 'http://100.104.211.107:4567'
+PROD_BACKUP_MINI_URL = 'http://speedygonzo.local:4567'
+SSH_MINI_USER = 'eristmini'
+
+PROD_HASS_URL = '100.126.250.73:8123'
+BACKUP_HASS_URL = 'http://glitch.local:8123'
+SSH_HASS_USER = 'root'
+
 module GlitchCube
   class ConfigBuilder
     DEFAULTS = {
@@ -54,8 +62,8 @@ module GlitchCube
         default_model: 'anthropic/claude-sonnet-4',
         default_tools_model: 'anthropic/claude-sonnet-4',
         temperature: 0.8,
-        max_tokens: 2000,
-        max_tool_tokens: 2048,
+        max_tokens: 32000,
+        max_tool_tokens: 32000,
         max_session_messages: 10
       },
 
