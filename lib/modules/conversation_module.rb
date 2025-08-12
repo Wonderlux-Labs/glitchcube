@@ -498,6 +498,47 @@ class ConversationModule
     final_prompt
   end
 
+  def recover_json_response(malformed_json)
+    return nil unless malformed_json.is_a?(String) && !malformed_json.strip.empty?
+
+    begin
+      # Use a small, fast model to fix the JSON
+      recovery_prompt = <<~PROMPT
+        Fix this malformed JSON and return ONLY valid JSON, no explanation:
+
+        #{malformed_json}
+
+        Return ONLY the corrected JSON object with these keys: response, continue_conversation, inner_thoughts
+      PROMPT
+
+      recovery_response = Services::LLMService.complete(
+        system_prompt: 'You are a JSON fixer. Return only valid JSON with no explanation.',
+        user_message: recovery_prompt,
+        model: 'meta-llama/llama-3.2-3b-instruct',  # Ultra cheap model
+        temperature: 0,
+        max_tokens: 4000
+      )
+
+      recovered_content = if recovery_response.is_a?(Services::LLMResponse)
+                            recovery_response.content
+                          else
+                            recovery_response[:content] || recovery_response['content']
+                          end
+
+      # Clean any markdown or extra text
+      recovered_content = recovered_content.strip
+      recovered_content = recovered_content.gsub(/^```json\s*/, '').gsub(/\s*```$/, '') if recovered_content.include?('```')
+
+      # Try to parse the recovered JSON
+      JSON.parse(recovered_content)
+    rescue StandardError => e
+      Services::SimpleLogger.debug('JSON recovery failed',
+                                   tagged: %i[conversation json_recovery],
+                                   error: e.message)
+      nil
+    end
+  end
+
   def validate_response(response_data, persona_instance)
     # Handle different response types
     validated = if response_data.is_a?(Hash)
@@ -511,17 +552,29 @@ class ConversationModule
                                                  tagged: %i[conversation validation])
                     parsed
                   rescue JSON::ParserError => e
-                    # Log parsing failure for debugging
-                    Services::SimpleLogger.warn('Failed to parse LLM response as JSON, treating as plain text',
-                                                tagged: %i[conversation validation error],
+                    Services::SimpleLogger.info('JSON parse failed, attempting recovery',
+                                                tagged: %i[conversation validation],
                                                 error: e.message,
                                                 response_preview: response_data[0..100])
-                    # Plain text response - create a hash with the text as the response
-                    {
-                      'response' => response_data.strip,
-                      'continue_conversation' => true,  # Default to true for voice interactions
-                      'inner_thoughts' => ''
-                    }
+
+                    # Try to recover the JSON using LLM
+                    recovered = recover_json_response(response_data)
+
+                    if recovered
+                      Services::SimpleLogger.info('JSON recovery successful',
+                                                  tagged: %i[conversation validation],
+                                                  keys: recovered.keys)
+                      recovered
+                    else
+                      # Fallback to plain text if recovery fails
+                      Services::SimpleLogger.warn('JSON recovery failed, using plain text fallback',
+                                                  tagged: %i[conversation validation])
+                      {
+                        'response' => response_data.strip,
+                        'continue_conversation' => true,  # Default to true for voice interactions
+                        'inner_thoughts' => ''
+                      }
+                    end
                   end
                 else
                   # Empty or nil - create empty hash
