@@ -165,11 +165,19 @@ class ConversationModule
 
       # Check for and execute tool calls
       if llm_response.tool_calls.present?
-        Services::SimpleLogger.debug('Tool calls detected', tagged: %i[conversation tools], count: llm_response.tool_calls.size)
+        Services::SimpleLogger.info('🛠️ Tool calls detected from LLM',
+                                    tagged: %i[conversation tools],
+                                    count: llm_response.tool_calls.size,
+                                    tools: llm_response.tool_calls.map { |tc| tc.dig('function', 'name') || tc.dig(:function, :name) })
         llm_response = handle_native_tool_response(llm_response, messages, llm_options, response_schema, _session: session)
         tool_calls_made = @last_tool_calls || []
-        Services::SimpleLogger.debug('Tool execution completed', tagged: %i[conversation tools], tool_count: tool_calls_made&.size)
+        Services::SimpleLogger.info('✅ All tools executed',
+                                    tagged: %i[conversation tools],
+                                    tool_count: tool_calls_made&.size,
+                                    tools_executed: tool_calls_made.map { |tc| tc[:tool_name] })
       else
+        Services::SimpleLogger.info('💭 No tools called - direct response',
+                                    tagged: %i[conversation tools])
         tool_calls_made = []
       end
 
@@ -308,10 +316,12 @@ class ConversationModule
         {}
       end
 
-      Services::SimpleLogger.info('Executing tool',
+      Services::SimpleLogger.info('📋 Tool call details',
                                   tagged: %i[conversation tools],
                                   tool: function_name,
-                                  arguments: arguments)
+                                  arguments: arguments,
+                                  tool_call_id: tool_call['id'] || tool_call[:id],
+                                  raw_arguments: tool_call['function']['arguments'])
 
       # Execute the tool
       tool_call_hash = { name: function_name, arguments: arguments }
@@ -324,6 +334,12 @@ class ConversationModule
         arguments: arguments,
         result: result
       }
+
+      Services::SimpleLogger.info('📊 Tool execution result',
+                                  tagged: %i[conversation tools],
+                                  tool: function_name,
+                                  success: result[:success] || (result.is_a?(String) && !result.include?('error')),
+                                  result_preview: result.to_s[0..200])
 
       # Collect results in OpenAI tool result format
       tool_content = if result.is_a?(Hash)

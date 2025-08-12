@@ -26,12 +26,14 @@ module Services
         # Normalize and filter arguments to match method signature
         normalized_args = normalize_args(arguments)
 
-        # Log tool execution
-        SimpleLogger.info('Executing tool method',
+        # Log tool execution with full details
+        SimpleLogger.info('🔧 Executing tool method',
                           tagged: %i[tool_executor execution],
                           tool_class: tool_class.name,
                           tool_name: tool_name,
-                          arguments: normalized_args.inspect)
+                          arguments: normalized_args,
+                          arg_count: normalized_args.size,
+                          arg_keys: normalized_args.keys.join(', '))
 
         # Execute the tool method
         result = if tool_class.respond_to?(tool_name)
@@ -49,12 +51,21 @@ module Services
                    tool_class.call(**normalized_args)
                  end
 
+        # Log successful execution
+        SimpleLogger.info('✅ Tool executed successfully',
+                          tagged: %i[tool_executor success],
+                          tool_class: tool_class.name,
+                          tool_name: tool_name,
+                          result_type: result.class.name,
+                          result_preview: result.to_s[0..100])
+
         success_result(tool_call, result)
       rescue StandardError => e
-        SimpleLogger.error('Tool execution failed',
+        SimpleLogger.error('❌ Tool execution failed',
                            tagged: %i[tool_executor error],
                            tool_class: tool_class&.name || 'Unknown',
                            tool_name: tool_name,
+                           arguments: normalized_args,
                            error_class: e.class.name,
                            error_message: e.message,
                            backtrace: e.backtrace&.first(3))
@@ -81,6 +92,17 @@ module Services
         has_keyrest = method_params.any? { |param_type, _name| param_type == :keyrest }
         return args if has_keyrest
 
+        # Log which arguments are being filtered out
+        rejected_keys = args.keys - accepted_keys
+        if rejected_keys.any?
+          SimpleLogger.warn('🚫 Filtering out unknown arguments',
+                            tagged: %i[tool_executor signature_filter],
+                            method: "#{tool_class.name}.#{method_name}",
+                            accepted_params: accepted_keys,
+                            rejected_params: rejected_keys,
+                            rejected_values: args.slice(*rejected_keys))
+        end
+
         # Otherwise, filter to only accepted keys
         args.slice(*accepted_keys)
       rescue StandardError => e
@@ -101,11 +123,35 @@ module Services
       end
 
       def find_tool_class_for(tool_name)
-        tool_classes.find do |tool_class|
+        SimpleLogger.debug('🔍 Searching for tool class',
+                           tagged: %i[tool_executor discovery],
+                           tool_name: tool_name,
+                           available_classes: tool_classes.map(&:name))
+
+        found_class = tool_classes.find do |tool_class|
           next unless tool_class.respond_to?(:available_tools)
 
-          tool_class.available_tools.include?(tool_name)
+          available = tool_class.available_tools
+          SimpleLogger.debug("Checking #{tool_class.name}",
+                             tagged: %i[tool_executor discovery],
+                             available_tools: available,
+                             matches: available.include?(tool_name))
+
+          available.include?(tool_name)
         end
+
+        if found_class
+          SimpleLogger.debug('✅ Found tool class',
+                             tagged: %i[tool_executor discovery],
+                             tool_name: tool_name,
+                             tool_class: found_class.name)
+        else
+          SimpleLogger.warn('❌ No tool class found',
+                            tagged: %i[tool_executor discovery],
+                            tool_name: tool_name)
+        end
+
+        found_class
       end
 
       def normalize_args(args)
