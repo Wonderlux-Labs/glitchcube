@@ -7,11 +7,16 @@ class HostRegistrationWorker
   sidekiq_options retry: 3, queue: :default
 
   def perform(registration_type = nil)
-    # Handle both string argument and legacy keyword argument
+    # Handle both string argument for initial registration and no argument for cron job
     initial_registration = (registration_type == 'initial_registration')
 
     if initial_registration
       # Try to register with retry loop for initial registration
+      Services::SimpleLogger.info(
+        '🚀 Starting initial host registration with Home Assistant',
+        tagged: %i[host_registration startup]
+      )
+
       success = Services::HostRegistrationService.register_with_retry_loop
 
       if success
@@ -27,8 +32,26 @@ class HostRegistrationWorker
         raise 'Failed to register with Home Assistant after all attempts'
       end
     else
-      # Regular registration update
-      Services::HostRegistrationService.register_with_home_assistant
+      # Regular registration update (called by cron job with no arguments)
+      Services::SimpleLogger.debug(
+        '🔄 Performing regular host registration update',
+        tagged: %i[host_registration cron]
+      )
+
+      # This is the regular cron job - just register normally
+      success = Services::HostRegistrationService.register_with_home_assistant
+
+      if success
+        Services::SimpleLogger.debug(
+          '✅ Regular host registration update successful',
+          tagged: %i[host_registration cron]
+        )
+      else
+        Services::SimpleLogger.warn(
+          '⚠️ Regular host registration update failed',
+          tagged: %i[host_registration cron]
+        )
+      end
     end
   end
 end
