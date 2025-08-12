@@ -144,6 +144,26 @@ if [ -f ".env.production" ]; then
     set +a
 fi
 
+# Pull latest code from git (if available)
+log_info "Checking for code updates..."
+if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
+    if git pull --rebase 2>/dev/null; then
+        log_success "Code updated from git"
+        
+        # Run bundle install if Gemfile changed
+        log_info "Checking for gem updates..."
+        if "$RUBY_PATH/bundle" install --quiet 2>/dev/null; then
+            log_success "Gems updated successfully"
+        else
+            log "Bundle install had issues but continuing..."
+        fi
+    else
+        log "Git pull skipped or no updates available"
+    fi
+else
+    log "Git not available or not a git repository"
+fi
+
 # Run pending migrations with retry logic
 run_migrations() {
     log_info "Checking for pending database migrations..."
