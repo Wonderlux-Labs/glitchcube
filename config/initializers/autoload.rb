@@ -108,6 +108,8 @@ module Autoloader
                                dependencies: [:logger_service])
       ServiceRegistry.register(:conversation_summarizer, 'services/conversation/conversation_summarizer',
                                dependencies: [:logger_service])
+      ServiceRegistry.register(:conversation_response_processor, 'services/conversation/conversation_response_processor',
+                               dependencies: [:logger_service])
 
       # Register any other services in root services directory
       register_root_services

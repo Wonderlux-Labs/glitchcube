@@ -58,8 +58,8 @@ module Services
           "Interaction: #{persona}",
           tagged: [:interaction, persona.downcase],
           session_id: session_id,
-          user_message: user_message[0..100],
-          ai_response: ai_response[0..100],
+          user_message: user_message,
+          ai_response: ai_response,
           confidence: confidence
         )
       end

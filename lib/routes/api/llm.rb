@@ -104,7 +104,7 @@ module GlitchCube
             }
 
             {
-              default_model: GlitchCube.config.ai.default_model || 'openrouter/auto',
+              default_model: GlitchCube.config.ai.default_model || 'openai/gpt-4.1-mini',
               available_models: models
             }.to_json
           end

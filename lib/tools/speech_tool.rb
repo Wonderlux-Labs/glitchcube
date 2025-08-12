@@ -86,7 +86,7 @@ class SpeechTool < BaseTool
         lang_desc = language == 'en-US' ? '' : " in #{language}"
         entity_desc = entity_id == DEFAULT_ENTITY ? '' : " on #{entity_id}"
 
-        "Spoke: '#{text.length > 50 ? "#{text[0..47]}..." : text}'#{voice_desc}#{lang_desc}#{entity_desc}"
+        "Spoke: '#{text}'#{voice_desc}#{lang_desc}#{entity_desc}"
       else
         'Failed to synthesize speech'
       end
