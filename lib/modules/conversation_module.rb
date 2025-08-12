@@ -163,12 +163,12 @@ class ConversationModule
 
       response_time_ms = ((Time.now - start_time) * 1000).round
 
-      # Check for and execute tool calls
-      if llm_response.tool_calls.present?
+      # Check for and execute tool calls using LLMResponse helpers
+      if llm_response.tool_calls?
         Services::SimpleLogger.info('🛠️ Tool calls detected from LLM',
                                     tagged: %i[conversation tools],
-                                    count: llm_response.tool_calls.size,
-                                    tools: llm_response.tool_calls.map { |tc| tc.dig('function', 'name') || tc.dig(:function, :name) })
+                                    count: llm_response.function_calls.size,
+                                    tools: llm_response.function_calls.map { |fc| fc[:name] })
         llm_response = handle_native_tool_response(llm_response, messages, llm_options, response_schema, _session: session)
         tool_calls_made = @last_tool_calls || []
         Services::SimpleLogger.info('✅ All tools executed',
@@ -181,23 +181,14 @@ class ConversationModule
         tool_calls_made = []
       end
 
-      # Extract and validate response data - handle both structured and plain text
-      # Check if we have structured content or plain text
-      raw_response_data = if llm_response.parsed_content.is_a?(Hash) && !llm_response.parsed_content.empty?
-                            # Structured response
-                            llm_response.parsed_content
-                          elsif llm_response.content.is_a?(String) && !llm_response.content.strip.empty?
-                            # Plain text response - pass it as-is to validate_response
-                            llm_response.content
-                          else
-                            # Fallback to empty hash
-                            {}
-                          end
+      # Pass the entire LLMResponse object to validation
+      # This trusts the abstraction and lets validate_response use all helpers
+      validated_response = validate_response(llm_response, persona_instance)
 
-      validated_response = validate_response(raw_response_data, persona_instance)
-      response_text = validated_response['response']
-      continue_conversation = validated_response['continue_conversation']
-      inner_thoughts = validated_response['inner_thoughts']
+      # validated_response returns an indifferent hash, use symbol access
+      response_text = validated_response[:response]
+      continue_conversation = validated_response[:continue_conversation]
+      inner_thoughts = validated_response[:inner_thoughts]
 
       # Debug trace: Check if response_text is nil
       if response_text.nil?
@@ -306,31 +297,31 @@ class ConversationModule
     @last_tool_calls = []
     tool_results = []
 
-    # Execute each tool call
-    Services::SimpleLogger.debug('Processing tool calls', tagged: %i[conversation tools], tool_count: llm_response.tool_calls.size)
-    llm_response.tool_calls.each do |tool_call|
-      # Handle both symbol and string keys using with_indifferent_access
-      tool_call = tool_call.with_indifferent_access if tool_call.respond_to?(:with_indifferent_access)
-      function_name = tool_call['function']['name']
-      arguments = begin
-        JSON.parse(tool_call['function']['arguments'])
-      rescue StandardError => e
+    # Use LLMResponse helpers for clean tool call handling
+    Services::SimpleLogger.debug('Processing tool calls', tagged: %i[conversation tools], tool_count: llm_response.function_calls.size)
+
+    # Process each tool call using the standardized data from LLMResponse
+    llm_response.tool_calls.each_with_index do |tool_call, index|
+      function_call = llm_response.function_calls[index]
+      function_name = function_call[:name]
+
+      # Use the pre-parsed arguments from LLMResponse
+      arguments = llm_response.function_arguments_for(function_name)
+
+      if arguments.nil?
         Services::SimpleLogger.warn(
-          'Failed to parse tool call arguments',
+          'Could not parse arguments for tool call, skipping',
           tagged: %i[conversation tools json_parse],
-          tool: function_name,
-          error: e.message,
-          raw_arguments: tool_call['function']['arguments']
+          tool: function_name
         )
-        {}
+        next # Skip this tool call
       end
 
       Services::SimpleLogger.info('📋 Tool call details',
                                   tagged: %i[conversation tools],
                                   tool: function_name,
                                   arguments: arguments,
-                                  tool_call_id: tool_call['id'] || tool_call[:id],
-                                  raw_arguments: tool_call['function']['arguments'])
+                                  tool_call_id: tool_call[:id])
 
       # Execute the tool
       tool_call_hash = { name: function_name, arguments: arguments }
@@ -358,7 +349,7 @@ class ConversationModule
                      end
 
       tool_result = {
-        tool_call_id: tool_call['id'] || tool_call[:id],
+        tool_call_id: tool_call[:id],
         role: 'tool',
         name: function_name,
         content: tool_content
@@ -564,87 +555,56 @@ class ConversationModule
     end
   end
 
-  def validate_response(response_data, persona_instance)
-    # Handle different response types
-    validated = if response_data.is_a?(Hash)
-                  # Already a hash (structured response)
-                  response_data.dup
-                elsif response_data.is_a?(String) && !response_data.strip.empty?
-                  # Try to parse as JSON first
-                  begin
-                    parsed = JSON.parse(response_data)
-                    Services::SimpleLogger.debug('Successfully parsed JSON response',
-                                                 tagged: %i[conversation validation])
-                    parsed
-                  rescue JSON::ParserError => e
-                    Services::SimpleLogger.info('JSON parse failed, attempting recovery',
-                                                tagged: %i[conversation validation],
-                                                error: e.message,
-                                                response_preview: response_data[0..100])
+  def validate_response(llm_response, persona_instance)
+    # Trust the LLMResponse abstraction - it has already done the parsing
+    validated = llm_response.parsed_content
 
-                    # Try to recover the JSON using LLM
-                    recovered = recover_json_response(response_data)
+    # If parsing failed, parsed_content will be nil. Handle fallbacks.
+    unless validated
+      Services::SimpleLogger.info('Response was not valid JSON, attempting recovery',
+                                  tagged: %i[conversation validation],
+                                  response_preview: llm_response.content.to_s[0..100])
 
-                    if recovered
-                      Services::SimpleLogger.info('JSON recovery successful',
-                                                  tagged: %i[conversation validation],
-                                                  keys: recovered.keys)
-                      recovered
-                    else
-                      # Fallback to plain text if recovery fails
-                      Services::SimpleLogger.warn('JSON recovery failed, using plain text fallback',
-                                                  tagged: %i[conversation validation])
-                      {
-                        'response' => response_data.strip,
-                        'continue_conversation' => true,  # Default to true for voice interactions
-                        'inner_thoughts' => ''
-                      }
-                    end
-                  end
-                else
-                  # Empty or nil - create empty hash
-                  Services::SimpleLogger.warn('Response data was nil or empty',
-                                              tagged: %i[conversation validation error])
-                  {}
-                end
+      # Attempt recovery as a last resort
+      validated = recover_json_response(llm_response.content)
 
+      unless validated
+        # If recovery also fails, create a fallback structure from raw text
+        Services::SimpleLogger.warn('JSON recovery failed, using plain text fallback',
+                                    tagged: %i[conversation validation])
+        validated = {
+          'response' => llm_response.content.to_s.strip,
+          'continue_conversation' => false,  # Safe default: end the conversation
+          'inner_thoughts' => ''
+        }
+      end
+    end
+
+    # Ensure we have an indifferent hash for consistent access
+    validated = validated.with_indifferent_access
+
+    # Use symbol access since we have an indifferent hash
     # Validate response text - most critical field
-    response_str = validated['response'].to_s
-    if validated['response'].nil? || response_str.strip.empty?
-      validated['response'] = persona_instance.generate_fallback_response('I understand.')
+    response_str = validated[:response].to_s
+    if validated[:response].nil? || response_str.strip.empty?
+      validated[:response] = persona_instance.generate_fallback_response('I understand.')
       Services::SimpleLogger.warn('Response text was nil/empty, using fallback',
                                   tagged: %i[conversation validation])
     else
-      validated['response'] = response_str
+      validated[:response] = response_str
     end
 
-    # Validate continue_conversation - ensure it's a boolean
-    case validated['continue_conversation']
-    when true, false
-      # Already valid boolean
-    when 'true', 1, '1'
-      validated['continue_conversation'] = true
-    when 'false', 0, '0', nil
-      validated['continue_conversation'] = false
-    else
-      validated['continue_conversation'] = false
-      Services::SimpleLogger.debug('continue_conversation not boolean, defaulting to false',
-                                   tagged: %i[conversation validation],
-                                   original_value: validated['continue_conversation'].inspect)
-    end
+    # Coerce continue_conversation to a strict boolean
+    validated[:continue_conversation] = [true, 'true', 1, '1'].include?(validated[:continue_conversation])
 
-    # Validate inner_thoughts - optional but ensure string if present
-    validated['inner_thoughts'] = if validated['inner_thoughts']
-                                    validated['inner_thoughts'].to_s
-                                  else
-                                    ''
-                                  end
+    # Ensure inner_thoughts is a string
+    validated[:inner_thoughts] = validated[:inner_thoughts].to_s
 
     # Ensure response isn't too long for voice interactions
-    if validated['response'].length > 500
+    if validated[:response].length > 500
       Services::SimpleLogger.warn('Response very long, might need truncation',
                                   tagged: %i[conversation validation],
-                                  length: validated['response'].length)
+                                  length: validated[:response].length)
     end
 
     validated

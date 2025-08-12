@@ -87,11 +87,13 @@ namespace :config do
     puts '  🔍 Analyzing changes...'
 
     # Check what would be pulled from remote (including deletions)
-    pull_dry_run = "rsync -avn --update --delete #{all_patterns} #{REMOTE_HOST}:#{REMOTE_CONFIG_PATH}/ #{LOCAL_CONFIG_PATH}/"
+    # NOTE: Don't use --update in dry-run to see ALL differences for conflict detection
+    pull_dry_run = "rsync -avn --delete #{all_patterns} #{REMOTE_HOST}:#{REMOTE_CONFIG_PATH}/ #{LOCAL_CONFIG_PATH}/"
     pull_output = `#{pull_dry_run} 2>&1`
 
     # Check what would be pushed to remote (including deletions)
-    push_dry_run = "rsync -avn --update --delete #{all_patterns} #{LOCAL_CONFIG_PATH}/ #{REMOTE_HOST}:#{REMOTE_CONFIG_PATH}/"
+    # NOTE: Don't use --update in dry-run to see ALL differences for conflict detection
+    push_dry_run = "rsync -avn --delete #{all_patterns} #{LOCAL_CONFIG_PATH}/ #{REMOTE_HOST}:#{REMOTE_CONFIG_PATH}/"
     push_output = `#{push_dry_run} 2>&1`
 
     # Parse results

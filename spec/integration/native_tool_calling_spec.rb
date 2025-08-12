@@ -14,7 +14,7 @@ RSpec.describe 'Native Tool Calling Integration', type: :integration do
 
   describe 'Happy Path: End-to-End Tool Calling via API' do
     context 'when asking to control lights and speak', :vcr do
-      it 'calls tools automatically through conversation API and speaks response' do
+      it 'calls tools automatically through conversation API and speaks response', skip: 'Requires live API connection' do
         # Make actual API call like Home Assistant would
         post '/api/v1/conversation', {
           message: 'Can you please give us some party lights on the cube and cart?',

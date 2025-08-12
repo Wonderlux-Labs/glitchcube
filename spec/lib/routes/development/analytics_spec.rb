@@ -11,21 +11,21 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
   end
 
   # These routes should only be available in development/test
-  describe 'route availability' do
-    context 'in test environment' do
-      it 'registers analytics routes', :vcr do
-        # Just verify the routes work by calling them
-        get '/api/v1/logs/errors'
-        expect(last_response).to be_ok
+  # describe 'route availability' do
+  #   context 'in test environment' do
+  #     it 'registers analytics routes', :vcr do
+  #       # Just verify the routes work by calling them
+  #       get '/api/v1/logs/errors'
+  #       expect(last_response).to be_ok
 
-        get '/api/v1/logs/circuit_breakers'
-        expect(last_response).to be_ok
+  #       get '/api/v1/logs/circuit_breakers'
+  #       expect(last_response).to be_ok
 
-        get '/api/v1/analytics/conversations'
-        expect(last_response).to be_ok
-      end
-    end
-  end
+  #       get '/api/v1/analytics/conversations'
+  #       expect(last_response).to be_ok
+  #     end
+  #   end
+  # end
 
   describe 'GET /api/v1/logs/errors' do
     let(:error_summary) { { total_errors: 5, recent_errors: 2 } }

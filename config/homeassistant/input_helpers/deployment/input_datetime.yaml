@@ -1,6 +1,0 @@
-# Deployment-related datetime inputs
-last_deployment_datetime:
-  name: Last Deployment DateTime
-  has_date: true
-  has_time: true
-  icon: mdi:clock-check

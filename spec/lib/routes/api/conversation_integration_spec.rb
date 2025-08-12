@@ -73,9 +73,11 @@ RSpec.describe 'Conversation Service Integration', :vcr do
                  response_text: 'Service recovered',
                  continue_conversation?: true,
                  has_tool_calls?: false,
-                 tool_calls: nil,  # Add missing method
+                 tool_calls?: false,  # Add missing method
+                 tool_calls: nil,
+                 function_calls: [],  # Add for tool flow
                  content: 'Service recovered',  # Add for new flow
-                 parsed_content: { 'response' => 'Service recovered', 'continue_conversation' => true },
+                 parsed_content: { 'response' => 'Service recovered', 'continue_conversation' => true }.with_indifferent_access,
                  cost: 0.001,
                  model: 'test-model',
                  usage: { prompt_tokens: 10, completion_tokens: 20 })

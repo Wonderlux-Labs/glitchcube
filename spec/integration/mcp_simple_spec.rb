@@ -8,7 +8,7 @@ require 'mcp_client'
 # These tests run live against the real MCP proxy
 RSpec.describe 'MCP Integration', :vcr do
   before(:context) do
-    if ENV['CI'] == 'true'
+    unless ENV['RUN_MCP'] == 'true'
       skip 'MCP tests require local mcp-proxy - skipping in CI'
     end
   end

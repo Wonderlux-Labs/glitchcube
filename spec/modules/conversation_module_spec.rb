@@ -12,10 +12,12 @@ RSpec.describe ConversationModule do
     double('LLMResponse',
            response_text: 'Mock AI response',
            continue_conversation?: true,
-           has_tool_calls?: false,
+           tool_calls?: false,
+           has_tool_calls?: false,  # Keep for backwards compatibility
            tool_calls: nil,
+           function_calls: [],
            content: 'Mock AI response',
-           parsed_content: { 'response' => 'Mock AI response', 'continue_conversation' => true },
+           parsed_content: { 'response' => 'Mock AI response', 'continue_conversation' => true }.with_indifferent_access,
            cost: 0.001,
            model: 'test-model',
            usage: { prompt_tokens: 10, completion_tokens: 20 })

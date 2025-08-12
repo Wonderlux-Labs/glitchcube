@@ -40,14 +40,19 @@ RSpec.describe ConversationModule do
             'name' => 'set_lights',
             'arguments' => '{"state":"on","brightness":100}'
           }
-        }
+        }.with_indifferent_access
       ]
     end
 
     let(:llm_response) do
-      double('LLMResponse',
-             tool_calls: tool_calls,
-             message_data: { role: 'assistant', content: nil, tool_calls: tool_calls })
+      response = double('LLMResponse')
+      allow(response).to receive(:tool_calls).and_return(tool_calls)
+      allow(response).to receive(:function_calls).and_return([{ id: 'call_123', name: 'set_lights' }])
+      allow(response).to receive(:function_arguments_for) do |name|
+        name == 'set_lights' ? { 'state' => 'on', 'brightness' => 100 } : nil
+      end
+      allow(response).to receive(:message_data).and_return({ role: 'assistant', content: nil, tool_calls: tool_calls })
+      response
     end
 
     let(:follow_up_response) do
@@ -125,19 +130,29 @@ RSpec.describe ConversationModule do
             'name' => 'set_lights',
             'arguments' => '{"state":"on"}'
           }
-        },
+        }.with_indifferent_access,
         {
           'id' => 'call_456',
           'function' => {
             'name' => 'speak',
             'arguments' => '{"text":"Hello"}'
           }
-        }
+        }.with_indifferent_access
       ]
 
-      multi_llm_response = double('LLMResponse',
-                                  tool_calls: multi_tool_calls,
-                                  message_data: { role: 'assistant', content: nil, tool_calls: multi_tool_calls })
+      multi_llm_response = double('LLMResponse')
+      allow(multi_llm_response).to receive(:tool_calls).and_return(multi_tool_calls)
+      allow(multi_llm_response).to receive(:function_calls).and_return([
+                                                                         { id: 'call_123', name: 'set_lights' },
+                                                                         { id: 'call_456', name: 'speak' }
+                                                                       ])
+      allow(multi_llm_response).to receive(:function_arguments_for) do |name|
+        case name
+        when 'set_lights' then { 'state' => 'on' }
+        when 'speak' then { 'text' => 'Hello' }
+        end
+      end
+      allow(multi_llm_response).to receive(:message_data).and_return({ role: 'assistant', content: nil, tool_calls: multi_tool_calls })
 
       allow(Services::ToolExecutor).to receive(:execute)
         .with([{ name: 'set_lights', arguments: { 'state' => 'on' } }])
@@ -162,16 +177,17 @@ RSpec.describe ConversationModule do
             'name' => 'set_lights',
             'arguments' => 'invalid json {'
           }
-        }
+        }.with_indifferent_access
       ]
 
-      invalid_llm_response = double('LLMResponse',
-                                    tool_calls: invalid_tool_calls,
-                                    message_data: { role: 'assistant', content: nil, tool_calls: invalid_tool_calls })
+      invalid_llm_response = double('LLMResponse')
+      allow(invalid_llm_response).to receive(:tool_calls).and_return(invalid_tool_calls)
+      allow(invalid_llm_response).to receive(:function_calls).and_return([{ id: 'call_789', name: 'set_lights' }])
+      allow(invalid_llm_response).to receive(:function_arguments_for).and_return(nil)  # Returns nil for unparseable JSON
+      allow(invalid_llm_response).to receive(:message_data).and_return({ role: 'assistant', content: nil, tool_calls: invalid_tool_calls })
 
-      allow(Services::ToolExecutor).to receive(:execute)
-        .with([{ name: 'set_lights', arguments: {} }])
-        .and_return([{ success: false, error: 'Invalid arguments' }])
+      # Tool executor should not be called when arguments can't be parsed
+      expect(Services::ToolExecutor).not_to receive(:execute)
 
       expect do
         conversation_module.send(:handle_native_tool_response, invalid_llm_response, messages, llm_options, response_schema)

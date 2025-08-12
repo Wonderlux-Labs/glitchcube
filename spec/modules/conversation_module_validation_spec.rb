@@ -2,6 +2,7 @@
 
 require 'spec_helper'
 require_relative '../../lib/modules/conversation_module'
+require 'active_support/core_ext/hash/indifferent_access'
 
 RSpec.describe ConversationModule do
   let(:conversation_module) { ConversationModule.new }
@@ -12,17 +13,27 @@ RSpec.describe ConversationModule do
   before do
     allow(Services::SimpleLogger).to receive(:warn)
     allow(Services::SimpleLogger).to receive(:debug)
+    allow(Services::SimpleLogger).to receive(:info)
+  end
+
+  # Helper method to create mock LLMResponse objects
+  def mock_llm_response(content, parsed_content = nil)
+    double('LLMResponse',
+           content: content,
+           parsed_content: parsed_content&.with_indifferent_access)
   end
 
   describe '#validate_response' do
     context 'with valid response data' do
-      let(:valid_response) do
+      let(:valid_response_data) do
         {
           'response' => 'Hello there!',
           'continue_conversation' => true,
           'inner_thoughts' => 'User seems friendly'
         }
       end
+
+      let(:valid_response) { mock_llm_response('Hello there!', valid_response_data) }
 
       it 'returns the response unchanged when valid' do
         result = conversation_module.send(:validate_response, valid_response, mock_persona)
@@ -35,7 +46,8 @@ RSpec.describe ConversationModule do
 
     context 'with missing or invalid response text' do
       it 'uses fallback when response is nil' do
-        invalid_response = { 'continue_conversation' => false }
+        invalid_response_data = { 'continue_conversation' => false }
+        invalid_response = mock_llm_response(nil, invalid_response_data)
 
         result = conversation_module.send(:validate_response, invalid_response, mock_persona)
 
@@ -45,7 +57,8 @@ RSpec.describe ConversationModule do
       end
 
       it 'uses fallback when response is empty string' do
-        invalid_response = { 'response' => '', 'continue_conversation' => false }
+        invalid_response_data = { 'response' => '', 'continue_conversation' => false }
+        invalid_response = mock_llm_response('', invalid_response_data)
 
         result = conversation_module.send(:validate_response, invalid_response, mock_persona)
 
@@ -54,7 +67,8 @@ RSpec.describe ConversationModule do
       end
 
       it 'uses fallback when response is only whitespace' do
-        invalid_response = { 'response' => "   \n  \t  ", 'continue_conversation' => false }
+        invalid_response_data = { 'response' => "   \n  \t  ", 'continue_conversation' => false }
+        invalid_response = mock_llm_response("   \n  \t  ", invalid_response_data)
 
         result = conversation_module.send(:validate_response, invalid_response, mock_persona)
 
@@ -63,7 +77,8 @@ RSpec.describe ConversationModule do
       end
 
       it 'converts non-string response to string' do
-        response_with_number = { 'response' => 12_345, 'continue_conversation' => false }
+        response_data = { 'response' => 12_345, 'continue_conversation' => false }
+        response_with_number = mock_llm_response('12345', response_data)
 
         result = conversation_module.send(:validate_response, response_with_number, mock_persona)
 
@@ -73,7 +88,8 @@ RSpec.describe ConversationModule do
 
     context 'with invalid continue_conversation values' do
       it 'converts string "true" to boolean true' do
-        response = { 'response' => 'Hi', 'continue_conversation' => 'true' }
+        response_data = { 'response' => 'Hi', 'continue_conversation' => 'true' }
+        response = mock_llm_response('Hi', response_data)
 
         result = conversation_module.send(:validate_response, response, mock_persona)
 
@@ -81,7 +97,8 @@ RSpec.describe ConversationModule do
       end
 
       it 'converts string "false" to boolean false' do
-        response = { 'response' => 'Hi', 'continue_conversation' => 'false' }
+        response_data = { 'response' => 'Hi', 'continue_conversation' => 'false' }
+        response = mock_llm_response('Hi', response_data)
 
         result = conversation_module.send(:validate_response, response, mock_persona)
 
@@ -89,7 +106,8 @@ RSpec.describe ConversationModule do
       end
 
       it 'converts integer 1 to boolean true' do
-        response = { 'response' => 'Hi', 'continue_conversation' => 1 }
+        response_data = { 'response' => 'Hi', 'continue_conversation' => 1 }
+        response = mock_llm_response('Hi', response_data)
 
         result = conversation_module.send(:validate_response, response, mock_persona)
 
@@ -97,7 +115,8 @@ RSpec.describe ConversationModule do
       end
 
       it 'converts integer 0 to boolean false' do
-        response = { 'response' => 'Hi', 'continue_conversation' => 0 }
+        response_data = { 'response' => 'Hi', 'continue_conversation' => 0 }
+        response = mock_llm_response('Hi', response_data)
 
         result = conversation_module.send(:validate_response, response, mock_persona)
 
@@ -105,7 +124,8 @@ RSpec.describe ConversationModule do
       end
 
       it 'defaults to false for nil' do
-        response = { 'response' => 'Hi', 'continue_conversation' => nil }
+        response_data = { 'response' => 'Hi', 'continue_conversation' => nil }
+        response = mock_llm_response('Hi', response_data)
 
         result = conversation_module.send(:validate_response, response, mock_persona)
 
@@ -113,20 +133,21 @@ RSpec.describe ConversationModule do
       end
 
       it 'defaults to false for unknown values' do
-        response = { 'response' => 'Hi', 'continue_conversation' => 'maybe' }
+        response_data = { 'response' => 'Hi', 'continue_conversation' => 'maybe' }
+        response = mock_llm_response('Hi', response_data)
 
         result = conversation_module.send(:validate_response, response, mock_persona)
 
         expect(result['continue_conversation']).to be(false)
-        expect(Services::SimpleLogger).to have_received(:debug)
-          .with('continue_conversation not boolean, defaulting to false',
-                hash_including(tagged: %i[conversation validation]))
+        # The simplified code no longer logs this specific debug message
+        # It just coerces to false silently
       end
     end
 
     context 'with inner_thoughts field' do
       it 'converts non-string inner_thoughts to string' do
-        response = { 'response' => 'Hi', 'continue_conversation' => false, 'inner_thoughts' => 123 }
+        response_data = { 'response' => 'Hi', 'continue_conversation' => false, 'inner_thoughts' => 123 }
+        response = mock_llm_response('Hi', response_data)
 
         result = conversation_module.send(:validate_response, response, mock_persona)
 
@@ -134,7 +155,8 @@ RSpec.describe ConversationModule do
       end
 
       it 'defaults to empty string when inner_thoughts is nil' do
-        response = { 'response' => 'Hi', 'continue_conversation' => false }
+        response_data = { 'response' => 'Hi', 'continue_conversation' => false }
+        response = mock_llm_response('Hi', response_data)
 
         result = conversation_module.send(:validate_response, response, mock_persona)
 
@@ -144,7 +166,10 @@ RSpec.describe ConversationModule do
 
     context 'with non-hash input' do
       it 'handles non-hash input gracefully' do
-        result = conversation_module.send(:validate_response, 'not a hash', mock_persona)
+        # When parsed_content is nil, it should fall back to using the raw content
+        response = mock_llm_response('not a hash', nil)
+
+        result = conversation_module.send(:validate_response, response, mock_persona)
 
         # String input gets converted to structured format with the string as the response
         expect(result['response']).to eq('not a hash')
@@ -153,7 +178,10 @@ RSpec.describe ConversationModule do
       end
 
       it 'handles nil input gracefully' do
-        result = conversation_module.send(:validate_response, nil, mock_persona)
+        # When both content and parsed_content are nil, should use fallback
+        response = mock_llm_response(nil, nil)
+
+        result = conversation_module.send(:validate_response, response, mock_persona)
 
         expect(result['response']).to eq('Fallback response')
         expect(result['continue_conversation']).to be(false)
@@ -163,10 +191,11 @@ RSpec.describe ConversationModule do
 
     context 'with very long responses' do
       it 'logs warning for responses over 500 characters' do
-        long_response = {
+        long_response_data = {
           'response' => 'a' * 600,
           'continue_conversation' => false
         }
+        long_response = mock_llm_response('a' * 600, long_response_data)
 
         result = conversation_module.send(:validate_response, long_response, mock_persona)
 
@@ -178,10 +207,11 @@ RSpec.describe ConversationModule do
       end
 
       it 'does not log warning for normal length responses' do
-        normal_response = {
+        normal_response_data = {
           'response' => 'This is a normal length response.',
           'continue_conversation' => false
         }
+        normal_response = mock_llm_response('This is a normal length response.', normal_response_data)
 
         conversation_module.send(:validate_response, normal_response, mock_persona)
 

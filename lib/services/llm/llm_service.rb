@@ -2,6 +2,9 @@
 
 require 'open_router'
 require_relative 'llm_response'
+require_relative 'components/response_parser'
+require_relative 'components/error_handler'
+require_relative 'components/retry_handler'
 
 module Services
   # Clean LLM wrapper service using OpenRouter gem directly
@@ -57,10 +60,10 @@ module Services
         handle_error(e)
       end
 
-      # Convenience methods for common model presets
+      # Define convenience methods for common model presets
+      # Using explicit method definitions for better RSpec compatibility
       def complete_cheap_tools(prompt, **options)
         model = GlitchCube::ModelPresets.get_model(:cheap_tools)
-        # Handle both single prompt and system_prompt/user_message patterns
         if options[:user_message]
           complete(system_prompt: prompt, user_message: options.delete(:user_message), model: model, **options)
         else
@@ -70,7 +73,6 @@ module Services
 
       def complete_cheap_no_tools(prompt, **options)
         model = GlitchCube::ModelPresets.get_model(:cheap_no_tools)
-        # Handle both single prompt and system_prompt/user_message patterns
         if options[:user_message]
           complete(system_prompt: prompt, user_message: options.delete(:user_message), model: model, **options)
         else
@@ -80,7 +82,6 @@ module Services
 
       def complete_conversation(prompt, **options)
         model = GlitchCube::ModelPresets.get_model(:conversation)
-        # Handle both single prompt and system_prompt/user_message patterns
         if options[:user_message]
           complete(system_prompt: prompt, user_message: options.delete(:user_message), model: model, **options)
         else
@@ -90,7 +91,6 @@ module Services
 
       def complete_premium(prompt, **options)
         model = GlitchCube::ModelPresets.get_model(:premium)
-        # Handle both single prompt and system_prompt/user_message patterns
         if options[:user_message]
           complete(system_prompt: prompt, user_message: options.delete(:user_message), model: model, **options)
         else
@@ -100,7 +100,6 @@ module Services
 
       def analyze_image(prompt, **options)
         model = GlitchCube::ModelPresets.get_model(:multimodel)
-        # Handle both single prompt and system_prompt/user_message patterns
         if options[:user_message]
           complete(system_prompt: prompt, user_message: options.delete(:user_message), model: model, **options)
         else
@@ -210,42 +209,31 @@ module Services
         # Log the request
         log_api_request(params)
 
-        # DETAILED REQUEST LOGGING for debugging
-        Services::SimpleLogger.debug(
-          'LLM API REQUEST DETAILS',
-          tagged: %i[llm api_request],
-          model: params[:model],
-          message_count: params[:messages].size,
-          extras: params[:extras],
-          full_messages: params[:messages]
-        )
-
-        # RAW HTTP REQUEST LOGGING - CRITICAL FOR DEBUGGING
-        request_payload = {
-          messages: params[:messages],
-          model: params[:model],
-          **params[:extras]
-        }
-        raw_request_msg = "🔧 RAW HTTP REQUEST TO OPENROUTER:\nURL: https://openrouter.ai/api/v1/chat/completions\nModel: #{params[:model]}\nFull JSON Payload:\n#{JSON.pretty_generate(request_payload)}"
-
-        puts '=' * 80
-        puts raw_request_msg
-        puts '=' * 80
-
-        Services::SimpleLogger.debug(
-          'RAW HTTP REQUEST',
-          tagged: %i[llm raw_request],
-          url: 'https://openrouter.ai/api/v1/chat/completions',
-          model: params[:model],
-          payload: request_payload
-        )
-
+        # Consolidated request logging
         if GlitchCube.config.debug?
           Services::SimpleLogger.debug(
-            'Calling complete',
-            tagged: %i[llm debug],
+            'LLM API REQUEST',
+            tagged: %i[llm api_request],
             model: params[:model],
+            message_count: params[:messages].size,
             extras: params[:extras]
+          )
+        end
+
+        # Detailed request logging for debugging (only when debug mode is on)
+        if GlitchCube.config.debug?
+          request_payload = {
+            messages: params[:messages],
+            model: params[:model],
+            **params[:extras]
+          }
+
+          Services::SimpleLogger.debug(
+            'RAW HTTP REQUEST',
+            tagged: %i[llm raw_request],
+            url: 'https://openrouter.ai/api/v1/chat/completions',
+            model: params[:model],
+            payload: request_payload
           )
         end
 
@@ -257,52 +245,31 @@ module Services
           extras: params[:extras]
         )
 
-        # RAW HTTP RESPONSE LOGGING - CRITICAL FOR DEBUGGING
-        raw_response_msg = "🔧 RAW HTTP RESPONSE FROM OPENROUTER:\nStatus: 200\nResponse Class: #{response.class.name}\nFull JSON Response:\n#{JSON.pretty_generate(response)}"
+        # Detailed response logging for debugging (only when debug mode is on)
+        if GlitchCube.config.debug?
+          Services::SimpleLogger.debug(
+            'RAW HTTP RESPONSE',
+            tagged: %i[llm raw_response],
+            status: 200,
+            response_class: response.class.name,
+            full_response: response
+          )
+        end
 
-        puts '=' * 80
-        puts raw_response_msg
-        puts '=' * 80
-
-        Services::SimpleLogger.debug(
-          'RAW HTTP RESPONSE',
-          tagged: %i[llm raw_response],
-          status: 200,
-          response_class: response.class.name,
-          full_response: response
-        )
-
-        # DETAILED RESPONSE LOGGING for debugging
-        Services::SimpleLogger.debug(
-          'LLM API RESPONSE DETAILS',
-          tagged: %i[llm api_response],
-          response_class: response.class.name,
-          full_response: response.inspect
-        )
-
-        if response.respond_to?(:[]) && response[:choices]
+        # Consolidated response logging
+        if GlitchCube.config.debug? && response.respond_to?(:[]) && response[:choices]
           choice = response[:choices]&.first
           if choice
             Services::SimpleLogger.debug(
-              'LLM RESPONSE CHOICE DETAILS',
-              tagged: %i[llm api_response choice],
-              finish_reason: choice[:finish_reason] || choice['finish_reason'],
-              has_content: !(choice.dig(:message, :content) || choice.dig('message', 'content')).nil?,
-              content_length: (choice.dig(:message, :content) || choice.dig('message', 'content') || '').length,
-              has_tool_calls: !(choice.dig(:message, :tool_calls) || choice.dig('message', 'tool_calls')).nil?,
-              tool_calls_count: (choice.dig(:message, :tool_calls) || choice.dig('message', 'tool_calls') || []).size,
-              message_keys: (choice[:message] || choice['message'] || {}).keys
+              'LLM RESPONSE DETAILS',
+              tagged: %i[llm api_response],
+              finish_reason: choice[:finish_reason],
+              has_content: !choice.dig(:message, :content).nil?,
+              content_length: (choice.dig(:message, :content) || '').length,
+              has_tool_calls: !choice.dig(:message, :tool_calls).nil?,
+              tool_calls_count: (choice.dig(:message, :tool_calls) || []).size
             )
           end
-        end
-
-        if GlitchCube.config.debug?
-          Services::SimpleLogger.debug(
-            'LLM response received',
-            tagged: %i[llm debug],
-            response_class: response.class.name,
-            response_preview: response.inspect[0..500]
-          )
         end
 
         # Log the response
@@ -313,82 +280,8 @@ module Services
       end
 
       def parse_response(response, model, options = {})
-        # Safely extract model from response
-        response_model = safe_extract(response) { |r| r[:model] || r['model'] } || model
-
-        # Return LLMResponse object for cleaner API
-        LLMResponse.new(
-          raw_response: response,
-          model: response_model,
-          content: extract_content(response),
-          usage: extract_usage(response),
-          tool_calls: extract_tool_calls(response),
-          expects_json: options[:response_format].present?
-        )
-      end
-
-      def extract_content(response)
-        safe_extract(response) do |r|
-          return r if r.is_a?(String)
-
-          # Try standard OpenAI format
-          if r[:choices].is_a?(Array) && !r[:choices].empty?
-            choice = r[:choices].first
-            if choice.is_a?(Hash)
-              safe_dig(choice, :message, :content) || safe_dig(choice, 'message', 'content') || ''
-            else
-              ''
-            end
-          else
-            # Fallback for direct content
-            r[:content] || r['content'] || ''
-          end
-        end
-      end
-
-      def extract_usage(response)
-        safe_extract(response) do |r|
-          return { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 } if r.is_a?(String)
-
-          usage = r[:usage] || r['usage'] || {}
-
-          {
-            prompt_tokens: usage[:prompt_tokens] || usage['prompt_tokens'] || 0,
-            completion_tokens: usage[:completion_tokens] || usage['completion_tokens'] || 0,
-            total_tokens: usage[:total_tokens] || usage['total_tokens'] || 0
-          }
-        end
-      end
-
-      def extract_tool_calls(response)
-        safe_extract(response) do |r|
-          return nil if r.is_a?(String)
-          return nil unless r[:choices].is_a?(Array)
-
-          choice = r[:choices].first
-          return nil unless choice.is_a?(Hash)
-
-          message = choice[:message] || choice['message']
-          return nil unless message
-
-          tool_calls = message[:tool_calls] || message['tool_calls']
-          return nil unless tool_calls.is_a?(Array)
-
-          # Format tool calls for easier consumption
-          tool_calls.map do |tool_call|
-            func = tool_call[:function] || tool_call['function']
-            next unless func
-
-            {
-              id: tool_call[:id] || tool_call['id'],
-              type: tool_call[:type] || tool_call['type'] || 'function',
-              function: {
-                name: func[:name] || func['name'],
-                arguments: func[:arguments] || func['arguments']
-              }
-            }
-          end.compact
-        end
+        # Delegate to ResponseParser for cleaner separation of concerns
+        LLM::ResponseParser.parse(response, model, options)
       end
 
       def validate_model!(model)
@@ -400,7 +293,7 @@ module Services
 
       def with_circuit_breaker(&)
         # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
-        return yield if GlitchCube.config.test? && !ENV['ENABLE_CIRCUIT_BREAKERS']
+        return yield if GlitchCube.config.test? && !GlitchCube.config.enable_circuit_breakers
 
         Services::CircuitBreakerService.openrouter_breaker.call(&)
       rescue CircuitBreaker::CircuitOpenError => e
@@ -413,139 +306,19 @@ module Services
         raise LLMError, "Request timed out after #{seconds} seconds"
       end
 
-      def with_retry_logic(model:, max_attempts: 3)
-        # Disable retries in test environment unless explicitly testing retries
-        max_attempts = 1 if GlitchCube.config.test? && !ENV['ENABLE_RETRIES']
-
-        attempt = 0
-        delay = 1.0
-        last_error = nil
-
-        begin
-          attempt += 1
-          if attempt > 1
-            Services::SimpleLogger.info(
-              "LLM API retry attempt #{attempt}/#{max_attempts}",
-              tagged: %i[llm retry],
-              attempt: attempt,
-              max_attempts: max_attempts,
-              model: model
-            )
-          end
-
-          result = yield
-
-          if attempt > 1
-            Services::SimpleLogger.info(
-              'LLM API call succeeded on retry',
-              tagged: %i[llm retry success],
-              attempt: attempt
-            )
-          end
-          return result
-        rescue RateLimitError => e
-          last_error = e
-          if attempt < max_attempts
-            # Longer wait for rate limits
-            wait_time = delay * 2
-            Services::SimpleLogger.warn(
-              'Rate limited - waiting before retry',
-              tagged: %i[llm rate_limit],
-              wait_time_seconds: wait_time
-            )
-            sleep(wait_time)
-            delay *= 2
-            retry
-          end
-        rescue AuthenticationError => e
-          # Never retry authentication errors
-          last_error = e
-          Services::SimpleLogger.error(
-            'Authentication failed - not retrying',
-            tagged: %i[llm auth error]
-          )
-        rescue LLMError => e
-          last_error = e
-          if attempt < max_attempts
-            Services::SimpleLogger.warn(
-              'LLM error - waiting before retry',
-              tagged: %i[llm error retry],
-              delay_seconds: delay,
-              error: e.message
-            )
-            sleep(delay)
-            delay *= 2 # Exponential backoff
-            retry
-          end
-        rescue StandardError => e
-          last_error = e
-          if attempt < max_attempts
-            Services::SimpleLogger.warn(
-              'Unexpected error - waiting before retry',
-              tagged: %i[llm error retry],
-              delay_seconds: delay,
-              error: e.message
-            )
-            sleep(delay)
-            delay *= 2
-            retry
-          end
-        end
-
-        # All retries exhausted
-        Services::SimpleLogger.error(
-          'LLM API failed after all attempts',
-          tagged: %i[llm error exhausted],
-          attempts: attempt
-        )
-        raise last_error
+      def with_retry_logic(model:, max_attempts: 3, &)
+        # Delegate to RetryHandler component for cleaner separation of concerns
+        LLM::RetryHandler.with_retry_logic(model: model, max_attempts: max_attempts, &)
       end
 
       def handle_error(error)
-        case error
-        when ::OpenRouter::ServerError
-          handle_openrouter_error(error)
-        when Faraday::UnauthorizedError
-          raise AuthenticationError, 'Invalid OpenRouter API key'
-        when Faraday::TooManyRequestsError
-          raise RateLimitError, 'Rate limit exceeded - please try again later'
-        when Faraday::ClientError
-          handle_client_error(error)
-        else
-          # Handle any other error type - error might be a String or other object
-          error_message = error.respond_to?(:message) ? error.message : error.to_s
-          raise LLMError, "Unexpected error: #{error_message}"
-        end
+        # Delegate to ErrorHandler for cleaner separation of concerns
+        LLM::ErrorHandler.handle_error(error)
       end
 
-      def handle_openrouter_error(error)
-        # OpenRouter::ServerError may be raised with just a string message
-        error_msg = error.respond_to?(:message) ? error.message : error.to_s
+      # Removed - delegated to ErrorHandler component
 
-        if error_msg.include?('rate limit')
-          raise RateLimitError, error_msg
-        elsif error_msg.include?('model not found')
-          raise ModelNotFoundError, error_msg
-        else
-          raise LLMError, "OpenRouter error: #{error_msg}"
-        end
-      end
-
-      def handle_client_error(error)
-        return unless error.response
-
-        status = error.response[:status]
-        case status
-        when 402
-          raise LLMError, 'Payment required - check your OpenRouter account balance'
-        when 404
-          raise ModelNotFoundError, 'Model not found'
-        when 429
-          raise RateLimitError, 'Rate limit exceeded'
-        else
-          raise LLMError, "API error (#{status}): #{error.message}"
-        end
-      end
+      # Removed - delegated to ErrorHandler component
 
       def log_api_request(params)
         Services::LoggerService.log_api_call(
@@ -561,8 +334,25 @@ module Services
       end
 
       def log_api_response(response, model, duration)
-        usage = extract_usage(response)
-        content = extract_content(response)
+        # Extract usage and content using safe extraction
+        usage = safe_extract(response) do |r|
+          usage_data = r[:usage] || r['usage'] || {}
+          {
+            prompt_tokens: usage_data[:prompt_tokens] || usage_data['prompt_tokens'] || 0,
+            completion_tokens: usage_data[:completion_tokens] || usage_data['completion_tokens'] || 0,
+            total_tokens: usage_data[:total_tokens] || usage_data['total_tokens'] || 0
+          }
+        end
+
+        content = safe_extract(response) do |r|
+          if r.respond_to?(:dig)
+            r.dig(:choices, 0, :message, :content) ||
+              r.dig('choices', 0, 'message', 'content') ||
+              r[:content] || r['content'] || ''
+          else
+            ''
+          end
+        end
 
         Services::LoggerService.log_api_call(
           service: 'openrouter',

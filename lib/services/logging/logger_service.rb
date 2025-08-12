@@ -182,18 +182,18 @@ module Services
 
       private
 
-      # rubocop:disable Naming/MemoizedInstanceVariableName
       def ensure_loggers
         # Ensure error tracker is initialized
         @ensure_loggers ||= ErrorTracker.new
-        @error_tracker ||= ErrorTracker.new
       end
-      # rubocop:enable Naming/MemoizedInstanceVariableName
 
       def log_directory
-        # For compatibility with ErrorTracker
-        root_dir = Cube::Settings.app_root
-        if Cube::Settings.test?
+        # Use configured log file path if available
+        return GlitchCube.config.log_file_path if GlitchCube.config.log_file_path
+
+        # Fallback to default location
+        root_dir = File.expand_path('../../..', __dir__)
+        if GlitchCube.config.test?
           File.join(root_dir, 'logs', 'test')
         else
           File.join(root_dir, 'logs')

@@ -28,7 +28,7 @@ Services::SimpleLogger.info(
   'Cube starting up',
   tagged: [:startup],
   environment: ENV['RACK_ENV'] || 'development',
-  version: GlitchCube.config.device.app_version
+  version: GlitchCube.config.device.version
 )
 
 # Set up database connection using centralized config

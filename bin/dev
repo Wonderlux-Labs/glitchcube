@@ -27,14 +27,9 @@ cleanup() {
 # Set up trap to cleanup on Ctrl-C
 trap cleanup INT TERM
 
-# Check if rerun is installed
-if ! gem list rerun -i > /dev/null 2>&1; then
-    echo "⚠️  Installing rerun gem..."
-    bundle install
-fi
 # Start the app with rerun (in foreground)
 echo "🚀 Starting app with auto-reload..."
-bundle exec rerun --background --dir . --pattern '**/*.{rb,yml,erb}' -- rake run
+bundle exec rerun --background --dir . --pattern '**/*.{rb,yml,erb}' -- ruby app.rb
 
 # Start Sidekiq in background
 echo "🚀 Starting Sidekiq..."

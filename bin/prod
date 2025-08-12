@@ -35,7 +35,6 @@ trap cleanup INT TERM
 
 # Export production environment
 export RACK_ENV=production
-export APP_ENV=production
 
 # Start Sidekiq in background
 echo "🚀 Starting Sidekiq..."

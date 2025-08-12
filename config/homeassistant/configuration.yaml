@@ -5,6 +5,8 @@ homeassistant:
   longitude: -119.218725792
   elevation: 3848
   time_zone: "America/Los_Angeles"
+  # Packages for domain-based input helper organization
+  packages: !include_dir_named packages/
 default_config:
 # Enable frontend and API
 frontend:
@@ -76,23 +78,16 @@ system_health:
 diagnostics:
 
 # Include separate configuration files
-automation yaml: !include_dir_merge_list automations/
-automation ui: !include automations.yaml
+# UI automations are saved in automations.yaml
+# YAML automations are in packages
+automation: !include automations.yaml
 
-script: !include_dir_merge_named scripts/
+# UI scripts are saved in scripts.yaml
+# YAML scripts are in packages  
+script: !include scripts.yaml
 
-# Input Helpers Configuration
-# Domain-organized in subfolders (conversation/, deployment/, weather/, etc.)
-# Each domain folder contains type-specific files (input_boolean.yaml, input_text.yaml, etc.)
+# Input Helpers are now organized in packages/ by domain
 # UI-created helpers will be stored in Home Assistant's .storage/core.config_entries
-
-# Merge all input helpers from domain subfolders
-input_boolean: !include_dir_merge_named input_helpers/
-input_text: !include_dir_merge_named input_helpers/
-input_number: !include_dir_merge_named input_helpers/
-input_datetime: !include_dir_merge_named input_helpers/
-input_select: !include_dir_merge_named input_helpers/
-input_button: !include_dir_merge_named input_helpers/
 
 # Include counters
 counter:
