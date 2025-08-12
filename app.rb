@@ -259,7 +259,7 @@ end
 
 # Register with Home Assistant on startup (Sidekiq job)
 if ENV['RACK_ENV'] == 'production'
-  HostRegistrationWorker.perform_in(5, initial_registration: true) # 5 seconds
+  HostRegistrationWorker.perform_in(5, 'initial_registration') # 5 seconds
 end
 
 # Start the server when running directly (not via rackup)

@@ -6,7 +6,10 @@ class HostRegistrationWorker
   # Run every 5 minutes to ensure registration stays current
   sidekiq_options retry: 3, queue: :default
 
-  def perform(initial_registration: false)
+  def perform(registration_type = nil)
+    # Handle both string argument and legacy keyword argument
+    initial_registration = (registration_type == 'initial_registration')
+
     if initial_registration
       # Try to register with retry loop for initial registration
       success = Services::HostRegistrationService.register_with_retry_loop
