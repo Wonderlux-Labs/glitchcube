@@ -2,28 +2,20 @@
 # System Dashboard Package
 # Provides comprehensive entity monitoring and system status
 ###############################################################################
-
+# NOTE: The dashboard itself is defined in dashboards/system-dashboard.yaml
+# To use it, add this to your configuration.yaml:
+#
+# lovelace:
+#   mode: storage
+#   dashboards:
+#     system-dashboard:
+#       mode: yaml
+#       filename: dashboards/system-dashboard.yaml
+#       title: System Status
+#       icon: mdi:cog
+#       show_in_sidebar: true
+#       require_admin: true
 ###############################################################################
-# LOVELACE DASHBOARDS
-###############################################################################
-lovelace:
-  mode: yaml
-  resources:
-    # Required custom cards (install via HACS)
-    - url: /hacsfiles/lovelace-auto-entities/auto-entities.js
-      type: module
-    - url: /hacsfiles/lovelace-collapsible-cards/collapsible-cards.js
-      type: module
-    - url: /hacsfiles/button-card/button-card.js
-      type: module
-  dashboards:
-    system-dashboard:
-      mode: yaml
-      filename: dashboards/system-dashboard.yaml
-      title: System Status
-      icon: mdi:cog
-      show_in_sidebar: true
-      require_admin: true
 
 ###############################################################################
 # TEMPLATE SENSORS FOR SYSTEM MONITORING

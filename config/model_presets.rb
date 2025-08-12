@@ -167,7 +167,7 @@ module GlitchCube
       'mistralai/mistral-small-3.2-24b-instruct', 'mistralai/mistral-small-3.2-24b-instruct:free',
       'mistralai/mistral-tiny', 'mistralai/mixtral-8x22b-instruct',
       'mistralai/pixtral-12b', 'mistralai/pixtral-large-2411',
-      'moonshotai/kimi-k2', 'openai/chatgpt-4o-latest', 'openai/codex-mini',
+      '.', 'openai/chatgpt-4o-latest', 'openai/codex-mini',
       'openai/gpt-3.5-turbo', 'openai/gpt-3.5-turbo-0613', 'openai/gpt-3.5-turbo-16k',
       'openai/gpt-3.5-turbo-instruct', 'openai/gpt-4', 'openai/gpt-4-0314',
       'openai/gpt-4-1106-preview', 'openai/gpt-4-turbo', 'openai/gpt-4-turbo-preview',

@@ -1,0 +1,90 @@
+###############################################################################
+# Missing Entities Fix Package
+# Defines entities that are referenced but not defined in other packages
+###############################################################################
+
+###############################################################################
+# COUNTERS
+###############################################################################
+counter:
+  daily_conversations:
+    name: "Daily Conversations"
+    initial: 0
+    icon: mdi:message-text
+    restore: true
+
+###############################################################################
+# INPUT BOOLEANS
+###############################################################################
+input_boolean:
+  deployment_in_progress:
+    name: "Deployment In Progress"
+    initial: false
+    icon: mdi:cloud-upload
+
+###############################################################################  
+# INPUT TEXT
+###############################################################################
+input_text:
+  deployment_status:
+    name: "Deployment Status"
+    initial: "idle"
+    max: 255
+    icon: mdi:information-outline
+
+###############################################################################
+# MISSING SCRIPTS - Placeholders for referenced but undefined scripts
+###############################################################################
+script:
+  # Light show script referenced in lights.yaml
+  light_show:
+    alias: "Light Show"
+    mode: single
+    sequence:
+      - service: light.turn_on
+        data:
+          entity_id: light.cube_light
+          effect: colorloop
+          brightness: 255
+      - delay: "00:00:05"
+      - service: light.turn_off
+        data:
+          entity_id: light.cube_light
+
+  # Speak with persona script referenced in multiple places
+  speak_with_persona:
+    alias: "Speak with Persona"
+    mode: queued
+    max: 5
+    fields:
+      message:
+        description: "Message to speak"
+        required: true
+      persona:
+        description: "Persona to use"
+        required: false
+        default: "buddy"
+    sequence:
+      - service: tts.cloud_say
+        data:
+          entity_id: media_player.cube_music
+          message: "{{ message }}"
+          
+  # Execute deployment script referenced in deployment.yaml  
+  execute_deployment:
+    alias: "Execute Deployment"
+    mode: single
+    sequence:
+      - service: input_boolean.turn_on
+        entity_id: input_boolean.deployment_in_progress
+      - service: input_text.set_value
+        data:
+          entity_id: input_text.deployment_status
+          value: "Deployment started"
+      - delay: "00:00:02"
+      - service: input_boolean.turn_off
+        entity_id: input_boolean.deployment_in_progress
+      - service: input_text.set_value
+        data:
+          entity_id: input_text.deployment_status
+          value: "Deployment complete"

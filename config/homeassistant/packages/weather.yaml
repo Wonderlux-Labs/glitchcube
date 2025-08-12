@@ -58,7 +58,7 @@ automation:
       - platform: state
         entity_id: input_button.update_weather_context
     action:
-      - service: script.update_all_weather_context
+      - service: script.weather_context_update
       - service: system_log.write
         data:
           message: "Weather context updated (scheduled)"

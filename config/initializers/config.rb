@@ -15,21 +15,22 @@ module GlitchCube
   class ConfigBuilder
     DEFAULTS = {
       # Core Application
-      openrouter_api_key: nil,
+      openrouter_api_key: ENV.fetch('OPENROUTER_API_KEY'),
       openai_api_key: nil,
       anthropic_api_key: nil,
-      helicone_api_key: nil,
-      default_ai_model: 'anthropic/claude-sonnet-4',
+      helicone_api_key: ENV.fetch('HELICONE_API_KEY'),
+      default_tools_model: 'moonshotai/kimi-k2',
+      default_model: 'moonshotai/kimi-k2',
       port: 4567,
-      session_secret: SecureRandom.hex(64),
-      rack_env: 'development',
+      session_secret: ENV.fetch('SESSION_SECRET', nil) || SecureRandom.hex(64),
+      rack_env: ENV.fetch('RACK_ENV', 'development'),
       database_url: 'postgresql://localhost:5432/glitchcube_development',
-      redis_url: nil,
+      redis_url: 'redis://localhost:6379/0',
 
       # Home Assistant Integration
       home_assistant: {
-        url: nil,
-        token: nil
+        url: ENV.fetch('HOME_ASSISTANT_URL', PROD_HASS_URL),
+        token: ENV.fetch('HOME_ASSISTANT_TOKEN')
       },
 
       # Logging and Feature Flags
@@ -41,7 +42,7 @@ module GlitchCube
 
       # Monitoring
       monitoring: {
-        uptime_kuma_push_url: nil
+        uptime_kuma_push_url: ENV.fetch('UPTIME_KUMA_PUSH_URL', nil)
       },
 
       # Device/Installation Info
@@ -59,11 +60,9 @@ module GlitchCube
 
       # AI Configuration
       ai: {
-        default_model: 'anthropic/claude-sonnet-4',
-        default_tools_model: 'anthropic/claude-sonnet-4',
         temperature: 0.8,
-        max_tokens: 32000,
-        max_tool_tokens: 32000,
+        max_tokens: 32_000,
+        max_tool_tokens: 32_000,
         max_session_messages: 10
       },
 

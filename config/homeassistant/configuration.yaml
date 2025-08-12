@@ -26,6 +26,13 @@ lovelace:
       icon: mdi:script
       show_in_sidebar: true
       filename: dashboards.yaml
+    system-dashboard:
+      mode: yaml
+      title: System Status
+      icon: mdi:cog
+      show_in_sidebar: true
+      filename: dashboards/system-dashboard.yaml
+      require_admin: true
 
 # Enable logbook for tracking interactions
 logbook:
