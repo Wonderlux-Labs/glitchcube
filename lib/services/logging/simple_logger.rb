@@ -89,7 +89,9 @@ module Services
       private
 
       def below_log_level?(level)
-        LOG_LEVELS[level] < LOG_LEVELS[current_log_level]
+        level_value = LOG_LEVELS[level] || LOG_LEVELS[:info]
+        current_value = LOG_LEVELS[current_log_level] || LOG_LEVELS[:info]
+        level_value < current_value
       end
 
       def current_log_level
