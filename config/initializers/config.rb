@@ -18,7 +18,7 @@ module GlitchCube
       openrouter_api_key: ENV.fetch('OPENROUTER_API_KEY'),
       openai_api_key: nil,
       anthropic_api_key: nil,
-      helicone_api_key: ENV.fetch('HELICONE_API_KEY'),
+      helicone_api_key: ENV.fetch('HELICONE_API_KEY', nil),
       default_tools_model: 'qwen/qwen3-coder',
       default_model: 'anthropic-claude-sonnet-4',
       port: 4567,
