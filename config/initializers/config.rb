@@ -19,7 +19,7 @@ module GlitchCube
       openai_api_key: nil,
       anthropic_api_key: nil,
       helicone_api_key: ENV.fetch('HELICONE_API_KEY'),
-      default_tools_model: 'openai/gpt-4.1',
+      default_tools_model: 'qwen/qwen3-coder',
       default_model: 'z-ai/glm-4.5',
       port: 4567,
       session_secret: ENV.fetch('SESSION_SECRET', nil) || SecureRandom.hex(64),
