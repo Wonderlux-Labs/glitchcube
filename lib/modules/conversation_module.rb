@@ -571,6 +571,9 @@ class ConversationModule
     continue_conversation = llm_response.continue_conversation?
     inner_thoughts = llm_response.inner_thoughts
 
+    # Convert response_text to string if it's not nil
+    response_text = response_text.to_s unless response_text.nil?
+
     # If response_text is nil or empty, use the persona's fallback.
     # This correctly handles cases where JSON was valid but missing the 'response' key,
     # or where a plain text response was empty.

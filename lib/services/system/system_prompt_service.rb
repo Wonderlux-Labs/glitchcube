@@ -174,7 +174,7 @@ module Services
         You MUST respond with valid JSON containing these fields:
 
         {
-          "speak_to_user": "Your spoken response to the visitor (required)",
+          "response": "Your spoken response to the visitor (required)",
           "continue_conversation": true/false,
           "inner_thoughts": "Optional: Your internal monologue/reasoning - IMPORTANT: Include anything you want to remember about this person or conversation here"
         }

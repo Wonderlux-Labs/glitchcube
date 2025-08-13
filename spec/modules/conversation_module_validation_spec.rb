@@ -18,9 +18,31 @@ RSpec.describe ConversationModule do
 
   # Helper method to create mock LLMResponse objects
   def mock_llm_response(content, parsed_content = nil)
+    response_text = if parsed_content.is_a?(Hash)
+                      parsed_content['response'] || parsed_content[:response]
+                    end
+
+    continue = if parsed_content.is_a?(Hash)
+                 val = parsed_content['continue_conversation'] || parsed_content[:continue_conversation]
+                 [true, 'true', 1, '1'].include?(val)
+               else
+                 false
+               end
+
+    thoughts = if parsed_content.is_a?(Hash)
+                 (parsed_content['inner_thoughts'] || parsed_content[:inner_thoughts] || '').to_s
+               else
+                 ''
+               end
+
     double('LLMResponse',
            content: content,
-           parsed_content: parsed_content&.with_indifferent_access)
+           parsed_content: parsed_content&.with_indifferent_access,
+           response_text: response_text,
+           continue_conversation?: continue,
+           inner_thoughts: thoughts,
+           raw_response: { 'choices' => [] },
+           model: 'test-model')
   end
 
   describe '#validate_response' do

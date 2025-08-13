@@ -18,6 +18,7 @@ RSpec.describe ConversationModule do
            function_calls: [],
            content: 'Mock AI response',
            parsed_content: { 'response' => 'Mock AI response', 'continue_conversation' => true }.with_indifferent_access,
+           inner_thoughts: 'Test inner thoughts',
            cost: 0.001,
            model: 'test-model',
            usage: { prompt_tokens: 10, completion_tokens: 20 })

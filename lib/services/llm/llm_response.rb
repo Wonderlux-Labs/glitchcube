@@ -155,9 +155,8 @@ module Services
     def response_text
       if parsed_content.is_a?(Hash)
         # Try to extract the actual response text from structured output
-        # Prioritize speak_to_user for the new schema, fall back to response/text
-        text = parsed_content[:speak_to_user] ||
-               parsed_content[:response] ||
+        # Use standard 'response' field, fall back to 'text' for compatibility
+        text = parsed_content[:response] ||
                parsed_content[:text]
 
         # Return the text if found (even if empty string)

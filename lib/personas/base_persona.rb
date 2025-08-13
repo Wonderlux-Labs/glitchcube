@@ -240,7 +240,7 @@ module Personas
         You MUST respond with valid JSON containing these fields:
 
         {
-          "speak_to_user": "Your spoken response to the visitor (required)",
+          "response": "Your spoken response to the visitor (required)",
           "continue_conversation": true/false,
           "inner_thoughts": "Optional: Your internal monologue as #{name} - IMPORTANT: Include anything memorable about this person/conversation here"
         }
