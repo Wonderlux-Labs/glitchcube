@@ -7,7 +7,8 @@ module Personas
     end
 
     def available_tools
-      [SpeechTool, DisplayTool]
+      # Only display control - TTS is handled by the voice pipeline
+      [DisplayTool]
     end
 
     def fallback_responses
