@@ -8,7 +8,8 @@ export PATH="$HOME/.asdf/installs/ruby/3.4.1/bin:$HOME/.asdf/shims:$PATH"
 export RUBY_ROOT="$HOME/.asdf/installs/ruby/3.4.1"
 export GEM_HOME="$HOME/.asdf/installs/ruby/3.4.1/lib/ruby/gems/3.4.0"
 export GEM_PATH="$GEM_HOME"
-
+export RACK_ENV='production'
+export APP_ENV='production'
 echo "🎲 Starting GlitchCube in production mode..."
 echo "================================"
 echo "App: http://localhost:4567"

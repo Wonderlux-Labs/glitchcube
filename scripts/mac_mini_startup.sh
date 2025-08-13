@@ -157,7 +157,7 @@ if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
 else
     log "Git not available or not a git repository"
 fi
-
+#
 # Load environment variables from .env.production if it exists
 if [ -f ".env.production" ]; then
     log "Loading .env.production for database setup..."

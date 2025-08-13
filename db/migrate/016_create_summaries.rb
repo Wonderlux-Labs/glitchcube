@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateSummaries < ActiveRecord::Migration[7.2]
+class CreateSummaries < ActiveRecord::Migration[7.1]
   def change
     create_table :summaries do |t|
       t.string :summary_type, null: false # personal, interaction, event, daily
