@@ -35,19 +35,18 @@ module Services
     end
 
     def execute_tts
-      return unless should_execute_tts?
-
-      if tts_tool_available?
-        execute_tts_via_tool
-      elsif debug_mode?
-        puts '⚠️ TTS skipped - no speech_synthesis tool available'
-      end
-    rescue StandardError => e
-      puts "Warning: TTS failed but conversation succeeded: #{e.message}"
+      # NEVER execute TTS for conversations - the pipeline ALWAYS handles it
+      # TTS tools are only for special announcements, not conversation responses
+      Services::SimpleLogger.debug('Skipping TTS - always handled by voice pipeline',
+                                   tagged: %i[tts voice_pipeline],
+                                   voice_interaction: context[:voice_interaction])
+      nil
     end
 
     def should_execute_tts?
-      !response_text.nil? && !response_text.strip.empty?
+      # We NEVER execute TTS for conversation responses
+      # The pipeline always handles TTS for all conversations
+      false
     end
 
     def tts_tool_available?

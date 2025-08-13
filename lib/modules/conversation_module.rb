@@ -190,12 +190,21 @@ class ConversationModule
       continue_conversation = validated_response[:continue_conversation]
       inner_thoughts = validated_response[:inner_thoughts]
 
+      # CRITICAL LOGGING: What are we actually going to speak?
+      Services::SimpleLogger.info('📢 FINAL RESPONSE TO BE SPOKEN',
+                                  tagged: %i[conversation voice final],
+                                  response_text: response_text,
+                                  response_length: response_text&.length,
+                                  continue_conversation: continue_conversation,
+                                  had_tool_calls: tool_calls_made.present?)
+
       # Debug trace: Check if response_text is nil
       if response_text.nil?
-        Services::SimpleLogger.debug('Response text is nil',
-                                     tagged: %i[conversation debug],
+        Services::SimpleLogger.error('Response text is nil - THIS WILL CAUSE VOICE FAILURE',
+                                     tagged: %i[conversation debug error],
                                      content: llm_response.content.inspect,
-                                     parsed_content: llm_response.parsed_content.inspect)
+                                     parsed_content: llm_response.parsed_content.inspect,
+                                     raw_response: llm_response.raw_response&.dig('choices', 0, 'message'))
       end
 
       # Calculate cost
@@ -231,22 +240,16 @@ class ConversationModule
         response_text = persona_instance.generate_fallback_response(message)
       end
 
-      # For assist satellites, TTS is handled by the pipeline
-      # We don't need to call TTS explicitly here
+      # TTS is ALWAYS handled by the pipeline for ALL conversations
+      # We NEVER handle TTS ourselves - the pipeline does it
+      # tts_handled must ALWAYS be false so the pipeline knows to speak
       tts_handled = false
-      if context[:voice_interaction]
-        # Check if speech_synthesis tool was already called by the LLM
-        # (This would be for non-satellite voice interactions)
-        tts_handled = tool_calls_made.any? do |call|
-          call[:tool_name]&.include?('speech_synthesis') ||
-            call[:tool_name]&.include?('speak')
-        end
 
-        Services::SimpleLogger.debug('Voice interaction detected',
-                                     tagged: %i[conversation voice],
-                                     tts_handled_by_tools: tts_handled,
-                                     response_length: response_text&.length || 0)
-      end
+      Services::SimpleLogger.debug('TTS will be handled by pipeline',
+                                   tagged: %i[conversation voice],
+                                   tts_handled: false,
+                                   voice_interaction: context[:voice_interaction],
+                                   response_length: response_text&.length || 0)
 
       # Get the TTS voice for this persona
       character_service = Services::CharacterService.new(character: persona_name.to_sym)
@@ -384,7 +387,8 @@ class ConversationModule
                          "\n\nIMPORTANT: Respond with valid JSON."
                        else
                          # Model doesn't support structured output, be explicit but concise
-                         "\n\nRespond ONLY with JSON: {\"response\": \"your message acknowledging the tool actions and continuing naturally with the conversation\", \"continue_conversation\": true/false based on context}"
+                         # CRITICAL: Do NOT ask model to acknowledge tools - just continue naturally
+                         "\n\nRespond ONLY with JSON: {\"response\": \"your natural response continuing the conversation\", \"continue_conversation\": true/false based on context}"
                        end
 
     # Enhance the system message with JSON instruction
@@ -409,8 +413,17 @@ class ConversationModule
 
     # Second call options - Use default model for conversation response
     # This allows us to use a cheaper/faster model for tools, but better model for conversation
+    # CRITICAL FIX: Use the original model if default_model is not set
+    conversation_model = GlitchCube.config.ai.default_model || llm_options[:model] || 'openai/gpt-4.1-mini'
+
+    Services::SimpleLogger.info('🎯 MODEL SELECTION FOR SECOND CALL',
+                                tagged: %i[conversation tools model_debug],
+                                default_model: GlitchCube.config.ai.default_model,
+                                original_model: llm_options[:model],
+                                selected_model: conversation_model)
+
     second_call_options = {
-      model: GlitchCube.config.ai.default_model,  # Switch back to default conversation model
+      model: conversation_model,  # Use fallback if default not set
       temperature: llm_options[:temperature],
       max_tokens: GlitchCube.config.ai.max_tool_tokens,  # Use config value
       reasoning: { max_tokens: 1000 }  # Balanced for speed with limited tools
@@ -447,11 +460,20 @@ class ConversationModule
       )
 
       # Log the complete response received
-      Services::SimpleLogger.debug('Second LLM call response',
-                                   tagged: %i[conversation tools llm_response],
-                                   response_preview: follow_up_response.content&.[](0..100),
-                                   usage: follow_up_response.usage,
-                                   model: follow_up_response.model)
+      Services::SimpleLogger.info('Second LLM call response received',
+                                  tagged: %i[conversation tools llm_response],
+                                  raw_content: follow_up_response.content,
+                                  parsed_content: follow_up_response.parsed_content,
+                                  response_text: follow_up_response.response_text,
+                                  usage: follow_up_response.usage,
+                                  model: follow_up_response.model)
+
+      # CRITICAL: Log what will actually be spoken
+      Services::SimpleLogger.info('🔊 VOICE RESPONSE',
+                                  tagged: %i[conversation voice critical],
+                                  response_text: follow_up_response.response_text,
+                                  is_json: follow_up_response.parsed_content.is_a?(Hash),
+                                  has_response_field: follow_up_response.parsed_content&.key?(:response))
 
       follow_up_response
     rescue StandardError => e
