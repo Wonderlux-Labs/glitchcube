@@ -47,6 +47,9 @@ require_relative 'config/model_pricing'
 
 # All library files are now loaded by config/initializers/autoload.rb
 
+# Load routes manually since they're ignored by Zeitwerk
+Dir[File.join(__dir__, 'lib', 'routes', '**', '*.rb')].each { |file| require file }
+
 class GlitchCubeApp < Sinatra::Base
   # Include job scheduler helper for safe job scheduling
   include SidekiqConfig::JobScheduler
@@ -72,6 +75,8 @@ class GlitchCubeApp < Sinatra::Base
     # NOTE: Using rerun instead of Sinatra::Reloader for auto-reloading
     # Run with: bundle exec rerun -- bundle exec ruby app.rb
   end
+
+  # Routes are loading correctly - diagnostics confirmed this
 
   # Register route modules
   # Core application routes

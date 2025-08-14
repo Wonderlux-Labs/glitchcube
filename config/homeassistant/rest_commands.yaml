@@ -67,108 +67,10 @@ update_status_page:
     User-Agent: "Glitch Cube Status Monitor"
   timeout: 10
 
-# GitHub deployment automation
-trigger_glitchcube_deployment:
-  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/deploy/internal"
-  method: POST
-  headers:
-    Content-Type: "application/json"
-  payload: >
-    {
-      "repository": "{{ repository }}",
-      "branch": "{{ branch }}",
-      "commit_sha": "{{ commit_sha }}",
-      "commit_message": "{{ commit_message }}",
-      "committer": "{{ committer }}",
-      "timestamp": "{{ now().isoformat() }}"
-    }
-  timeout: 60
-  
-check_deployment_status:
-  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/deploy/status"
-  method: GET
-  timeout: 10
-  
-manual_glitchcube_deployment:
-  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/deploy/internal"
-  method: POST
-  headers:
-    Content-Type: "application/json"
-  payload: >
-    {
-      "repository": "manual deployment",
-      "branch": "main",
-      "commit_sha": "manual",
-      "commit_message": "{{ message | default('Manual deployment from Home Assistant') }}",
-      "committer": "{{ committer | default('Home Assistant') }}",
-      "timestamp": "{{ now().isoformat() }}"
-    }
-  timeout: 60
-
-# System restart commands
-trigger_glitchcube_restart:
-  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/system/restart"
-  method: POST
-  headers:
-    Content-Type: "application/json"
-  payload: >
-    {
-      "level": "{{ level | default('soft') }}",
-      "reason": "{{ reason | default('home-assistant-triggered') }}",
-      "auth_token": "{{ states('input_text.restart_auth_token') }}"
-    }
-  timeout: 10
-
 check_glitchcube_health:
   url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/system/health"
   method: GET
   timeout: 5
-
-get_restart_history:
-  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/system/restart_history"
-  method: GET
-  timeout: 5
-
-clear_glitchcube_queues:
-  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/system/clear_queues"
-  method: POST
-  headers:
-    Content-Type: "application/json"
-  payload: >
-    {
-      "auth_token": "{{ states('input_text.restart_auth_token') }}"
-    }
-  timeout: 10
-
-# Entity monitoring REST commands
-update_glitchcube_entities:
-  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/entities/change_notification"
-  method: POST
-  headers:
-    Content-Type: "application/json"
-  payload: >
-    {
-      "entity_id": "{{ entity_id }}",
-      "old_state": "{{ old_state }}",
-      "new_state": "{{ new_state }}",
-      "domain": "{{ domain }}",
-      "timestamp": "{{ timestamp }}",
-      "source": "home_assistant_automation"
-    }
-  timeout: 5
-
-refresh_glitchcube_entities:
-  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/entities/refresh"
-  method: POST
-  headers:
-    Content-Type: "application/json"
-  payload: >
-    {
-      "batch_update": "{{ batch_update }}",
-      "timestamp": "{{ timestamp }}",
-      "source": "home_assistant_batch"
-    }
-  timeout: 10
 
 # Proactive behavior commands
 glitchcube_proactive:
