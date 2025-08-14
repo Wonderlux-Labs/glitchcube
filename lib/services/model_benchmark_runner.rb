@@ -2,11 +2,11 @@
 
 require 'yaml'
 require 'benchmark'
-require_relative '../modules/error_handling'
+# ErrorHandling module now autoloaded via Zeitwerk
 
 module Services
   class ModelBenchmarkRunner
-    include ErrorHandling
+    include ::Modules::ErrorHandling
 
     MODES = {
       regression: { vcr: :replay_only, api_calls: false },

@@ -6,7 +6,7 @@ require 'uri'
 require 'timeout'
 
 class HomeAssistantClient
-  include ErrorHandling
+  include ::Modules::ErrorHandling
 
   class Error < StandardError; end
   class AuthenticationError < Error; end

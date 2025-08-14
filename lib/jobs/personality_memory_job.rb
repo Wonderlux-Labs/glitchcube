@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 require 'sidekiq'
-require_relative '../modules/error_handling'
+# ErrorHandling module now autoloaded via Zeitwerk
 
 module Jobs
   class PersonalityMemoryJob
     include Sidekiq::Job
-    include ErrorHandling
+    include ::Modules::ErrorHandling
 
     sidekiq_options queue: 'low', retry: 2
 

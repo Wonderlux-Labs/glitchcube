@@ -8,6 +8,7 @@ module Autoloader
     def load_all
       # Services are now auto-loaded by Zeitwerk
       # Only need to manually load components that don't follow Zeitwerk conventions
+      # Note: Routes will be loaded after Zeitwerk setup completes to ensure modules are available
 
       load_base_classes
       load_core
@@ -16,6 +17,10 @@ module Autoloader
       load_personas
       load_tools
       load_jobs
+      # load_routes - moved to separate call after Zeitwerk setup
+    end
+
+    def load_routes_after_zeitwerk
       load_routes
     end
 
@@ -35,21 +40,13 @@ module Autoloader
     end
 
     def load_utilities
-      # Helpers and utilities
+      # Helpers only - utils are now handled by Zeitwerk
       Dir[File.join(root, 'lib', 'helpers', '*.rb')].each { |f| require f }
-      Dir[File.join(root, 'lib', 'utils', '*.rb')].each { |f| require f }
     end
 
     def load_base_classes
-      # ErrorHandling module must load first as many classes include it
-      require_if_exists 'lib/modules/error_handling'
-
-      # Then load other modules
-      Dir[File.join(root, 'lib', 'modules', '*.rb')].each do |f|
-        require f unless f.include?('error_handling')
-      end
-
-      # Base tool class is now handled by Zeitwerk
+      # Modules are now handled by Zeitwerk autoloading
+      # No manual loading needed
     end
 
     def load_jobs
@@ -91,5 +88,17 @@ module Autoloader
   end
 end
 
-# Load everything when this initializer runs
+# Load everything except routes when this initializer runs
 Autoloader.load_all
+
+# Now load routes after Zeitwerk modules are available
+Autoloader.load_routes_after_zeitwerk
+
+# Create backward compatibility aliases after Zeitwerk loading
+unless defined?(ErrorHandling)
+  Object.const_set(:ErrorHandling, Modules::ErrorHandling)
+end
+
+unless defined?(ConversationModule)
+  Object.const_set(:ConversationModule, Modules::ConversationModule)
+end

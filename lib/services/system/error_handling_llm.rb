@@ -13,7 +13,7 @@ module Services
       ERROR_TRACKING_TTL = 3600 # 1 hour
 
       def initialize
-        @logger = Services::Logging::SimpleLogger
+        @logger = ::Services::Logging::SimpleLogger
         @redis = begin
           Redis.new(url: GlitchCube.config.redis_url)
         rescue Redis::CannotConnectError => e
@@ -87,7 +87,7 @@ module Services
 
         prompt = build_criticality_prompt(error, context)
 
-        response = Services::Llm::LLMService.complete_cheap_tools(
+        response = ::Services::Llm::LLMService.complete_cheap_tools(
           prompt,
           model: 'openai/gpt-4o-mini',
           response_format: { type: 'json_object' }
@@ -388,7 +388,7 @@ module Services
                    )
                  else
                    # Fallback to direct LLM call if Task agent not available
-                   response = Services::Llm::LLMService.complete_cheap_tools(
+                   response = ::Services::Llm::LLMService.complete_cheap_tools(
                      prompt,
                      model: 'openai/gpt-4o-mini',
                      response_format: { type: 'json_object' }

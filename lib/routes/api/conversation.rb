@@ -4,7 +4,7 @@ module GlitchCube
   module Routes
     module Api
       module Conversation
-        extend ErrorHandling
+        extend ::Modules::ErrorHandling
 
         def self.registered(app)
           # Basic conversation test endpoint

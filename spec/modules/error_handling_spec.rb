@@ -66,8 +66,8 @@ RSpec.describe ErrorHandling do
           service: 'test_service',
           endpoint: 'unknown',
           status: 500,
-          error: 'ErrorHandling::ServiceUnavailableError: Service down',
-          error_class: 'ErrorHandling::ServiceUnavailableError',
+          error: 'Modules::ErrorHandling::ServiceUnavailableError: Service down',
+          error_class: 'Modules::ErrorHandling::ServiceUnavailableError',
           operational: true
         )
       )
@@ -90,9 +90,9 @@ RSpec.describe ErrorHandling do
 
     context 'when a CircuitBreaker::CircuitOpenError occurs' do
       it 'handles it as an operational error and returns fallback', :vcr do
-        # Mock the CircuitBreaker error class
-        stub_const('CircuitBreaker::CircuitOpenError', Class.new(StandardError))
-        error = CircuitBreaker::CircuitOpenError.new('Circuit open')
+        # Mock the Core::CircuitBreaker error class
+        stub_const('Core::CircuitBreaker::CircuitOpenError', Class.new(StandardError))
+        error = Core::CircuitBreaker::CircuitOpenError.new('Circuit open')
         fallback = 'default_value'
 
         expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(
@@ -100,7 +100,7 @@ RSpec.describe ErrorHandling do
             service: 'application',
             endpoint: 'test_operation',
             status: 500,
-            error: 'CircuitBreaker::CircuitOpenError: Circuit open',
+            error: 'Core::CircuitBreaker::CircuitOpenError: Circuit open',
             operation: 'test_operation',
             type: 'circuit_breaker',
             operational: true

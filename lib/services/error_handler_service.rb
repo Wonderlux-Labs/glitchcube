@@ -11,7 +11,7 @@ module Services
     ERROR_TRACKING_TTL = 3600 # 1 hour
 
     def initialize
-      @logger = Services::Logging::SimpleLogger
+      @logger = ::Services::Logging::SimpleLogger
       @redis = begin
         Redis.new(url: GlitchCube.config.redis_url)
       rescue Redis::CannotConnectError => e
@@ -76,7 +76,7 @@ module Services
     # Wrap a block with comprehensive error handling
     def with_error_handling(operation_name, fallback: nil, reraise_unexpected: true)
       yield
-    rescue CircuitBreaker::CircuitOpenError => e
+    rescue ::Core::CircuitBreaker::CircuitOpenError => e
       handle_error(e, { operation: operation_name, type: 'circuit_breaker', fallback: fallback, operational: true })
     rescue Net::OpenTimeout, Net::ReadTimeout => e
       handle_error(e, { operation: operation_name, type: 'timeout', fallback: fallback, operational: true })
