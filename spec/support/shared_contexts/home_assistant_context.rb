@@ -292,23 +292,56 @@ if defined?(RSpec)
   def create_comprehensive_messages_mock
     # Create a chainable mock that handles all ActiveRecord-like queries
     mock = double('messages')
-    allow(mock).to receive(:count).and_return(0)
+    allow(mock).to receive(:count).and_return(2)
     allow(mock).to receive(:last).and_return(nil)
     allow(mock).to receive(:first).and_return(nil)
-    allow(mock).to receive(:empty?).and_return(true)
-    allow(mock).to receive(:sum).and_return(0.0)
+    allow(mock).to receive(:empty?).and_return(false)
+    allow(mock).to receive(:sum).with(:cost).and_return(0.003)
+    allow(mock).to receive(:sum).with(:prompt_tokens).and_return(13)
+    allow(mock).to receive(:sum).with(:completion_tokens).and_return(22)
+    allow(mock).to receive(:maximum).with(:created_at).and_return(Time.now)
+    allow(mock).to receive(:minimum).with(:created_at).and_return(Time.now - 5.minutes)
 
-    # Create where result mock that can chain
-    where_result = double('where_result')
-    allow(where_result).to receive(:count).and_return(0)
-    allow(where_result).to receive(:not).and_return(double('not_result', pluck: []))
+    # Create comprehensive where.not mock chain
+    not_result = double('not_result')
+    allow(not_result).to receive(:distinct).and_return(double('distinct_result', pluck: ['gpt-4']))
+    allow(not_result).to receive(:pluck).and_return([500, 300]) # response times
 
-    # Create order result mock
+    # Create where result that can handle .not() calls
+    where_not_chain = double('where_not_chain')
+    allow(where_not_chain).to receive(:not).with(model_used: nil).and_return(not_result)
+    allow(where_not_chain).to receive(:not).with(response_time_ms: nil).and_return(double('response_times', pluck: [500, 300]))
+    allow(where_not_chain).to receive(:not).with(persona: nil).and_return(double('personas', distinct: double('distinct', pluck: ['buddy'])))
+
+    # Create user messages chain that handles secondary where
+    user_messages_chain = double('user_messages_chain')
+    allow(user_messages_chain).to receive(:where).with('content LIKE ?', '%?%').and_return(double('questions', count: 1))
+    allow(user_messages_chain).to receive(:count).and_return(1)
+
+    # Create role-based where results
+    role_user_assistant = double('role_user_assistant')
+    allow(role_user_assistant).to receive(:find_each).and_yield(double('message', content: 'test message?', role: 'user'))
+
+    # Set up main mock methods with specific parameter matching first, then fallback
+    allow(mock).to receive(:where) do |args|
+      case args
+      when { role: 'user' }
+        user_messages_chain
+      when { role: 'assistant' }
+        double('assistant_messages', count: 1)
+      when { role: 'system' }
+        double('system_messages', count: 0)
+      when { role: %w[user assistant] }
+        role_user_assistant
+      else
+        where_not_chain # default for other where calls
+      end
+    end
+
+    # Order and other query methods
     order_result = double('order_result')
     allow(order_result).to receive(:first).and_return(nil)
     allow(order_result).to receive(:last).and_return(nil)
-
-    allow(mock).to receive(:where).and_return(where_result)
     allow(mock).to receive(:order).and_return(order_result)
 
     mock
