@@ -99,8 +99,8 @@ namespace :config do
     default_prompt = default ? '[Y/n]' : '[y/N]'
     print "#{message} #{default_prompt}: "
     
-    response = $stdin.gets.chomp.downcase
-    return default if response.empty?
+    response = $stdin.gets&.chomp&.downcase
+    return default if response.nil? || response.empty?
     
     %w[y yes].include?(response)
   end
@@ -281,8 +281,13 @@ namespace :config do
     puts_colored('3) Clean both (make them identical)', BLUE)
     puts_colored('4) Cancel', BLUE)
     
-    print 'Choice [1/2/3/4]: '
-    choice = $stdin.gets.chomp
+    if dry_run?
+      puts_colored('DRY RUN: Would prompt for pruning choice', YELLOW)
+      choice = '4'  # Default to cancel in dry run
+    else
+      print 'Choice [1/2/3/4]: '
+      choice = $stdin.gets&.chomp
+    end
     
     case choice
     when '1'
@@ -362,8 +367,13 @@ namespace :config do
       puts_colored('2) Keep remote changes (pull from remote)', BLUE)
       puts_colored('3) Manual review (abort)', BLUE)
       
-      print 'Choice [1/2/3]: '
-      choice = $stdin.gets.chomp
+      if dry_run?
+        puts_colored('DRY RUN: Would prompt for conflict resolution', YELLOW)
+        choice = '3'  # Default to abort in dry run
+      else
+        print 'Choice [1/2/3]: '
+        choice = $stdin.gets&.chomp
+      end
       
       case choice
       when '1'

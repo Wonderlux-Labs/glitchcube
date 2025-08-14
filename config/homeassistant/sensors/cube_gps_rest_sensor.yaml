@@ -1,0 +1,24 @@
+- platform: rest
+  resource: http://localhost:4567/api/v1/gps/cube_current_loc
+  name: "Glitch Cube Location"
+  unique_id: glitchcube_location_rest
+  scan_interval: 30
+  timeout: 10
+  value_template: "{{ value_json.location_name | default('unknown') }}"
+  json_attributes:
+    - latitude
+    - longitude
+    - altitude
+    - accuracy
+    - speed
+    - heading
+    - timestamp
+    - source
+    - location_name
+    - address
+    - clock_position
+    - distance_from_man
+    - camp_info
+  availability: "{{ value_json is defined and value_json.latitude is defined }}"
+  device_class: timestamp
+  state_class: measurement
