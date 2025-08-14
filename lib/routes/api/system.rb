@@ -95,7 +95,7 @@ module GlitchCube
                 version: GlitchCube::VERSION || '1.0.0'
               }
 
-              status code: (status[:status] == 'healthy' ? 200 : 503)
+              status(status[:status] == 'healthy' ? 200 : 503)
               status.to_json
             rescue StandardError => e
               status 500

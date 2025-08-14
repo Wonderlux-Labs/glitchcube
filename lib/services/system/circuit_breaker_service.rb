@@ -7,7 +7,7 @@ module Services
     class CircuitBreakerService
       class << self
         def home_assistant_breaker
-          @home_assistant_breaker ||= CircuitBreaker.new(
+          @home_assistant_breaker ||= Core::CircuitBreaker.new(
             name: 'home_assistant',
             failure_threshold: 10,  # More tolerant - art installation needs resilience
             recovery_timeout: 10,   # Shorter recovery - try again quickly
@@ -16,7 +16,7 @@ module Services
         end
 
         def openrouter_breaker
-          @openrouter_breaker ||= CircuitBreaker.new(
+          @openrouter_breaker ||= Core::CircuitBreaker.new(
             name: 'openrouter',
             failure_threshold: 5,
             recovery_timeout: 60,

@@ -47,6 +47,9 @@ require_relative 'config/model_pricing'
 
 # All library files are now loaded by config/initializers/autoload.rb
 
+# Load core files manually since they're ignored by Zeitwerk
+Dir[File.join(__dir__, 'lib', 'core', '**', '*.rb')].each { |file| require file }
+
 # Load routes manually since they're ignored by Zeitwerk
 Dir[File.join(__dir__, 'lib', 'routes', '**', '*.rb')].each { |file| require file }
 
