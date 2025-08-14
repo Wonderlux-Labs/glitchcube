@@ -37,7 +37,7 @@ RSpec.describe Tools::LightingTool do
         expect(schema['properties']).to have_key('target')
         expect(schema['properties']).to have_key('color')
         expect(schema['properties']).to have_key('brightness')
-        expect(schema['properties']).to have_key('effect')
+        expect(schema['properties']).not_to have_key('effect') # Effect is handled by separate set_effect method
         expect(schema['required']).to eq(['state'])
       end
     end
@@ -80,10 +80,11 @@ RSpec.describe Tools::LightingTool do
       expect(target_enum).to include('cube', 'cart', 'voice_ring', 'matrix', 'indicators', 'all')
     end
 
-    it 'defines valid enum values for effects' do
-      schema = described_class.tool_schemas['set_state']
-      effect_enum = schema['properties']['effect']['enum']
-      expect(effect_enum).to include('solid', 'pulse', 'rainbow', 'strobe')
+    it 'has separate set_effect method schema' do
+      schema = described_class.tool_schemas['set_effect']
+      expect(schema).to be_present
+      expect(schema['properties']).to have_key('entity_id')
+      expect(schema['properties']).to have_key('effect')
     end
 
     it 'defines brightness as integer with constraints' do

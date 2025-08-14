@@ -10,8 +10,10 @@ module Services
   # The real LLMService is autoloaded by Zeitwerk
 
   class PersonaStateService
+    @@current_persona = 'buddy'
+
     def self.get_current_persona
-      'buddy'
+      @@current_persona
     end
 
     def self.set_current_persona(persona, **_kwargs)
@@ -23,9 +25,23 @@ module Services
         raise ArgumentError, "Unknown persona: #{persona}"
       end
 
+      # Update the stored persona state for consistency in tests
+      @@current_persona = normalized
+
       # Return the persona name for test consistency
       normalized
     end
+
+    def self.reset_for_testing!
+      @@current_persona = 'buddy'
+    end
+
+    # rubocop:disable Naming/PredicateMethod
+    def self.clear_state!
+      @@current_persona = 'buddy'
+      true  # Return success status like the real service
+    end
+    # rubocop:enable Naming/PredicateMethod
   end
 
   class SystemPromptService

@@ -123,10 +123,12 @@ RSpec.describe Services::Conversation::LlmInteractionManager do
   end
 
   describe '#get_response_schema' do
-    it 'returns nil when schema not defined' do
+    it 'returns default schema when specific schema not defined' do
       result = subject.get_response_schema(context)
 
-      expect(result).to be_nil
+      expect(result).to be_present
+      expect(result[:properties]).to have_key(:response)
+      expect(result[:properties]).to have_key(:continue_conversation)
     end
 
     it 'handles different context types' do

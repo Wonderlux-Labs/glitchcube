@@ -207,7 +207,7 @@ module Routes
           # Pick a random proactive message for the character
           message = proactive_messages[character]&.sample || 'Hello! Want to chat?'
           # Speak the proactive message
-          character_service = Services::CharacterService.new(character: character)
+          character_service = Services::System::CharacterService.new(character: character)
           character_service.speak(message, entity_id: entity_id)
           # Start a conversation session using standard ActiveRecord system
           session_id = "proactive_#{SecureRandom.hex(8)}"
