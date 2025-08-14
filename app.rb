@@ -213,6 +213,17 @@ class GlitchCubeApp < Sinatra::Base
   end
 
   error do
+    # Log the actual error details for debugging
+    Services::Logging::SimpleLogger.error(
+      '💥 Unhandled exception in global error handler',
+      tagged: %i[error unhandled],
+      error: env['sinatra.error'].message,
+      backtrace: env['sinatra.error'].backtrace&.first(5),
+      method: request.request_method,
+      path: request.path,
+      ip: request.ip
+    )
+
     json({ error: 'Internal server error', status: 500 })
   end
 
