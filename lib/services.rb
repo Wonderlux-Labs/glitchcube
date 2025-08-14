@@ -3,5 +3,19 @@
 # Services module - container for all service classes
 # This file is required by Zeitwerk to properly autoload the Services namespace
 module Services
-  # Empty module - submodules and classes are autoloaded by Zeitwerk
+  # Intermediate namespace modules for Zeitwerk autoloading
+  module System
+  end
+
+  module Logging
+  end
+
+  module Conversation
+  end
+
+  module Memory
+  end
+
+  module Llm
+  end
 end
