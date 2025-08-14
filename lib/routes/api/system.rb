@@ -129,7 +129,7 @@ module GlitchCube
             reason = params['reason'] || 'api-triggered'
 
             # Log the restart request
-            ::Services::LoggerService.log_api_call(
+            ::Services::Logging::SimpleLogger.log_api_call(
               service: 'system',
               endpoint: 'restart',
               level: level,
@@ -144,7 +144,7 @@ module GlitchCube
               if File.exist?(script_path)
                 system("bash #{script_path} #{level} '#{reason}'")
               else
-                ::Services::LoggerService.log_error(
+                ::Services::Logging::SimpleLogger.log_error(
                   error: 'Restart script not found',
                   path: script_path
                 )
@@ -201,7 +201,7 @@ module GlitchCube
               dead_set.clear
               cleared['dead'] = dead_size
 
-              ::Services::LoggerService.log_api_call(
+              ::Services::Logging::SimpleLogger.log_api_call(
                 service: 'system',
                 endpoint: 'clear_queues',
                 cleared: cleared

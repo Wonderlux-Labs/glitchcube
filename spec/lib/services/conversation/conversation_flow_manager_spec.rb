@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Services::Conversation::ConversationFlowManager do
+RSpec.describe Services::Conversation::FlowManager do
   include_context 'with_full_conversation_setup'
 
   subject { described_class.new }
@@ -89,19 +89,19 @@ RSpec.describe Services::Conversation::ConversationFlowManager do
           .and_raise(Services::Llm::LLMService::LLMError.new('LLM service unavailable'))
 
         # Mock error handler response
-        allow(Services::ConversationErrorHandler).to receive(:handle).and_return({
-                                                                                   response: 'I\'m currently having some technical difficulties.',
-                                                                                   conversation_id: 'error-conv',
-                                                                                   session_id: 'test-session',
-                                                                                   persona: 'buddy',
-                                                                                   model: nil,
-                                                                                   cost: 0.0,
-                                                                                   tokens: { prompt_tokens: 0, completion_tokens: 0 },
-                                                                                   continue_conversation: false,
-                                                                                   tts_handled: false,
-                                                                                   voice_interaction: false,
-                                                                                   error: 'llm_error'
-                                                                                 })
+        allow(Services::Conversation::ErrorHandler).to receive(:handle).and_return({
+                                                                                     response: 'I\'m currently having some technical difficulties.',
+                                                                                     conversation_id: 'error-conv',
+                                                                                     session_id: 'test-session',
+                                                                                     persona: 'buddy',
+                                                                                     model: nil,
+                                                                                     cost: 0.0,
+                                                                                     tokens: { prompt_tokens: 0, completion_tokens: 0 },
+                                                                                     continue_conversation: false,
+                                                                                     tts_handled: false,
+                                                                                     voice_interaction: false,
+                                                                                     error: 'llm_error'
+                                                                                   })
       end
 
       it 'handles LLM service failures gracefully' do
@@ -110,7 +110,7 @@ RSpec.describe Services::Conversation::ConversationFlowManager do
         expect(result[:error]).to eq('llm_error')
         expect(result[:response]).to include('technical difficulties')
         expect(result[:continue_conversation]).to be(false)
-        expect(Services::ConversationErrorHandler).to have_received(:handle)
+        expect(Services::Conversation::ErrorHandler).to have_received(:handle)
       end
 
       it 'preserves session information during errors' do
@@ -126,19 +126,19 @@ RSpec.describe Services::Conversation::ConversationFlowManager do
         allow(Services::Llm::LLMService).to receive(:complete_with_messages)
           .and_raise(Services::Llm::LLMService::RateLimitError.new('Rate limit exceeded'))
 
-        allow(Services::ConversationErrorHandler).to receive(:handle).and_return({
-                                                                                   response: 'I need to take a quick pause. Please try again in a moment.',
-                                                                                   conversation_id: 'rate-limit-conv',
-                                                                                   session_id: 'test-session',
-                                                                                   persona: 'buddy',
-                                                                                   model: nil,
-                                                                                   cost: 0.0,
-                                                                                   tokens: { prompt_tokens: 0, completion_tokens: 0 },
-                                                                                   continue_conversation: false,
-                                                                                   tts_handled: false,
-                                                                                   voice_interaction: false,
-                                                                                   error: 'rate_limit'
-                                                                                 })
+        allow(Services::Conversation::ErrorHandler).to receive(:handle).and_return({
+                                                                                     response: 'I need to take a quick pause. Please try again in a moment.',
+                                                                                     conversation_id: 'rate-limit-conv',
+                                                                                     session_id: 'test-session',
+                                                                                     persona: 'buddy',
+                                                                                     model: nil,
+                                                                                     cost: 0.0,
+                                                                                     tokens: { prompt_tokens: 0, completion_tokens: 0 },
+                                                                                     continue_conversation: false,
+                                                                                     tts_handled: false,
+                                                                                     voice_interaction: false,
+                                                                                     error: 'rate_limit'
+                                                                                   })
       end
 
       it 'handles rate limiting appropriately' do

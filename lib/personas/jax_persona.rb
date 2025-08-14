@@ -8,7 +8,7 @@ module Personas
 
     def available_tools
       # Only lighting control - TTS is handled by the voice pipeline
-      [LightingTool]
+      [Tools::LightingTool]
     end
 
     def fallback_responses

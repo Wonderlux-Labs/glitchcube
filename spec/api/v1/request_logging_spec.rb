@@ -80,10 +80,10 @@ RSpec.describe 'Request Logging', type: :request do
     end
   end
 
-  describe 'LoggerService.log_request method' do
+  describe 'SimpleLogger.log method with request tags' do
     it 'creates properly formatted log entries', :vcr do
       # Test the actual logging method directly
-      Services::Logging::LoggerService.log_request(
+      Services::Logging::SimpleLogger.log_request(
         method: 'GET',
         path: '/test',
         status: 200,
@@ -99,7 +99,7 @@ RSpec.describe 'Request Logging', type: :request do
     end
 
     it 'handles errors gracefully', :vcr do
-      Services::Logging::LoggerService.log_request(
+      Services::Logging::SimpleLogger.log_request(
         method: 'POST',
         path: '/error-endpoint',
         status: 500,

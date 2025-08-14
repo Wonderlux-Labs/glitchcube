@@ -77,6 +77,160 @@ module Services
           info("Performance: #{operation}", tagged: [:performance], operation: operation, duration_ms: duration, **metadata)
         end
 
+        # Specialized logging methods (previously in LoggerService)
+        def log_interaction(user_message:, ai_response:, persona:, confidence: nil, session_id: nil, context: {})
+          interaction_data = {
+            timestamp: Time.now.iso8601,
+            session_id: session_id,
+            user_message: user_message,
+            ai_response: ai_response,
+            persona: persona,
+            context: context
+          }
+
+          # Only add confidence if provided (for backward compatibility)
+          interaction_data[:confidence] = confidence if confidence
+
+          # Use SimpleLogger with appropriate tags
+          info(
+            "Interaction: #{persona}",
+            tagged: [:interaction, persona.downcase],
+            session_id: session_id,
+            user_message: user_message,
+            ai_response: ai_response,
+            confidence: confidence
+          )
+        end
+
+        def log_api_call(service:, endpoint:, method: 'POST', status: nil, duration: nil, error: nil, url: nil, **context)
+          status_emoji = case status
+                         when 200..299 then '✅'
+                         when 400..499 then '⚠️'
+                         when 500..599 then '❌'
+                         else '🔄'
+                         end
+
+          message = "#{status_emoji} #{service.upcase} #{method} #{endpoint} #{status} (#{duration}ms)"
+          message += " - #{error}" if error
+
+          level = error ? :error : :info
+          tags = [:api, service.downcase]
+
+          log(
+            msg: message,
+            level: level,
+            tagged: tags,
+            service: service,
+            endpoint: endpoint,
+            method: method,
+            status: status,
+            duration_ms: duration,
+            url: url,
+            **context
+          )
+
+          # Track errors
+          track_error(service, error) if error
+        end
+
+        def log_request(method:, path:, status:, duration:, params: {}, user_agent: nil, ip: nil, error: nil)
+          status_emoji = case status
+                         when 200..299 then '✅'
+                         when 300..399 then '🔄'
+                         when 400..499 then '⚠️'
+                         when 500..599 then '❌'
+                         else '❓'
+                         end
+
+          message = "#{status_emoji} #{method} #{path} #{status} (#{duration}ms)"
+          message += " - ERROR: #{error}" if error
+
+          level = error ? :error : :info
+
+          log(
+            msg: message,
+            level: level,
+            tagged: [:request],
+            method: method,
+            path: path,
+            status: status,
+            duration_ms: duration,
+            params: params,
+            user_agent: user_agent,
+            ip: ip
+          )
+
+          # Track errors
+          track_error('web_request', error) if error
+        end
+
+        def log_tts(message:, success:, duration: nil, error: nil, **_extra_params)
+          status_emoji = success ? '🔊' : '🔇'
+          truncated_msg = message[0..100] + (message.length > 100 ? '...' : '')
+
+          log_msg = "#{status_emoji} \"#{truncated_msg}\""
+          log_msg += " - #{error}" if error
+
+          log(
+            msg: log_msg,
+            level: error ? :error : :info,
+            tagged: [:tts],
+            success: success,
+            duration_ms: duration
+          )
+
+          # Track TTS errors
+          track_error('tts', error) if error
+        end
+
+        def log_circuit_breaker(name:, state:, reason: nil)
+          emoji = case state
+                  when :open then '🔴'
+                  when :closed then '🟢'
+                  when :half_open then '🟡'
+                  else '⚪'
+                  end
+
+          message = "#{emoji} Circuit breaker #{name} -> #{state.upcase}"
+          message += " (#{reason})" if reason
+
+          warn(
+            message,
+            tagged: [:circuit_breaker],
+            breaker: name,
+            state: state,
+            reason: reason
+          )
+        end
+
+        def track_error(service, error_message)
+          ensure_error_tracker
+          @error_tracker.track(service, error_message)
+        end
+
+        def error_stats
+          ensure_error_tracker
+          @error_tracker.stats
+        end
+
+        def error_summary
+          ensure_error_tracker
+          @error_tracker.summary
+        end
+
+        def general
+          # Compatibility method - returns self for logger-like behavior
+          self
+        end
+
+        def setup_loggers
+          # Legacy method - no longer needed but kept for compatibility
+          # SimpleLogger auto-creates directories as needed
+          ensure_log_directory
+          # Write a test log to ensure file is created (for test compatibility)
+          write_to_file('[SETUP] Logger initialized')
+        end
+
         # Public accessor for log directory path
         def log_directory_path
           log_directory
@@ -152,6 +306,11 @@ module Services
           ::Kernel.puts "Failed to create log directory: #{e.message}"
         end
 
+        def ensure_error_tracker
+          # Ensure error tracker is initialized
+          @ensure_error_tracker ||= ErrorTracker.new
+        end
+
         def log_directory
           # In CI or when APP_ROOT is set to /custom/path, use a fallback
           root_dir = if defined?(Cube::Settings) && Cube::Settings.app_root != '/custom/path'
@@ -167,6 +326,73 @@ module Services
           else
             File.join(root_dir, 'logs')
           end
+        end
+      end
+
+      class ErrorTracker
+        def initialize
+          @error_file = File.join(SimpleLogger.send(:log_directory), 'errors.json')
+          @errors = load_errors
+        end
+
+        def track(service, error_message)
+          error_key = "#{service}:#{error_message}"
+
+          if @errors[error_key]
+            @errors[error_key][:count] += 1
+            @errors[error_key][:last_occurrence] = Time.now.iso8601
+          else
+            @errors[error_key] = {
+              service: service,
+              error: error_message,
+              count: 1,
+              first_occurrence: Time.now.iso8601,
+              last_occurrence: Time.now.iso8601
+            }
+          end
+
+          save_errors
+        end
+
+        def stats
+          errors = @errors.values.map do |error_data|
+            {
+              service: error_data[:service],
+              error: error_data[:error],
+              count: error_data[:count],
+              first_seen: error_data[:first_occurrence],
+              last_seen: error_data[:last_occurrence]
+            }
+          end
+          errors.sort_by { |e| -e[:count] } # Sort by frequency
+        end
+
+        def summary
+          total_errors = @errors.values.sum { |e| e[:count] }
+          services = @errors.values.group_by { |e| e[:service] }
+
+          {
+            total_errors: total_errors,
+            unique_errors: @errors.size,
+            by_service: services.transform_values { |service_errors| service_errors.sum { |e| e[:count] } }
+          }
+        end
+
+        private
+
+        def load_errors
+          return {} unless File.exist?(@error_file)
+
+          JSON.parse(File.read(@error_file), symbolize_names: true)
+        rescue JSON::ParserError, StandardError
+          {}
+        end
+
+        def save_errors
+          File.write(@error_file, JSON.pretty_generate(@errors))
+        rescue StandardError => e
+          # Silently fail saving errors (to avoid infinite error loops)
+          puts "Failed to save error tracking: #{e.message}" unless ENV['CI'] == 'true'
         end
       end
     end

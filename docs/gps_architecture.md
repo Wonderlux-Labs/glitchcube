@@ -271,7 +271,7 @@ Services::GpsCacheService.clear_cache!
 ### Monitor Performance
 ```ruby
 # Check cache hit rates
-Services::LoggerService.log_api_call(
+Services::SimpleLogger.log_api_call(
   service: 'gps_cache',
   endpoint: 'cached_location',
   cache_hit: true

@@ -3,7 +3,7 @@
 require 'spec_helper'
 require 'tzinfo'
 
-RSpec.describe Services::SystemPromptService do
+RSpec.describe Services::Conversation::SystemPromptService do
   describe '#generate' do
     let(:service) { described_class.new(character: character, context: context) }
     let(:character) { nil }

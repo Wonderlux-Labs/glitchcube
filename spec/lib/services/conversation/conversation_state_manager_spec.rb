@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Services::Conversation::ConversationStateManager do
+RSpec.describe Services::Conversation::StateManager do
   include_context 'with_full_conversation_setup'
 
   subject { described_class.new }
@@ -188,7 +188,7 @@ RSpec.describe Services::Conversation::ConversationStateManager do
     context 'error handling' do
       before do
         # Mock an error scenario
-        allow(Services::ConversationSession).to receive(:find_by_session_id)
+        allow(ConversationSession).to receive(:find_by_session_id)
           .and_raise(StandardError.new('Database connection failed'))
       end
 

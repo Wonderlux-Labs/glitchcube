@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../../lib/services/system/tool_executor'
+require_relative '../../lib/services/tool_executor'
 
 RSpec.describe Services::ToolExecutor do
   describe '.execute' do

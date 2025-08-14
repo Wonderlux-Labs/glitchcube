@@ -89,7 +89,7 @@ end
 class ConversationFlowManager
   def initialize
     @state_manager = ConversationStateManager.new
-    @llm_manager = LLMInteractionManager.new
+    @llm_manager = LlmInteractionManager.new
     @tool_engine = ToolExecutionEngine.new
     @response_processor = ResponseProcessor.new
     @history_manager = ConversationHistoryManager.new
@@ -120,7 +120,7 @@ end
 ```mermaid
 graph TD
     A[ConversationModule] --> B[ConversationFlowManager]
-    B --> C[LLMInteractionManager]
+    B --> C[LlmInteractionManager]
     B --> D[ToolExecutionEngine]
     B --> E[ResponseProcessor]
     B --> F[ConversationStateManager]
@@ -142,7 +142,7 @@ graph TD
 |---------|---------------|-----------|
 | **ConversationModule** | Simple interface, persona switching | `lib/modules/conversation_module.rb` |
 | **ConversationFlowManager** | Central orchestration | `lib/services/conversation/conversation_flow_manager.rb` |
-| **LLMInteractionManager** | LLM communication | `lib/services/conversation/llm_interaction_manager.rb` |
+| **LlmInteractionManager** | LLM communication | `lib/services/conversation/llm_interaction_manager.rb` |
 | **ToolExecutionEngine** | Tool call handling | `lib/services/conversation/tool_execution_engine.rb` |
 | **ResponseProcessor** | Response validation | `lib/services/conversation/response_processor.rb` |
 | **ConversationStateManager** | Persistence & analytics | `lib/services/conversation/conversation_state_manager.rb` |

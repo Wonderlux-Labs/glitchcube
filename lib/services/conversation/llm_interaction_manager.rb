@@ -2,7 +2,7 @@
 
 module Services
   module Conversation
-    class LLMInteractionManager
+    class LlmInteractionManager
       def initialize(logger: Services::Logging::SimpleLogger)
         @logger = logger
       end
@@ -40,7 +40,7 @@ module Services
         )
 
         base_prompt = persona_instance.generate_system_prompt
-        final_prompt = Services::ContextInjectionService.inject_context(base_prompt, enriched_context)
+        final_prompt = Services::Memory::ContextInjectionService.inject_context(base_prompt, enriched_context)
 
         unless context[:tools].present? && !context[:tools].empty?
           json_instruction = "\n\nIMPORTANT: Your response MUST be valid JSON in this exact format:\n" \
@@ -54,9 +54,9 @@ module Services
 
       def select_appropriate_model(context, session_id)
         model = if context[:tools].present? && !context[:tools].empty?
-                  context[:tools_model] || GlitchCube.config.ai.default_tools_model
+                  context[:tools_model] || GlitchCube.config.default_tools_model
                 else
-                  context[:model] || GlitchCube.config.ai.default_model
+                  context[:model] || GlitchCube.config.default_model
                 end
         @logger.debug("Selected model: #{model}", tagged: %i[conversation llm], session_id: session_id, reason: context[:tools].present? ? 'tools' : 'default')
         model

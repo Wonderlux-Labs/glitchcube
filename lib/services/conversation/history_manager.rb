@@ -2,7 +2,7 @@
 
 module Services
   module Conversation
-    class ConversationHistoryManager
+    class HistoryManager
       def initialize(logger: Services::Logging::SimpleLogger)
         @logger = logger
       end

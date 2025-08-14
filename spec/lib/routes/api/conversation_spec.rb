@@ -225,7 +225,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
     end
 
     it 'handles ConversationSession service failure', :vcr do
-      allow(Services::ConversationSession).to receive(:find_or_create)
+      allow(ConversationSession).to receive(:find_or_create)
         .and_raise(StandardError, 'Database connection failed')
 
       # Use the primary conversation endpoint
@@ -265,7 +265,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
   private
 
   def create_test_session
-    Services::ConversationSession.find_or_create(
+    ConversationSession.find_or_create(
       context: { source: 'test', persona: 'neutral' }
     )
   end

@@ -204,7 +204,7 @@ module Services
 
       class ErrorTracker
         def initialize
-          @error_file = File.join(Services::LoggerService.send(:log_directory), 'errors.json')
+          @error_file = File.join(Services::Logging::SimpleLogger.send(:log_directory), 'errors.json')
           @errors = load_errors
         end
 

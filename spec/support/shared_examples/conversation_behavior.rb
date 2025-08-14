@@ -90,8 +90,8 @@ if defined?(RSpec)
           .and_return(mock_llm_response_with_tools)
 
         # Mock tool execution
-        mock_tool_engine = instance_double(Services::ToolExecutionEngine)
-        allow(Services::ToolExecutionEngine).to receive(:new)
+        mock_tool_engine = instance_double(Services::Conversation::ToolExecutionEngine)
+        allow(Services::Conversation::ToolExecutionEngine).to receive(:new)
           .and_return(mock_tool_engine)
         allow(mock_tool_engine).to receive(:execute_tool_calls)
           .and_return({
@@ -155,8 +155,8 @@ if defined?(RSpec)
       expect(result[:conversation_id]).to be_present
 
       # Session should be created and maintained
-      expect(Services::ConversationSession).to have_received(:find_or_create)
-        .with(session_id, anything)
+      expect(ConversationSession).to have_received(:find_or_create)
+        .with(session_id: session_id, context: anything)
     end
   end
 
@@ -215,7 +215,7 @@ if defined?(RSpec)
       subject
 
       # Verify logging calls were made
-      expect(Services::Logging::LoggerService).to have_received(:log_interaction)
+      expect(Services::Logging::SimpleLogger).to have_received(:log_interaction)
       # TTS logging depends on whether TTS was actually called
     end
   end
@@ -280,8 +280,8 @@ if defined?(RSpec)
 
       it 'sets appropriate LED states during conversation' do
         # Mock conversation feedback service
-        mock_feedback = instance_double(Services::ConversationFeedbackService)
-        allow(Services::ConversationFeedbackService).to receive(:new)
+        mock_feedback = instance_double(Services::Conversation::FeedbackService)
+        allow(Services::Conversation::FeedbackService).to receive(:new)
           .and_return(mock_feedback)
         allow(mock_feedback).to receive(:set_state)
 
@@ -297,8 +297,8 @@ if defined?(RSpec)
       let(:conversation_context) { { visual_feedback: false } }
 
       it 'skips LED state changes' do
-        mock_feedback = instance_double(Services::ConversationFeedbackService)
-        allow(Services::ConversationFeedbackService).to receive(:new)
+        mock_feedback = instance_double(Services::Conversation::FeedbackService)
+        allow(Services::Conversation::FeedbackService).to receive(:new)
           .and_return(mock_feedback)
         allow(mock_feedback).to receive(:set_state)
 

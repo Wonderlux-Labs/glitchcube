@@ -7,8 +7,8 @@ module Services
     class RetryHandler
       class << self
         def with_retry_logic(model:, max_attempts: 3)
-          # Disable retries in test environment unless explicitly testing retries
-          max_attempts = 1 if GlitchCube.config.test? && !ENV['ENABLE_RETRIES']
+          # Disable retries when disabled in config
+          max_attempts = 1 unless GlitchCube.config.enable_retries
 
           attempt = 0
           delay = 1.0

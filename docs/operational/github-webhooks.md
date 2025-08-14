@@ -118,7 +118,7 @@ The `/api/v1/deploy/status` endpoint provides:
 - Last check timestamp
 
 ### Logs
-All deployment activities are logged via `Services::LoggerService` with:
+All deployment activities are logged via `Services::SimpleLogger` with:
 - Webhook requests (GitHub payload info)
 - Deployment step results (git pull, config sync, restarts)
 - Error details for failed deployments

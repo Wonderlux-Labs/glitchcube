@@ -24,7 +24,7 @@ module GlitchCube
               json({ error: 'No GPS coordinates available' })
             end
           rescue StandardError => e
-            ::Services::LoggerService.log_api_call(
+            ::Services::Logging::SimpleLogger.log_api_call(
               service: 'GPS API',
               endpoint: '/api/v1/gps/coords',
               error: e.message,
@@ -144,7 +144,7 @@ module GlitchCube
                 json({ history: history, total_points: history.length, mode: 'sample' })
               end
             rescue StandardError => e
-              ::Services::LoggerService.log_api_call(
+              ::Services::Logging::SimpleLogger.log_api_call(
                 service: 'GPS History',
                 endpoint: '/api/v1/gps/history',
                 error: e.message,
@@ -432,7 +432,7 @@ module GlitchCube
 
               json(response_data)
             rescue StandardError => e
-              ::Services::LoggerService.log_api_call(
+              ::Services::Logging::SimpleLogger.log_api_call(
                 service: 'GPS External API',
                 endpoint: '/api/v1/gps/cube_current_loc',
                 error: e.message,

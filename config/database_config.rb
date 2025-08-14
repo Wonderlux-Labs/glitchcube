@@ -192,8 +192,8 @@ def configure_database!
           typename = row['typname']
           # Register as a string type to prevent warnings
           # The actual geometry handling is done by PostGIS adapter
-          connection.send(:type_map).register_type(oid) do |_, _, sql_type|
-            ActiveRecord::Type::String.new(sql_type: sql_type)
+          connection.send(:type_map).register_type(oid) do |_, _, _sql_type|
+            ActiveRecord::Type::String.new
           end
         end
       end

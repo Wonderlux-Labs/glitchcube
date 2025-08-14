@@ -22,7 +22,7 @@ graph TD
     StateManager --> |find_or_create| DB[(PostgreSQL conversations table)]
     
     FlowManager --> ContextEnrich[Services::ContextEnrichmentService<br/>Inject Memories & Context]
-    FlowManager --> LLMManager[LLMInteractionManager<br/>Build Messages & System Prompt]
+    FlowManager --> LLMManager[LlmInteractionManager<br/>Build Messages & System Prompt]
     
     LLMManager --> |Prepare Messages| LLM[Services::Llm::LLMService<br/>OpenRouter API Call]
     
@@ -108,7 +108,7 @@ graph TD
     Speak --> HATTS[Home Assistant TTS]
     HATTS --> Speakers[Cube Speakers]
     
-    Speak --> CreateSession[Create Session<br/>Services::ConversationSession]
+    Speak --> CreateSession[Create Session<br/>ConversationSession]
     CreateSession --> SaveProactive[Save as Assistant Message<br/>with proactive: true]
     
     SaveProactive --> WaitResponse([Wait for Human Response])

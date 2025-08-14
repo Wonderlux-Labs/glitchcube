@@ -32,7 +32,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
     let(:error_stats) { [{ error: 'Connection timeout', count: 3 }] }
 
     before do
-      allow(Services::Logging::LoggerService).to receive_messages(error_summary: error_summary, error_stats: error_stats)
+      allow(Services::Logging::SimpleLogger).to receive_messages(error_summary: error_summary, error_stats: error_stats)
     end
 
     it 'returns error statistics', :vcr do
@@ -147,11 +147,11 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
   end
 
   describe 'GET /api/v1/system_prompt/:character?' do
-    let(:system_prompt_service) { instance_double(Services::SystemPromptService) }
+    let(:system_prompt_service) { instance_double(Services::Conversation::SystemPromptService) }
     let(:generated_prompt) { 'You are Glitch Cube, an art installation...' }
 
     before do
-      allow(Services::SystemPromptService).to receive(:new).and_return(system_prompt_service)
+      allow(Services::Conversation::SystemPromptService).to receive(:new).and_return(system_prompt_service)
       allow(system_prompt_service).to receive(:generate).and_return(generated_prompt)
     end
 
@@ -175,7 +175,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       body = JSON.parse(last_response.body)
       expect(body['character']).to eq('playful')
 
-      expect(Services::SystemPromptService).to have_received(:new).with(
+      expect(Services::Conversation::SystemPromptService).to have_received(:new).with(
         character: 'playful',
         context: hash_including(
           location: 'Default Location',
@@ -188,7 +188,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
     it 'accepts context parameters', :vcr do
       get '/api/v1/system_prompt/mysterious?location=Temple&battery=75&count=5'
 
-      expect(Services::SystemPromptService).to have_received(:new).with(
+      expect(Services::Conversation::SystemPromptService).to have_received(:new).with(
         character: 'mysterious',
         context: hash_including(
           location: 'Temple',

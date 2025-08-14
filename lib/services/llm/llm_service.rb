@@ -29,7 +29,7 @@ module Services
 
         # Completion with full message history
         def complete_with_messages(messages:, model: nil, **options)
-          model ||= GlitchCube.config.ai.default_model
+          model ||= GlitchCube.config.default_model
 
           # Validate model isn't blacklisted
           validate_model!(model)
@@ -282,7 +282,7 @@ module Services
 
         def parse_response(response, model, options = {})
           # Delegate to ResponseParser for cleaner separation of concerns
-          LLM::ResponseParser.parse(response, model, options)
+          Services::Llm::ResponseParser.parse(response, model, options)
         end
 
         def validate_model!(model)
@@ -293,8 +293,8 @@ module Services
         end
 
         def with_circuit_breaker(&)
-          # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
-          return yield if GlitchCube.config.test? && !GlitchCube.config.enable_circuit_breakers
+          # Bypass circuit breaker when disabled in config
+          return yield unless GlitchCube.config.enable_circuit_breakers
 
           Services::System::CircuitBreakerService.openrouter_breaker.call(&)
         rescue CircuitBreaker::CircuitOpenError => e
@@ -309,12 +309,12 @@ module Services
 
         def with_retry_logic(model:, max_attempts: 3, &)
           # Delegate to RetryHandler component for cleaner separation of concerns
-          LLM::RetryHandler.with_retry_logic(model: model, max_attempts: max_attempts, &)
+          Services::Llm::RetryHandler.with_retry_logic(model: model, max_attempts: max_attempts, &)
         end
 
         def handle_error(error)
           # Delegate to ErrorHandler for cleaner separation of concerns
-          LLM::ErrorHandler.handle_error(error)
+          Services::Llm::ErrorHandler.handle_error(error)
         end
 
         # Removed - delegated to ErrorHandler component
@@ -322,7 +322,9 @@ module Services
         # Removed - delegated to ErrorHandler component
 
         def log_api_request(params)
-          Services::LoggerService.log_api_call(
+          Services::Logging::SimpleLogger.info(
+            'OPENROUTER_REQUEST',
+            tagged: %i[llm openrouter_request],
             service: 'openrouter',
             endpoint: '/chat/completions',
             method: 'POST',
@@ -355,7 +357,9 @@ module Services
             end
           end
 
-          Services::LoggerService.log_api_call(
+          Services::Logging::SimpleLogger.info(
+            'OPENROUTER_RESPONSE',
+            tagged: %i[llm openrouter_response],
             service: 'openrouter',
             endpoint: '/chat/completions',
             method: 'POST',
@@ -363,7 +367,8 @@ module Services
             duration: duration,
             model: safe_extract(response) { |r| r[:model] || r['model'] } || model,
             usage: usage,
-            response_length: content.to_s.length
+            response_length: content.to_s.length,
+            response_data: response  # Include full response to see errors
           )
         end
 

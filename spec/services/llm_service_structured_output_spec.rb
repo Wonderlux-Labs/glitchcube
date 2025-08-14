@@ -23,7 +23,7 @@ RSpec.describe Services::Llm::LLMService, 'structured output support' do
           max_tokens: 300,
           response_format: formatted_schema
         )
-        expect(response).to be_a(Services::LLMResponse)
+        expect(response).to be_a(Services::Llm::LLMResponse)
         expect(response.response_text).to be_a(String)
         expect(response.parsed_content).to be_a(Hash)
         expect(response.parsed_content).to have_key('response')
@@ -65,7 +65,7 @@ RSpec.describe Services::Llm::LLMService, 'structured output support' do
           tools: tools,
           tool_choice: 'auto'
         )
-        expect(response).to be_a(Services::LLMResponse)
+        expect(response).to be_a(Services::Llm::LLMResponse)
         expect(response.has_tool_calls?).to be(true)
         expect(response.tool_calls).to be_an(Array)
         expect(response.tool_calls.first).to include(
@@ -93,7 +93,7 @@ RSpec.describe Services::Llm::LLMService, 'structured output support' do
           tools: tools,
           tool_choice: 'auto'
         )
-        expect(response).to be_a(Services::LLMResponse)
+        expect(response).to be_a(Services::Llm::LLMResponse)
         expect(response.has_tool_calls?).to be(false)
         expect(response.response_text).not_to be_empty
       end
@@ -150,7 +150,7 @@ RSpec.describe Services::Llm::LLMService, 'structured output support' do
               response_format: schema
             )
 
-            expect(response).to be_a(Services::LLMResponse)
+            expect(response).to be_a(Services::Llm::LLMResponse)
             expect(response.parsed_content).to be_a(Hash)
           rescue Services::Llm::LLMService::LLMError => e
             # If we get an error, let's see what it actually is

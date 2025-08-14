@@ -9,7 +9,7 @@ module Services
 
       def create_or_get_session(session_id, context)
         @logger.info('Creating or getting session', tagged: %i[conversation session], session_id: session_id)
-        session = Services::ConversationSession.find_or_create(
+        session = ConversationSession.find_or_create(
           session_id: session_id,
           context: context
         )
@@ -38,7 +38,7 @@ module Services
 
         begin
           # Find the session and conversation
-          session = Services::ConversationSession.find_by_session_id(session_id)
+          session = ConversationSession.find(session_id)
           return nil unless session
 
           conversation = session.conversation

@@ -44,7 +44,7 @@ module Services
         redis.setex(cache_key, CACHE_TTL, JSON.generate(result))
         result
       rescue StandardError => e
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'GIS Cache',
           endpoint: 'cached_streets',
           error: e.message,
@@ -86,7 +86,7 @@ module Services
         redis.setex(cache_key, CACHE_TTL, JSON.generate(result))
         result
       rescue StandardError => e
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'GIS Cache',
           endpoint: 'cached_toilets',
           error: e.message,
@@ -127,7 +127,7 @@ module Services
         redis.setex(cache_key, CACHE_TTL, JSON.generate(result))
         result
       rescue StandardError => e
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'GIS Cache',
           endpoint: 'cached_city_blocks',
           error: e.message,
@@ -169,7 +169,7 @@ module Services
         redis.setex(cache_key, CACHE_TTL, JSON.generate(result))
         result
       rescue StandardError => e
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'GIS Cache',
           endpoint: 'cached_plazas',
           error: e.message,
@@ -218,7 +218,7 @@ module Services
         redis.setex(cache_key, CACHE_TTL, JSON.generate(result))
         result
       rescue StandardError => e
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'GIS Cache',
           endpoint: 'cached_trash_fence',
           error: e.message,
@@ -247,7 +247,7 @@ module Services
         redis.setex(cache_key, CACHE_TTL, JSON.generate(landmarks))
         landmarks
       rescue StandardError => e
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'GIS Cache',
           endpoint: 'cached_all_landmarks',
           error: e.message,
@@ -261,7 +261,7 @@ module Services
         redis.keys('gis:*').each { |key| redis.del(key) }
         true
       rescue StandardError => e
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'GIS Cache',
           endpoint: 'clear_cache',
           error: e.message,

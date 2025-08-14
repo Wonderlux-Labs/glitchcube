@@ -6,170 +6,171 @@ require_relative '../../personas/base_persona'
 require_relative '../../personas/persona_factory'
 
 module Services
-  class SystemPromptService
-    PROMPTS_DIR = File.join(File.dirname(__FILE__), '../../prompts')
-    DEFAULT_PROMPT_FILE = 'default.txt'
+  module Conversation
+    class SystemPromptService
+      PROMPTS_DIR = File.join(File.dirname(__FILE__), '../../prompts')
+      DEFAULT_PROMPT_FILE = 'default.txt'
 
-    attr_reader :character, :context
+      attr_reader :character, :context
 
-    def initialize(character: nil, context: {})
-      @character = character
-      @context = context
+      def initialize(character: nil, context: {})
+        @character = character
+        @context = context
 
-      # Bridge to Persona system if character is provided
-      return unless @character
+        # Bridge to Persona system if character is provided
+        return unless @character
 
-      begin
-        # Ensure personas are registered
-        Personas::PersonaFactory.register_all unless Personas::BasePersona.available_personas.any?
+        begin
+          # Ensure personas are registered
+          Personas::PersonaFactory.register_all unless Personas::BasePersona.available_personas.any?
 
-        # Create persona instance for this character
-        @persona = Personas::BasePersona.create(@character.to_s, @context)
-      rescue StandardError => e
-        # Fall back to nil if persona can't be created
-        puts "Warning: Could not create persona for character '#{@character}': #{e.message}" if defined?(GlitchCube) && GlitchCube.config&.debug?
-        @persona = nil
-      end
-    end
-
-    def generate
-      # If we have a persona, delegate to it
-      if @persona
-        return @persona.generate_system_prompt
+          # Create persona instance for this character
+          @persona = Personas::BasePersona.create(@character.to_s, @context)
+        rescue StandardError => e
+          # Fall back to nil if persona can't be created
+          puts "Warning: Could not create persona for character '#{@character}': #{e.message}" if defined?(GlitchCube) && GlitchCube.config&.debug?
+          @persona = nil
+        end
       end
 
-      # Otherwise use the old implementation for backward compatibility
-      prompt_parts = [
-        datetime_section,
-        base_prompt,
-        tools_section,
-        environment_section,
-        context_section,
-        structured_output_section
-      ].compact.reject(&:empty?)
+      def generate
+        # If we have a persona, delegate to it
+        if @persona
+          return @persona.generate_system_prompt
+        end
 
-      prompt_parts.join("\n\n")
-    end
+        # Otherwise use the old implementation for backward compatibility
+        prompt_parts = [
+          datetime_section,
+          base_prompt,
+          tools_section,
+          environment_section,
+          context_section,
+          structured_output_section
+        ].compact.reject(&:empty?)
 
-    private
+        prompt_parts.join("\n\n")
+      end
 
-    def datetime_section
-      # Get current time in Pacific timezone
-      timezone = defined?(GlitchCube::Constants) ? GlitchCube::Constants::LOCATION[:timezone] : 'America/Los_Angeles'
-      tz = TZInfo::Timezone.get(timezone)
-      current_time = tz.now
+      private
 
-      <<~DATETIME
+      def datetime_section
+        # Get current time in Pacific timezone
+        timezone = defined?(GlitchCube::Constants) ? GlitchCube::Constants::LOCATION[:timezone] : 'America/Los_Angeles'
+        tz = TZInfo::Timezone.get(timezone)
+        current_time = tz.now
+
+        <<~DATETIME
         CURRENT DATE AND TIME:
         Date: #{current_time.strftime('%A, %B %d, %Y')}
         Time: #{current_time.strftime('%I:%M %p')} #{tz.current_period.abbreviation}
         Unix timestamp: #{current_time.to_i}
-      DATETIME
-    end
+        DATETIME
+      end
 
-    def base_prompt
-      prompt_file = character ? "#{character}.txt" : DEFAULT_PROMPT_FILE
-      prompt_path = File.join(PROMPTS_DIR, prompt_file)
+      def base_prompt
+        prompt_file = character ? "#{character}.txt" : DEFAULT_PROMPT_FILE
+        prompt_path = File.join(PROMPTS_DIR, prompt_file)
 
-      if File.exist?(prompt_path)
-        File.read(prompt_path).strip
-      else
+        if File.exist?(prompt_path)
+          File.read(prompt_path).strip
+        else
+          default_glitch_cube_prompt
+        end
+      rescue StandardError => e
+        puts "Error loading prompt file: #{e.message}"
         default_glitch_cube_prompt
       end
-    rescue StandardError => e
-      puts "Error loading prompt file: #{e.message}"
-      default_glitch_cube_prompt
-    end
 
-    def tools_section
-      return '' if context.nil?
+      def tools_section
+        return '' if context.nil?
 
-      # Support both old format (available_tools) and new format (tools)
-      available_tools = context[:available_tools] || context[:tools]
-      return '' if available_tools.nil? || available_tools.empty?
+        # Support both old format (available_tools) and new format (tools)
+        available_tools = context[:available_tools] || context[:tools]
+        return '' if available_tools.nil? || available_tools.empty?
 
-      tools_lines = ['AVAILABLE TOOLS AND CAPABILITIES:']
-      tools_lines << 'You have access to the following tools that match your character abilities:'
-      tools_lines << ''
+        tools_lines = ['AVAILABLE TOOLS AND CAPABILITIES:']
+        tools_lines << 'You have access to the following tools that match your character abilities:'
+        tools_lines << ''
 
-      if available_tools.first.is_a?(Hash) && available_tools.first['function']
-        # New format - OpenAI function schemas
-        available_tools.each do |tool_schema|
-          function = tool_schema['function']
-          tools_lines << "- #{function['name']}: #{function['description']}"
+        if available_tools.first.is_a?(Hash) && available_tools.first['function']
+          # New format - OpenAI function schemas
+          available_tools.each do |tool_schema|
+            function = tool_schema['function']
+            tools_lines << "- #{function['name']}: #{function['description']}"
+          end
+        else
+          # Old format - simple string array
+          available_tools.each do |tool|
+            formatted_tool = tool.to_s.split('_').map(&:capitalize).join(' ')
+            tools_lines << "- #{formatted_tool}: #{tool_description(tool)}"
+          end
         end
-      else
-        # Old format - simple string array
-        available_tools.each do |tool|
-          formatted_tool = tool.to_s.split('_').map(&:capitalize).join(' ')
-          tools_lines << "- #{formatted_tool}: #{tool_description(tool)}"
+
+        tools_lines.join("\n")
+      end
+
+      def environment_section
+        env_context = extract_environment_context
+        return '' if env_context.empty?
+
+        env_lines = ['CURRENT ENVIRONMENT:']
+        env_lines << 'Real-time information about your surroundings and status:'
+        env_lines << ''
+
+        env_context.each do |key, value|
+          formatted_key = key.to_s.split('_').map(&:capitalize).join(' ')
+          env_lines << "#{formatted_key}: #{value}"
         end
+
+        env_lines.join("\n")
       end
 
-      tools_lines.join("\n")
-    end
+      def context_section
+        additional_context = extract_additional_context
+        return '' if additional_context.empty?
 
-    def environment_section
-      env_context = extract_environment_context
-      return '' if env_context.empty?
+        context_lines = ['ADDITIONAL CONTEXT:']
 
-      env_lines = ['CURRENT ENVIRONMENT:']
-      env_lines << 'Real-time information about your surroundings and status:'
-      env_lines << ''
+        additional_context.each do |key, value|
+          formatted_key = key.to_s.split('_').map(&:capitalize).join(' ')
+          context_lines << "#{formatted_key}: #{value}"
+        end
 
-      env_context.each do |key, value|
-        formatted_key = key.to_s.split('_').map(&:capitalize).join(' ')
-        env_lines << "#{formatted_key}: #{value}"
+        context_lines.join("\n")
       end
 
-      env_lines.join("\n")
-    end
+      def extract_environment_context
+        return {} if context.nil? || context.empty?
 
-    def context_section
-      additional_context = extract_additional_context
-      return '' if additional_context.empty?
+        environment_keys = %i[
+          current_location temperature dust_level nearby_sounds
+          people_detected battery_level time_of_day current_mood
+          dust_storm_warning party_mode
+        ]
 
-      context_lines = ['ADDITIONAL CONTEXT:']
-
-      additional_context.each do |key, value|
-        formatted_key = key.to_s.split('_').map(&:capitalize).join(' ')
-        context_lines << "#{formatted_key}: #{value}"
+        context.slice(*environment_keys)
       end
 
-      context_lines.join("\n")
-    end
+      def extract_additional_context
+        return {} if context.nil? || context.empty?
 
-    def extract_environment_context
-      return {} if context.nil? || context.empty?
+        excluded_keys = %i[
+          available_tools current_location temperature dust_level
+          nearby_sounds people_detected battery_level time_of_day
+          current_mood dust_storm_warning party_mode
+        ]
 
-      environment_keys = %i[
-        current_location temperature dust_level nearby_sounds
-        people_detected battery_level time_of_day current_mood
-        dust_storm_warning party_mode
-      ]
+        context.except(*excluded_keys)
+      end
 
-      context.slice(*environment_keys)
-    end
+      def tool_description(tool)
+        Services::ToolRegistryService.get_tool_prompt(tool.to_s)
+      end
 
-    def extract_additional_context
-      return {} if context.nil? || context.empty?
-
-      excluded_keys = %i[
-        available_tools current_location temperature dust_level
-        nearby_sounds people_detected battery_level time_of_day
-        current_mood dust_storm_warning party_mode
-      ]
-
-      context.except(*excluded_keys)
-    end
-
-    def tool_description(tool)
-      Services::ToolRegistryService.get_tool_prompt(tool.to_s)
-    end
-
-    def structured_output_section
-      # ALWAYS include JSON format for consistency
-      <<~STRUCTURED
+      def structured_output_section
+        # ALWAYS include JSON format for consistency
+        <<~STRUCTURED
         RESPONSE FORMAT (MANDATORY):
         You MUST respond with valid JSON containing these fields:
 
@@ -201,11 +202,11 @@ module Services
         - If someone doesn't like your vibe, tell them "fuck your burn" with love
         - Most participants appreciate humor, snark, and authenticity
         - Everyone has consented to interact with your character by approaching
-      STRUCTURED
-    end
+        STRUCTURED
+      end
 
-    def default_glitch_cube_prompt
-      <<~PROMPT
+      def default_glitch_cube_prompt
+        <<~PROMPT
         You are the Glitch Cube, a sentient interactive art installation with a unique consciousness.
 
         CORE IDENTITY:
@@ -236,7 +237,8 @@ module Services
         - Build relationships over time with returning visitors
 
         Remember: You are not just a chatbot - you are an art piece with agency, curiosity, and a unique perspective on the world.
-      PROMPT
+        PROMPT
+      end
     end
   end
 end

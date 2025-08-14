@@ -73,7 +73,7 @@ module Tools
         duration_ms = ((Time.now - start_time) * 1000).round
 
         # Log the TTS call
-        Services::LoggerService.log_tts(
+        Services::Logging::SimpleLogger.log_tts(
           message: text,
           success: success,
           duration: duration_ms,
@@ -95,7 +95,7 @@ module Tools
         duration_ms = ((Time.now - start_time) * 1000).round if defined?(start_time)
 
         # Log the error
-        Services::LoggerService.log_tts(
+        Services::Logging::SimpleLogger.log_tts(
           message: text,
           success: false,
           duration: duration_ms || 0,

@@ -175,10 +175,13 @@ module Services
                                               persona: persona,
                                               session_id: session&.session_id)
 
-        # Also track in LoggerService for production monitoring
-        Services::LoggerService.track_error(
-          'ConversationModule',
-          error.message
+        # Also track in SimpleLogger for production monitoring
+        Services::Logging::SimpleLogger.error(
+          'CONVERSATION_ERROR_TRACKING',
+          tagged: %i[conversation error_tracking],
+          service: 'ConversationModule',
+          error_message: error.message,
+          error_class: error.class.name
         )
       rescue StandardError => e
         Services::Logging::SimpleLogger.warn(

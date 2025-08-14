@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Services::Conversation::LLMInteractionManager do
+RSpec.describe Services::Conversation::LlmInteractionManager do
   include_context 'with_full_conversation_setup'
 
   subject { described_class.new }
@@ -68,7 +68,7 @@ RSpec.describe Services::Conversation::LLMInteractionManager do
     let(:persona_instance) { instance_double('PersonaInstance', name: 'buddy', generate_system_prompt: 'Base prompt') }
 
     before do
-      allow(Services::ContextInjectionService).to receive(:inject_context).and_return('Enhanced prompt')
+      allow(Services::Memory::ContextInjectionService).to receive(:inject_context).and_return('Enhanced prompt')
     end
 
     it 'builds system prompt successfully' do
@@ -81,7 +81,7 @@ RSpec.describe Services::Conversation::LLMInteractionManager do
     it 'enriches context appropriately' do
       subject.build_system_prompt(persona_instance, context)
 
-      expect(Services::ContextInjectionService).to have_received(:inject_context)
+      expect(Services::Memory::ContextInjectionService).to have_received(:inject_context)
         .with('Base prompt', hash_including(:current_persona, :session_id))
     end
 
@@ -144,7 +144,7 @@ RSpec.describe Services::Conversation::LLMInteractionManager do
     let(:persona_instance) { instance_double('PersonaInstance', name: 'buddy', generate_system_prompt: 'Base prompt') }
 
     before do
-      allow(Services::ContextInjectionService).to receive(:inject_context).and_return('Enhanced prompt')
+      allow(Services::Memory::ContextInjectionService).to receive(:inject_context).and_return('Enhanced prompt')
     end
 
     it 'coordinates between all methods' do

@@ -59,12 +59,12 @@ result = @flow_manager.process_conversation(
 - Build and return final response data
 - Centralized error handling for the conversation flow
 
-### 3. LLMInteractionManager (`lib/services/conversation/llm_interaction_manager.rb`)
+### 3. LlmInteractionManager (`lib/services/conversation/llm_interaction_manager.rb`)
 
 Standardizes all communication with Large Language Models:
 
 ```ruby
-llm_manager = Services::LLMInteractionManager.new
+llm_manager = Services::LlmInteractionManager.new
 messages = llm_manager.prepare_messages(history, system_prompt, user_message)
 response = llm_manager.call_llm(messages: messages, llm_options: options)
 ```

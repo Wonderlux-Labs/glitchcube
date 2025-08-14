@@ -7,20 +7,13 @@ RSpec.describe ConversationModule do
 
   let(:message) { 'What is your name?' }
   let(:context) { { session_id: 'test-session' } }
-  let(:flow_manager) { instance_double(Services::Conversation::ConversationFlowManager) }
-  let(:feedback_service) { instance_double(Services::ConversationFeedbackService) }
-  let(:side_effect_service) { instance_double(Services::ConversationSideEffectHandler) }
+  let(:flow_manager) { instance_double(Services::Conversation::FlowManager) }
 
   subject { described_class.new }
 
   before do
     # Mock the core dependencies with minimal setup
-    allow(Services::Conversation::ConversationFlowManager).to receive(:new).and_return(flow_manager)
-    allow(Services::ConversationFeedbackService).to receive(:new).and_return(feedback_service)
-    allow(Services::ConversationSideEffectHandler).to receive(:new).and_return(side_effect_service)
-
-    allow(feedback_service).to receive(:set_state)
-    allow(side_effect_service).to receive(:execute)
+    allow(Services::Conversation::FlowManager).to receive(:new).and_return(flow_manager)
   end
 
   describe '#call' do
@@ -71,23 +64,11 @@ RSpec.describe ConversationModule do
           .with('Conversation completed', hash_including(tagged: [:conversation]))
       end
 
-      it 'sets visual feedback states when enabled' do
+      it 'logs conversation start and completion' do
+        expect(Services::Logging::SimpleLogger).to receive(:debug).with('Conversation started', any_args)
+        expect(Services::Logging::SimpleLogger).to receive(:info).with('Conversation completed', any_args)
+
         subject.call(message: message, context: context)
-
-        expect(feedback_service).to have_received(:set_state).with(:listening)
-        expect(feedback_service).to have_received(:set_state).with(:thinking)
-      end
-
-      it 'skips visual feedback when disabled' do
-        subject.call(message: message, context: context.merge(visual_feedback: false))
-
-        expect(feedback_service).not_to have_received(:set_state)
-      end
-
-      it 'executes side effects after processing' do
-        subject.call(message: message, context: context)
-
-        expect(side_effect_service).to have_received(:execute)
       end
     end
 
@@ -278,26 +259,7 @@ RSpec.describe ConversationModule do
 
       before do
         # Mock the error handler to return a proper error response
-        allow(Services::ConversationErrorHandler).to receive(:handle).and_return(error_response)
-      end
-
-      it 'handles feedback service failures gracefully' do
-        # Feedback service fails immediately
-        allow(Services::ConversationFeedbackService).to receive(:new).and_raise(StandardError.new('Feedback service unavailable'))
-
-        # Should still return an error response rather than crashing
-        expect { subject.call(message: message, context: context) }.to raise_error(StandardError, 'Feedback service unavailable')
-      end
-
-      it 'handles side effects failures gracefully' do
-        allow(flow_manager).to receive(:process_conversation).and_return(successful_response)
-        allow(side_effect_service).to receive(:execute).and_raise(StandardError.new('Side effect error'))
-
-        # The error is caught and logged
-        result = subject.call(message: message, context: context)
-
-        # Should get error response from error handler
-        expect(result).to eq(error_response)
+        allow(Services::Conversation::ErrorHandler).to receive(:handle).and_return(error_response)
       end
 
       it 'handles flow manager failures gracefully' do
@@ -307,7 +269,7 @@ RSpec.describe ConversationModule do
 
         # Should get error response from error handler
         expect(result).to eq(error_response)
-        expect(Services::ConversationErrorHandler).to have_received(:handle)
+        expect(Services::Conversation::ErrorHandler).to have_received(:handle)
       end
     end
   end

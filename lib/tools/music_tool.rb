@@ -66,7 +66,7 @@ module Tools
                                    config_entry_id: '01K1VK4MYJ75WNGJR5ESSAC2WY' # Music Assistant instance ID
                                  }, return_response: true)
 
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'music_tool',
           endpoint: 'search',
           query: query,
@@ -120,7 +120,7 @@ module Tools
                           entity_id: entity_id
                         })
 
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'music_tool',
           endpoint: 'play',
           entity_id: entity_id,
@@ -164,7 +164,7 @@ module Tools
                                    config_entry_id: '01K1VK4MYJ75WNGJR5ESSAC2WY' # Music Assistant instance ID
                                  }, return_response: true)
 
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'music_tool',
           endpoint: 'search',
           query: query,
@@ -283,7 +283,7 @@ module Tools
           result << 'Use verbose: true for detailed capabilities'
         end
 
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'music_tool',
           endpoint: 'list_players',
           verbose: verbose,
@@ -332,7 +332,7 @@ module Tools
                           entity_id: entity_id
                         })
 
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'music_tool',
           endpoint: 'play',
           entity_id: entity_id,

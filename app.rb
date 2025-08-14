@@ -6,8 +6,6 @@ require 'sinatra'
 require 'sinatra/json'
 # NOTE: sinatra/reloader is deprecated - use 'rerun' gem in development instead
 
-require 'sinatra/activerecord'
-
 require 'json'
 require 'sidekiq'
 require 'redis'
@@ -25,6 +23,10 @@ end
 require_relative 'config/constants'
 require_relative 'config/database_config'
 
+# Set up database connection using centralized config BEFORE loading initializers
+# This ensures consistent database configuration across all environments
+configure_database!
+
 # Load all initializers (includes our new autoloader)
 Dir[File.join(__dir__, 'config', 'initializers', '*.rb')].each { |file| require file }
 
@@ -35,11 +37,6 @@ Services::Logging::SimpleLogger.info(
   environment: ENV['RACK_ENV'] || 'development',
   version: GlitchCube.config.device.version
 )
-
-# Set up database connection using centralized config
-# This ensures consistent database configuration across all environments
-configure_database!
-set :database_file, 'config/database.yml'
 
 # Load models
 Dir[File.join(__dir__, 'app', 'models', '*.rb')].each { |file| require file }
@@ -270,8 +267,8 @@ if ENV['RACK_ENV'] == 'production'
   end
 end
 
-# Schedule background summarizer and memory jobs to run after startup
-if SidekiqConfig.available?
+# Schedule background summarizer and memory jobs to run after startup (production only)
+if SidekiqConfig.available? && ENV['RACK_ENV'] == 'production'
   Services::Logging::SimpleLogger.info('📅 Scheduling background jobs for startup...', tagged: %i[startup jobs])
 
   startup_jobs = [
@@ -289,7 +286,12 @@ if SidekiqConfig.available?
     Services::Logging::SimpleLogger.error("❌ Failed to schedule #{job_info[:name]}: #{e.message}", tagged: %i[startup jobs error])
   end
 else
-  Services::Logging::SimpleLogger.warn('Sidekiq not available - background jobs not scheduled', tagged: %i[startup jobs warning])
+  reason = if SidekiqConfig.available?
+             'Development environment'
+           else
+             'Sidekiq not available'
+           end
+  Services::Logging::SimpleLogger.info("Background jobs not scheduled - #{reason}", tagged: %i[startup jobs])
 end
 
 # Start the server when running directly (not via rackup)

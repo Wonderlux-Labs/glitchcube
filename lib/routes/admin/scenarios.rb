@@ -141,12 +141,12 @@ module GlitchCube
             results = []
 
             models.each do |model|
-              result = run_scenario_for_model(scenario, model, persona)
+              result = Services::AdminPages.run_scenario_for_model(scenario, model, persona)
               results << result
             end
 
             # Save comparison for history
-            save_comparison(scenario_id, results)
+            Services::AdminPages.save_comparison(scenario_id, results)
 
             {
               success: true,
@@ -191,7 +191,7 @@ module GlitchCube
 
             results = []
             models.each do |model|
-              result = run_scenario_for_model(custom_scenario, model, persona)
+              result = Services::AdminPages.run_scenario_for_model(custom_scenario, model, persona)
               results << result
             end
 
@@ -211,10 +211,10 @@ module GlitchCube
         app.get '/admin/scenarios/export/:comparison_id' do
           content_type 'text/csv'
 
-          comparison = load_comparison(params[:comparison_id])
+          comparison = Services::AdminPages.load_comparison(params[:comparison_id])
           return 'Comparison not found' unless comparison
 
-          csv_data = generate_comparison_csv(comparison)
+          csv_data = Services::AdminPages.generate_comparison_csv(comparison)
 
           attachment "comparison_#{params[:comparison_id]}.csv"
           csv_data

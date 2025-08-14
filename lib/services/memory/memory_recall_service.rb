@@ -9,26 +9,26 @@ module Services
           selected_memories = []
 
           # 1. Get any upcoming events (high priority!)
-          upcoming = Memory.events_within(24).order(Arel.sql("(data->>'event_time')::timestamp ASC")).first
+          upcoming = ::Memory.events_within(24).order(Arel.sql("(data->>'event_time')::timestamp ASC")).first
           selected_memories << upcoming if upcoming
 
           # 2. Get a location-based memory if we have location
           if location.present?
-            location_memory = Memory.by_location(location)
-                                    .fresh # Less-told stories
-                                    .where.not(id: selected_memories.map(&:id))
-                                    .first
+            location_memory = ::Memory.by_location(location)
+                                      .fresh # Less-told stories
+                                      .where.not(id: selected_memories.map(&:id))
+                                      .first
             selected_memories << location_memory if location_memory
           end
 
           # 3. Fill remaining slots with recent high-intensity memories
           remaining_slots = limit - selected_memories.size
           if remaining_slots.positive?
-            recent_memories = Memory.high_intensity
-                                    .recent
-                                    .fresh
-                                    .where.not(id: selected_memories.map(&:id))
-                                    .limit(remaining_slots)
+            recent_memories = ::Memory.high_intensity
+                                      .recent
+                                      .fresh
+                                      .where.not(id: selected_memories.map(&:id))
+                                      .limit(remaining_slots)
             selected_memories.concat(recent_memories)
           end
 
@@ -53,14 +53,14 @@ module Services
 
         # Check if we know a person
         def know_person?(name)
-          Memory.about_person(name).exists?
+          ::Memory.about_person(name).exists?
         end
 
         # Get a person's story summary
         def person_summary(name)
-          memories = Memory.about_person(name)
-                           .order(Arel.sql("(data->>'emotional_intensity')::float DESC"))
-                           .limit(5)
+          memories = ::Memory.about_person(name)
+                             .order(Arel.sql("(data->>'emotional_intensity')::float DESC"))
+                             .limit(5)
 
           return nil if memories.empty?
 
@@ -123,10 +123,10 @@ module Services
 
         # Get trending memories (high intensity, recent, less recalled)
         def get_trending_memories(limit: 5)
-          Memory.where(created_at: 24.hours.ago..)
-                .high_intensity
-                .fresh # Less-told stories
-                .limit(limit)
+          ::Memory.where(created_at: 24.hours.ago..)
+                  .high_intensity
+                  .fresh # Less-told stories
+                  .limit(limit)
         end
 
         private

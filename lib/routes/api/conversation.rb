@@ -30,7 +30,7 @@ module GlitchCube
             rescue StandardError => e
               # Log the error
               puts "❌ Error in /api/v1/test: #{e.class.name} - #{e.message}"
-              ::Services::LoggerService.track_error('api', e.message) if defined?(::Services::LoggerService)
+              ::Services::Logging::SimpleLogger.track_error('api', e.message) if defined?(::Services::Logging::SimpleLogger)
 
               status 500
               json({

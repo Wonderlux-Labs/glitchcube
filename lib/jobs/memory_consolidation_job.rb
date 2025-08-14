@@ -50,7 +50,7 @@ module Jobs
       date = Date.today.strftime('%Y-%m-%d')
       filename = "daily_memories_#{date}.txt"
 
-      context_service = Services::ContextRetrievalService.new
+      context_service = Services::Memory::ContextRetrievalService.new
 
       # Read existing memories for today
       existing = read_daily_memories(filename)
@@ -73,7 +73,7 @@ module Jobs
     def update_topic_documents(summary)
       return unless summary[:topics_discussed]
 
-      context_service = Services::ContextRetrievalService.new
+      context_service = Services::Memory::ContextRetrievalService.new
 
       # Map topics to document categories
       topic_mappings = {
@@ -91,7 +91,7 @@ module Jobs
     end
 
     def read_daily_memories(filename)
-      path = File.join(Services::ContextRetrievalService::CONTEXT_DIR, filename)
+      path = File.join(Services::Memory::ContextRetrievalService::CONTEXT_DIR, filename)
       return "# Daily Memories\n\n" unless File.exist?(path)
 
       File.read(path)

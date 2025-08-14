@@ -13,8 +13,8 @@ module GlitchCube
             content_type :json
 
             json({
-                   error_summary: ::Services::LoggerService.error_summary,
-                   error_stats: ::Services::LoggerService.error_stats
+                   error_summary: ::Services::Logging::SimpleLogger.error_summary,
+                   error_stats: ::Services::Logging::SimpleLogger.error_stats
                  })
           end
 
@@ -75,7 +75,7 @@ module GlitchCube
               interaction_count: params[:count]&.to_i || 1
             }
 
-            prompt_service = ::Services::SystemPromptService.new(
+            prompt_service = ::Services::Conversation::SystemPromptService.new(
               character: character,
               context: context
             )
@@ -98,7 +98,7 @@ module GlitchCube
               interaction_count: params[:count]&.to_i || 1
             }
 
-            prompt_service = ::Services::SystemPromptService.new(
+            prompt_service = ::Services::Conversation::SystemPromptService.new(
               character: character,
               context: context
             )

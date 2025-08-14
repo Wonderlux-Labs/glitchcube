@@ -26,7 +26,7 @@ module GlitchCube
 
               # Build options hash
               llm_options = {
-                model: model || GlitchCube.config.ai.default_model,
+                model: model || GlitchCube.config.default_model,
                 temperature: options['temperature'] || 0.7,
                 max_tokens: options['max_tokens'] || 500
               }
@@ -104,7 +104,7 @@ module GlitchCube
             }
 
             {
-              default_model: GlitchCube.config.ai.default_model || 'openai/gpt-4.1-mini',
+              default_model: GlitchCube.config.default_model || 'openai/gpt-4.1-mini',
               available_models: models
             }.to_json
           end

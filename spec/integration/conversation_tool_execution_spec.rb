@@ -88,8 +88,8 @@ RSpec.describe 'Conversation Tool Execution Integration', type: :integration do
         allow(Services::ToolExecutor).to receive(:execute).and_return([])
 
         # Mock services to ensure they're NOT called directly
-        allow(Services::ConversationFeedbackService).to receive(:set_listening)
-        allow(Services::ConversationFeedbackService).to receive(:set_thinking)
+        allow(Services::Conversation::FeedbackService).to receive(:set_listening)
+        allow(Services::Conversation::FeedbackService).to receive(:set_thinking)
         allow_any_instance_of(Services::CharacterService).to receive(:speak)
 
         result = conversation_module.call(
@@ -102,8 +102,8 @@ RSpec.describe 'Conversation Tool Execution Integration', type: :integration do
 
         # Verify NO direct fallback calls occurred
         # (In Phase 2, we remove fallback mechanisms entirely)
-        expect(Services::ConversationFeedbackService).not_to have_received(:set_listening)
-        expect(Services::ConversationFeedbackService).not_to have_received(:set_thinking)
+        expect(Services::Conversation::FeedbackService).not_to have_received(:set_listening)
+        expect(Services::Conversation::FeedbackService).not_to have_received(:set_thinking)
       end
     end
 

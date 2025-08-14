@@ -56,7 +56,7 @@ module Services
     end
   end
 
-  class LoggerService
+  class SimpleLogger
     def self.log_interaction(*args)
       # This will be mocked in tests
     end
@@ -117,7 +117,7 @@ module Services
   end
 
   module Conversation
-    class ConversationFlowManager
+    class FlowManager
       def initialize(*args); end
 
       def process_conversation(*_args)
@@ -352,7 +352,7 @@ if defined?(RSpec)
     end
 
     let(:mock_session) do
-      instance_double(Services::ConversationSession,
+      instance_double(ConversationSession,
                       session_id: session_id,
                       messages_for_llm: [],
                       add_message: true,
@@ -362,7 +362,7 @@ if defined?(RSpec)
     end
 
     before do
-      allow(Services::ConversationSession).to receive(:find_or_create)
+      allow(ConversationSession).to receive(:find_or_create)
         .with(session_id: session_id, context: anything)
         .and_return(mock_session)
     end
@@ -432,8 +432,8 @@ if defined?(RSpec)
         .and_return('buddy')
 
       # Mock system prompt service
-      mock_prompt_service = instance_double(Services::SystemPromptService)
-      allow(Services::SystemPromptService).to receive(:new)
+      mock_prompt_service = instance_double(Services::Conversation::SystemPromptService)
+      allow(Services::Conversation::SystemPromptService).to receive(:new)
         .and_return(mock_prompt_service)
       allow(mock_prompt_service).to receive(:generate)
         .and_return('Test system prompt for conversation')
@@ -444,8 +444,8 @@ if defined?(RSpec)
       allow(Services::Logging::SimpleLogger).to receive(:log_error)
 
       # Mock logger service
-      allow(Services::Logging::LoggerService).to receive(:log_interaction)
-      allow(Services::Logging::LoggerService).to receive(:log_tts)
+      allow(Services::Logging::SimpleLogger).to receive(:log_interaction)
+      allow(Services::Logging::SimpleLogger).to receive(:log_tts)
     end
   end
 

@@ -11,7 +11,7 @@ Sidekiq.configure_server do |config|
   schedule_file = 'config/sidekiq/sidekiq_cron.yml'
 
   if File.exist?(schedule_file) && Sidekiq.server?
-    cron_schedule = YAML.load_file(schedule_file)
+    cron_schedule = YAML.safe_load_file(schedule_file, aliases: true)
     Sidekiq::Cron::Job.load_from_hash(cron_schedule)
 
     puts '🔥 Sidekiq-cron jobs loaded at startup:'

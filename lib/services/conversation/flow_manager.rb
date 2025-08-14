@@ -6,11 +6,11 @@ module Services
   module Conversation
     class FlowManager
       def initialize(error_handler: Services::Conversation::ErrorHandler, logger: Services::Logging::SimpleLogger)
-        @state_manager = ConversationStateManager.new
-        @history_manager = ConversationHistoryManager.new
-        @llm_manager = LLMInteractionManager.new(logger: logger)
-        @tool_engine = ToolExecutionEngine.new(logger: logger)
-        @response_processor = ResponseProcessor.new(logger: logger)
+        @state_manager = Services::Conversation::StateManager.new
+        @history_manager = Services::Conversation::HistoryManager.new
+        @llm_manager = Services::Conversation::LlmInteractionManager.new(logger: logger)
+        @tool_engine = Services::Conversation::ToolExecutionEngine.new(logger: logger)
+        @response_processor = Services::Conversation::ResponseProcessor.new(logger: logger)
         @error_handler = error_handler
         @logger = logger
       end
@@ -47,7 +47,7 @@ module Services
       private
 
       def execute_conversation_cycle(message, session, persona_instance, context)
-        context = Services::ContextEnrichmentService.enrich(context)
+        context = Services::Memory::ContextEnrichmentService.enrich(context)
         system_prompt = @llm_manager.build_system_prompt(persona_instance, context)
         conversation_history = @history_manager.get_conversation_context(session)
 

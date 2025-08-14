@@ -5,7 +5,7 @@ require 'spec_helper'
 RSpec.describe Services::System::ErrorHandlingLlm do
   let(:service) { described_class.new }
   let(:redis) { instance_double(Redis) }
-  let(:logger) { Services::Logging::LoggerService }
+  let(:logger) { Services::Logging::SimpleLogger }
 
   before do
     allow(Redis).to receive(:new).and_return(redis)

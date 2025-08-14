@@ -147,7 +147,7 @@ module Services
       end
 
       def log_proactive_event(event_type, llm_response)
-        Services::LoggerService.log_interaction(
+        Services::Logging::SimpleLogger.log_interaction(
           user_message: "[PROACTIVE: #{event_type}]",
           ai_response: llm_response.response_text,
           persona: 'proactive',

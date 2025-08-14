@@ -18,7 +18,7 @@ module GlitchCube
 
     # Logger
     def logger
-      @logger ||= Services::LoggerService
+      @logger ||= Services::Logging::SimpleLogger
     end
 
     # Root directory

@@ -85,7 +85,7 @@ module Tools
 
       result = call_ha_service('awtrix', "#{AWTRIX_DEVICE}_push_app_data", service_data)
 
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'display_tool',
         endpoint: 'display_text',
         text: text,
@@ -116,7 +116,7 @@ module Tools
 
       result = call_ha_service('notify', AWTRIX_DEVICE, service_data)
 
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'display_tool',
         endpoint: 'send_notification',
         message: message,
@@ -149,7 +149,7 @@ module Tools
 
       result = call_ha_service('light', 'turn_on', service_data)
 
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'display_tool',
         endpoint: 'set_mood_light',
         rgb: rgb,
@@ -175,7 +175,7 @@ module Tools
 
       result = call_ha_service('awtrix', "#{AWTRIX_DEVICE}_push_app_data", service_data)
 
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'display_tool',
         endpoint: 'clear_display',
         success: result.include?('✅')

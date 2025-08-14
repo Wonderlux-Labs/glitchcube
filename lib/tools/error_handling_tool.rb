@@ -71,7 +71,7 @@ module Tools
           result << "  Ruby Version: #{RUBY_VERSION}"
         end
 
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'error_handling_tool',
           endpoint: 'system_health',
           overall_healthy: overall_healthy,
@@ -102,7 +102,7 @@ module Tools
         result << '✅ All circuit breakers have been reset'
         result << 'Services will attempt to reconnect on next call'
 
-        Services::LoggerService.log_api_call(
+        Services::Logging::SimpleLogger.log_api_call(
           service: 'error_handling_tool',
           endpoint: 'reset_circuit_breakers',
           service_name: service
@@ -178,7 +178,7 @@ module Tools
         result << "  ❌ Connection failed: #{e.message}"
       end
 
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'error_handling_tool',
         endpoint: 'test_connections'
       )
@@ -239,7 +239,7 @@ module Tools
       tests = [
         { name: 'Circuit breaker functionality', test: -> { Services::System::CircuitBreakerService.status.any? } },
         { name: 'Configuration loading', test: -> { GlitchCube.config.present? } },
-        { name: 'Logger service', test: -> { Services::LoggerService.respond_to?(:log_api_call) } }
+        { name: 'Logger service', test: -> { Services::Logging::SimpleLogger.respond_to?(:log_api_call) } }
       ]
 
       tests.each do |test_case|
@@ -273,7 +273,7 @@ module Tools
 
       result << '✅ No common issues detected' if issues_found.zero?
 
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'error_handling_tool',
         endpoint: 'self_diagnose',
         issues_found: issues_found
@@ -333,7 +333,7 @@ module Tools
         end
       end
 
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'error_handling_tool',
         endpoint: 'recovery_mode',
         dry_run: dry_run,

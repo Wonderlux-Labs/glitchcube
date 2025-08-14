@@ -1,0 +1,81 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://openrouter.ai/api/v1/chat/completions
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJZb3Ug
+        YXJlIGEgaGVscGZ1bCBhc3Npc3RhbnQuIFVzZSB0b29scyB3aGVuIGFwcHJv
+        cHJpYXRlLiJ9LHsicm9sZSI6InVzZXIiLCJjb250ZW50IjoiVGVsbCBtZSBh
+        IGpva2UifV0sIm1vZGVsIjoib3BlbmFpL28zLW1pbmkiLCJ0ZW1wZXJhdHVy
+        ZSI6MC43LCJtYXhfdG9rZW5zIjozMDAsInN0cmVhbSI6ZmFsc2UsInRvb2xz
+        IjpbeyJ0eXBlIjoiZnVuY3Rpb24iLCJmdW5jdGlvbiI6eyJuYW1lIjoiZ2V0
+        X3dlYXRoZXIiLCJkZXNjcmlwdGlvbiI6IkdldCB0aGUgY3VycmVudCB3ZWF0
+        aGVyIGluIGEgbG9jYXRpb24iLCJwYXJhbWV0ZXJzIjp7InR5cGUiOiJvYmpl
+        Y3QiLCJwcm9wZXJ0aWVzIjp7ImxvY2F0aW9uIjp7InR5cGUiOiJzdHJpbmci
+        LCJkZXNjcmlwdGlvbiI6IlRoZSBjaXR5IGFuZCBzdGF0ZSwgZS5nLiBTYW4g
+        RnJhbmNpc2NvLCBDQSJ9fSwicmVxdWlyZWQiOlsibG9jYXRpb24iXX19fV0s
+        InRvb2xfY2hvaWNlIjoiYXV0byJ9
+    headers:
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+      X-Title:
+      - OpenRouter Ruby Client
+      Http-Referer:
+      - https://github.com/OlympiaAI/open_router
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Thu, 14 Aug 2025 04:45:52 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Access-Control-Allow-Origin:
+      - "*"
+      Vary:
+      - Accept-Encoding
+      Permissions-Policy:
+      - payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com"
+        "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")
+      Referrer-Policy:
+      - no-referrer, strict-origin-when-cross-origin
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 96edce1f1d5f28fe-MSP
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        CiAgICAgICAgIAoKICAgICAgICAgCgogICAgICAgICAKCiAgICAgICAgIAoK
+        ICAgICAgICAgCgogICAgICAgICAKeyJpZCI6Imdlbi0xNzU1MTQ2NzUxLXJI
+        M1FRc01RajRZUTREckR6ZTFIIiwicHJvdmlkZXIiOiJPcGVuQUkiLCJtb2Rl
+        bCI6Im9wZW5haS9vMy1taW5pIiwib2JqZWN0IjoiY2hhdC5jb21wbGV0aW9u
+        IiwiY3JlYXRlZCI6MTc1NTE0Njc1MSwiY2hvaWNlcyI6W3sibG9ncHJvYnMi
+        Om51bGwsImZpbmlzaF9yZWFzb24iOiJzdG9wIiwibmF0aXZlX2ZpbmlzaF9y
+        ZWFzb24iOiJjb21wbGV0ZWQiLCJpbmRleCI6MCwibWVzc2FnZSI6eyJyb2xl
+        IjoiYXNzaXN0YW50IiwiY29udGVudCI6IlN1cmUhIEhlcmUncyBvbmUgZm9y
+        IHlvdTpcblxuV2h5IGRvbid0IHNjaWVudGlzdHMgdHJ1c3QgYXRvbXM/IFxu
+        QmVjYXVzZSB0aGV5IG1ha2UgdXAgZXZlcnl0aGluZyEiLCJyZWZ1c2FsIjpu
+        dWxsLCJyZWFzb25pbmciOm51bGx9fV0sInVzYWdlIjp7InByb21wdF90b2tl
+        bnMiOjc0LCJjb21wbGV0aW9uX3Rva2VucyI6MTUwLCJ0b3RhbF90b2tlbnMi
+        OjIyNH19
+  recorded_at: Thu, 14 Aug 2025 04:45:54 GMT
+recorded_with: VCR 6.3.1

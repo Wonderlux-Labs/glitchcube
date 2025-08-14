@@ -17,7 +17,7 @@ RSpec.describe ErrorHandling do
         error = StandardError.new('Test error')
         context = { operation: 'test_operation' }
 
-        expect(Services::Logging::LoggerService).to receive(:log_api_call).with(
+        expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(
           hash_including(
             service: 'application',
             endpoint: 'test_operation',
@@ -38,7 +38,7 @@ RSpec.describe ErrorHandling do
         error = StandardError.new('Test error')
         context = { operation: 'test_operation' }
 
-        expect(Services::Logging::LoggerService).to receive(:log_api_call).with(
+        expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(
           hash_including(
             service: 'application',
             endpoint: 'test_operation',
@@ -61,7 +61,7 @@ RSpec.describe ErrorHandling do
       fallback = { default: 'response' }
       context = { service: 'test_service' }
 
-      expect(Services::Logging::LoggerService).to receive(:log_api_call).with(
+      expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(
         hash_including(
           service: 'test_service',
           endpoint: 'unknown',
@@ -95,7 +95,7 @@ RSpec.describe ErrorHandling do
         error = CircuitBreaker::CircuitOpenError.new('Circuit open')
         fallback = 'default_value'
 
-        expect(Services::Logging::LoggerService).to receive(:log_api_call).with(
+        expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(
           hash_including(
             service: 'application',
             endpoint: 'test_operation',
@@ -120,7 +120,7 @@ RSpec.describe ErrorHandling do
         error = Net::OpenTimeout.new('Connection timeout')
         fallback = []
 
-        expect(Services::Logging::LoggerService).to receive(:log_api_call).with(
+        expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(
           hash_including(
             service: 'application',
             endpoint: 'network_call',
@@ -145,7 +145,7 @@ RSpec.describe ErrorHandling do
         it 'logs and re-raises the error', :vcr do
           error = StandardError.new('Unexpected error')
 
-          expect(Services::Logging::LoggerService).to receive(:log_api_call).with(
+          expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(
             hash_including(
               service: 'application',
               endpoint: 'critical_operation',
@@ -169,7 +169,7 @@ RSpec.describe ErrorHandling do
           error = StandardError.new('Unexpected error')
           fallback = nil
 
-          expect(Services::Logging::LoggerService).to receive(:log_api_call).with(
+          expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(
             hash_including(
               service: 'application',
               endpoint: 'non_critical_operation',

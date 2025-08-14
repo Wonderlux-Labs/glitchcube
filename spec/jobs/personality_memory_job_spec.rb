@@ -52,14 +52,14 @@ RSpec.describe Jobs::PersonalityMemoryJob do
       it 'handles extraction failures gracefully', :vcr do
         allow(Services::Llm::LLMService).to receive(:complete).and_raise(StandardError.new('API Error'))
         # Allow any log_api_call from other services (like HomeAssistantClient)
-        allow(Services::Logging::LoggerService).to receive(:log_api_call).and_call_original
+        allow(Services::Logging::SimpleLogger).to receive(:log_api_call).and_call_original
         # The extract_personality_memories method catches the error and returns []
         # So it logs the error but doesn't re-raise it - the job continues
-        expect(Services::Logging::LoggerService).to receive(:log_api_call).with(hash_including(
-                                                                                  service: 'application',
-                                                                                  status: 500,
-                                                                                  error: /StandardError: API Error/
-                                                                                )).at_least(:once)
+        expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(hash_including(
+                                                                                 service: 'application',
+                                                                                 status: 500,
+                                                                                 error: /StandardError: API Error/
+                                                                               )).at_least(:once)
         # Allow the logger to log info messages
         allow(Services::Logging::SimpleLogger).to receive(:info).and_call_original
         # The job should complete without raising an error

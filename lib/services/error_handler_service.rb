@@ -11,7 +11,7 @@ module Services
     ERROR_TRACKING_TTL = 3600 # 1 hour
 
     def initialize
-      @logger = Services::Logging::LoggerService
+      @logger = Services::Logging::SimpleLogger
       @redis = begin
         Redis.new(url: GlitchCube.config.redis_url)
       rescue Redis::CannotConnectError => e
@@ -179,37 +179,5 @@ module Services
         instance.log_error(error, context)
       end
     end
-  end
-end
-
-# Compatibility module for easy inclusion
-module ErrorHandling
-  def handle_error(error, context = {})
-    Services::ErrorHandlerService.handle_error(error, context)
-  end
-
-  def log_error(error, context = {}, reraise: true)
-    Services::ErrorHandlerService.log_error(error, context)
-    raise error if reraise
-  end
-
-  def handle_operational_error(error, fallback_value = nil, context = {})
-    Services::ErrorHandlerService.handle_error(
-      error,
-      context.merge(operational: true, fallback: fallback_value)
-    )
-  end
-
-  def with_error_handling(operation_name, fallback: nil, reraise_unexpected: true, &)
-    Services::ErrorHandlerService.with_error_handling(
-      operation_name,
-      fallback: fallback,
-      reraise_unexpected: reraise_unexpected,
-      &
-    )
-  end
-
-  def with_error_healing(&)
-    Services::ErrorHandlerService.instance.with_error_healing(&)
   end
 end

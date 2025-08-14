@@ -13,7 +13,7 @@ module Services
       ERROR_TRACKING_TTL = 3600 # 1 hour
 
       def initialize
-        @logger = Services::Logging::LoggerService
+        @logger = Services::Logging::SimpleLogger
         @redis = begin
           Redis.new(url: GlitchCube.config.redis_url)
         rescue Redis::CannotConnectError => e

@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Services::Conversation::ConversationHistoryManager do
+RSpec.describe Services::Conversation::HistoryManager do
   include_context 'with_full_conversation_setup'
 
   subject { described_class.new }

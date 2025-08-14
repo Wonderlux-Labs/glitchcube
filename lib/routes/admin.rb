@@ -248,7 +248,7 @@ module GlitchCube
             session_id = "proactive_#{SecureRandom.hex(8)}"
 
             # Create new conversation session with ActiveRecord
-            session = ::Services::ConversationSession.find_or_create(
+            session = ConversationSession.find_or_create(
               session_id: session_id,
               context: {
                 source: 'admin_proactive',
@@ -332,7 +332,7 @@ module GlitchCube
           # Get other config safely
           begin
             response[:host_ip] = '192.168.0.56' # From your logs
-            response[:ai_model] = GlitchCube.config.ai.default_model || DEFAULT_AI_MODEL || 'google/gemini-2.5-flash'
+            response[:ai_model] = GlitchCube.config.default_model || DEFAULT_AI_MODEL || 'google/gemini-2.5-flash'
           rescue StandardError => e
             ::Services::Logging::SimpleLogger.error('Config check error', tagged: %i[admin status error], error: e.message)
           end
@@ -902,7 +902,7 @@ module GlitchCube
             # Enable simulation mode if not already enabled
             redis.set('cube_simulate_movement', 'true')
 
-            Services::LoggerService.log_api_call(
+            Services::Logging::SimpleLogger.log_api_call(
               service: 'admin',
               endpoint: 'spoof_gps',
               method: 'POST',
@@ -944,7 +944,7 @@ module GlitchCube
             redis.del('current_cube_location')
             redis.set('cube_simulate_movement', 'false')
 
-            Services::LoggerService.log_api_call(
+            Services::Logging::SimpleLogger.log_api_call(
               service: 'admin',
               endpoint: 'clear_gps_spoof',
               method: 'DELETE',

@@ -85,7 +85,7 @@ module GlitchCube
             end
 
             # Log the restart request
-            Services::LoggerService.log_api_call(
+            Services::Logging::SimpleLogger.log_api_call(
               service: 'system',
               endpoint: 'restart',
               level: params[:level],

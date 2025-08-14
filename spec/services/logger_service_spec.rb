@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'fileutils'
 require 'tempfile'
 
-RSpec.describe Services::Logging::LoggerService do
+RSpec.describe Services::Logging::SimpleLogger do
   let(:temp_dir) { Dir.mktmpdir }
   let(:log_dir) { File.join(temp_dir, 'logs') }
   let(:log_file) { File.join(log_dir, 'current.log') }
@@ -26,7 +26,7 @@ RSpec.describe Services::Logging::LoggerService do
       File.open(log_file, 'a') { |f| f.puts line }
     end
 
-    # Also mock for LoggerService compatibility methods
+    # Also mock for SimpleLogger compatibility methods
     allow(described_class).to receive(:log_directory).and_return(log_dir)
 
     # Ensure test log directory exists
@@ -45,15 +45,15 @@ RSpec.describe Services::Logging::LoggerService do
       FileUtils.rm_rf(log_dir)
       expect(Dir.exist?(log_dir)).to be false
 
-      # SimpleLogger creates the directory on first write
-      Services::Logging::SimpleLogger.info('test')
+      # SimpleLogger creates the directory on setup
+      Services::Logging::SimpleLogger.setup_loggers
 
       expect(Dir.exist?(log_dir)).to be true
     end
 
     it 'creates all required log files', :vcr do
       # SimpleLogger now uses a single log file
-      Services::Logging::SimpleLogger.info('test')
+      Services::Logging::SimpleLogger.setup_loggers
 
       expect(File.exist?(log_file)).to be true
     end

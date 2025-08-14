@@ -151,7 +151,7 @@ RSpec.describe 'Home Assistant Conversation Integration', :vcr do
       # Check that our Sinatra app created a matching session
       if ha_result.is_a?(Hash) && ha_result['conversation_id']
         # Find the session in our database
-        session = Services::ConversationSession.find_by_ha_conversation_id(
+        session = ConversationSession.find_by_ha_conversation_id(
           ha_result['conversation_id']
         )
         # Session should exist and have proper mapping

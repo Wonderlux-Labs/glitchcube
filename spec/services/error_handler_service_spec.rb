@@ -8,7 +8,7 @@ RSpec.describe Services::ErrorHandlerService do
   let(:context) { { service: 'TestService', operation: 'test_operation' } }
 
   before do
-    allow(Services::Logging::LoggerService).to receive(:log_api_call)
+    allow(Services::Logging::SimpleLogger).to receive(:log_api_call)
     allow(GlitchCube.config).to receive(:development?).and_return(false)
     allow(GlitchCube.config).to receive(:redis_url).and_return('redis://localhost:6379/0')
   end
@@ -20,7 +20,7 @@ RSpec.describe Services::ErrorHandlerService do
       end
 
       it 'logs the error' do
-        expect(Services::Logging::LoggerService).to receive(:log_api_call).with(
+        expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(
           hash_including(
             service: 'TestService',
             endpoint: 'test_operation',
@@ -93,7 +93,7 @@ RSpec.describe Services::ErrorHandlerService do
       end
 
       it 'logs the error as operational' do
-        expect(Services::Logging::LoggerService).to receive(:log_api_call).with(
+        expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(
           hash_including(operational: true)
         )
 

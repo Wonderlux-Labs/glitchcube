@@ -22,10 +22,16 @@ module Jobs
     private
 
     def should_run?
+      # Don't run if we already have a recent summary
       last_summary = Summary.where(summary_type: 'interaction')
                             .where('created_at > ?', 1.hour.ago)
                             .exists?
-      !last_summary
+      return false if last_summary
+
+      # Don't run if there are no messages to summarize
+      Message.where(created_at: 1.hour.ago..Time.current)
+             .where(role: 'user')
+             .exists?
     end
 
     def fetch_recent_messages

@@ -393,7 +393,7 @@ RSpec.describe 'Conversation Service Integration', :vcr do
   private
 
   def create_test_session
-    Services::ConversationSession.find_or_create(
+    ConversationSession.find_or_create(
       context: { source: 'test', persona: 'neutral' }
     )
   end

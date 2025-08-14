@@ -495,7 +495,7 @@ class HomeAssistantClient
       end
 
       duration = ((Time.now - start_time) * 1000).round
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'home_assistant',
         endpoint: path,
         url: uri.to_s,
@@ -507,7 +507,7 @@ class HomeAssistantClient
       handle_response(response, request)
     rescue Net::OpenTimeout, Net::ReadTimeout => e
       duration = ((Time.now - start_time) * 1000).round
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'home_assistant',
         endpoint: path,
         url: uri.to_s,
@@ -518,7 +518,7 @@ class HomeAssistantClient
       raise TimeoutError, "Request timed out: #{e.message}"
     rescue SocketError, Errno::ECONNREFUSED => e
       duration = ((Time.now - start_time) * 1000).round
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'home_assistant',
         endpoint: path,
         url: uri.to_s,
@@ -555,7 +555,7 @@ class HomeAssistantClient
       end
 
       duration = ((Time.now - start_time) * 1000).round
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'home_assistant',
         endpoint: path,
         method: 'POST',
@@ -567,7 +567,7 @@ class HomeAssistantClient
       handle_response(response, request)
     rescue Net::OpenTimeout, Net::ReadTimeout => e
       duration = ((Time.now - start_time) * 1000).round
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'home_assistant',
         endpoint: path,
         method: 'POST',
@@ -577,7 +577,7 @@ class HomeAssistantClient
       raise TimeoutError, "Request timed out: #{e.message}"
     rescue SocketError, Errno::ECONNREFUSED => e
       duration = ((Time.now - start_time) * 1000).round
-      Services::LoggerService.log_api_call(
+      Services::Logging::SimpleLogger.log_api_call(
         service: 'home_assistant',
         endpoint: path,
         method: 'POST',
