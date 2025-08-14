@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'json'
 require 'active_support/core_ext/hash/indifferent_access'
 
 module Services
@@ -270,6 +271,13 @@ module Services
         # Clean content - handle markdown JSON blocks
         cleaned = @content.strip
         cleaned = cleaned.gsub(/^```json\s*/, '').gsub(/\s*```$/, '') if cleaned.include?('```')
+
+        # Handle case where LLM outputs reasoning text followed by JSON
+        # Look for JSON patterns in the content
+        json_match = cleaned.match(/(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})/m)
+        if json_match
+          cleaned = json_match[1]
+        end
 
         # Only try to parse if it looks like JSON
         return nil unless cleaned.start_with?('{') || cleaned.start_with?('[')

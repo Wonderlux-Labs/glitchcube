@@ -38,13 +38,19 @@ module Services
           )
 
           # Stack trace to file and screen
-          return unless error.backtrace && backtrace.positive?
+          return unless error.backtrace&.length&.positive?
 
           error.backtrace.first(backtrace).each_with_index do |line, i|
             trace_line = "  #{i + 1}: #{line}"
             write_to_file(trace_line)
             puts trace_line if should_echo_to_screen?
           end
+        rescue StandardError => e
+          # Logger should never crash and mask the original error
+          # Output to stderr as last resort to ensure error visibility
+          warn "LOGGER ERROR: Failed to log error - #{e.message}"
+          warn "ORIGINAL ERROR: #{error.class.name} - #{error.message}"
+          warn "ORIGINAL BACKTRACE: #{error.backtrace&.first(3)&.join(', ')}" if error.respond_to?(:backtrace)
         end
 
         # Convenience methods
