@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Services
+module ::Services
   module Memory
     # Enriches conversation context with sensor data and other contextual information
     class ContextEnrichmentService

@@ -3,7 +3,7 @@
 require 'httparty'
 require 'redis'
 
-module Services
+module ::Services
   module System
     class HealthPushService
       include HTTParty

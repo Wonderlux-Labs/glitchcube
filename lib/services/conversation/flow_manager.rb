@@ -2,7 +2,7 @@
 
 require 'securerandom'
 
-module Services
+module ::Services
   module Conversation
     class FlowManager
       def initialize(error_handler: ErrorHandler, logger: Logging::SimpleLogger)

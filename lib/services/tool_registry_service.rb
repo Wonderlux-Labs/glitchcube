@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Services
+module ::Services
   # Simple tool registry service - just builds LLM schemas from tool metadata
   class ToolRegistryService
     # Persona to tool mapping

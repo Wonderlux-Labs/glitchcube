@@ -2,7 +2,7 @@
 
 require 'open_router'
 
-module Services
+module ::Services
   module Llm
     # Clean LLM wrapper service using OpenRouter gem directly
     # Handles all AI model interactions with proper logging and error handling

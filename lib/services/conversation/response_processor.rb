@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Services
+module ::Services
   module Conversation
     class ResponseProcessor
       def initialize(logger: Logging::SimpleLogger)

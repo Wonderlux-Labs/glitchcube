@@ -4,7 +4,7 @@ require 'yaml'
 require 'benchmark'
 # ErrorHandling module now autoloaded via Zeitwerk
 
-module Services
+module ::Services
   class ModelBenchmarkRunner
     include ::Modules::ErrorHandling
 

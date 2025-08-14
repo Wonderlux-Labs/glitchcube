@@ -2,7 +2,7 @@
 
 # DONT CHANGE THIS IMPLMENTATION JUST USE IT OR EXTEND IT MUCH BETTER NOW
 
-module Services
+module ::Services
   module Gps
     class LocationContextService
       attr_reader :lat, :lng, :lat_lng

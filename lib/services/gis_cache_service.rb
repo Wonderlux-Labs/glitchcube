@@ -3,7 +3,7 @@
 require 'redis'
 require 'json'
 
-module Services
+module ::Services
   class GisCacheService
     CACHE_TTL = 86_400 # 24 hours - these don't change during the event
 

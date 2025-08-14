@@ -3,7 +3,7 @@
 require 'json'
 require 'active_support/core_ext/hash/indifferent_access'
 
-module Services
+module ::Services
   module Llm
     # The Response class represents the response received from the OpenRouter/LLM API.
     # It provides convenience methods to access structured outputs, tool calls, and parsed JSON responses.

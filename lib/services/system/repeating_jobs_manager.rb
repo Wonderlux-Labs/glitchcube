@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Basic manager for controlling repeating background jobs
-module Services
+module ::Services
   module System
     module RepeatingJobsManager
       extend self

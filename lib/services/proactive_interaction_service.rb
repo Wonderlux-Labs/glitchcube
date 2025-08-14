@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Services
+module ::Services
   # Service for event-driven, non-conversational LLM interactions
   # Used for attention-seeking behaviors, automated responses, and proactive engagement
   class ProactiveInteractionService

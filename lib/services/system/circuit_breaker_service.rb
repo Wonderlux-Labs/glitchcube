@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Services
+module ::Services
   module System
     class CircuitBreakerService
       class << self

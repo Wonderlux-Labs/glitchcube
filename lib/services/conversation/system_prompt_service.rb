@@ -3,7 +3,7 @@
 require 'time'
 require 'tzinfo'
 
-module Services
+module ::Services
   module Conversation
     class SystemPromptService
       PROMPTS_DIR = File.join(File.dirname(__FILE__), '../../prompts')

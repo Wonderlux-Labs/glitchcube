@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Services
+module ::Services
   # Executes tool calls - EXPLICIT AND SIMPLE
   class ToolExecutor
     class << self

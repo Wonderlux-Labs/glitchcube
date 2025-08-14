@@ -3,7 +3,7 @@
 require 'redis'
 require 'json'
 
-module Services
+module ::Services
   class PersonaStateService
     REDIS_KEY = 'glitchcube:current_persona'
     STATS_KEY_PREFIX = 'glitchcube:persona_stats:'

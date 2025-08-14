@@ -3,7 +3,7 @@
 # TODO: SPECS WHEN SENSORS ARE COMPLETE
 # Write comprehensive specs once the HA context sensor is fully configured and operational
 
-module Services
+module ::Services
   module Memory
     class ContextInjectionService
       def self.inject_context(base_prompt, context)

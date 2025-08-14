@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Services
+module ::Services
   module Conversation
     # Executes tool calls from an LLM response and handles errors.
     class ToolExecutionEngine

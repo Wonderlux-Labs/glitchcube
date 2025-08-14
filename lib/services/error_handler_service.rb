@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Services
+module ::Services
   class ErrorHandlerService
     # Expected operational errors that we handle gracefully
     class OperationalError < StandardError; end

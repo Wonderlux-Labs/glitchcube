@@ -1,0 +1,65 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: http://test-homeassistant.local:8123/api/services/conversation/process?return_response
+    body:
+      encoding: UTF-8
+      base64_string: |
+        eyJ0ZXh0IjoiRXhlY3V0ZSB0dXJuX29uX2xpZ2h0IGZvciBsaWdodC5iZWRy
+        b29tIiwiY29udmVyc2F0aW9uX2lkIjoiZGVidWctdGVzdC1zZXNzaW9uLTEy
+        MyJ9
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '744'
+      Date:
+      - Thu, 14 Aug 2025 19:43:17 GMT
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        eyJjaGFuZ2VkX3N0YXRlcyI6W3siZW50aXR5X2lkIjoiY29udmVyc2F0aW9u
+        LmhvbWVfYXNzaXN0YW50Iiwic3RhdGUiOiIyMDI1LTA4LTE0VDE5OjQzOjE2
+        Ljg1NDg4OCswMDowMCIsImF0dHJpYnV0ZXMiOnsiZnJpZW5kbHlfbmFtZSI6
+        IkhvbWUgQXNzaXN0YW50Iiwic3VwcG9ydGVkX2ZlYXR1cmVzIjoxfSwibGFz
+        dF9jaGFuZ2VkIjoiMjAyNS0wOC0xNFQxOTo0MzoxNi44NTQ5NzkrMDA6MDAi
+        LCJsYXN0X3JlcG9ydGVkIjoiMjAyNS0wOC0xNFQxOTo0MzoxNi44NTQ5Nzkr
+        MDA6MDAiLCJsYXN0X3VwZGF0ZWQiOiIyMDI1LTA4LTE0VDE5OjQzOjE2Ljg1
+        NDk3OSswMDowMCIsImNvbnRleHQiOnsiaWQiOiIwMUsyTjFRQVZQTUdCNks5
+        QjhQSFlQQzE0NCIsInBhcmVudF9pZCI6bnVsbCwidXNlcl9pZCI6ImM5NWQz
+        NTAyM2M3MjQ3MzQ5NDYxYmYxZWZmMTVmNmI2In19XSwic2VydmljZV9yZXNw
+        b25zZSI6eyJyZXNwb25zZSI6eyJzcGVlY2giOnsicGxhaW4iOnsic3BlZWNo
+        IjoiU29ycnksIEkgYW0gbm90IGF3YXJlIG9mIGFueSBhcmVhIGNhbGxlZCBs
+        aWdodCBmb3IgbGlnaHQuYmVkcm9vbSIsImV4dHJhX2RhdGEiOm51bGx9fSwi
+        Y2FyZCI6e30sImxhbmd1YWdlIjoiZW4iLCJyZXNwb25zZV90eXBlIjoiZXJy
+        b3IiLCJkYXRhIjp7ImNvZGUiOiJub192YWxpZF90YXJnZXRzIn19LCJjb252
+        ZXJzYXRpb25faWQiOiJkZWJ1Zy10ZXN0LXNlc3Npb24tMTIzIiwiY29udGlu
+        dWVfY29udmVyc2F0aW9uIjpmYWxzZX19
+  recorded_at: Thu, 14 Aug 2025 19:43:17 GMT
+recorded_with: VCR 6.3.1

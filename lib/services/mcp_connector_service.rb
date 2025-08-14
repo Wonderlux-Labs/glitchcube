@@ -3,7 +3,7 @@
 require 'singleton'
 require 'mcp_client'
 
-module Services
+module ::Services
   # Service to connect to Home Assistant via MCP (Model Context Protocol)
   # Uses Server-Sent Events (SSE) for real-time communication
   class McpConnectorService

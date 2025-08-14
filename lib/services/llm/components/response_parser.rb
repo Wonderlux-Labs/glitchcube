@@ -2,7 +2,7 @@
 
 require 'active_support/core_ext/hash/indifferent_access'
 
-module Services
+module ::Services
   module Llm
     module Components
       class ResponseParser
