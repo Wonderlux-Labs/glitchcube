@@ -39,3 +39,9 @@ daily_summary:
   class: "Jobs::DailySummaryJob"
   queue: summaries
   description: "Consolidate hourly summaries into comprehensive daily summary"
+
+repeating_jobs_handler:
+  cron: "*/5 * * * *"  # Every 5 minutes
+  class: "Jobs::RepeatingJobsHandler"
+  queue: default
+  description: "Execute miscellaneous repeating services (weather, health checks, battery monitoring)"

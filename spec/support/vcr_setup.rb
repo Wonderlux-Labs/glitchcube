@@ -8,9 +8,10 @@ require 'vcr'
 require 'webmock/rspec'
 
 # Load our Zero-Leak VCR configuration
+require_relative 'vcr_config'
 
-# Initialize Zero-Leak VCR configuration
-ZeroLeakVCR.configure!
+# Initialize Zero-Leak VCR configuration only if VCR is available
+ZeroLeakVCR.configure! if defined?(VCR)
 
 # Configure WebMock for maximum security
 WebMock.disable_net_connect!(

@@ -100,7 +100,7 @@ module GlitchCube
 
           # Get recent comparisons
           begin
-            redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+            redis = Redis.new(url: GlitchCube.config.redis_url)
             comparison_ids = redis.lrange('recent_scenario_comparisons', 0, 9)
 
             @recent_comparisons = []

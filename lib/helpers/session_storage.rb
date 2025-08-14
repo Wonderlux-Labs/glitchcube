@@ -14,7 +14,7 @@ module Helpers
         @memory_storage = {} if @storage_backend == :memory
         @memory_mutex = Mutex.new if @storage_backend == :memory
 
-        Services::SimpleLogger.info(
+        Services::Logging::SimpleLogger.info(
           'SessionStorage configured',
           tagged: [:session_storage],
           backend: @storage_backend
@@ -132,7 +132,7 @@ module Helpers
 
         Redis.new(url: GlitchCube.config.redis_url).ping == 'PONG'
       rescue StandardError => e
-        Services::SimpleLogger.warn(
+        Services::Logging::SimpleLogger.warn(
           'Redis connection failed',
           tagged: %i[session_storage redis],
           error: e.message

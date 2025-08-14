@@ -15,7 +15,7 @@ module Jobs
       summary_content = generate_interaction_summary(recent_messages)
       save_summary(summary_content, 'interaction')
     rescue StandardError => e
-      Services::SimpleLogger.error "InteractionSummarizerJob failed: #{e.message}"
+      Services::Logging::SimpleLogger.error "InteractionSummarizerJob failed: #{e.message}"
       raise
     end
 

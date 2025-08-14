@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require_relative '../../lib/services/gps/location_context_service'
 
 RSpec.describe Services::LocationContextService do
   let(:lat) { 40.7863 }

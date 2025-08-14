@@ -34,7 +34,7 @@ RSpec.describe 'Admin Errors Page' do
 
     context 'when service error handling fails' do
       before do
-        allow(Services::ErrorHandlingLLM).to receive(:new).and_raise(StandardError, 'Service unavailable')
+        allow(Services::System::ErrorHandlingLlm).to receive(:new).and_raise(StandardError, 'Service unavailable')
       end
 
       it 'gracefully handles service errors and shows fallback UI' do

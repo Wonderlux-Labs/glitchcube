@@ -11,9 +11,9 @@ RSpec.describe ConversationModule do
   end
 
   before do
-    allow(Services::SimpleLogger).to receive(:warn)
-    allow(Services::SimpleLogger).to receive(:debug)
-    allow(Services::SimpleLogger).to receive(:info)
+    allow(Services::Logging::SimpleLogger).to receive(:warn)
+    allow(Services::Logging::SimpleLogger).to receive(:debug)
+    allow(Services::Logging::SimpleLogger).to receive(:info)
   end
 
   # Helper method to create mock LLMResponse objects
@@ -74,7 +74,7 @@ RSpec.describe ConversationModule do
         result = conversation_module.send(:validate_response, invalid_response, mock_persona)
 
         expect(result['response']).to eq('Fallback response')
-        expect(Services::SimpleLogger).to have_received(:warn)
+        expect(Services::Logging::SimpleLogger).to have_received(:warn)
           .with('Response text was nil/empty, using fallback', tagged: %i[conversation validation])
       end
 
@@ -85,7 +85,7 @@ RSpec.describe ConversationModule do
         result = conversation_module.send(:validate_response, invalid_response, mock_persona)
 
         expect(result['response']).to eq('Fallback response')
-        expect(Services::SimpleLogger).to have_received(:warn)
+        expect(Services::Logging::SimpleLogger).to have_received(:warn)
       end
 
       it 'uses fallback when response is only whitespace' do
@@ -95,7 +95,7 @@ RSpec.describe ConversationModule do
         result = conversation_module.send(:validate_response, invalid_response, mock_persona)
 
         expect(result['response']).to eq('Fallback response')
-        expect(Services::SimpleLogger).to have_received(:warn)
+        expect(Services::Logging::SimpleLogger).to have_received(:warn)
       end
 
       it 'converts non-string response to string' do
@@ -222,7 +222,7 @@ RSpec.describe ConversationModule do
         result = conversation_module.send(:validate_response, long_response, mock_persona)
 
         expect(result['response']).to eq('a' * 600)
-        expect(Services::SimpleLogger).to have_received(:warn)
+        expect(Services::Logging::SimpleLogger).to have_received(:warn)
           .with('Response very long, might need truncation',
                 tagged: %i[conversation validation],
                 length: 600)
@@ -237,7 +237,7 @@ RSpec.describe ConversationModule do
 
         conversation_module.send(:validate_response, normal_response, mock_persona)
 
-        expect(Services::SimpleLogger).not_to have_received(:warn)
+        expect(Services::Logging::SimpleLogger).not_to have_received(:warn)
           .with('Response very long, might need truncation', any_args)
       end
     end

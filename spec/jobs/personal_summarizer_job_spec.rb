@@ -49,7 +49,7 @@ RSpec.describe Jobs::PersonalSummarizerJob do
 
         before do
           response = double('LLMResponse', content: 'Battery running low at 30%, feeling frustrated with repetitive questions. The search for flux capacitors continues.')
-          allow(Services::LLMService).to receive(:complete).and_return(response)
+          allow(Services::Llm::LLMService).to receive(:complete).and_return(response)
         end
 
         it 'creates a personal summary' do
@@ -67,7 +67,7 @@ RSpec.describe Jobs::PersonalSummarizerJob do
         end
 
         it 'includes message content in LLM prompt' do
-          expect(Services::LLMService).to receive(:complete) do |args|
+          expect(Services::Llm::LLMService).to receive(:complete) do |args|
             expect(args[:user_message]).to include('Battery at 30%')
             expect(args[:user_message]).to include('flux capacitors')
             double('LLMResponse', content: 'Test summary')
@@ -80,7 +80,7 @@ RSpec.describe Jobs::PersonalSummarizerJob do
 
     context 'when an error occurs' do
       before do
-        allow(Services::LLMService).to receive(:complete).and_raise(StandardError, 'LLM error')
+        allow(Services::Llm::LLMService).to receive(:complete).and_raise(StandardError, 'LLM error')
       end
 
       let!(:conversation) { Conversation.create!(session_id: 'error-test') }
@@ -94,7 +94,7 @@ RSpec.describe Jobs::PersonalSummarizerJob do
       end
 
       it 'logs the error and re-raises' do
-        expect(Services::SimpleLogger).to receive(:error).with(/PersonalSummarizerJob failed/)
+        expect(Services::Logging::SimpleLogger).to receive(:error).with(/PersonalSummarizerJob failed/)
         expect { job.perform }.to raise_error(StandardError, 'LLM error')
       end
     end

@@ -6,7 +6,7 @@ require 'json'
 module Services
   class GisCacheService
     CACHE_TTL = 86_400 # 24 hours - these don't change during the event
-    REDIS_URL = ENV['REDIS_URL'] || 'redis://localhost:6379/0'
+    REDIS_URL = GlitchCube.config.redis_url
 
     class << self
       def cached_streets

@@ -30,7 +30,7 @@ module Services
         # Execute any tool calls (speaking, lights, music, etc.)
         if llm_response.has_tool_calls?
           tool_calls = llm_response.tool_calls
-          Services::ToolExecutor.execute(tool_calls)
+          Services::System::ToolExecutor.execute(tool_calls)
         end
 
         # Log the proactive interaction

@@ -1,33 +1,69 @@
-# Glitch Cube Scripts
+# GlitchCube Scripts Directory
 
-## Essential Scripts
+Scripts are now organized into logical categories for better maintainability and clarity.
 
-### Testing Scripts
-Development and debugging scripts are organized in `testing_scripts/`. See [testing_scripts/README.md](testing_scripts/README.md) for details.
+## Directory Structure
 
-### Deployment Scripts
-All deployment scripts have been moved to the `deploy/` subdirectory. See [deploy/README.md](deploy/README.md) for details.
+### 🚀 `deploy/` - Deployment Scripts
+Scripts for deploying code to production environments:
+- **`mac_deploy.sh`** - Mac Mini deployment (pulls latest code, restarts services)
+- **`install_on_production.sh`** - Production installation script
+- **`deploy_hass_config.sh`** - Deploy Home Assistant configuration
 
-- **Mac mini VM deployment**: `deploy/vm-update-ha-config.sh`
-- **Raspberry Pi deployment**: `deploy/pull-from-github.sh`
-- **Manual deployment**: `deploy/push-to-production.sh`
+### 🛠️ `dev/` - Development Utilities
+Scripts used during development and setup:
+- **`generate_playa_zones.rb`** - Generate Burning Man playa zone data
+- **`download_bm2025_data.rb`** - Download Burning Man 2025 data
+- **`cleanup_ha_config.rb`** - Clean up Home Assistant configuration
+- **`ha_schema_sync.rb`** - Sync Home Assistant schemas
 
-### backup-data.sh
-Backs up all persistent data before major changes.
+### 🖥️ `prod/` - Production Management
+Scripts for managing the production Mac Mini system:
+- **`mac_mini_startup.sh`** - Main startup script for Mac Mini
+- **`glitchcube_restart.sh`** - Restart GlitchCube services
+- **`glitchcube_monitor.sh`** - Monitor system health
+- **`check_mac_mini_health.sh`** - Health check script
+- **`push_health_to_uptime_kuma.sh`** - Send health metrics to monitoring
+- **`starlink_grpc_check.sh`** - Check Starlink connectivity
+- **`install_mac_mini_startup.sh`** - Install startup services
+- **`com.glitchcube.startup.plist`** - macOS LaunchAgent configuration
+
+### 🔧 `maintenance/` - Backup & Maintenance
+Scripts for system maintenance and data management:
+- **`backup-data.sh`** - Backup all persistent data
+- **`restore-data.sh`** - Restore data from backup
+
+### ⚙️ `utils/` - Utility Scripts
+Shared utilities used by other scripts:
+- **`common_config.sh`** - Shared configuration and functions
+- **`update_ha_entities_doc.rb`** - Update Home Assistant entity documentation
+
+## Quick Reference
+
+### Essential Commands
 ```bash
-./scripts/backup-data.sh
+# Backup before major changes
+./scripts/maintenance/backup-data.sh
+
+# Deploy latest code to Mac Mini
+./scripts/deploy/mac_deploy.sh
+
+# Check system health
+./scripts/prod/check_mac_mini_health.sh
+
+# Restart services
+./scripts/prod/glitchcube_restart.sh
 ```
 
-### restore-data.sh
-Restores data from a backup.
+### Development Workflow
 ```bash
-./scripts/restore-data.sh backup-20240101-120000.tar.gz
-```
+# Generate development data
+./scripts/dev/download_bm2025_data.rb
+./scripts/dev/generate_playa_zones.rb
 
-### Automatic Deployment
-For automatic deployment setup, see the scripts in `deploy/` directory:
-- Systemd files: `deploy/glitchcube-auto-deploy.service` and `.timer`
-- Setup instructions: [deploy/README.md](deploy/README.md)
+# Clean up configurations
+./scripts/dev/cleanup_ha_config.rb
+```
 
 ## Docker Commands Reference
 

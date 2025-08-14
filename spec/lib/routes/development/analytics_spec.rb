@@ -32,7 +32,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
     let(:error_stats) { [{ error: 'Connection timeout', count: 3 }] }
 
     before do
-      allow(Services::LoggerService).to receive_messages(error_summary: error_summary, error_stats: error_stats)
+      allow(Services::Logging::LoggerService).to receive_messages(error_summary: error_summary, error_stats: error_stats)
     end
 
     it 'returns error statistics', :vcr do

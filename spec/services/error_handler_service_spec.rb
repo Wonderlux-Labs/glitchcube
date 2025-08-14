@@ -8,7 +8,7 @@ RSpec.describe Services::ErrorHandlerService do
   let(:context) { { service: 'TestService', operation: 'test_operation' } }
 
   before do
-    allow(Services::LoggerService).to receive(:log_api_call)
+    allow(Services::Logging::LoggerService).to receive(:log_api_call)
     allow(GlitchCube.config).to receive(:development?).and_return(false)
     allow(GlitchCube.config).to receive(:redis_url).and_return('redis://localhost:6379/0')
   end
@@ -20,7 +20,7 @@ RSpec.describe Services::ErrorHandlerService do
       end
 
       it 'logs the error' do
-        expect(Services::LoggerService).to receive(:log_api_call).with(
+        expect(Services::Logging::LoggerService).to receive(:log_api_call).with(
           hash_including(
             service: 'TestService',
             endpoint: 'test_operation',
@@ -59,14 +59,14 @@ RSpec.describe Services::ErrorHandlerService do
       context 'when error threshold is reached' do
         before do
           allow(redis).to receive(:incr).and_return(3)
-          allow(Services::ErrorHandlingLLM).to receive(:new).and_return(
-            instance_double(Services::ErrorHandlingLLM, handle_error: true)
+          allow(Services::System::ErrorHandlingLlm).to receive(:new).and_return(
+            instance_double(Services::System::ErrorHandlingLlm, handle_error: true)
           )
         end
 
         it 'attempts self-healing' do
-          llm_handler = instance_double(Services::ErrorHandlingLLM)
-          expect(Services::ErrorHandlingLLM).to receive(:new).and_return(llm_handler)
+          llm_handler = instance_double(Services::System::ErrorHandlingLlm)
+          expect(Services::System::ErrorHandlingLlm).to receive(:new).and_return(llm_handler)
           expect(llm_handler).to receive(:handle_error).with(error, context)
 
           service.handle_error(error, context)
@@ -93,7 +93,7 @@ RSpec.describe Services::ErrorHandlerService do
       end
 
       it 'logs the error as operational' do
-        expect(Services::LoggerService).to receive(:log_api_call).with(
+        expect(Services::Logging::LoggerService).to receive(:log_api_call).with(
           hash_including(operational: true)
         )
 

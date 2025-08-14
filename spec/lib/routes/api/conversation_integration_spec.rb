@@ -26,7 +26,7 @@ RSpec.describe 'Conversation Service Integration', :vcr do
 
       it 'opens circuit breaker after consecutive failures', :vcr do
         # Mock LLM service to fail repeatedly
-        allow(Services::LLMService).to receive(:complete_with_messages)
+        allow(Services::Llm::LLMService).to receive(:complete_with_messages)
           .and_raise(Timeout::Error, 'Service timeout')
 
         # Art installation should still work with fallback responses
@@ -64,7 +64,7 @@ RSpec.describe 'Conversation Service Integration', :vcr do
       it 'transitions to half-open state after timeout', :vcr do
         # Mock LLM service to fail first, then succeed
         call_count = 0
-        allow(Services::LLMService).to receive(:complete_with_messages) do
+        allow(Services::Llm::LLMService).to receive(:complete_with_messages) do
           call_count += 1
           raise Timeout::Error, 'Service timeout' if call_count <= 3
 
@@ -249,8 +249,8 @@ RSpec.describe 'Conversation Service Integration', :vcr do
 
     it 'times out long-running conversations appropriately', :vcr do
       # Mock LLM service to raise timeout error
-      allow(Services::LLMService).to receive(:complete_with_messages)
-        .and_raise(Services::LLMService::LLMError, 'Request timed out after 30 seconds')
+      allow(Services::Llm::LLMService).to receive(:complete_with_messages)
+        .and_raise(Services::Llm::LLMService::LLMError, 'Request timed out after 30 seconds')
 
       # Mock HomeAssistant TTS calls to prevent real network calls during timeout handling
       allow_any_instance_of(HomeAssistantClient).to receive(:call_service)
@@ -373,8 +373,8 @@ RSpec.describe 'Conversation Service Integration', :vcr do
 
     it 'provides meaningful fallback responses when all AI services fail', :vcr do
       # Disable all AI services
-      allow(Services::LLMService).to receive(:complete_with_messages)
-        .and_raise(Services::LLMService::LLMError, 'All models unavailable')
+      allow(Services::Llm::LLMService).to receive(:complete_with_messages)
+        .and_raise(Services::Llm::LLMService::LLMError, 'All models unavailable')
 
       post '/api/v1/conversation',
            { message: 'ai failure test' }.to_json,

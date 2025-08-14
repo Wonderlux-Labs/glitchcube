@@ -20,7 +20,7 @@ module GlitchCube
           end
 
           # Security check: GPS spoofing only available in development/test
-          @show_gps_spoofing = %w[development test].include?(ENV.fetch('RACK_ENV', nil))
+          @show_gps_spoofing = %w[development test].include?(GlitchCube.config.rack_env)
 
           erb :admin
         end
@@ -303,14 +303,14 @@ module GlitchCube
             response[:home_assistant] = true
             response[:ha_url] = ha_client.base_url || 'http://glitch.local:8123'
           rescue StandardError => e
-            ::Services::SimpleLogger.error('HA status check error', tagged: %i[admin status error], error: e.message)
+            ::Services::Logging::SimpleLogger.error('HA status check error', tagged: %i[admin status error], error: e.message)
           end
 
           # Check OpenRouter - simple API key check
           begin
-            response[:openrouter] = !ENV['OPENROUTER_API_KEY'].nil? && ENV['OPENROUTER_API_KEY'].length > 10
+            response[:openrouter] = !GlitchCube.config.openrouter_api_key.nil? && GlitchCube.config.openrouter_api_key.length > 10
           rescue StandardError => e
-            ::Services::SimpleLogger.error('OpenRouter status check error', tagged: %i[admin status error], error: e.message)
+            ::Services::Logging::SimpleLogger.error('OpenRouter status check error', tagged: %i[admin status error], error: e.message)
           end
 
           # Check Redis
@@ -322,11 +322,11 @@ module GlitchCube
                 false
               end
             else
-              redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379')
+              redis = Redis.new(url: GlitchCube.config.redis_url)
               response[:redis] = redis.ping == 'PONG'
             end
           rescue StandardError => e
-            ::Services::SimpleLogger.error('Redis status check error', tagged: %i[admin status error], error: e.message)
+            ::Services::Logging::SimpleLogger.error('Redis status check error', tagged: %i[admin status error], error: e.message)
           end
 
           # Get other config safely
@@ -334,7 +334,7 @@ module GlitchCube
             response[:host_ip] = '192.168.0.56' # From your logs
             response[:ai_model] = GlitchCube.config.ai.default_model || DEFAULT_AI_MODEL || 'google/gemini-2.5-flash'
           rescue StandardError => e
-            ::Services::SimpleLogger.error('Config check error', tagged: %i[admin status error], error: e.message)
+            ::Services::Logging::SimpleLogger.error('Config check error', tagged: %i[admin status error], error: e.message)
           end
 
           response.to_json
@@ -520,7 +520,7 @@ module GlitchCube
           lines = (params[:lines] || 100).to_i
           lines = [lines, 1000].min # Cap at 1000 lines for performance
 
-          log_file = ::Services::SimpleLogger.log_file_path
+          log_file = ::Services::Logging::SimpleLogger.log_file_path
 
           if File.exist?(log_file)
             # Read last N lines efficiently
@@ -626,18 +626,18 @@ module GlitchCube
             }.to_json
           rescue StandardError => e
             # Log the full error for debugging
-            ::Services::SimpleLogger.error('Tool API Error',
-                                           tagged: %i[admin tool error],
-                                           error_class: e.class.name,
-                                           error: e.message,
-                                           backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil)
+            ::Services::Logging::SimpleLogger.error('Tool API Error',
+                                                    tagged: %i[admin tool error],
+                                                    error_class: e.class.name,
+                                                    error: e.message,
+                                                    backtrace: GlitchCube.config.development? ? e.backtrace.first(5) : nil)
 
             status 500
             {
               success: false,
               error: e.message,
               error_type: e.class.to_s,
-              backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil
+              backtrace: GlitchCube.config.development? ? e.backtrace.first(5) : nil
             }.compact.to_json
           end
         end
@@ -677,7 +677,7 @@ module GlitchCube
             enhanced_result[:debug_info] = {
               ha_circuit_breaker_open: false, # TODO: Get actual circuit breaker status
               recent_ha_calls: recent_ha_logs,
-              ha_url: ENV['HOME_ASSISTANT_URL'] || ENV['HA_URL'] || 'Not configured',
+              ha_url: GlitchCube.config.home_assistant.url || 'Not configured',
               tool_class_context: target_tool_class
             }
 
@@ -686,18 +686,18 @@ module GlitchCube
             status 400
             { success: false, error: "Invalid JSON: #{e.message}" }.to_json
           rescue StandardError => e
-            ::Services::SimpleLogger.error('Tool Execution Error',
-                                           tagged: %i[admin tool error],
-                                           error_class: e.class.name,
-                                           error: e.message,
-                                           backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil)
+            ::Services::Logging::SimpleLogger.error('Tool Execution Error',
+                                                    tagged: %i[admin tool error],
+                                                    error_class: e.class.name,
+                                                    error: e.message,
+                                                    backtrace: GlitchCube.config.development? ? e.backtrace.first(5) : nil)
 
             status 500
             {
               success: false,
               error: e.message,
               error_type: e.class.to_s,
-              backtrace: ENV['RACK_ENV'] == 'development' ? e.backtrace.first(5) : nil
+              backtrace: GlitchCube.config.development? ? e.backtrace.first(5) : nil
             }.compact.to_json
           end
         end
@@ -840,7 +840,7 @@ module GlitchCube
           content_type :json
 
           # Block GPS spoofing in production for security
-          unless ENV['RACK_ENV'] == 'development'
+          unless GlitchCube.config.development?
             status 403
             return { success: false, error: 'GPS spoofing is only available in development environment' }.to_json
           end
@@ -869,7 +869,7 @@ module GlitchCube
           content_type :json
 
           # Block GPS spoofing in production for security
-          unless ENV['RACK_ENV'] == 'development'
+          unless GlitchCube.config.development?
             status 403
             return { success: false, error: 'GPS spoofing is only available in development environment' }.to_json
           end
@@ -887,7 +887,7 @@ module GlitchCube
 
             # Store in Redis like the simulation system does
             require 'redis'
-            redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+            redis = Redis.new(url: GlitchCube.config.redis_url)
 
             location_data = {
               lat: latitude,
@@ -932,14 +932,14 @@ module GlitchCube
           content_type :json
 
           # Block GPS spoofing in production for security
-          unless ENV['RACK_ENV'] == 'development'
+          unless GlitchCube.config.development?
             status 403
             return { success: false, error: 'GPS spoofing is only available in development environment' }.to_json
           end
 
           begin
             require 'redis'
-            redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+            redis = Redis.new(url: GlitchCube.config.redis_url)
 
             redis.del('current_cube_location')
             redis.set('cube_simulate_movement', 'false')
@@ -976,7 +976,7 @@ module GlitchCube
 
       # Get recent Home Assistant service call logs for debugging
       def self.get_recent_ha_logs(limit = 5)
-        log_file = ::Services::SimpleLogger.log_file_path
+        log_file = ::Services::Logging::SimpleLogger.log_file_path
         return [] unless File.exist?(log_file)
 
         begin

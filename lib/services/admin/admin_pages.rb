@@ -107,7 +107,7 @@ module Services
 
     def self.save_comparison(scenario_id, results)
       # Store in Redis for quick access
-      redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+      redis = Redis.new(url: GlitchCube.config.redis_url)
       comparison_id = SecureRandom.hex(8)
 
       comparison_data = {
@@ -134,7 +134,7 @@ module Services
     end
 
     def self.get_recent_comparisons
-      redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+      redis = Redis.new(url: GlitchCube.config.redis_url)
       comparison_ids = redis.lrange('recent_scenario_comparisons', 0, 9)
 
       comparisons = []
@@ -158,7 +158,7 @@ module Services
     end
 
     def self.load_comparison(comparison_id)
-      redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+      redis = Redis.new(url: GlitchCube.config.redis_url)
       data = redis.get("scenario_comparison:#{comparison_id}")
       return nil unless data
 

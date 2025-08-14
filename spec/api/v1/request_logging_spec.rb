@@ -14,7 +14,7 @@ RSpec.describe 'Request Logging', type: :request do
   describe 'automatic request logging via before/after filters' do
     it 'logs requests to SimpleLogger', :vcr do
       # Just verify that SimpleLogger.info gets called with request data
-      expect(Services::SimpleLogger).to receive(:info).at_least(:once).with(
+      expect(Services::Logging::SimpleLogger).to receive(:info).at_least(:once).with(
         anything, # message
         hash_including(
           tagged: array_including(:request),
@@ -83,7 +83,7 @@ RSpec.describe 'Request Logging', type: :request do
   describe 'LoggerService.log_request method' do
     it 'creates properly formatted log entries', :vcr do
       # Test the actual logging method directly
-      Services::LoggerService.log_request(
+      Services::Logging::LoggerService.log_request(
         method: 'GET',
         path: '/test',
         status: 200,
@@ -99,7 +99,7 @@ RSpec.describe 'Request Logging', type: :request do
     end
 
     it 'handles errors gracefully', :vcr do
-      Services::LoggerService.log_request(
+      Services::Logging::LoggerService.log_request(
         method: 'POST',
         path: '/error-endpoint',
         status: 500,

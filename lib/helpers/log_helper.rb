@@ -7,36 +7,36 @@ module LogHelper
     # Map LogHelper levels to SimpleLogger methods
     case level
     when :error
-      Services::SimpleLogger.error(message, tagged: [:log_helper])
+      Services::Logging::SimpleLogger.error(message, tagged: [:log_helper])
     when :warning
-      Services::SimpleLogger.warn(message, tagged: [:log_helper])
+      Services::Logging::SimpleLogger.warn(message, tagged: [:log_helper])
     when :success
-      Services::SimpleLogger.info("✅ #{message}", tagged: %i[log_helper success])
+      Services::Logging::SimpleLogger.info("✅ #{message}", tagged: %i[log_helper success])
     when :debug
-      Services::SimpleLogger.debug(message, tagged: [:log_helper])
+      Services::Logging::SimpleLogger.debug(message, tagged: [:log_helper])
     else
-      Services::SimpleLogger.info(message, tagged: [:log_helper])
+      Services::Logging::SimpleLogger.info(message, tagged: [:log_helper])
     end
   end
 
   def self.error(message)
-    Services::SimpleLogger.error(message, tagged: [:log_helper])
+    Services::Logging::SimpleLogger.error(message, tagged: [:log_helper])
   end
 
   def self.warning(message)
-    Services::SimpleLogger.warn(message, tagged: [:log_helper])
+    Services::Logging::SimpleLogger.warn(message, tagged: [:log_helper])
   end
 
   def self.success(message)
-    Services::SimpleLogger.info("✅ #{message}", tagged: %i[log_helper success])
+    Services::Logging::SimpleLogger.info("✅ #{message}", tagged: %i[log_helper success])
   end
 
   def self.debug(message)
-    Services::SimpleLogger.debug(message, tagged: [:log_helper])
+    Services::Logging::SimpleLogger.debug(message, tagged: [:log_helper])
   end
 
   # Compatibility method for structured logging
   def self.info(message, metadata = {})
-    Services::SimpleLogger.info(message, tagged: [:log_helper], **metadata)
+    Services::Logging::SimpleLogger.info(message, tagged: [:log_helper], **metadata)
   end
 end

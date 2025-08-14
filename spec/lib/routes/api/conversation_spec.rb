@@ -240,7 +240,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
 
     it 'handles ConversationModule failures gracefully', :vcr do
       allow_any_instance_of(ConversationModule).to receive(:call)
-        .and_raise(Services::LLMService::LLMError, 'LLM service unavailable')
+        .and_raise(Services::Llm::LLMService::LLMError, 'LLM service unavailable')
 
       # Use the primary conversation endpoint which actually calls ConversationModule
       post '/api/v1/conversation',

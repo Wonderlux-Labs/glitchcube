@@ -18,6 +18,3 @@ begin
 rescue LoadError
   puts '[WARNING] Dotenv gem not found, env files will not be loaded'
 end
-
-puts "[DEBUG] ENV['HA_URL'] at boot: #{ENV['HA_URL'].inspect}" if ENV['DEBUG']
-puts "[DEBUG] ENV['HOME_ASSISTANT_URL'] at boot: #{ENV['HOME_ASSISTANT_URL'].inspect}" if ENV['DEBUG']

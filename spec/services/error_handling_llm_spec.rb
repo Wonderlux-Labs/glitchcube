@@ -2,10 +2,10 @@
 
 require 'spec_helper'
 
-RSpec.describe Services::ErrorHandlingLLM do
+RSpec.describe Services::System::ErrorHandlingLlm do
   let(:service) { described_class.new }
   let(:redis) { instance_double(Redis) }
-  let(:logger) { Services::LoggerService }
+  let(:logger) { Services::Logging::LoggerService }
 
   before do
     allow(Redis).to receive(:new).and_return(redis)
@@ -226,7 +226,7 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       it 'uses LLM to analyze error criticality', :vcr do
-        mock_response = instance_double(Services::LLMResponse,
+        mock_response = instance_double(Services::Llm::LLMResponse,
                                         content: JSON.generate({
                                                                  'critical' => true,
                                                                  'confidence' => 0.85,
@@ -236,7 +236,7 @@ RSpec.describe Services::ErrorHandlingLLM do
                                                                  'can_self_heal' => true
                                                                }))
 
-        expect(Services::LLMService).to receive(:complete_cheap_tools).with(
+        expect(Services::Llm::LLMService).to receive(:complete_cheap_tools).with(
           anything,
           model: 'openai/gpt-4o-mini',
           response_format: { type: 'json_object' }
@@ -249,8 +249,8 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       it 'handles malformed JSON response', :vcr do
-        mock_response = instance_double(Services::LLMResponse, content: 'not json')
-        expect(Services::LLMService).to receive(:complete_cheap_tools).and_return(mock_response)
+        mock_response = instance_double(Services::Llm::LLMResponse, content: 'not json')
+        expect(Services::Llm::LLMService).to receive(:complete_cheap_tools).and_return(mock_response)
 
         result = service.assess_criticality(error, context)
         expect(result[:critical]).to be false
@@ -259,7 +259,7 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       it 'handles LLM errors gracefully', :vcr do
-        expect(Services::LLMService).to receive(:complete_cheap_tools).and_raise('API Error')
+        expect(Services::Llm::LLMService).to receive(:complete_cheap_tools).and_raise('API Error')
 
         result = service.assess_criticality(error, context)
         expect(result[:critical]).to be false
@@ -274,7 +274,7 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       it 'returns low confidence without calling LLM', :vcr do
-        expect(Services::LLMService).not_to receive(:complete_cheap_tools)
+        expect(Services::Llm::LLMService).not_to receive(:complete_cheap_tools)
 
         result = service.assess_criticality(error, context)
         expect(result[:critical]).to be false
@@ -427,7 +427,7 @@ RSpec.describe Services::ErrorHandlingLLM do
       end
 
       it 'falls back to direct LLM call', :vcr do
-        mock_response = instance_double(Services::LLMResponse,
+        mock_response = instance_double(Services::Llm::LLMResponse,
                                         content: JSON.generate({
                                                                  success: true,
                                                                  fix: {
@@ -437,7 +437,7 @@ RSpec.describe Services::ErrorHandlingLLM do
                                                                    ]
                                                                  }
                                                                }))
-        expect(Services::LLMService).to receive(:complete_cheap_tools).and_return(mock_response)
+        expect(Services::Llm::LLMService).to receive(:complete_cheap_tools).and_return(mock_response)
 
         result = service.analyze_and_fix_code(error, context)
         expect(result[:success]).to be true

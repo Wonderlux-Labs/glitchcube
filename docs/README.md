@@ -1,106 +1,108 @@
-# Glitch Cube Documentation
+# 🎲 Glitch Cube Documentation
 
-## Quick Start
+A streamlined documentation structure for the autonomous interactive art installation.
+
+## 📚 Documentation Structure
+
+### 🚀 Quick Start Guides
 - [Main README](../README.md) - Project overview and setup
-- [CLAUDE.md](../CLAUDE.md) - AI development instructions
-- [Architecture Overview](./ARCHITECTURE.md) - System design and components
+- [CLAUDE.md](../CLAUDE.md) - AI development instructions  
+- [Architecture Overview](./reference/ARCHITECTURE.md) - System design and components
 
-## Developer Documentation
+### 📖 User Guides
+- [Tool System & Hardware Integration](./guides/tool-integration.md) - Complete tool and hardware guide
+- [Home Assistant Integration](./guides/home-assistant.md) - HA configuration and API reference
+- [Testing Guide](./guides/testing.md) - Comprehensive testing with VCR
+- [Persona Development](./guides/PERSONA_SWITCHING.md) - Creating and managing personas
+- [Camera Vision Setup](./guides/camera_vision_setup.md) - Computer vision configuration
+- [Location Configuration](./guides/location_configuration.md) - GPS and positioning
+- [MariaDB Setup](./guides/mariadb_setup.md) - Database configuration
+- [Context & Memory](./guides/summarization_and_context.md) - Memory system
 
-### Core Systems
-- [Conversation System](./technical/conversation-system.md) - AI conversation architecture
-- [Tool System](./TOOL_SYSTEM.md) - LLM function calling framework
-- [Hardware Integration](./technical/hardware-integration.md) - Physical device control
+### 📋 Reference Documentation
+- [Environment Variables](./reference/ENVIRONMENT_VARIABLES.md) - Configuration reference
+- [Configuration Guide](./reference/CONFIGURATION.md) - System configuration
+- [Rake Tasks](./reference/RAKE_TASKS.md) - Available rake commands
+- [TTS Voice Mapping](./reference/tts_voice_mapping.md) - Voice configuration
+- [Integration Summary](./reference/glitchcube_integration_summary.md) - Technical overview
 
-### Technical References
-- [Environment Variables](./ENVIRONMENT_VARIABLES.md) - Configuration reference
-- [Home Assistant Integration](./technical/home_assistant_integration.md) - HA API details
-- [GPS Architecture](./gps_architecture.md) - Location tracking system
-
-### API Documentation
-- [Home Assistant Endpoints](./technical/home_assistant_api_endpoints.md) - HA API reference
-- [System Prompt Service](./technical/system_prompt_service.md) - Prompt generation
-
-## Operational Documentation
-
-### Deployment & Configuration
-- [Deployment Guide](./DEPLOYMENT.md) - Complete deployment instructions
+### 🔧 Operational Documentation
+- [Deployment Guide](./operational/DEPLOYMENT.md) - Complete deployment instructions
 - [Database Configuration](./operational/database-config.md) - PostgreSQL setup
 - [Sidekiq Configuration](./operational/sidekiq-config.md) - Background jobs
-
-### Monitoring & Maintenance
 - [Admin Interface Guide](./operational/admin-interface-guide.md) - Testing conversations and tools
 - [Health Monitoring](./operational/health-monitoring.md) - System health checks
 - [Uptime Kuma Setup](./operational/uptime-kuma.md) - Service monitoring
 - [GitHub Webhooks](./operational/github-webhooks.md) - CI/CD integration
 
-## Personas & Content
-
-### Character Documentation
+### 🎭 Personas & Content
 - [Persona Development Guide](./personas/README.md) - Creating and managing personas
 - [General Instructions](./personas/general-instructions.md) - Base personality rules
 - [Art Philosophy](./personas/art-philosophy.md) - Creative direction
-
-### Individual Personas
 - [Buddy](./personas/buddy.md) - The helpful assistant
 - [Jax](./personas/jax.md) - The surly bartender
 - [Lomi](./personas/lomi.md) - The drag queen
 - [Zorp](./personas/zorp.md) - The party bro
 
-## Home Assistant Configuration
-- [Entity Reference](../config/homeassistant/ENTITIES.md) - HA entities list
-- [Integration Map](../config/homeassistant/INTEGRATION_MAP.md) - Service mappings
+### 🎯 Core Systems (Technical)
+- [Conversation System](./technical/conversation-system.md) - AI conversation architecture
+- [Conversation Flows](./technical/conversation-flows.md) - Interaction patterns
+- [Conversation Index](./technical/CONVERSATION_DOCS_INDEX.md) - Complete conversation docs
+- [System Prompt Service](./technical/system_prompt_service.md) - Prompt generation
 
-## Additional Resources
-- [TTS Voice Mapping](./tts_voice_mapping.md) - Voice configuration
+### 📊 Additional Resources
 - [Cube Settings Reference](./cube_settings_reference.md) - Hardware settings
-- [AWTRIX Integration](./technical/awtrix_integration.md) - LED display details
-- [Location Configuration](./technical/location_configuration.md) - GPS setup
+- [GPS Architecture](./gps_architecture.md) - Location tracking system
+- [Hardware List](./EXISTING_SERVICES_AND_HARDWARE.md) - Complete hardware inventory
+- [TODO List](./TODO.md) - Development roadmap
+- [Overview](./overview.md) - Project summary
 
-## Development Tools
+## 🛠️ Development Commands
 
-### Testing
 ```bash
-# Run all tests
-bin/rspec
+# Development
+bin/dev                    # Start development server (auto-reload + Sidekiq)
+bin/console               # Interactive console with app loaded
+bin/rspec                 # Run all tests
+bin/rspec --vcr-override  # Re-record all VCR cassettes
 
-# Run tests with VCR options
+# Testing
 bin/rspec --vcr-none      # CI mode (no cassettes)
-bin/rspec --vcr-override  # Override existing cassettes
+VCR_RECORD=true bin/rspec # Record specific test cassettes
 
-# Test conversations in console
+# Production
+bin/prod                  # Start production server
+rake deploy:push["msg"]   # Deploy to production
+rake health:check         # Check system status
+
+# Console Testing
 bin/console
 test_conversation("Hello!")
 ```
 
-### Common Tasks
-```bash
-# Start development server (auto-reload + Sidekiq)
-bin/dev
+## 📋 Documentation Organization
 
-# Start production server
-bin/prod
+The documentation has been restructured into four clear categories:
 
-# Deploy to production
-rake deploy:push["Deploy message"]
+1. **📖 User Guides** - Step-by-step how-to documentation
+2. **📋 Reference** - Technical specifications and configuration
+3. **🔧 Operational** - Deployment and maintenance procedures  
+4. **🎭 Personas** - Character development and creative content
 
-# Check system status
-rake health:check
-```
+## 🧹 Cleanup Summary
 
-## Documentation Standards
+**Deleted 17 obsolete files:**
+- 6 completed planning documents (architecture specs, refactor summaries)
+- 5 implementation artifacts (GPS tracker prototypes)
+- 3 one-time analysis documents
+- 3 redundant testing pattern files
 
-- **Technical docs**: Implementation details, API references
-- **Operational docs**: Deployment, monitoring, configuration
-- **Persona docs**: Character development, creative content
-- **User-facing**: How to interact with the system
+**Created 3 consolidated guides:**
+- `guides/tool-integration.md` - Complete tool & hardware documentation
+- `guides/home-assistant.md` - Full HA integration guide
+- `guides/testing.md` - Comprehensive testing with VCR patterns
 
-## Contributing
-When updating documentation:
-1. Keep it concise and practical
-2. Include code examples
-3. Update this index if adding new files
-4. Remove outdated content aggressively
+**Result:** 75+ scattered files → ~30 organized, current files
 
 ---
-*Last updated: January 2025*
+*Documentation restructured: January 2025*

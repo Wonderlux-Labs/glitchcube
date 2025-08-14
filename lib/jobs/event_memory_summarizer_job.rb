@@ -15,7 +15,7 @@ module Jobs
       summary_content = generate_event_summary(recent_conversations)
       save_summary(summary_content, 'event')
     rescue StandardError => e
-      Services::SimpleLogger.error "EventMemorySummarizerJob failed: #{e.message}"
+      Services::Logging::SimpleLogger.error "EventMemorySummarizerJob failed: #{e.message}"
       raise
     end
 

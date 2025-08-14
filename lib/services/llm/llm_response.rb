@@ -165,10 +165,10 @@ module Services
         # No text field found in structured response
         # Return nil to indicate no textual response available
         # This prevents raw JSON from being passed as response text
-        if defined?(Services::SimpleLogger)
-          Services::SimpleLogger.debug('No response/text field in structured output',
-                                       tagged: %i[llm_response structured],
-                                       parsed_keys: parsed_content.keys)
+        if defined?(Services::Logging::SimpleLogger)
+          Services::Logging::SimpleLogger.debug('No response/text field in structured output',
+                                                tagged: %i[llm_response structured],
+                                                parsed_keys: parsed_content.keys)
         end
         return nil
       end

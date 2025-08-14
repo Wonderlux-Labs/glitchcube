@@ -15,7 +15,7 @@ module Jobs
       summary_content = generate_personal_summary(recent_messages)
       save_summary(summary_content, 'personal')
     rescue StandardError => e
-      Services::SimpleLogger.error "PersonalSummarizerJob failed: #{e.message}"
+      Services::Logging::SimpleLogger.error "PersonalSummarizerJob failed: #{e.message}"
       raise
     end
 

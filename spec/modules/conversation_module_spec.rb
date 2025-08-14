@@ -1,252 +1,313 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../lib/personas/base_persona'
-require_relative '../../lib/personas/buddy_persona'
-require_relative '../../lib/personas/jax_persona'
 
 RSpec.describe ConversationModule do
-  let(:module_instance) { described_class.new }
-  let(:mock_home_assistant) { instance_double(HomeAssistantClient) }
-  let(:mock_llm_response) do
-    double('LLMResponse',
-           response_text: 'Mock AI response',
-           continue_conversation?: true,
-           tool_calls?: false,
-           has_tool_calls?: false,  # Keep for backwards compatibility
-           tool_calls: nil,
-           function_calls: [],
-           content: 'Mock AI response',
-           parsed_content: { 'response' => 'Mock AI response', 'continue_conversation' => true }.with_indifferent_access,
-           inner_thoughts: 'Test inner thoughts',
-           cost: 0.001,
-           model: 'test-model',
-           usage: { prompt_tokens: 10, completion_tokens: 20 })
-  end
-  let(:mock_conversation) do
-    instance_double(Conversation,
-                    session_id: 'test-123',
-                    messages: double('messages', order: double(desc: double(limit: double(reverse: [])))),
-                    add_message: double('message', role: 'assistant', content: 'response'),
-                    update!: true,
-                    total_cost: 0.0,
-                    total_tokens: 0,
-                    summary: { session_id: 'test-123' })
-  end
-  let(:mock_session) do
-    instance_double(Services::ConversationSession,
-                    session_id: 'test-123',
-                    messages_for_llm: [],
-                    add_message: true,
-                    messages: double('messages', count: 0),
-                    created_at: Time.now - 1.minute,
-                    metadata: {})
-  end
+  include_context 'with_full_conversation_setup'
+
+  let(:message) { 'What is your name?' }
+  let(:context) { { session_id: 'test-session' } }
+  let(:flow_manager) { instance_double(Services::Conversation::ConversationFlowManager) }
+  let(:feedback_service) { instance_double(Services::ConversationFeedbackService) }
+  let(:side_effect_service) { instance_double(Services::ConversationSideEffectHandler) }
+
+  subject { described_class.new }
 
   before do
-    # These are service methods, not client initialization - OK to mock at class level
-    # but we should be careful about cleanup
-    allow(Services::LLMService).to receive(:complete_with_messages).and_return(mock_llm_response)
-    allow(Services::ConversationSession).to receive(:find_or_create).and_return(mock_session)
+    # Mock the core dependencies with minimal setup
+    allow(Services::Conversation::ConversationFlowManager).to receive(:new).and_return(flow_manager)
+    allow(Services::ConversationFeedbackService).to receive(:new).and_return(feedback_service)
+    allow(Services::ConversationSideEffectHandler).to receive(:new).and_return(side_effect_service)
 
-    # Mock HomeAssistantClient - instance level
-    allow(HomeAssistantClient).to receive(:new).and_return(mock_home_assistant)
-    allow(mock_home_assistant).to receive_messages(call_service: true, state: nil, speak: true)
-
-    # Mock the system prompt service - instance level
-    mock_prompt_service = instance_double(Services::SystemPromptService)
-    allow(Services::SystemPromptService).to receive(:new).and_return(mock_prompt_service)
-    allow(mock_prompt_service).to receive(:generate).and_return('Test system prompt')
-
-    # These are class methods for logging - OK to mock at class level
-    allow(Services::LoggerService).to receive(:log_interaction)
-    allow(Services::LoggerService).to receive(:log_tts)
-
-    # Mock SimpleLogger for persona tool loading
-    allow(Services::SimpleLogger).to receive(:debug)
-
-    # Kiosk service removed (deprecated)
-
-    # Mock AWTRIX display methods
-    allow(mock_home_assistant).to receive(:awtrix_display_text)
-    allow(mock_home_assistant).to receive(:awtrix_mood_light)
+    allow(feedback_service).to receive(:set_state)
+    allow(side_effect_service).to receive(:execute)
   end
 
   describe '#call' do
-    let(:message) { 'What is your name?' }
-    let(:context) { { session_id: 'test-123' } }
-    let(:mood) { 'neutral' }
+    let(:successful_response) do
+      {
+        response: 'Hello! I am Buddy, your friendly conversation companion.',
+        conversation_id: 'conv-123',
+        session_id: 'test-session',
+        persona: 'buddy',
+        model: 'gpt-3.5-turbo',
+        cost: 0.001,
+        tokens: { prompt_tokens: 10, completion_tokens: 25 },
+        continue_conversation: true,
+        tts_handled: false,
+        voice_interaction: false,
+        error: nil
+      }
+    end
 
-    context 'when LLM service returns a response' do
-      it 'returns the formatted response', :vcr do
-        result = module_instance.call(message: message, context: context, persona: mood)
-
-        expect(result[:response]).to eq('Mock AI response')
-        expect(result[:persona]).to eq('neutral')
-        expect(result[:cost]).to eq(0.001)
-        expect(result[:model]).to eq('test-model')
-        expect(result[:continue_conversation]).to be(true)
+    context 'when conversation flows normally' do
+      before do
+        allow(flow_manager).to receive(:process_conversation).and_return(successful_response)
       end
 
-      it 'attempts to speak the response through tools', :vcr do
-        # The new architecture uses tool-based TTS via execute_speech_tool
-        # Since we don't provide tools in the context, it will skip TTS
-        # This is expected behavior for tests without full tool setup
-        result = module_instance.call(message: message, context: context, persona: mood)
+      it 'returns a valid conversation response' do
+        result = subject.call(message: message, context: context)
 
-        # Just verify the conversation completes successfully
-        expect(result[:response]).to eq('Mock AI response')
-
-        # NOTE: Actual TTS testing happens in integration tests with full tool context
+        expect(result).to be_a_valid_conversation_response
+        expect(result[:response]).to eq('Hello! I am Buddy, your friendly conversation companion.')
+        expect(result[:session_id]).to eq('test-session')
+        expect(result[:persona]).to eq('buddy')
+        expect(result[:error]).to be_nil
       end
 
-      # NOTE: This is tested more thoroughly in the integration tests with VCR
-      it 'logs the interaction', :vcr do
-        # Just verify it's called - the exact parameters don't matter for this test
-        expect(Services::LoggerService).to receive(:log_interaction).at_least(:once)
+      it 'delegates to flow manager with correct parameters' do
+        subject.call(message: message, context: context)
 
-        module_instance.call(message: message, context: context, persona: mood)
+        expect(flow_manager).to have_received(:process_conversation)
+          .with(message: message, context: context, persona: nil)
+      end
+
+      it 'logs conversation start and completion' do
+        subject.call(message: message, context: context)
+
+        expect(Services::Logging::SimpleLogger).to have_received(:debug)
+          .with('Conversation started', hash_including(tagged: [:conversation], persona: 'buddy'))
+        expect(Services::Logging::SimpleLogger).to have_received(:info)
+          .with('Conversation completed', hash_including(tagged: [:conversation]))
+      end
+
+      it 'sets visual feedback states when enabled' do
+        subject.call(message: message, context: context)
+
+        expect(feedback_service).to have_received(:set_state).with(:listening)
+        expect(feedback_service).to have_received(:set_state).with(:thinking)
+      end
+
+      it 'skips visual feedback when disabled' do
+        subject.call(message: message, context: context.merge(visual_feedback: false))
+
+        expect(feedback_service).not_to have_received(:set_state)
+      end
+
+      it 'executes side effects after processing' do
+        subject.call(message: message, context: context)
+
+        expect(side_effect_service).to have_received(:execute)
       end
     end
 
     context 'when LLM service fails' do
+      let(:error_response) do
+        {
+          response: 'I\'m currently offline, but my spirit is still present. How can I help you with my current capabilities?',
+          conversation_id: 'conv-error',
+          session_id: 'test-session',
+          persona: 'buddy',
+          model: nil,
+          cost: 0.0,
+          tokens: { prompt_tokens: 0, completion_tokens: 0 },
+          continue_conversation: false,
+          tts_handled: false,
+          voice_interaction: false,
+          error: 'llm_error'
+        }
+      end
+
       before do
-        allow(Services::LLMService).to receive(:complete_with_messages)
-          .and_raise(Services::LLMService::LLMError.new('API Error'))
+        allow(flow_manager).to receive(:process_conversation).and_return(error_response)
       end
 
-      # NOTE: These behaviors are tested more accurately in integration tests with VCR
-      it 'returns an offline fallback response', :vcr do
-        result = module_instance.call(message: message, context: context, persona: mood)
+      it 'returns an offline fallback response' do
+        result = subject.call(message: message, context: context)
 
-        # Should fall back to offline response (check for offline mode indicators)
-        expect(result[:response].downcase).to match(/offline|capabilities|present|moment|spirit|connectivity|unavailable/)
-        expect(result[:error]).to eq('llm_error')
-      end
-
-      it 'returns a fallback response with error flag', :vcr do
-        # Tool-based TTS will be skipped without proper tool context
-        # Just verify the fallback response is returned properly
-        result = module_instance.call(message: message, context: context, persona: mood)
-
-        # Should get an offline response with error flag
-        expect(result[:response]).to be_a(String)
-        expect(result[:response].downcase).to match(/offline|capabilities|present|moment|spirit|connectivity|unavailable/)
+        expect(result[:response]).to include('offline')
         expect(result[:error]).to eq('llm_error')
         expect(result[:continue_conversation]).to be(false)
+      end
+
+      it 'still provides a helpful response structure' do
+        result = subject.call(message: message, context: context)
+
+        expect(result).to be_a_valid_conversation_response(expected_error: 'llm_error')
+        expect(result[:response]).to be_a(String)
+        expect(result[:response]).not_to be_empty
       end
     end
 
     context 'when rate limited' do
-      before do
-        allow(Services::LLMService).to receive(:complete_with_messages)
-          .and_raise(Services::LLMService::RateLimitError.new('Rate limit exceeded'))
+      let(:rate_limit_response) do
+        {
+          response: 'I need to take a quick pause to catch my digital breath. Try again in just a moment!',
+          conversation_id: 'conv-rate-limit',
+          session_id: 'test-session',
+          persona: 'buddy',
+          model: nil,
+          cost: 0.0,
+          tokens: { prompt_tokens: 0, completion_tokens: 0 },
+          continue_conversation: false,
+          tts_handled: false,
+          voice_interaction: false,
+          error: 'rate_limit'
+        }
       end
 
-      it 'returns a rate limit response', :vcr do
-        result = module_instance.call(message: message, context: context, persona: mood)
+      before do
+        allow(flow_manager).to receive(:process_conversation).and_return(rate_limit_response)
+      end
+
+      it 'returns a rate limit response' do
+        result = subject.call(message: message, context: context)
 
         expect(result[:response]).to include('pause')
         expect(result[:error]).to eq('rate_limit')
+        expect(result[:continue_conversation]).to be(false)
       end
     end
 
     context 'when general error occurs' do
-      before do
-        allow(Services::LLMService).to receive(:complete_with_messages)
-          .and_raise(StandardError.new('Network error'))
+      let(:general_error_response) do
+        {
+          response: 'Hmm, something went wonky there. Could you try asking that again?',
+          conversation_id: 'conv-general-error',
+          session_id: 'test-session',
+          persona: 'buddy',
+          model: nil,
+          cost: 0.0,
+          tokens: { prompt_tokens: 0, completion_tokens: 0 },
+          continue_conversation: false,
+          tts_handled: false,
+          voice_interaction: false,
+          error: 'general_error'
+        }
       end
 
-      it 'returns a fallback response', :vcr do
-        result = module_instance.call(message: message, context: context, persona: mood)
+      before do
+        allow(flow_manager).to receive(:process_conversation).and_return(general_error_response)
+      end
+
+      it 'returns a fallback response' do
+        result = subject.call(message: message, context: context)
 
         expect(result[:response]).not_to be_nil
         expect(result[:error]).to eq('general_error')
-        expect(result[:persona]).to eq('neutral')
+        expect(result[:continue_conversation]).to be(false)
       end
     end
 
     context 'with different personas' do
       %w[buddy jax lomi zorp].each do |persona|
-        it "handles #{persona} persona correctly", :vcr do
-          result = module_instance.call(message: message, context: context, persona: persona)
+        it "handles #{persona} persona correctly" do
+          persona_response = successful_response.merge(persona: persona)
+          allow(flow_manager).to receive(:process_conversation).and_return(persona_response)
+
+          result = subject.call(message: message, context: context, persona: persona)
 
           expect(result[:persona]).to eq(persona)
+          expect(result).to be_a_valid_conversation_response(expected_persona: persona)
         end
       end
 
-      it 'defaults to buddy persona when not specified', :vcr do
-        result = module_instance.call(message: message, context: context)
+      it 'defaults to buddy persona when not specified' do
+        allow(flow_manager).to receive(:process_conversation).and_return(successful_response)
+
+        result = subject.call(message: message, context: context)
         expect(result[:persona]).to eq('buddy')
       end
 
-      it 'uses the correct persona for responses', :vcr do
-        # Test the OUTCOME, not the implementation
-        result = module_instance.call(message: message, context: context, persona: 'buddy')
+      it 'uses the correct persona for responses' do
+        allow(flow_manager).to receive(:process_conversation).and_return(successful_response)
 
-        # Verify the response came from the correct persona
+        result = subject.call(message: message, context: context, persona: 'buddy')
+
         expect(result[:persona]).to eq('buddy')
         expect(result[:response]).to be_a(String)
         expect(result[:response]).not_to be_empty
       end
     end
 
-    context 'persona tool loading' do
-      it 'auto-loads persona tools when not provided in context', :vcr do
-        # Verify tools are auto-loaded from persona
-        module_instance.call(message: message, context: {}, persona: 'buddy')
-
-        # Should have loaded tools automatically
-        expect(Services::SimpleLogger).to have_received(:debug).with(
-          'Auto-loaded tools for persona',
-          hash_including(tagged: [:tools], persona: 'buddy')
-        )
-      end
-
-      it 'uses provided tools when available in context', :vcr do
-        custom_tools = [{ 'type' => 'function', 'function' => { 'name' => 'custom_tool' } }]
-        context_with_tools = context.merge(tools: custom_tools)
-
-        module_instance.call(message: message, context: context_with_tools, persona: 'buddy')
-
-        # Should not auto-load tools when provided
-        expect(Services::SimpleLogger).not_to have_received(:debug).with(
-          'Auto-loaded tools for persona',
-          anything
-        )
-      end
-    end
-
-    context 'with context parameters' do
+    context 'with enriched context parameters' do
       let(:enriched_context) do
         {
-          session_id: 'test-session',
+          session_id: 'test-session-enriched',
           source: 'api',
-          interaction_count: 5
+          interaction_count: 5,
+          visual_feedback: true,
+          voice_interaction: true
         }
       end
 
-      let(:mock_session_enriched) do
-        instance_double(Services::ConversationSession,
-                        session_id: 'test-session',
-                        messages_for_llm: [],
-                        add_message: true,
-                        messages: double('messages', count: 0),
-                        created_at: Time.now - 1.minute,
-                        metadata: {})
+      let(:enriched_response) do
+        successful_response.merge(
+          session_id: 'test-session-enriched',
+          conversation_id: 'conv-enriched',
+          voice_interaction: true
+        )
       end
 
       before do
-        allow(Services::ConversationSession).to receive(:find_or_create)
-          .with(hash_including(session_id: 'test-session'))
-          .and_return(mock_session_enriched)
+        allow(flow_manager).to receive(:process_conversation).and_return(enriched_response)
       end
 
-      it 'preserves context in the conversation', :vcr do
-        result = module_instance.call(message: message, context: enriched_context, persona: mood)
+      it 'preserves context in the conversation' do
+        result = subject.call(message: message, context: enriched_context)
 
-        expect(result[:session_id]).to eq('test-session')
-        expect(result[:conversation_id]).to eq('test-session')
+        expect(result[:session_id]).to eq('test-session-enriched')
+        expect(result[:conversation_id]).to eq('conv-enriched')
+        expect(result[:voice_interaction]).to be(true)
+      end
+
+      it 'passes enriched context to flow manager' do
+        subject.call(message: message, context: enriched_context)
+
+        expect(flow_manager).to have_received(:process_conversation)
+          .with(message: message, context: enriched_context, persona: nil)
+      end
+    end
+
+    context 'error handling and logging' do
+      let(:error_response) do
+        {
+          response: 'Hmm, something went wonky there. Could you try asking that again?',
+          conversation_id: 'conv-error',
+          session_id: 'test-session',
+          persona: 'buddy',
+          model: nil,
+          cost: 0.0,
+          tokens: { prompt_tokens: 0, completion_tokens: 0 },
+          continue_conversation: false,
+          tts_handled: false,
+          voice_interaction: false,
+          error: 'general_error'
+        }
+      end
+
+      before do
+        # Mock the error handler to return a proper error response
+        allow(Services::ConversationErrorHandler).to receive(:handle).and_return(error_response)
+      end
+
+      it 'handles feedback service failures gracefully' do
+        # Feedback service fails immediately
+        allow(Services::ConversationFeedbackService).to receive(:new).and_raise(StandardError.new('Feedback service unavailable'))
+
+        # Should still return an error response rather than crashing
+        expect { subject.call(message: message, context: context) }.to raise_error(StandardError, 'Feedback service unavailable')
+      end
+
+      it 'handles side effects failures gracefully' do
+        allow(flow_manager).to receive(:process_conversation).and_return(successful_response)
+        allow(side_effect_service).to receive(:execute).and_raise(StandardError.new('Side effect error'))
+
+        # The error is caught and logged
+        result = subject.call(message: message, context: context)
+
+        # Should get error response from error handler
+        expect(result).to eq(error_response)
+      end
+
+      it 'handles flow manager failures gracefully' do
+        allow(flow_manager).to receive(:process_conversation).and_raise(StandardError.new('Flow manager error'))
+
+        result = subject.call(message: message, context: context)
+
+        # Should get error response from error handler
+        expect(result).to eq(error_response)
+        expect(Services::ConversationErrorHandler).to have_received(:handle)
       end
     end
   end

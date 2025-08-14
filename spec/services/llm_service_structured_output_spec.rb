@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../lib/services/llm/llm_service'
 
-RSpec.describe Services::LLMService, 'structured output support' do
+RSpec.describe Services::Llm::LLMService, 'structured output support' do
   before do
     # Clear any cached client to ensure fresh state
     described_class.instance_variable_set(:@client, nil)
@@ -152,7 +152,7 @@ RSpec.describe Services::LLMService, 'structured output support' do
 
             expect(response).to be_a(Services::LLMResponse)
             expect(response.parsed_content).to be_a(Hash)
-          rescue Services::LLMService::LLMError => e
+          rescue Services::Llm::LLMService::LLMError => e
             # If we get an error, let's see what it actually is
             puts "Error for message '#{msg}': #{e.message}"
             puts "Error class: #{e.class}"

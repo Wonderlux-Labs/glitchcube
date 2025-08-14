@@ -18,7 +18,7 @@ module Services
         persona = redis_client.get(REDIS_KEY)
         persona || DEFAULT_PERSONA
       rescue StandardError => e
-        Services::SimpleLogger.log_error(error: e, message: 'Failed to get current persona from Redis')
+        Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to get current persona from Redis')
         DEFAULT_PERSONA
       end
 
@@ -40,13 +40,13 @@ module Services
         # Sync with Home Assistant if requested
         sync_with_home_assistant(normalized_name) if sync_with_ha
 
-        Services::SimpleLogger.info('Persona changed',
-                                    tagged: [:persona],
-                                    new_persona: normalized_name)
+        Services::Logging::SimpleLogger.info('Persona changed',
+                                             tagged: [:persona],
+                                             new_persona: normalized_name)
 
         normalized_name
       rescue StandardError => e
-        Services::SimpleLogger.log_error(error: e, message: 'Failed to set current persona')
+        Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to set current persona')
         raise
       end
 
@@ -71,12 +71,12 @@ module Services
             }
           )
 
-          Services::SimpleLogger.debug('Synced persona with Home Assistant',
-                                       tagged: %i[persona home_assistant],
-                                       persona: persona_name)
+          Services::Logging::SimpleLogger.debug('Synced persona with Home Assistant',
+                                                tagged: %i[persona home_assistant],
+                                                persona: persona_name)
           true
         rescue StandardError => e
-          Services::SimpleLogger.log_error(error: e, message: 'Failed to sync persona with Home Assistant')
+          Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to sync persona with Home Assistant')
           false
         end
       end
@@ -94,7 +94,7 @@ module Services
 
         normalized
       rescue StandardError => e
-        Services::SimpleLogger.log_error(error: e, message: 'Failed to get persona from Home Assistant')
+        Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to get persona from Home Assistant')
         DEFAULT_PERSONA
       end
 
@@ -120,7 +120,7 @@ module Services
 
         stats
       rescue StandardError => e
-        Services::SimpleLogger.log_error(error: e, message: 'Failed to get persona usage stats')
+        Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to get persona usage stats')
         {}
       end
 
@@ -134,10 +134,10 @@ module Services
           redis_client.del(*keys) if keys.any?
         end
 
-        Services::SimpleLogger.info('Cleared all persona state')
+        Services::Logging::SimpleLogger.info('Cleared all persona state')
         true
       rescue StandardError => e
-        Services::SimpleLogger.log_error(error: e, message: 'Failed to clear persona state')
+        Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to clear persona state')
         false
       end
 
@@ -156,7 +156,7 @@ module Services
         redis_client.incr(key)
         redis_client.expire(key, 30 * 86_400) # Keep stats for 30 days
       rescue StandardError => e
-        Services::SimpleLogger.log_error(error: e, message: 'Failed to increment persona usage stats')
+        Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to increment persona usage stats')
       end
 
       def redis_available?
@@ -170,7 +170,7 @@ module Services
       end
 
       def redis_client
-        @redis_client ||= Redis.new(url: GlitchCube.config.redis_url || ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+        @redis_client ||= Redis.new(url: GlitchCube.config.redis_url)
       end
     end
   end

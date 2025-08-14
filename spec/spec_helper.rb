@@ -84,10 +84,16 @@ RSpec.configure do |config|
     end
   end
 
-  # Disable background jobs during tests
+  # Configure Sidekiq for tests - always inline mode
   config.before(:suite) do
-    require 'sidekiq/testing'
-    Sidekiq::Testing.fake!
+    # Only require Sidekiq testing if Sidekiq is defined
+    if defined?(Sidekiq)
+      require 'sidekiq/testing'
+      Sidekiq::Testing.inline! # Changed from fake! to inline!
+      Services::Logging::SimpleLogger.info('Sidekiq configured for inline testing mode', tagged: %i[test sidekiq])
+    else
+      Services::Logging::SimpleLogger.info('Sidekiq not available - tests will run without background jobs', tagged: %i[test sidekiq])
+    end
 
     # Ensure test database is properly migrated
     # ActiveRecord should already be connected via app.rb

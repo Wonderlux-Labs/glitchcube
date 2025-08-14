@@ -23,7 +23,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
     allow(mock_home_assistant).to receive(:speak).and_return(true)
 
     # Mock LLM Service
-    allow(Services::LLMService).to receive(:complete).and_return(mock_llm_response)
+    allow(Services::Llm::LLMService).to receive(:complete).and_return(mock_llm_response)
 
     # Mock conversation persistence
     mock_conversation = double(
@@ -37,8 +37,8 @@ RSpec.describe ConversationModule, 'enhanced features' do
     allow(Conversation).to receive(:create!).and_return(mock_conversation)
 
     # Mock services
-    allow(Services::LoggerService).to receive(:log_interaction)
-    allow(Services::LoggerService).to receive(:log_tts)
+    allow(Services::Logging::LoggerService).to receive(:log_interaction)
+    allow(Services::Logging::LoggerService).to receive(:log_tts)
 
     # Mock system prompt
     mock_prompt_service = instance_double(Services::SystemPromptService)
@@ -89,7 +89,7 @@ RSpec.describe ConversationModule, 'enhanced features' do
       allow(Services::ConversationSession).to receive(:find_or_create).and_return(mock_session)
 
       # Simulate LLM failure
-      allow(Services::LLMService).to receive(:complete_with_messages).and_raise(Services::LLMService::LLMError, 'Temporary error')
+      allow(Services::Llm::LLMService).to receive(:complete_with_messages).and_raise(Services::Llm::LLMService::LLMError, 'Temporary error')
 
       result = module_instance.call(message: message, context: context)
 

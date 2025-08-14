@@ -23,7 +23,7 @@ module Services
 
       # Try cache first
       begin
-        redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+        redis = Redis.new(url: GlitchCube.config.redis_url)
         cached_result = redis.get(cache_key)
         return JSON.parse(cached_result, symbolize_names: true) if cached_result
       rescue StandardError
@@ -44,7 +44,7 @@ module Services
 
       # Cache for 5 minutes (ignore if Redis fails)
       begin
-        redis ||= Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+        redis ||= Redis.new(url: GlitchCube.config.redis_url)
         redis.setex(cache_key, 300, result.to_json)
       rescue StandardError
         # Cache write failed, but we still return the result

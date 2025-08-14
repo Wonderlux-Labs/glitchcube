@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../../lib/services/system/tool_executor'
 
-RSpec.describe Services::ToolExecutor do
+RSpec.describe Services::System::ToolExecutor do
   describe 'slice bug fix' do
     let(:test_tool_class) do
       Class.new do
@@ -17,7 +17,7 @@ RSpec.describe Services::ToolExecutor do
       end
     end
 
-    let(:tool_executor) { Services::ToolExecutor }
+    let(:tool_executor) { Services::System::ToolExecutor }
 
     describe '#filter_args_for_method (private method)' do
       it 'correctly filters arguments without causing slice error' do

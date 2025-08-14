@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'tools/hass_mcp_tool'
+require_relative '../../lib/tools/hass_mcp_tool'
 
 # TODO: Investigate VCR recording for STDIO subprocess interactions
 # MCP uses mcp-proxy via STDIO which VCR doesn't capture
 # These tests run live against the real MCP proxy
-RSpec.describe HassMcpTool, :vcr do
+RSpec.describe Tools::HassMcpTool, :vcr do
   before(:context) do
     unless ENV['RUN_MCP'] == 'true'
       skip 'MCP tests require local mcp-proxy - skipping in CI'
@@ -147,7 +147,7 @@ RSpec.describe HassMcpTool, :vcr do
       it 'handles missing required function parameter' do
         expect do
           described_class.call(mcp_params: { name: 'Cube Light' })
-        end.to raise_error(BaseTool::ValidationError, /Missing required parameters: mcp_function/)
+        end.to raise_error(Tools::BaseTool::ValidationError, /Missing required parameters: mcp_function/)
       end
 
       it 'handles JSON string parameters' do

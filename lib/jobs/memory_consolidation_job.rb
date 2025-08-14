@@ -9,7 +9,7 @@ module Jobs
     sidekiq_options queue: 'low', retry: 1
 
     def perform(summary)
-      Services::SimpleLogger.info(
+      Services::Logging::SimpleLogger.info(
         'Consolidating memories from conversation...',
         tagged: [:memory_consolidation]
       )

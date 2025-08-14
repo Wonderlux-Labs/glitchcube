@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Services::ToolExecutor do
+RSpec.describe Services::System::ToolExecutor do
   # Test tool for stubbing
   let(:test_tool) do
     Class.new do

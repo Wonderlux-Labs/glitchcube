@@ -27,17 +27,30 @@ cleanup() {
 # Set up trap to cleanup on Ctrl-C
 trap cleanup INT TERM
 
-# Start the app with rerun (in foreground)
-echo "🚀 Starting app with auto-reload..."
-bundle exec rerun --background --dir . --pattern '**/*.{rb,yml,erb}' -- ruby app.rb
-
-# Start Sidekiq in background
-echo "🚀 Starting Sidekiq..."
-bundle exec sidekiq -C config/sidekiq/sidekiq.yml -r ./config/sidekiq/sidekiq_boot.rb &
-SIDEKIQ_PID=$!
-
-# Give Sidekiq a moment to start
-sleep 2
-
-# This will only be reached if rerun fails to start
-wait $SIDEKIQ_PID
+# Check if we should run Sidekiq as separate process
+if [ "${SIDEKIQ_INLINE}" = "false" ]; then
+    echo "🔄 Starting in background mode (SIDEKIQ_INLINE=false)"
+    
+    # Start Sidekiq in background first
+    echo "🚀 Starting Sidekiq..."
+    bundle exec sidekiq -C config/sidekiq/sidekiq.yml -r ./config/sidekiq/sidekiq_boot.rb &
+    SIDEKIQ_PID=$!
+    echo "Sidekiq started with PID: $SIDEKIQ_PID"
+    
+    # Give Sidekiq a moment to start
+    sleep 2
+    
+    # Start the app with rerun (in foreground)
+    echo "🚀 Starting app with auto-reload..."
+    bundle exec rerun --background --dir . --pattern '**/*.{rb,yml,erb}' -- ruby app.rb
+    
+    # This will only be reached if rerun fails to start
+    wait $SIDEKIQ_PID
+else
+    echo "⚡ Starting in inline mode (jobs run synchronously)"
+    echo "   Use SIDEKIQ_INLINE=false to run Sidekiq as separate process"
+    
+    # Start the app with rerun (Sidekiq will run inline)
+    echo "🚀 Starting app with auto-reload..."
+    bundle exec rerun --dir . --pattern '**/*.{rb,yml,erb}' -- ruby app.rb
+fi

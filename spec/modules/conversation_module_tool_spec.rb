@@ -66,14 +66,14 @@ RSpec.describe ConversationModule do
     end
 
     before do
-      allow(Services::ToolExecutor).to receive(:execute)
+      allow(Services::System::ToolExecutor).to receive(:execute)
         .with([{ name: 'set_lights', arguments: { 'state' => 'on', 'brightness' => 100 } }])
         .and_return([{ success: true, message: 'Lights turned on' }])
 
-      allow(Services::LLMService).to receive(:complete_with_messages)
+      allow(Services::Llm::LLMService).to receive(:complete_with_messages)
         .and_return(follow_up_response)
 
-      allow(Services::SimpleLogger).to receive(:info)
+      allow(Services::Logging::SimpleLogger).to receive(:info)
     end
 
     it 'executes tool calls and returns a follow-up response' do
@@ -102,7 +102,7 @@ RSpec.describe ConversationModule do
         content: '{"success":true,"message":"Lights turned on"}'
       }
 
-      expect(Services::LLMService).to receive(:complete_with_messages) do |args|
+      expect(Services::Llm::LLMService).to receive(:complete_with_messages) do |args|
         expect(args[:messages]).to include(expected_tool_result)
         follow_up_response
       end
@@ -114,7 +114,7 @@ RSpec.describe ConversationModule do
       # Mock that the model supports structured output
       allow(GlitchCube::ModelPresets).to receive(:supports_structured_output?).and_return(true)
 
-      expect(Services::LLMService).to receive(:complete_with_messages) do |args|
+      expect(Services::Llm::LLMService).to receive(:complete_with_messages) do |args|
         expect(args[:response_format]).not_to be_nil
         follow_up_response
       end
@@ -154,11 +154,11 @@ RSpec.describe ConversationModule do
       end
       allow(multi_llm_response).to receive(:message_data).and_return({ role: 'assistant', content: nil, tool_calls: multi_tool_calls })
 
-      allow(Services::ToolExecutor).to receive(:execute)
+      allow(Services::System::ToolExecutor).to receive(:execute)
         .with([{ name: 'set_lights', arguments: { 'state' => 'on' } }])
         .and_return([{ success: true }])
 
-      allow(Services::ToolExecutor).to receive(:execute)
+      allow(Services::System::ToolExecutor).to receive(:execute)
         .with([{ name: 'speak', arguments: { 'text' => 'Hello' } }])
         .and_return([{ success: true, spoken: 'Hello' }])
 
@@ -187,7 +187,7 @@ RSpec.describe ConversationModule do
       allow(invalid_llm_response).to receive(:message_data).and_return({ role: 'assistant', content: nil, tool_calls: invalid_tool_calls })
 
       # Tool executor should not be called when arguments can't be parsed
-      expect(Services::ToolExecutor).not_to receive(:execute)
+      expect(Services::System::ToolExecutor).not_to receive(:execute)
 
       expect do
         conversation_module.send(:handle_native_tool_response, invalid_llm_response, messages, llm_options, response_schema)

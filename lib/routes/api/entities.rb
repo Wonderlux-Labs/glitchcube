@@ -20,16 +20,7 @@ module GlitchCube
                        domain: request_body['domain'],
                        source: request_body['source'])
 
-              # Optionally trigger entity list refresh if significant change
-              if should_trigger_refresh?(request_body)
-                # Queue background job to refresh entity documentation
-
-                Jobs::EntityDocumentationJob.perform_async({
-                                                             trigger: 'entity_change',
-                                                             changed_entity: request_body['entity_id'],
-                                                             timestamp: Time.now.iso8601
-                                                           })
-              end
+              # Entity change logged - manual entity refresh available via API
 
               json({
                      success: true,
@@ -65,18 +56,13 @@ module GlitchCube
                        batch_update: request_body['batch_update'],
                        source: request_body['source'])
 
-              # Queue background job to refresh entity documentation
-
-              job_id = Jobs::EntityDocumentationJob.perform_async({
-                                                                    trigger: 'manual_refresh',
-                                                                    batch_update: request_body['batch_update'],
-                                                                    timestamp: Time.now.iso8601
-                                                                  })
+              # NOTE: EntityDocumentationJob now run manually via script
+              # Use: ruby scripts/update_ha_entities_doc.rb
 
               json({
                      success: true,
-                     message: 'Entity refresh queued',
-                     job_id: job_id,
+                     message: 'Entity refresh request logged - run manual script to update documentation',
+                     manual_command: 'ruby scripts/update_ha_entities_doc.rb',
                      timestamp: Time.now.iso8601
                    })
             rescue StandardError => e
@@ -168,27 +154,6 @@ module GlitchCube
                      timestamp: Time.now.iso8601
                    })
             end
-          end
-
-          # Helper method: Determine if entity change should trigger documentation refresh
-          def should_trigger_refresh?(change_data)
-            change_data['entity_id']
-            domain = change_data['domain']
-
-            # Always refresh for new light entities (important for our lighting system)
-            return true if domain == 'light'
-
-            # Refresh for new binary sensors (motion, etc.)
-            return true if domain == 'binary_sensor'
-
-            # Refresh for new media players
-            return true if domain == 'media_player'
-
-            # Don't refresh for frequently changing sensors
-            return false if %w[sensor input_number input_text].include?(domain)
-
-            # Default: refresh for other domains
-            true
           end
         end
       end

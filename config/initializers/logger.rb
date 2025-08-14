@@ -5,7 +5,7 @@
 # Create convenient global methods for logging
 module Kernel
   def log
-    Services::SimpleLogger
+    Services::Logging::SimpleLogger
   end
 end
 
@@ -18,7 +18,7 @@ end
 
 # Log application startup (defer until logger is available)
 # This will be called from app.rb after all initializers are loaded
-# Services::SimpleLogger.info(
+# Services::Logging::SimpleLogger.info(
 #   'Cube starting up',
 #   tagged: [:startup],
 #   environment: Cube::Settings.rack_env,

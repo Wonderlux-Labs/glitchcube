@@ -17,7 +17,7 @@ module Services
           begin
             attempt += 1
             if attempt > 1
-              Services::SimpleLogger.info(
+              Services::Logging::SimpleLogger.info(
                 "LLM API retry attempt #{attempt}/#{max_attempts}",
                 tagged: %i[llm retry],
                 attempt: attempt,
@@ -29,7 +29,7 @@ module Services
             result = yield
 
             if attempt > 1
-              Services::SimpleLogger.info(
+              Services::Logging::SimpleLogger.info(
                 'LLM API call succeeded on retry',
                 tagged: %i[llm retry success],
                 attempt: attempt
@@ -41,7 +41,7 @@ module Services
             if attempt < max_attempts
               # Longer wait for rate limits
               wait_time = delay * 2
-              Services::SimpleLogger.warn(
+              Services::Logging::SimpleLogger.warn(
                 'Rate limited - waiting before retry',
                 tagged: %i[llm rate_limit],
                 wait_time_seconds: wait_time
@@ -53,14 +53,14 @@ module Services
           rescue LLMService::AuthenticationError => e
             # Never retry authentication errors
             last_error = e
-            Services::SimpleLogger.error(
+            Services::Logging::SimpleLogger.error(
               'Authentication failed - not retrying',
               tagged: %i[llm auth error]
             )
           rescue LLMService::LLMError => e
             last_error = e
             if attempt < max_attempts
-              Services::SimpleLogger.warn(
+              Services::Logging::SimpleLogger.warn(
                 'LLM error - waiting before retry',
                 tagged: %i[llm error retry],
                 delay_seconds: delay,
@@ -73,7 +73,7 @@ module Services
           rescue StandardError => e
             last_error = e
             if attempt < max_attempts
-              Services::SimpleLogger.warn(
+              Services::Logging::SimpleLogger.warn(
                 'Unexpected error - waiting before retry',
                 tagged: %i[llm error retry],
                 delay_seconds: delay,
@@ -86,7 +86,7 @@ module Services
           end
 
           # All retries exhausted
-          Services::SimpleLogger.error(
+          Services::Logging::SimpleLogger.error(
             'LLM API failed after all attempts',
             tagged: %i[llm error exhausted],
             attempts: attempt

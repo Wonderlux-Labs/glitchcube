@@ -19,7 +19,7 @@ module GlitchCube
                 redis = Redis.new(url: redis_url)
                 redis.ping == 'PONG'
               rescue StandardError => e
-                Services::SimpleLogger.warn(
+                Services::Logging::SimpleLogger.warn(
                   'Redis health check failed',
                   tagged: %i[health_check redis],
                   error: e.message
@@ -38,7 +38,7 @@ module GlitchCube
                                   total: Sidekiq::Queue.new.size
                                 }
                               rescue StandardError => e
-                                Services::SimpleLogger.warn(
+                                Services::Logging::SimpleLogger.warn(
                                   'Sidekiq queue check failed',
                                   tagged: %i[health_check sidekiq],
                                   error: e.message
@@ -53,7 +53,7 @@ module GlitchCube
               db_ok = begin
                 Memory.connection.active?
               rescue StandardError => e
-                Services::SimpleLogger.warn(
+                Services::Logging::SimpleLogger.warn(
                   'Database health check failed',
                   tagged: %i[health_check database],
                   error: e.message
@@ -66,7 +66,7 @@ module GlitchCube
                 client = ::Services::HomeAssistantClient.new
                 client.ping
               rescue StandardError => e
-                Services::SimpleLogger.warn(
+                Services::Logging::SimpleLogger.warn(
                   'Home Assistant health check failed',
                   tagged: %i[health_check home_assistant],
                   error: e.message

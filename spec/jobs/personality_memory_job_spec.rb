@@ -11,8 +11,8 @@ RSpec.describe Jobs::PersonalityMemoryJob do
         allow(Message).to receive_message_chain(:joins, :where, :where, :order).and_return([])
 
         # Allow the first info log, then expect the "not enough" message
-        allow(Services::SimpleLogger).to receive(:info).with('🧠 Extracting personality memories from recent conversations...')
-        expect(Services::SimpleLogger).to receive(:info).with(/Not enough messages/)
+        allow(Services::Logging::SimpleLogger).to receive(:info).with('🧠 Extracting personality memories from recent conversations...')
+        expect(Services::Logging::SimpleLogger).to receive(:info).with(/Not enough messages/)
         expect(job).not_to receive(:extract_personality_memories)
 
         job.perform
@@ -50,18 +50,18 @@ RSpec.describe Jobs::PersonalityMemoryJob do
       end
 
       it 'handles extraction failures gracefully', :vcr do
-        allow(Services::LLMService).to receive(:complete).and_raise(StandardError.new('API Error'))
+        allow(Services::Llm::LLMService).to receive(:complete).and_raise(StandardError.new('API Error'))
         # Allow any log_api_call from other services (like HomeAssistantClient)
-        allow(Services::LoggerService).to receive(:log_api_call).and_call_original
+        allow(Services::Logging::LoggerService).to receive(:log_api_call).and_call_original
         # The extract_personality_memories method catches the error and returns []
         # So it logs the error but doesn't re-raise it - the job continues
-        expect(Services::LoggerService).to receive(:log_api_call).with(hash_including(
-                                                                         service: 'application',
-                                                                         status: 500,
-                                                                         error: /StandardError: API Error/
-                                                                       )).at_least(:once)
+        expect(Services::Logging::LoggerService).to receive(:log_api_call).with(hash_including(
+                                                                                  service: 'application',
+                                                                                  status: 500,
+                                                                                  error: /StandardError: API Error/
+                                                                                )).at_least(:once)
         # Allow the logger to log info messages
-        allow(Services::SimpleLogger).to receive(:info).and_call_original
+        allow(Services::Logging::SimpleLogger).to receive(:info).and_call_original
         # The job should complete without raising an error
         # (extract_personality_memories returns [] on failure, not re-raising)
         expect { job.perform }.not_to raise_error

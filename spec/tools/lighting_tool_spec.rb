@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe LightingTool do
+RSpec.describe Tools::LightingTool do
   describe 'tool interface' do
     it 'has required metadata methods' do
       expect(described_class).to respond_to(:available_tools)

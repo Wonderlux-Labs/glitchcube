@@ -49,7 +49,7 @@ module Services
         parse_response(response, model, options)
       rescue StandardError => e
         if GlitchCube.config.debug?
-          Services::SimpleLogger.debug(
+          Services::Logging::SimpleLogger.debug(
             'LLM error details',
             tagged: %i[llm error debug],
             error_class: e.class.name,
@@ -211,7 +211,7 @@ module Services
 
         # Consolidated request logging
         if GlitchCube.config.debug?
-          Services::SimpleLogger.debug(
+          Services::Logging::SimpleLogger.debug(
             'LLM API REQUEST',
             tagged: %i[llm api_request],
             model: params[:model],
@@ -228,7 +228,7 @@ module Services
             **params[:extras]
           }
 
-          Services::SimpleLogger.debug(
+          Services::Logging::SimpleLogger.debug(
             'RAW HTTP REQUEST',
             tagged: %i[llm raw_request],
             url: 'https://openrouter.ai/api/v1/chat/completions',
@@ -247,7 +247,7 @@ module Services
 
         # Detailed response logging for debugging (only when debug mode is on)
         if GlitchCube.config.debug?
-          Services::SimpleLogger.debug(
+          Services::Logging::SimpleLogger.debug(
             'RAW HTTP RESPONSE',
             tagged: %i[llm raw_response],
             status: 200,
@@ -260,7 +260,7 @@ module Services
         if GlitchCube.config.debug? && response.respond_to?(:[]) && response[:choices]
           choice = response[:choices]&.first
           if choice
-            Services::SimpleLogger.debug(
+            Services::Logging::SimpleLogger.debug(
               'LLM RESPONSE DETAILS',
               tagged: %i[llm api_response],
               finish_reason: choice[:finish_reason],
@@ -385,9 +385,6 @@ module Services
           yield(response.to_s)
         end
       rescue StandardError => e
-        # If anything goes wrong, return empty string
-        Rails.logger.error "Failed to extract from response: #{e.message}" if defined?(Rails)
-        ''
       end
 
       # Safe dig that works with both symbol and string keys

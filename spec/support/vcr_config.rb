@@ -74,12 +74,25 @@ module ZeroLeakVCR
       config.filter_sensitive_data('<OPENROUTER_API_KEY>') { ENV.fetch('OPENROUTER_API_KEY', nil) }
       config.filter_sensitive_data('<HOME_ASSISTANT_TOKEN>') { ENV.fetch('HOME_ASSISTANT_TOKEN', nil) }
       config.filter_sensitive_data('<GITHUB_TOKEN>') { ENV.fetch('GITHUB_TOKEN', nil) }
+      config.filter_sensitive_data('<ANTHROPIC_API_KEY>') { ENV.fetch('ANTHROPIC_API_KEY', nil) }
+      config.filter_sensitive_data('<OPENAI_API_KEY>') { ENV.fetch('OPENAI_API_KEY', nil) }
 
-      # Filter headers too
+      # Filter headers and request/response bodies
       config.before_record do |interaction|
         # Handle Authorization headers (both string and array)
         filter_header(interaction, 'Authorization', /Bearer .+/, 'Bearer <TOKEN>')
         filter_header(interaction, 'X-Api-Key', /.+/, '<API_KEY>')
+        filter_header(interaction, 'Anthropic-Version', /.+/, '<VERSION>')
+        filter_header(interaction, 'OpenAI-Organization', /.+/, '<ORG_ID>')
+
+        # Filter Home Assistant specific data
+        filter_ha_sensitive_data!(interaction)
+
+        # Filter LLM API request/response bodies
+        filter_llm_sensitive_data!(interaction)
+
+        # Validate no raw secrets leaked
+        validate_no_secrets!(interaction)
       end
     end
 
@@ -228,6 +241,99 @@ module ZeroLeakVCR
       ERROR
     end
 
+    def filter_ha_sensitive_data!(interaction)
+      # Filter Home Assistant URLs and IPs
+      uri_string = interaction.request.uri.to_s
+      if uri_string.include?('glitch.local') || uri_string.match?(/\d+\.\d+\.\d+\.\d+/)
+        interaction.request.uri = interaction.request.uri.to_s
+                                             .gsub('glitch.local', '<HA_HOST>')
+                                             .gsub(/\d+\.\d+\.\d+\.\d+/, '<HA_IP>')
+      end
+
+      # Filter sensitive Home Assistant data in response bodies
+      return unless interaction.response.body
+
+      body = interaction.response.body
+      # Filter GPS coordinates (latitude/longitude)
+      body.gsub!(/("latitude":\s*)-?\d+\.\d+/, '\1<LATITUDE>')
+      body.gsub!(/("longitude":\s*)-?\d+\.\d+/, '\1<LONGITUDE>')
+      # Filter device identifiers
+      body.gsub!(/("device_id":\s*")[^"]+/, '\1<DEVICE_ID>')
+      body.gsub!(/("entity_id":\s*"device_tracker\.)[^"]+/, '\1<DEVICE_TRACKER>')
+    end
+
+    def filter_llm_sensitive_data!(interaction)
+      return unless interaction.request.body
+
+      # Parse request body to filter LLM prompts that might contain sensitive data
+      begin
+        if interaction.request.headers['Content-Type']&.include?('application/json')
+          body_text = interaction.request.body
+
+          # Filter system prompts that might contain location data
+          body_text.gsub!(/latitude[:\s]+[\d.-]+/i, 'latitude: <LATITUDE>')
+          body_text.gsub!(/longitude[:\s]+[\d.-]+/i, 'longitude: <LONGITUDE>')
+          body_text.gsub!(/gps[:\s]+[\d.-]+,\s*[\d.-]+/i, 'gps: <GPS_COORDS>')
+
+          # Filter any API keys that might be in prompts
+          body_text.gsub!(/[a-z0-9]{32,}/i) do |match|
+            # Only filter if it looks like a key (long alphanumeric string)
+            match.length > 20 ? '<FILTERED_KEY>' : match
+          end
+
+          interaction.request.body = body_text
+        end
+      rescue StandardError
+        # If we can't parse, just continue - don't break the test
+      end
+    end
+
+    def validate_no_secrets!(interaction)
+      # List of patterns that should never appear in cassettes
+      secret_patterns = [
+        /sk-[a-zA-Z0-9]{32,}/, # OpenAI API keys
+        /[a-f0-9]{64}/, # Long hex strings (potential tokens)
+        /eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+/, # JWT tokens
+        /Bearer [a-zA-Z0-9_-]{20,}/ # Long bearer tokens
+      ]
+
+      # Check request and response for secret patterns
+      all_text = [
+        interaction.request.uri.to_s,
+        interaction.request.body.to_s,
+        interaction.response.body.to_s,
+        interaction.request.headers.to_s
+      ].join(' ')
+
+      secret_patterns.each do |pattern|
+        if all_text.match?(pattern)
+          log_secret_leak_warning(pattern, interaction)
+        end
+      end
+    end
+
+    def log_secret_leak_warning(pattern, interaction)
+      warning_msg = <<~WARNING
+        ⚠️  POTENTIAL SECRET DETECTED IN VCR CASSETTE!
+
+        Pattern: #{pattern}
+        URL: #{interaction.request.uri}
+        Test: #{current_test_description}
+
+        This might be a security issue. Please verify the cassette is safe to commit.
+      WARNING
+
+      puts warning_msg
+
+      # Log to file for later review
+      log_file = File.join('logs', 'vcr_security_warnings.log')
+      FileUtils.mkdir_p(File.dirname(log_file))
+      File.open(log_file, 'a') do |f|
+        f.puts "#{Time.now.iso8601}: #{warning_msg}"
+        f.puts '-' * 80
+      end
+    end
+
     def vcr_mode_message
       if ci_mode?
         '🔒 CI Mode: VCR will only replay existing cassettes (no recording allowed)'
@@ -241,4 +347,3 @@ module ZeroLeakVCR
     end
   end
 end
-# rubocop:enable Metrics/ModuleLength

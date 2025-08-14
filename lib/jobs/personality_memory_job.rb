@@ -50,7 +50,7 @@ module Jobs
     private
 
     def logger
-      Services::SimpleLogger
+      Services::Logging::SimpleLogger
     end
 
     def extract_personality_memories(messages, conversation_id)

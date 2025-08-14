@@ -8,11 +8,34 @@ require 'bundler/setup'
 require 'pry'
 require 'dotenv/load'
 
+# Load enhanced debugging gems
+begin
+  require 'pry-byebug'
+  require 'pry-doc'
+  require 'amazing_print'
+
+  # Configure amazing_print for better object inspection
+  AmazingPrint.defaults = {
+    indent: 2,
+    index: false,
+    color: {
+      hash: :blue,
+      array: :green,
+      string: :yellow
+    }
+  }
+rescue LoadError
+  # Gracefully handle missing gems
+end
+
 # Load environment variables
 Dotenv.load('.env', '.env.defaults')
 
 # Set the environment
 ENV['RACK_ENV'] ||= 'development'
+
+# Ensure Sidekiq runs inline for console sessions (safer for interactive use)
+ENV['SIDEKIQ_INLINE'] ||= 'true'
 
 # Load the app properly with all its initializers and correct load order
 require_relative '../app'
@@ -118,6 +141,127 @@ module ConsoleHelpers
     puts "❌ Error: #{e.message}"
   end
 
+  # Agent-friendly debugging methods
+  def debug_conversation(message = 'Debug test message')
+    puts "🐛 Debugging conversation flow for: '#{message}'"
+
+    # Show the conversation module in action
+    handler = Services::Conversation::ConversationFlowManager.new
+
+    puts "\n📋 Flow manager created"
+    puts "   Class: #{handler.class}"
+
+    begin
+      response = handler.process(message, session_id: 'debug-session')
+      puts "\n✅ Response received:"
+      ap response if defined?(AmazingPrint)
+      response
+    rescue StandardError => e
+      puts "\n❌ Error during conversation:"
+      puts "   #{e.class}: #{e.message}"
+      puts '   Backtrace (first 5 lines):'
+      e.backtrace.first(5).each { |line| puts "     #{line}" }
+      nil
+    end
+  end
+
+  def debug_entities
+    puts '🏠 Debugging Home Assistant entities...'
+
+    begin
+      entity_service = GlitchCube::Services::EntityManagerService
+      entities = entity_service.get_entities_by_domain
+
+      puts "\n📊 Entity Summary:"
+      entities.each do |domain, domain_entities|
+        puts "   #{domain}: #{domain_entities.count} entities"
+      end
+
+      # Show some examples
+      if entities['light']&.any?
+        puts "\n💡 Light entities (first 3):"
+        entities['light'].first(3).each do |entity|
+          puts "   - #{entity['entity_id']}: #{entity['state']}"
+        end
+      end
+
+      entities
+    rescue StandardError => e
+      puts "❌ Error: #{e.message}"
+      nil
+    end
+  end
+
+  def debug_memory
+    puts '🧠 Debugging memory system...'
+
+    begin
+      # Show recent conversations
+      recent = Conversation.recent.limit(3)
+      puts "\n📖 Recent conversations (#{recent.count}):"
+      recent.each do |conv|
+        puts "   #{conv.created_at.strftime('%H:%M')} - #{conv.user_message&.truncate(50)}"
+      end
+
+      # Show memory consolidation status
+      if defined?(Jobs::MemoryConsolidationJob)
+        puts "\n🔄 Memory consolidation available: ✅"
+      else
+        puts "\n🔄 Memory consolidation: ❌ (not loaded)"
+      end
+
+      recent
+    rescue StandardError => e
+      puts "❌ Error: #{e.message}"
+      nil
+    end
+  end
+
+  def debug_tools
+    puts '🛠️  Debugging tool system...'
+
+    begin
+      # List available tools
+      if defined?(GlitchCube::Tools)
+        tool_classes = Object.constants.grep(/Tool$/).map { |c| Object.const_get(c) }
+                             .select { |c| c.is_a?(Class) && c.ancestors.include?(BaseTool) }
+
+        puts "\n🔧 Available tools (#{tool_classes.count}):"
+        tool_classes.each do |tool_class|
+          puts "   - #{tool_class.name}"
+        end
+
+        tool_classes
+      else
+        puts "\n❌ Tool system not loaded"
+        []
+      end
+    rescue StandardError => e
+      puts "❌ Error: #{e.message}"
+      nil
+    end
+  end
+
+  # Agent workflow helper
+  def agent_debug_workflow(message = 'Test message')
+    puts '🤖 AGENT DEBUG WORKFLOW'
+    puts '=' * 50
+
+    puts "\n1️⃣  Testing conversation flow..."
+    debug_conversation(message)
+
+    puts "\n2️⃣  Checking entities..."
+    debug_entities
+
+    puts "\n3️⃣  Reviewing memory..."
+    debug_memory
+
+    puts "\n4️⃣  Validating tools..."
+    debug_tools
+
+    puts "\n✅ Agent debug workflow complete"
+  end
+
   def help
     puts <<~HELP
       🎮 GlitchCube Console Commands:
@@ -139,7 +283,14 @@ module ConsoleHelpers
       Characters:
         list_characters      - Show available characters
         switch_character(name) - Switch to a character
-      #{'  '}
+
+      Agent-Friendly Debugging:
+        debug_conversation(msg) - Debug conversation flow step-by-step
+        debug_entities         - Debug Home Assistant entity system
+        debug_memory          - Debug memory and conversation history
+        debug_tools           - Debug available tools
+        agent_debug_workflow(msg) - Run complete debugging workflow
+
       Utilities:
         reload!             - Reload all application code
         help               - Show this help message
@@ -149,6 +300,7 @@ module ConsoleHelpers
         test_conversation("Tell me a joke")
         switch_character(:jax)
         ha.states
+        agent_debug_workflow("Debug the system")
     HELP
   end
 end

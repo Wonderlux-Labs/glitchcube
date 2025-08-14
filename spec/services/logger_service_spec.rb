@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'fileutils'
 require 'tempfile'
 
-RSpec.describe Services::LoggerService do
+RSpec.describe Services::Logging::LoggerService do
   let(:temp_dir) { Dir.mktmpdir }
   let(:log_dir) { File.join(temp_dir, 'logs') }
   let(:log_file) { File.join(log_dir, 'current.log') }
@@ -16,12 +16,12 @@ RSpec.describe Services::LoggerService do
     end
 
     # Stub SimpleLogger's private methods to use our temp directory
-    allow(Services::SimpleLogger).to receive(:log_directory).and_return(log_dir)
-    allow(Services::SimpleLogger).to receive(:log_file_path).and_return(log_file)
-    allow(Services::SimpleLogger).to receive(:ensure_log_directory) do
+    allow(Services::Logging::SimpleLogger).to receive(:log_directory).and_return(log_dir)
+    allow(Services::Logging::SimpleLogger).to receive(:log_file_path).and_return(log_file)
+    allow(Services::Logging::SimpleLogger).to receive(:ensure_log_directory) do
       FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
     end
-    allow(Services::SimpleLogger).to receive(:write_to_file) do |line|
+    allow(Services::Logging::SimpleLogger).to receive(:write_to_file) do |line|
       FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
       File.open(log_file, 'a') { |f| f.puts line }
     end
@@ -46,14 +46,14 @@ RSpec.describe Services::LoggerService do
       expect(Dir.exist?(log_dir)).to be false
 
       # SimpleLogger creates the directory on first write
-      Services::SimpleLogger.info('test')
+      Services::Logging::SimpleLogger.info('test')
 
       expect(Dir.exist?(log_dir)).to be true
     end
 
     it 'creates all required log files', :vcr do
       # SimpleLogger now uses a single log file
-      Services::SimpleLogger.info('test')
+      Services::Logging::SimpleLogger.info('test')
 
       expect(File.exist?(log_file)).to be true
     end

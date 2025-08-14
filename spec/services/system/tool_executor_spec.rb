@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../../lib/services/system/tool_executor'
 
-RSpec.describe Services::ToolExecutor do
+RSpec.describe Services::System::ToolExecutor do
   describe '.execute' do
     context 'with argument filtering' do
       # Create a test tool class
@@ -29,9 +29,9 @@ RSpec.describe Services::ToolExecutor do
 
       before do
         # Mock the internal method that finds tool classes
-        allow(Services::ToolExecutor).to receive(:find_tool_class_for).and_return(test_tool_class)
-        allow(Services::SimpleLogger).to receive(:info)
-        allow(Services::SimpleLogger).to receive(:warn)
+        allow(Services::System::ToolExecutor).to receive(:find_tool_class_for).and_return(test_tool_class)
+        allow(Services::Logging::SimpleLogger).to receive(:info)
+        allow(Services::Logging::SimpleLogger).to receive(:warn)
       end
 
       it 'filters arguments to match method signature' do
@@ -44,7 +44,7 @@ RSpec.describe Services::ToolExecutor do
           }
         }
 
-        result = Services::ToolExecutor.execute([tool_call])
+        result = Services::System::ToolExecutor.execute([tool_call])
 
         expect(result.first).to include(
           success: true,
@@ -65,7 +65,7 @@ RSpec.describe Services::ToolExecutor do
           }
         }
 
-        result = Services::ToolExecutor.execute([tool_call])
+        result = Services::System::ToolExecutor.execute([tool_call])
 
         expect(result.first).to include(
           success: true,
@@ -87,7 +87,7 @@ RSpec.describe Services::ToolExecutor do
           }
         }
 
-        result = Services::ToolExecutor.execute([tool_call])
+        result = Services::System::ToolExecutor.execute([tool_call])
 
         expect(result.first).to include(
           success: true,
@@ -107,7 +107,7 @@ RSpec.describe Services::ToolExecutor do
           }
         }
 
-        result = Services::ToolExecutor.execute([tool_call])
+        result = Services::System::ToolExecutor.execute([tool_call])
 
         # Should return error result
         expect(result.first).to include(:error)
@@ -125,7 +125,7 @@ RSpec.describe Services::ToolExecutor do
           arguments: {}
         }
 
-        result = Services::ToolExecutor.execute([tool_call])
+        result = Services::System::ToolExecutor.execute([tool_call])
 
         expect(result.first).to include(success: true, tool_name: 'no_arg_method')
       end
@@ -136,7 +136,7 @@ RSpec.describe Services::ToolExecutor do
           { name: 'method_with_kwargs', arguments: { name: 'test2', extra: 'data' } }
         ]
 
-        results = Services::ToolExecutor.execute(tool_calls)
+        results = Services::System::ToolExecutor.execute(tool_calls)
 
         expect(results.length).to eq(2)
         expect(results[0]).to include(success: true, tool_name: 'test_method')
@@ -146,10 +146,10 @@ RSpec.describe Services::ToolExecutor do
 
     context 'error handling' do
       it 'returns error result for unknown tool' do
-        allow(Services::ToolExecutor).to receive(:find_tool_class_for).and_return(nil)
+        allow(Services::System::ToolExecutor).to receive(:find_tool_class_for).and_return(nil)
 
         tool_call = { name: 'unknown_tool', arguments: {} }
-        result = Services::ToolExecutor.execute([tool_call])
+        result = Services::System::ToolExecutor.execute([tool_call])
 
         expect(result.first).to include(:error)
         expect(result.first[:error]).to include("No tool handles 'unknown_tool'")
@@ -166,11 +166,11 @@ RSpec.describe Services::ToolExecutor do
           end
         end
 
-        allow(Services::ToolExecutor).to receive(:find_tool_class_for).and_return(error_tool)
-        allow(Services::SimpleLogger).to receive(:error)
+        allow(Services::System::ToolExecutor).to receive(:find_tool_class_for).and_return(error_tool)
+        allow(Services::Logging::SimpleLogger).to receive(:error)
 
         tool_call = { name: 'failing_method', arguments: {} }
-        result = Services::ToolExecutor.execute([tool_call])
+        result = Services::System::ToolExecutor.execute([tool_call])
 
         expect(result.first).to include(:error)
         expect(result.first[:error]).to include('Tool execution failed')

@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe BaseTool do
+RSpec.describe Tools::BaseTool do
   describe 'class methods' do
     describe '.name' do
       it 'returns snake_case version of class name', :vcr do
@@ -50,7 +50,7 @@ RSpec.describe BaseTool do
   describe 'JSON parameter handling' do
     # Testing actual tool behavior through public interface
     let(:test_tool) do
-      Class.new(BaseTool) do
+      Class.new(Tools::BaseTool) do
         def self.name
           'test_tool'
         end
@@ -63,7 +63,7 @@ RSpec.describe BaseTool do
           # This tests the actual JSON parsing behavior
           parsed = parse_json_params(params)
           format_response(true, 'Parsed successfully', parsed)
-        rescue BaseTool::ValidationError => e
+        rescue Tools::BaseTool::ValidationError => e
           format_response(false, e.message)
         end
       end

@@ -15,22 +15,22 @@ module GlitchCube
   class ConfigBuilder
     DEFAULTS = {
       # Core Application
-      openrouter_api_key: ENV.fetch('OPENROUTER_API_KEY'),
+      openrouter_api_key: nil, # Required - will be validated
       openai_api_key: nil,
       anthropic_api_key: nil,
-      helicone_api_key: ENV.fetch('HELICONE_API_KEY', nil),
+      helicone_api_key: nil,
       default_tools_model: 'qwen/qwen3-coder',
       default_model: 'anthropic-claude-sonnet-4',
       port: 4567,
-      session_secret: ENV.fetch('SESSION_SECRET', nil) || SecureRandom.hex(64),
-      rack_env: ENV.fetch('RACK_ENV', 'development'),
+      session_secret: nil, # Auto-generated if not provided
+      rack_env: 'development',
       database_url: 'postgresql://localhost:5432/glitchcube_development',
       redis_url: 'redis://localhost:6379/0',
 
       # Home Assistant Integration
       home_assistant: {
-        url: ENV.fetch('HOME_ASSISTANT_URL', PROD_HASS_URL),
-        token: ENV.fetch('HOME_ASSISTANT_TOKEN')
+        url: 'http://100.126.250.73:8123', # Production HA default
+        token: nil # Required - will be validated
       },
 
       # Logging and Feature Flags
@@ -42,7 +42,7 @@ module GlitchCube
 
       # Monitoring
       monitoring: {
-        uptime_kuma_push_url: ENV.fetch('UPTIME_KUMA_PUSH_URL', nil)
+        uptime_kuma_push_url: 'https://status.wlux.casa/api/push/Bf8nrx6ykq'
       },
 
       # Device/Installation Info
@@ -61,7 +61,7 @@ module GlitchCube
       # AI Configuration
       ai: {
         temperature: 0.8,
-        max_tokens: 32_000,
+        max_tokens: 2000, # From .env.defaults
         max_tool_tokens: 32_000,
         max_session_messages: 10
       },
@@ -82,13 +82,16 @@ module GlitchCube
       },
 
       # Self-Healing Error Handler
-      self_healing_mode: 'OFF',
+      self_healing_mode: 'DRY_RUN', # From .env.defaults
       self_healing_min_confidence: 0.85,
-      self_healing_error_threshold: 3,
+      self_healing_error_threshold: 2, # From .env.defaults
 
       # Development/Test
       debug_mode: false,
-      conversation_tracing_enabled: false
+      conversation_tracing_enabled: false,
+
+      # Personality System
+      default_personality: 'buddy' # From .env.defaults
     }.freeze
 
     ENV_MAPPINGS = {
@@ -108,8 +111,11 @@ module GlitchCube
       self_healing_error_threshold: 'SELF_HEALING_ERROR_THRESHOLD',
       debug_mode: 'DEBUG',
       conversation_tracing_enabled: 'CONVERSATION_TRACING',
+      port: 'PORT',
+      session_secret: 'SESSION_SECRET',
+      default_personality: 'DEFAULT_PERSONALITY',
 
-      # New mappings
+      # Logging and Feature Flags
       log_level: 'LOG_LEVEL',
       log_to_screen: 'LOG_TO_SCREEN',
       log_file_path: 'LOG_FILE_PATH',
@@ -189,7 +195,7 @@ module GlitchCube
       end
 
       # Special cases
-      config[:session_secret] = ENV.fetch('SESSION_SECRET', DEFAULTS[:session_secret])
+      config[:session_secret] = ENV.fetch('SESSION_SECRET', nil) || SecureRandom.hex(64)
       config[:helicone_api_key] = nil if config[:rack_env] == 'test'
     end
 
@@ -216,16 +222,33 @@ module GlitchCube
       @instance ||= new(ConfigBuilder.build.to_h)
     end
 
+    # Audit configuration for debugging and documentation
+    def self.audit_defaults
+      {
+        defaults: ConfigBuilder::DEFAULTS,
+        env_mappings: ConfigBuilder::ENV_MAPPINGS,
+        nested_mappings: ConfigBuilder::NESTED_MAPPINGS,
+        required_env_vars: %w[OPENROUTER_API_KEY HOME_ASSISTANT_TOKEN],
+        current_env_overrides: ENV.slice(*ConfigBuilder::ENV_MAPPINGS.values),
+        missing_required: check_missing_required
+      }
+    end
+
+    def self.check_missing_required
+      required = %w[OPENROUTER_API_KEY HOME_ASSISTANT_TOKEN]
+      required.reject { |var| ENV[var]&.length&.positive? }
+    end
+
     # Validation method to ensure required configs are present
     def validate!
       errors = []
       return true if test?
 
       errors << 'OPENROUTER_API_KEY is required' if openrouter_api_key.nil? || openrouter_api_key.empty?
+      errors << 'HOME_ASSISTANT_TOKEN is required' if home_assistant.token.nil? || home_assistant.token.empty?
 
-      if production?
-        errors << 'SESSION_SECRET should be explicitly set in production' if ENV['SESSION_SECRET'].nil?
-        errors << 'HOME_ASSISTANT_TOKEN is required' if home_assistant.url && home_assistant.token.nil?
+      if production? && ENV['SESSION_SECRET'].nil?
+        errors << 'SESSION_SECRET should be explicitly set in production'
       end
 
       raise "Configuration errors:\n#{errors.join("\n")}" unless errors.empty?

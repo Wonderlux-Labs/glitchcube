@@ -52,7 +52,7 @@ RSpec.describe 'Conversation Continuation Logic', type: :integration do
     context 'with malformed or missing continuation signals' do
       it 'defaults to ending conversation when continue_conversation is missing', :vcr do
         # Simulate LLM response without continue_conversation flag
-        allow(Services::LLMService).to receive(:complete_with_messages)
+        allow(Services::Llm::LLMService).to receive(:complete_with_messages)
           .and_return(OpenStruct.new(
                         response_text: "I'm not sure what you mean",
                         continue_conversation?: nil,
@@ -166,8 +166,8 @@ RSpec.describe 'Conversation Continuation Logic', type: :integration do
   describe 'Error Recovery' do
     it 'ends conversation safely when LLM fails', :vcr do
       # Simulate LLM failure
-      allow(Services::LLMService).to receive(:complete_with_messages)
-        .and_raise(Services::LLMService::LLMError.new('API timeout'))
+      allow(Services::Llm::LLMService).to receive(:complete_with_messages)
+        .and_raise(Services::Llm::LLMService::LLMError.new('API timeout'))
       post '/api/v1/conversation', {
         message: 'Hello',
         context: {

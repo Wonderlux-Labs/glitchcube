@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Services::ErrorHandlingLLM, 'dry-run mode' do
+RSpec.describe Services::System::ErrorHandlingLlm, 'dry-run mode' do
   let(:service) { described_class.new }
   let(:redis) { Redis.new }
   let(:error) { StandardError.new('Test error') }

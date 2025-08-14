@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 RSpec.describe 'Self-Healing Error Handler Integration' do
-  let(:service) { Services::ErrorHandlingLLM.new }
+  let(:service) { Services::System::ErrorHandlingLlm.new }
   let(:redis) { Redis.new }
 
   before do
@@ -15,7 +15,7 @@ RSpec.describe 'Self-Healing Error Handler Integration' do
     FileUtils.rm_rf('log/proposed_fixes')
 
     # Clear all LLM service state to prevent mock leaking
-    Services::LLMService.clear_cache! if defined?(Services::LLMService)
+    Services::Llm::LLMService.clear_cache! if defined?(Services::Llm::LLMService)
   end
 
   after do

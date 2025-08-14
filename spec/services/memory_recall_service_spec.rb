@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Services::MemoryRecallService do
+RSpec.describe Services::Memory::MemoryRecallService do
   describe '.get_relevant_memories' do
     before do
       # Create test memories

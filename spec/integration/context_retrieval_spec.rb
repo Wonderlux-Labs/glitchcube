@@ -149,7 +149,7 @@ RSpec.describe 'Simple RAG Integration', :failing do
     end
 
     it 'gracefully handles API failures' do
-      allow(Services::LLMService).to receive(:complete).and_raise('API Error')
+      allow(Services::Llm::LLMService).to receive(:complete).and_raise('API Error')
 
       result = rag.answer_with_context('Tell me about yourself')
 

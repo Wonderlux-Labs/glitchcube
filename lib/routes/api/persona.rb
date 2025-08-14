@@ -22,7 +22,7 @@ module GlitchCube
                      timestamp: Time.now.iso8601
                    })
             rescue StandardError => e
-              Services::SimpleLogger.log_error(error: e, message: 'Failed to get current persona')
+              Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to get current persona')
 
               status 500
               json({
@@ -54,10 +54,10 @@ module GlitchCube
               new_persona = Services::PersonaStateService.set_current_persona(persona_name)
 
               # Log the persona change
-              Services::SimpleLogger.info('Persona changed via API',
-                                          tagged: %i[api persona],
-                                          new_persona: new_persona,
-                                          request_ip: request.ip)
+              Services::Logging::SimpleLogger.info('Persona changed via API',
+                                                   tagged: %i[api persona],
+                                                   new_persona: new_persona,
+                                                   request_ip: request.ip)
 
               json({
                      success: true,
@@ -73,7 +73,7 @@ module GlitchCube
                      timestamp: Time.now.iso8601
                    })
             rescue StandardError => e
-              Services::SimpleLogger.log_error(error: e, message: 'Failed to set persona')
+              Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to set persona')
 
               status 500
               json({
@@ -109,7 +109,7 @@ module GlitchCube
                      timestamp: Time.now.iso8601
                    })
             rescue StandardError => e
-              Services::SimpleLogger.log_error(error: e, message: 'Failed to list personas')
+              Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to list personas')
 
               status 500
               json({
@@ -165,7 +165,7 @@ module GlitchCube
                      })
               end
             rescue StandardError => e
-              Services::SimpleLogger.log_error(error: e, message: 'Failed to sync persona')
+              Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to sync persona')
 
               status 500
               json({
@@ -189,7 +189,7 @@ module GlitchCube
                      timestamp: Time.now.iso8601
                    })
             rescue StandardError => e
-              Services::SimpleLogger.log_error(error: e, message: 'Failed to clear persona state')
+              Services::Logging::SimpleLogger.log_error(error: e, message: 'Failed to clear persona state')
 
               status 500
               json({

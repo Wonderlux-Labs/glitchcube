@@ -7,6 +7,7 @@ gem 'rake', '~> 13.3'
 gem 'sinatra', '~> 4.1'
 gem 'sinatra-contrib', '~> 4.1'
 gem 'webrick', '~> 1.8' # Simple server for single-user art installation
+gem 'zeitwerk' # Auto-loading for clean service organization
 
 # AI & API
 gem 'open_router', '~> 0.3'
@@ -48,7 +49,10 @@ gem 'json', '~> 2.13'
 
 # Development and Test
 group :development, :test do
+  gem 'amazing_print' # Better object inspection for debugging
   gem 'pry', '~> 0.15'
+  gem 'pry-byebug' # Enhanced debugging for agents and humans
+  gem 'pry-doc' # Ruby documentation in console
   gem 'rack-test', '~> 2.2'
   gem 'rerun', '~> 0.14' # Auto-reload in development (replaces deprecated sinatra/reloader)
   gem 'rspec', '~> 3.13'

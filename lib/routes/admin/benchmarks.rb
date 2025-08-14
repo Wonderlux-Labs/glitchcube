@@ -73,7 +73,7 @@ module GlitchCube
               summary: generate_summary(results)
             }.to_json
           rescue StandardError => e
-            Services::SimpleLogger.error('Benchmark failed', error: e.message)
+            Services::Logging::SimpleLogger.error('Benchmark failed', error: e.message)
             {
               success: false,
               error: e.message
@@ -144,7 +144,7 @@ module GlitchCube
           }
         end
       rescue StandardError => e
-        Services::SimpleLogger.error('Failed to load results', error: e.message) if defined?(Services::SimpleLogger)
+        Services::Logging::SimpleLogger.error('Failed to load results', error: e.message) if defined?(Services::Logging::SimpleLogger)
         []
       end
 
@@ -167,7 +167,7 @@ module GlitchCube
 
         filename
       rescue StandardError => e
-        Services::SimpleLogger.error('Failed to save results', error: e.message)
+        Services::Logging::SimpleLogger.error('Failed to save results', error: e.message)
         nil
       end
 

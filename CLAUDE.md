@@ -1,11 +1,13 @@
 # 🎲 Glitchcube Project Guide
 
 ## Overview
+
 Glitchcube is an autonomous interactive art installation for Burning Man - a self-contained "smart cube" that engages with participants through conversation, requests transportation, and builds relationships over multi-day events. It's a physical LED cube with AI personalities that responds to voice interactions, environmental sensors, and can engage in conversations with different personas (Buddy, Jax, Lomi, Zorp).
 
 ## Architecture
 
 ### Core Stack
+
 - **Backend**: Ruby/Sinatra web application
 - **Database**: PostgreSQL with PostGIS extension for GPS/location features
 - **Queue**: Sidekiq for background jobs
@@ -15,30 +17,38 @@ Glitchcube is an autonomous interactive art installation for Burning Man - a sel
 
 ### Key Components
 
-#### 1. Conversation System (`lib/modules/conversation_module.rb`)
-- Central hub for processing conversations
-- Session management with persistence
-- Context injection from memories and current state
-- Tool execution for hardware control
-- Persona switching (Buddy, Jax, Lomi, Zorp)
+#### 1. Conversation System (Modular Architecture - January 2025 Refactor)
+
+- **Entry Point**: `lib/modules/conversation_module.rb` - Simple interface for conversation processing
+- **Core Orchestrator**: `lib/services/conversation/conversation_flow_manager.rb` - Central conversation lifecycle management
+- **Specialized Services**: Modular services in `lib/services/conversation/` for LLM interaction, tool execution, response processing, state management, and history management
+- **Session Management**: Persistent conversations with comprehensive analytics
+- **Context Injection**: Memory and environmental context enrichment
+- **Tool Integration**: Hardware control through structured tool calls
+- **Persona System**: Dynamic persona switching (Buddy, Jax, Lomi, Zorp)
+- **Documentation**: Complete guide at `docs/guides/conversation-system.md`
 
 #### 2. Home Assistant Integration
+
 - Custom component at `config/homeassistant/custom_components/glitchcube_conversation/`
 - Controls LED displays, TTS, sensors, cameras
 - Webhook-based communication
 - Circuit breaker pattern for resilience
 
 #### 3. Persona System (`lib/personas/`)
+
 - Base persona class with standard behaviors
 - Character-specific implementations with unique voices/styles
 - Dynamic persona switching based on context
 
 #### 4. Memory System (`lib/services/memory/`)
+
 - Context enrichment from past interactions
 - Memory consolidation via background jobs
 - Location-aware memories for Burning Man
 
 #### 5. Tool System (`lib/tools/`)
+
 - Display control (Awtrix LED matrix)
 - Speech synthesis with multiple voices
 - Camera vision analysis
@@ -46,6 +56,7 @@ Glitchcube is an autonomous interactive art installation for Burning Man - a sel
 - Music playback
 
 #### 6. Entity Management System (`lib/services/system/entity_manager_service.rb`)
+
 - Keeps Home Assistant entity list up to date
 - Organizes entities by domain (light, sensor, media_player, etc.)
 - Redis caching with 5-minute expiration
@@ -55,22 +66,47 @@ Glitchcube is an autonomous interactive art installation for Burning Man - a sel
 
 ## Testing Strategy
 
+**📚 Complete Testing Guide: [docs/guides/testing.md](docs/guides/testing.md)**
+
+### Three-Tier Testing Approach
+
+1. **Easy Mocking** (Unit tests): `mock_ha_service_call('light.turn_on')`
+2. **Shared Contexts** (Integration): `include_context 'with_lights_available'`
+3. **VCR Cassettes** (Full integration): Recorded real API interactions
+
 ### VCR Configuration
-- All external API calls recorded to cassettes
-- Located in `spec/vcr_cassettes/`
-- Auto-record new interactions in test mode
-- Prevent API leakage with proper filtering
+
+- All external API calls recorded to cassettes in `spec/vcr_cassettes/`
+- Zero-Leak VCR with comprehensive security filtering
+- Smart Home Assistant entity matching for dynamic entity IDs
+- Automatic GPS coordinate and API key filtering
 
 ### Running Tests
+
 ```bash
-bundle exec rspec                    # Run all tests
-bundle exec rspec spec/integration/  # Integration tests only
-VCR_RECORD=true bundle exec rspec   # Re-record cassettes
+bin/rspec                        # Run all tests
+bin/rspec --vcr-override         # Re-record all cassettes
+bin/rspec --vcr-none             # CI mode (no external calls)
+VCR_RECORD=true bin/rspec        # Record new interactions
+
+# VCR Management
+rake vcr:validate               # Security scan cassettes
+rake vcr:age_report             # Find stale cassettes  
+rake vcr:refresh_ha             # Refresh HA cassettes
+rake vcr:maintain               # Full maintenance
 ```
+
+### Test Helpers & Contexts
+
+- **Home Assistant Helpers**: Easy mocking with `mock_ha_service_call()`, `mock_ha_entities()`
+- **Shared Contexts**: Reusable setups like `with_full_conversation_setup`
+- **Shared Examples**: Common behaviors like `'a valid conversation response'`
+- **Security**: Comprehensive filtering prevents API key/GPS coordinate leaks
 
 ## Code Conventions
 
 ### Ruby Style
+
 - 2 spaces for indentation
 - Prefer composition over inheritance
 - Use service objects for complex operations
@@ -78,6 +114,7 @@ VCR_RECORD=true bundle exec rspec   # Re-record cassettes
 - Comprehensive error handling with fallbacks
 
 ### File Organization
+
 ```
 lib/
   core/        # Core infrastructure (circuit breakers, clients)
@@ -89,6 +126,7 @@ lib/
 ```
 
 ### Error Handling
+
 - Every external call wrapped in error handling
 - Fallback responses for service failures
 - Detailed logging with correlation IDs
@@ -97,6 +135,7 @@ lib/
 ## Common Commands
 
 ### Development
+
 ```bash
 # Install dependencies
 bundle install
@@ -122,6 +161,7 @@ bundle exec rubocop -a  # Auto-fix issues
 ```
 
 ### Rake Tasks
+
 ```bash
 rake spec              # Run test suite (use bin/rspec instead)
 rake run              # Run the application (use bin/dev or bin/prod)
@@ -139,6 +179,7 @@ rake deploy:check     # Check for updates (on Mac Mini)
 ```
 
 ### Entity Management Commands
+
 ```bash
 # Update entity documentation manually
 ruby scripts/update_ha_entities_doc.rb
@@ -155,6 +196,7 @@ curl http://localhost:4567/api/v1/entities/sensor            # Get sensor entiti
 The `bin/console` command gives you a Ruby console with the entire GlitchCube application loaded. This is perfect for:
 
 **Debugging & Inspection:**
+
 ```ruby
 # Check current simulation status
 gps = Services::GpsTrackingService.new
@@ -173,6 +215,7 @@ redis.get('current_cube_location')
 ```
 
 **Manual Simulation Control:**
+
 ```ruby
 # Manually trigger simulation worker
 Jobs::SimulateCubeMovementWorker.perform_async
@@ -187,6 +230,7 @@ Landmark.within_meters(location[:lng], location[:lat], 500).limit(5).map(&:name)
 ```
 
 **Cache & Service Management:**
+
 ```ruby
 # Clear all caches
 Services::GisCacheService.clear_cache!
@@ -196,6 +240,7 @@ Services::HomeAssistantClient.new.test_connection
 ```
 
 **Entity Management:**
+
 ```ruby
 # Get all Home Assistant entities organized by domain
 entities = GlitchCube::Services::EntityManagerService.get_entities_by_domain
@@ -215,6 +260,7 @@ puts "Motion Sensors: #{caps[:summary][:motion_sensor_count]}"
 ```
 
 **Spatial Queries (PostGIS):**
+
 ```ruby
 # Find nearest streets to a location
 Street.nearest(lng: -119.20, lat: 40.78, limit: 3).map(&:name)
@@ -226,6 +272,7 @@ Boundary.cube_within_fence?(40.78, -119.20)
 ## Common Tasks
 
 ### Adding a New Persona
+
 1. Create persona class in `lib/personas/`
 2. Inherit from `BasePersona`
 3. Define voice, style, and behaviors
@@ -234,6 +281,7 @@ Boundary.cube_within_fence?(40.78, -119.20)
 6. Test with `spec/personas/`
 
 ### Implementing a Tool
+
 1. Create tool class in `lib/tools/`
 2. Inherit from `BaseTool`
 3. Implement `execute` method
@@ -242,6 +290,7 @@ Boundary.cube_within_fence?(40.78, -119.20)
 6. Test with actual hardware integration
 
 ### Debugging Conversations
+
 1. Check logs in `logs/` directory
 2. Use admin interface at `/admin`
 3. Review conversation history in database
@@ -249,8 +298,10 @@ Boundary.cube_within_fence?(40.78, -119.20)
 5. Verify circuit breaker states
 
 ## Environment Variables
-Key variables (see `docs/ENVIRONMENT_VARIABLES.md`):
-- `OPENAI_API_KEY` - LLM access
+
+Key variables (see `docs/reference/CONFIGURATION.md` for complete config system):
+
+- `OPENROUTER_API_KEY` - LLM access
 - `HOME_ASSISTANT_URL` - HA instance
 - `HOME_ASSISTANT_TOKEN` - HA auth
 - `DATABASE_URL` - PostgreSQL connection
@@ -259,6 +310,7 @@ Key variables (see `docs/ENVIRONMENT_VARIABLES.md`):
 ## Deployment
 
 ### Mac Mini Production Setup
+
 - Runs bare metal on Mac Mini at Burning Man camp
 - Home Assistant in VMware Fusion VM
 - GitHub webhook triggers deployments
@@ -266,6 +318,7 @@ Key variables (see `docs/ENVIRONMENT_VARIABLES.md`):
 - Auto-recovery mechanisms in place
 
 ### Deployment Commands
+
 ```bash
 # Deploy to production (commits, pushes to GitHub, deploys via webhook)
 rake deploy:push["Your commit message"]
@@ -281,6 +334,7 @@ rake deploy:check
 ```
 
 ### Auto-start on Boot (Mac Mini)
+
 ```bash
 # Install LaunchAgent
 ./scripts/install-launchagent.sh install
@@ -293,6 +347,7 @@ rake deploy:check
 ```
 
 ## Hardware Context
+
 - Awtrix LED matrix display (32x8 pixels)
 - Multiple Govee LED strips
 - USB speakers for TTS output  
@@ -303,6 +358,7 @@ rake deploy:check
 ## Critical Paths
 
 ### Conversation Flow
+
 1. Wake word detection → Home Assistant automation
 2. HA webhook → `/api/conversation` endpoint
 3. ConversationModule processes with context
@@ -311,6 +367,7 @@ rake deploy:check
 6. Session persistence for continuity
 
 ### Memory Injection
+
 1. Past conversations summarized
 2. Relevant memories retrieved
 3. Context enriched with location/time
@@ -318,6 +375,7 @@ rake deploy:check
 5. Influences persona responses
 
 ## Testing Gotchas
+
 - Always use VCR cassettes for external APIs
 - Circuit breakers may need reset between tests
 - Home Assistant mock responses critical
@@ -325,6 +383,7 @@ rake deploy:check
 - TTS voices must match persona mappings
 
 ## Performance Considerations
+
 - Database queries optimized with includes
 - Sidekiq for async processing
 - Circuit breakers prevent cascade failures
@@ -332,6 +391,7 @@ rake deploy:check
 - Tool execution timeouts configured
 
 ## Security Notes
+
 - API keys in environment variables only
 - Home Assistant uses bearer token auth
 - No secrets in VCR cassettes
@@ -339,6 +399,7 @@ rake deploy:check
 - Rate limiting on public endpoints
 
 ## Debugging Commands
+
 ```bash
 # Check system health
 curl http://localhost:9292/api/health
@@ -359,20 +420,24 @@ ruby scripts/testing_scripts/test_ha_connection.rb
 ## Common Issues & Solutions
 
 ### "Circuit breaker open"
+
 - Service experiencing failures
 - Check logs for root cause
 - Reset with `ruby reset_breaker.rb`
 
 ### VCR cassette mismatches
+
 - Delete cassette and re-record
 - Or use `VCR_RECORD=true`
 
 ### Persona not responding correctly
+
 - Check prompt file exists
 - Verify voice mapping
 - Review system prompt injection
 
 ### Hardware not responding
+
 - Verify Home Assistant connection
 - Check entity states in HA
 - Review automation logs
@@ -380,21 +445,22 @@ ruby scripts/testing_scripts/test_ha_connection.rb
 ## Background Jobs
 
 Managed by Sidekiq with Redis:
-- `ConversationSummaryJob`: Summarizes conversations for memory
+
 - `MemoryConsolidationJob`: Consolidates memories over time  
 - `PersonalityMemoryJob`: Extracts personality-specific memories
-- `SimulateCubeMovementWorker`: Simulates GPS movement for testing
 - Configured in `config/sidekiq/sidekiq_cron.yml`
 
 ## Important Implementation Notes
 
 ### Session Management
+
 - Sessions identified by `session_id` from Home Assistant
 - Conversations persist across multiple interactions
 - Context maintained through ConversationSession service
 - Automatic session cleanup after inactivity
 
 ### VCR Cassette Management
+
 - All external API calls must be recorded
 - Cassettes in `spec/vcr_cassettes/`
 - Use descriptive cassette names matching test context
@@ -402,12 +468,14 @@ Managed by Sidekiq with Redis:
 - Re-record with `VCR_RECORD=true` when APIs change
 
 ### Circuit Breaker Pattern
+
 - Protects against cascading failures
 - Configured per service (LLM, Home Assistant, Weather)
 - Auto-recovery after cooldown period
 - Manual reset via `ruby reset_breaker.rb`
 
 ### GPS & Location Services
+
 - Uses Burning Man coordinate system (clock positions)
 - PostGIS for spatial queries
 - Location-aware memory retrieval
@@ -416,27 +484,38 @@ Managed by Sidekiq with Redis:
 ## Development Workflow Tips
 
 ### Using AI Assistance
+
 - Use global zen tools from your CLAUDE.md for complex debugging
 - The `debug-detective` agent is particularly helpful for tough bugs
 - Request code reviews when refactoring major systems
 - Break complex tasks into smaller iterations
 
 ### Testing Workflow
+
 1. Write tests first when adding new features
 2. Run specific test files during development: `bundle exec rspec spec/path/to/spec.rb`
 3. Use VCR cassettes to avoid hitting external APIs
 4. Re-record cassettes when API responses change: `VCR_RECORD=true bundle exec rspec`
 5. Keep tests green before committing
 
+### Autoloading with Zeitwerk
+
+- **No ServiceRegistry**: Migrated from custom service registry to standard Ruby autoloading
+- **Zeitwerk Configuration**: See `config/initializers/01_zeitwerk.rb`
+- **Service Organization**: Services auto-loaded from `lib/services/` with proper namespacing
+- **Module Structure**: `Services::Logging::SimpleLogger`, `Services::Conversation::*`, etc.
+
 ### Testing Philosophy
 
 **What we test:**
+
 - ✅ User-facing behavior and outcomes
 - ✅ Integration between system components
 - ✅ Error handling for real failure scenarios
 - ✅ Business logic and domain rules
 
 **What we DON'T test:**
+
 - ❌ Ruby language features (JSON parsing, class variables)
 - ❌ Test double implementations
 - ❌ Object identity and singleton patterns
@@ -444,11 +523,13 @@ Managed by Sidekiq with Redis:
 - ❌ Standard library behavior
 
 ### 🔴 MANDATORY: Test-Driven Todo Management
+
 **When using todos for development tasks, you MUST follow this tight testing loop:**
 
 Every implementation todo item MUST be immediately followed by a corresponding test todo item. This is non-negotiable for maintaining code quality and preventing regressions.
 
 **Required Pattern:**
+
 ```
 ☐ Implement feature X
 ☐ Write and run specs for feature X
@@ -460,6 +541,7 @@ Every implementation todo item MUST be immediately followed by a corresponding t
 ```
 
 **Rules:**
+
 1. **Never** have an implementation todo without a test todo
 2. **Always** run the test immediately after implementation
 3. **Fix** failing tests before moving to the next task
@@ -467,6 +549,7 @@ Every implementation todo item MUST be immediately followed by a corresponding t
 5. **Run** full test suite after completing a feature group
 
 **Example Todo List Structure:**
+
 ```
 ☐ Implement native tool calling handler
 ☐ Write and run specs for native tool calling handler
@@ -482,14 +565,16 @@ Every implementation todo item MUST be immediately followed by a corresponding t
 This ensures every change is tested, regressions are caught immediately, and the codebase maintains high quality standards.
 
 ### Local Development Loop
+
 1. Start the app: `bin/dev` (includes auto-reload + Sidekiq)
 2. Make changes - app auto-reloads automatically
-3. Test in browser/API client (http://localhost:4567)
+3. Test in browser/API client (<http://localhost:4567>)
 4. Run relevant specs: `bin/rspec spec/path/to/spec.rb`
 5. Check logs in `logs/` directory if issues arise
 6. Commit when feature complete and tests pass
 
 ## Project Philosophy
+
 - Embrace the chaos of Burning Man
 - Fail gracefully, recover automatically
 - Personality over perfection

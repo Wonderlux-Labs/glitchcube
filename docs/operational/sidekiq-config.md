@@ -43,13 +43,17 @@ Jobs are defined in `/config/sidekiq/sidekiq_cron.yml`:
 
 ### Default Queue
 - `HostRegistrationWorker` - IP registration with Home Assistant
-- `InitialHostRegistrationWorker` - Initial setup registration
-- `MissedDeploymentWorker` - Handle deployment notifications
+- `RepeatingJobsHandler` - Execute miscellaneous services (weather, health, battery)
 
 ### Low Queue
 - `PersonalityMemoryJob` - Extract conversation memories
 - `MemoryConsolidationJob` - Optimize memory storage
-- `ConversationSummaryJob` - Summarize conversations
+
+### Summaries Queue
+- `PersonalSummarizerJob` - Summarize cube's internal state
+- `InteractionSummarizerJob` - Summarize social dynamics
+- `EventMemorySummarizerJob` - Identify significant moments
+- `DailySummaryJob` - Consolidate daily summaries
 
 ## Running Sidekiq
 

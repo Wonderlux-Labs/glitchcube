@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Services::HealthPushService, :vcr do
+RSpec.describe Services::System::HealthPushService, :vcr do
   let(:service) { described_class.new }
   let(:uptime_kuma_url) { 'https://status.wlux.casa/api/push/Bf8nrx6ykq' }
 

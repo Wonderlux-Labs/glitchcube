@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe SpeechTool do
+RSpec.describe Tools::SpeechTool do
   describe 'tool interface' do
     it 'has required metadata methods' do
       expect(described_class).to respond_to(:available_tools)
@@ -75,9 +75,9 @@ RSpec.describe SpeechTool do
     it 'accepts unexpected parameters without crashing' do
       # Mock the HomeAssistant client to prevent actual TTS calls
       mock_client = double('HomeAssistantClient')
-      allow(Services::HomeAssistantClient).to receive(:new).and_return(mock_client)
+      allow(HomeAssistantClient).to receive(:new).and_return(mock_client)
       allow(mock_client).to receive(:speak).and_return({ 'success' => true })
-      allow(Services::SimpleLogger).to receive(:info)
+      allow(Services::Logging::SimpleLogger).to receive(:info)
 
       # This should not raise an error even with extra parameters
       expect do

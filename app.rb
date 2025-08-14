@@ -13,8 +13,13 @@ require 'sidekiq'
 require 'redis'
 require 'active_record'
 
-# Load Sidekiq configuration if available
-require_relative 'config/sidekiq/sidekiq' if defined?(Sidekiq)
+# Load our comprehensive Sidekiq configuration strategy
+require_relative 'config/sidekiq/sidekiq_config'
+
+# Load traditional Sidekiq configuration only if running in background mode
+if SidekiqConfig.sidekiq_enabled? && !SidekiqConfig.inline_mode?
+  require_relative 'config/sidekiq/sidekiq'
+end
 
 # Load application configuration
 require_relative 'config/constants'
@@ -24,7 +29,7 @@ require_relative 'config/database_config'
 Dir[File.join(__dir__, 'config', 'initializers', '*.rb')].each { |file| require file }
 
 # Log application startup after all initializers are loaded
-Services::SimpleLogger.info(
+Services::Logging::SimpleLogger.info(
   'Cube starting up',
   tagged: [:startup],
   environment: ENV['RACK_ENV'] || 'development',
@@ -46,6 +51,9 @@ require_relative 'config/model_pricing'
 # All library files are now loaded by config/initializers/autoload.rb
 
 class GlitchCubeApp < Sinatra::Base
+  # Include job scheduler helper for safe job scheduling
+  include SidekiqConfig::JobScheduler
+
   configure do
     set :server, :webrick
     set :bind, '0.0.0.0'
@@ -101,6 +109,11 @@ class GlitchCubeApp < Sinatra::Base
     def conversation_handler
       @conversation_handler ||= Services::ConversationHandlerService.new
     end
+
+    # Helper to check if Sidekiq is available for job scheduling
+    def sidekiq_available?
+      SidekiqConfig.available?
+    end
   end
 
   # Request logging for all endpoints
@@ -116,7 +129,7 @@ class GlitchCubeApp < Sinatra::Base
                   :info
                 end
 
-    Services::SimpleLogger.send(
+    Services::Logging::SimpleLogger.send(
       log_level,
       'Incoming request',
       tagged: %i[request incoming],
@@ -145,7 +158,7 @@ class GlitchCubeApp < Sinatra::Base
       request_params['_content_length'] = request.content_length if request.content_length
     end
 
-    Services::SimpleLogger.info(
+    Services::Logging::SimpleLogger.info(
       'Request completed',
       tagged: %i[request completed],
       method: request.request_method,
@@ -158,7 +171,7 @@ class GlitchCubeApp < Sinatra::Base
     )
   rescue StandardError => e
     # Don't let logging errors break the app
-    Services::SimpleLogger.error(
+    Services::Logging::SimpleLogger.error(
       'Request logging failed',
       tagged: %i[request error],
       error: e.message,
@@ -207,7 +220,7 @@ end
 # Skip in development since we run production elsewhere
 if ENV['RACK_ENV'] == 'production' && !test?
   begin
-    Services::SimpleLogger.info('Checking for missed deployments on startup...', tagged: %i[startup deployment])
+    Services::Logging::SimpleLogger.info('Checking for missed deployments on startup...', tagged: %i[startup deployment])
 
     # Fetch latest changes from remote
     git_fetch_result = system('git fetch origin main 2>/dev/null')
@@ -217,59 +230,66 @@ if ENV['RACK_ENV'] == 'production' && !test?
       behind_count = `git rev-list HEAD..origin/main --count 2>/dev/null`.strip.to_i
 
       if behind_count.positive?
-        Services::SimpleLogger.warn("Found #{behind_count} commits behind - scheduling deployment...", tagged: %i[startup deployment], behind_count: behind_count)
-        Services::SimpleLogger.info('API call - startup deployment check',
-                                    tagged: %i[api_call startup deployment],
-                                    service: 'startup_deployment_check',
-                                    endpoint: '/startup',
-                                    method: 'startup',
-                                    behind_count: behind_count,
-                                    message: 'Missed deployments detected on startup')
+        Services::Logging::SimpleLogger.warn("Found #{behind_count} commits behind - scheduling deployment...", tagged: %i[startup deployment], behind_count: behind_count)
+        Services::Logging::SimpleLogger.info('API call - startup deployment check',
+                                             tagged: %i[api_call startup deployment],
+                                             service: 'startup_deployment_check',
+                                             endpoint: '/startup',
+                                             method: 'startup',
+                                             behind_count: behind_count,
+                                             message: 'Missed deployments detected on startup')
 
-        # Schedule deployment in background (after full startup)
-        # Use Sidekiq if available, otherwise log for manual intervention
-        if defined?(Sidekiq) && Sidekiq.redis_info
-          # Get latest commit info for deployment
-          latest_commit = `git rev-parse origin/main 2>/dev/null`.strip
-          latest_message = `git log origin/main -1 --pretty=%B 2>/dev/null`.strip
-
-          deployment_info = {
-            repository: 'glitchcube',
-            branch: 'main',
-            commit_sha: latest_commit,
-            commit_message: latest_message,
-            committer: 'startup_recovery',
-            timestamp: Time.now.iso8601
-          }
-
-          # Schedule deployment worker to run in 10 seconds (after full startup)
-          MissedDeploymentWorker.perform_in(10, deployment_info)
-          Services::SimpleLogger.info("Scheduled deployment worker for #{behind_count} missed commits", tagged: %i[startup deployment], behind_count: behind_count)
-        else
-          Services::SimpleLogger.info("Manual deployment recommended - #{behind_count} commits behind", tagged: %i[startup deployment], behind_count: behind_count)
-          Services::SimpleLogger.info("Run: curl -X POST http://localhost:#{GlitchCube.config.port}/api/v1/deploy/manual", tagged: %i[startup deployment manual])
-        end
+        # Log for manual intervention
+        Services::Logging::SimpleLogger.info("Manual deployment recommended - #{behind_count} commits behind", tagged: %i[startup deployment], behind_count: behind_count)
+        Services::Logging::SimpleLogger.info("Run: curl -X POST http://localhost:#{GlitchCube.config.port}/api/v1/deploy/manual", tagged: %i[startup deployment manual])
       else
-        Services::SimpleLogger.info('Repository is up to date', tagged: %i[startup deployment])
+        Services::Logging::SimpleLogger.info('Repository is up to date', tagged: %i[startup deployment])
       end
     else
-      Services::SimpleLogger.warn('Git fetch failed on startup - check connectivity', tagged: %i[startup deployment warning])
+      Services::Logging::SimpleLogger.warn('Git fetch failed on startup - check connectivity', tagged: %i[startup deployment warning])
     end
   rescue StandardError => e
-    Services::SimpleLogger.error('Startup deployment check failed', tagged: %i[startup deployment error], error: e.message, backtrace: e.backtrace&.first(3))
-    Services::SimpleLogger.error('API call failed - startup deployment check',
-                                 tagged: %i[api_call startup deployment error],
-                                 service: 'startup_deployment_check',
-                                 endpoint: '/startup',
-                                 method: 'startup',
-                                 status: 500,
-                                 error: e.message)
+    Services::Logging::SimpleLogger.error('Startup deployment check failed', tagged: %i[startup deployment error], error: e.message, backtrace: e.backtrace&.first(3))
+    Services::Logging::SimpleLogger.error('API call failed - startup deployment check',
+                                          tagged: %i[api_call startup deployment error],
+                                          service: 'startup_deployment_check',
+                                          endpoint: '/startup',
+                                          method: 'startup',
+                                          status: 500,
+                                          error: e.message)
   end
 end
 
 # Register with Home Assistant on startup (Sidekiq job)
 if ENV['RACK_ENV'] == 'production'
-  HostRegistrationWorker.perform_in(5, 'initial_registration') # 5 seconds
+  if SidekiqConfig.available?
+    HostRegistrationWorker.perform_in(5, 'initial_registration') # 5 seconds
+    Services::Logging::SimpleLogger.info('Scheduled initial host registration', tagged: %i[startup jobs])
+  else
+    Services::Logging::SimpleLogger.warn('Sidekiq not available - skipping host registration', tagged: %i[startup jobs warning])
+  end
+end
+
+# Schedule background summarizer and memory jobs to run after startup
+if SidekiqConfig.available?
+  Services::Logging::SimpleLogger.info('📅 Scheduling background jobs for startup...', tagged: %i[startup jobs])
+
+  startup_jobs = [
+    { job: Jobs::MemoryConsolidationJob, delay: 10, name: 'memory_consolidation' },
+    { job: Jobs::PersonalityMemoryJob, delay: 15, name: 'personality_memory' },
+    { job: Jobs::PersonalSummarizerJob, delay: 20, name: 'personal_summarizer' },
+    { job: Jobs::InteractionSummarizerJob, delay: 25, name: 'interaction_summarizer' },
+    { job: Jobs::EventMemorySummarizerJob, delay: 30, name: 'event_memory_summarizer' }
+  ]
+
+  startup_jobs.each do |job_info|
+    job_info[:job].perform_in(job_info[:delay])
+    Services::Logging::SimpleLogger.info("✅ Scheduled #{job_info[:name]} in #{job_info[:delay]} seconds", tagged: %i[startup jobs])
+  rescue StandardError => e
+    Services::Logging::SimpleLogger.error("❌ Failed to schedule #{job_info[:name]}: #{e.message}", tagged: %i[startup jobs error])
+  end
+else
+  Services::Logging::SimpleLogger.warn('Sidekiq not available - background jobs not scheduled', tagged: %i[startup jobs warning])
 end
 
 # Start the server when running directly (not via rackup)

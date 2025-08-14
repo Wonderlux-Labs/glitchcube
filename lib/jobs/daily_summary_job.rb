@@ -15,7 +15,7 @@ module Jobs
       summary_content = generate_daily_summary(hourly_summaries)
       save_summary(summary_content, 'daily')
     rescue StandardError => e
-      Services::SimpleLogger.error "DailySummaryJob failed: #{e.message}"
+      Services::Logging::SimpleLogger.error "DailySummaryJob failed: #{e.message}"
       raise
     end
 

@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Services::LLMService do
+RSpec.describe Services::Llm::LLMService do
   describe 'retry logic' do
     let(:mock_client) { instance_double(OpenRouter::Client) }
     let(:mock_response) do
@@ -16,7 +16,7 @@ RSpec.describe Services::LLMService do
     before do
       # Mock the LLMService's client method directly
       allow(described_class).to receive(:client).and_return(mock_client)
-      allow(Services::CircuitBreakerService).to receive_message_chain(:openrouter_breaker, :call).and_yield
+      allow(Services::System::CircuitBreakerService).to receive_message_chain(:openrouter_breaker, :call).and_yield
     end
 
     describe '#with_retry_logic' do
@@ -27,9 +27,9 @@ RSpec.describe Services::LLMService do
           expect do
             described_class.send(:with_retry_logic, model: 'test-model', max_attempts: 3) do
               attempt_count += 1
-              raise Services::LLMService::RateLimitError, 'Rate limited'
+              raise Services::Llm::LLMService::RateLimitError, 'Rate limited'
             end
-          end.to raise_error(Services::LLMService::RateLimitError)
+          end.to raise_error(Services::Llm::LLMService::RateLimitError)
 
           # Should only attempt once since retries are disabled in test
           expect(attempt_count).to eq(1)
@@ -50,7 +50,7 @@ RSpec.describe Services::LLMService do
           expect do
             described_class.send(:with_retry_logic, model: 'test-model', max_attempts: 3) do
               attempt_count += 1
-              raise Services::LLMService::RateLimitError, 'Rate limited' if attempt_count < 3
+              raise Services::Llm::LLMService::RateLimitError, 'Rate limited' if attempt_count < 3
 
               'success'
             end
@@ -66,9 +66,9 @@ RSpec.describe Services::LLMService do
         expect do
           described_class.send(:with_retry_logic, model: 'test-model', max_attempts: 3) do
             attempt_count += 1
-            raise Services::LLMService::AuthenticationError, 'Invalid API key'
+            raise Services::Llm::LLMService::AuthenticationError, 'Invalid API key'
           end
-        end.to raise_error(Services::LLMService::AuthenticationError)
+        end.to raise_error(Services::Llm::LLMService::AuthenticationError)
 
         expect(attempt_count).to eq(1)
       end
@@ -92,9 +92,9 @@ RSpec.describe Services::LLMService do
         expect do
           described_class.send(:with_retry_logic, model: 'test-model') do
             attempt_count += 1
-            raise Services::LLMService::LLMError, 'Temporary error'
+            raise Services::Llm::LLMService::LLMError, 'Temporary error'
           end
-        end.to raise_error(Services::LLMService::LLMError)
+        end.to raise_error(Services::Llm::LLMService::LLMError)
 
         # Should only attempt once
         expect(attempt_count).to eq(1)
@@ -118,7 +118,7 @@ RSpec.describe Services::LLMService do
               { role: 'user', content: 'Hello' }
             ]
           )
-        end.to raise_error(Services::LLMService::LLMError)
+        end.to raise_error(Services::Llm::LLMService::LLMError)
 
         # Should only attempt once since retries are disabled
         expect(call_count).to eq(1)

@@ -75,7 +75,7 @@ RSpec.describe 'Conversation Summarizer Integration' do
     end
 
     it 'provides fallback points when AI summarization fails' do
-      allow(Services::LLMService).to receive(:complete_with_messages).and_raise('API Error')
+      allow(Services::Llm::LLMService).to receive(:complete_with_messages).and_raise('API Error')
 
       summary = summarizer.summarize_conversation(conversation_messages)
 

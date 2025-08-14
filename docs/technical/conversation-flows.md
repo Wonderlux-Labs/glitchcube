@@ -1,9 +1,9 @@
 # Conversation Flow Diagrams
 
 ## Overview
-This document maps the complete flow of conversations through the Glitch Cube system, showing both user-initiated and proactive conversations, including all files, triggers, and decision points.
+This document maps the complete flow of conversations through the Glitch Cube system, showing both user-initiated and proactive conversations, including all files, triggers, and decision points. **Updated for the new modular conversation architecture (January 2025).**
 
-## 1. User-Initiated Conversation Flow
+## 1. User-Initiated Conversation Flow (New Architecture)
 
 ```mermaid
 graph TD
@@ -15,52 +15,60 @@ graph TD
     Webhook --> |event_type: conversation_continued| Forward[Forward to Main Endpoint]
     Forward --> |POST /api/v1/conversation| Main[lib/routes/api/conversation.rb:86]
     
-    Main --> Session[Services::ConversationSession]
-    Session --> |find_or_create| DB[(PostgreSQL conversations table)]
+    Main --> CM[ConversationModule.call<br/>lib/modules/conversation_module.rb:51]
+    CM --> FlowManager[ConversationFlowManager<br/>lib/services/conversation/conversation_flow_manager.rb]
     
-    Main --> CM[ConversationModule.call<br/>lib/modules/conversation_module.rb:47]
+    FlowManager --> StateManager[ConversationStateManager<br/>Create/Get Session]
+    StateManager --> |find_or_create| DB[(PostgreSQL conversations table)]
     
-    CM --> Persona[Select Persona<br/>buddy/jax/lomi/zorp]
-    CM --> Tools[Load Tools for Persona<br/>Services::ToolRegistryService]
-    CM --> Memory[Inject Memories<br/>Services::MemoryRecallService]
+    FlowManager --> ContextEnrich[Services::ContextEnrichmentService<br/>Inject Memories & Context]
+    FlowManager --> LLMManager[LLMInteractionManager<br/>Build Messages & System Prompt]
     
-    CM --> Prompt[Build System Prompt<br/>Services::SystemPromptService]
-    Prompt --> LLM[Services::LLMService<br/>OpenRouter API]
+    LLMManager --> |Prepare Messages| LLM[Services::LLMService<br/>OpenRouter API Call]
     
-    LLM --> Response[AI Response]
-    Response --> ToolCheck{Has Tool Calls?}
+    LLM --> ResponseCheck{Has Tool Calls?}
     
-    ToolCheck -->|Yes| ToolExec[Services::ToolExecutor]
-    ToolExec --> ToolResult[Execute Tools]
-    ToolResult --> LLM2[Second LLM Call<br/>with Tool Results]
-    LLM2 --> FinalResponse[Final Response]
+    ResponseCheck -->|Yes| ToolEngine[ToolExecutionEngine<br/>lib/services/conversation/tool_execution_engine.rb]
+    ToolEngine --> ToolExec[Services::ToolExecutor<br/>Execute All Tools]
+    ToolExec --> ToolResults[Format Tool Results]
+    ToolResults --> LLM2[Second LLM Call<br/>with Tool Results]
+    LLM2 --> ResponseProcessor
     
-    ToolCheck -->|No| FinalResponse
+    ResponseCheck -->|No| ResponseProcessor[ResponseProcessor<br/>lib/services/conversation/response_processor.rb]
     
-    FinalResponse --> TTS[Tool: speech_synthesis<br/>→ HomeAssistantClient]
+    ResponseProcessor --> |Extract Response Text| FinalResponse[Final Response Data]
+    
+    FinalResponse --> SideEffects[ConversationSideEffectHandler<br/>Handle TTS, LEDs, Display]
+    SideEffects --> TTS[Tool: speech_synthesis<br/>→ HomeAssistantClient]
     TTS --> |script.glitchcube_cloud_speak| Speaker[Cube Speakers]
     
-    FinalResponse --> LED[Tool: conversation_feedback<br/>→ LED State]
-    FinalResponse --> Display[Tool: display_control<br/>→ AWTRIX Display]
+    SideEffects --> LED[Tool: conversation_feedback<br/>→ LED State]
+    SideEffects --> Display[Tool: display_control<br/>→ AWTRIX Display]
     
-    FinalResponse --> SaveMsg[Save to DB<br/>messages table]
+    FinalResponse --> StateManager2[StateManager<br/>Record Message & Metadata]
+    StateManager2 --> SaveMsg[Save to DB<br/>messages table]
+    
     FinalResponse --> Continue{Continue Flag?}
-    
     Continue -->|true| WaitUser([Wait for User])
     Continue -->|false| EndSession([End Conversation])
     
     WaitUser --> |User speaks again| HA
 ```
 
-### Key Files in User-Initiated Flow
+### Key Files in User-Initiated Flow (New Architecture)
 
 | Component | File | Purpose |
 |-----------|------|---------|
 | Webhook Entry | `lib/routes/api/conversation.rb:419` | Receives HA voice events |
 | Main Endpoint | `lib/routes/api/conversation.rb:86` | Primary conversation handler |
-| Conversation Logic | `lib/modules/conversation_module.rb` | Orchestrates entire flow |
-| Session Management | `lib/services/conversation_session.rb` | Manages conversation state |
-| LLM Service | `lib/services/llm_service.rb` | OpenRouter API calls |
+| Conversation Entry | `lib/modules/conversation_module.rb` | Simple interface, delegates to FlowManager |
+| **Flow Orchestration** | `lib/services/conversation/conversation_flow_manager.rb` | **Central orchestrator for conversation lifecycle** |
+| **LLM Management** | `lib/services/conversation/llm_interaction_manager.rb` | **Message prep, model selection, API calls** |
+| **Tool Execution** | `lib/services/conversation/tool_execution_engine.rb` | **Handles tool calls and execution** |
+| **Response Processing** | `lib/services/conversation/response_processor.rb` | **Validates and extracts LLM responses** |
+| **State Management** | `lib/services/conversation/conversation_state_manager.rb` | **Session and message persistence** |
+| **History Management** | `lib/services/conversation/conversation_history_manager.rb` | **Context retrieval and summarization** |
+| LLM Service | `lib/services/llm/llm_service.rb` | OpenRouter API calls |
 | Tool Execution | `lib/services/tool_executor.rb` | Executes requested tools |
 | TTS Output | `lib/home_assistant_client.rb` | Sends speech to HA |
 
@@ -243,17 +251,30 @@ graph TD
 
 ## File Directory Quick Reference
 
-### Core Conversation Files
+### Core Conversation Files (New Architecture)
 ```
 lib/
 ├── modules/
-│   └── conversation_module.rb          # Main orchestrator
+│   └── conversation_module.rb          # Entry point, delegates to FlowManager
 ├── routes/
 │   └── api/
 │       └── conversation.rb             # HTTP endpoints
 ├── services/
-│   ├── conversation_session.rb         # Session management
-│   ├── llm_service.rb                  # OpenRouter API
+│   ├── conversation/                   # NEW: Modular conversation services
+│   │   ├── conversation_flow_manager.rb        # Central orchestrator
+│   │   ├── llm_interaction_manager.rb          # LLM communication
+│   │   ├── tool_execution_engine.rb            # Tool call handling
+│   │   ├── response_processor.rb               # Response validation
+│   │   ├── conversation_state_manager.rb       # Session & persistence
+│   │   ├── conversation_history_manager.rb     # Context & summarization
+│   │   ├── conversation_error_handler.rb       # Error handling
+│   │   └── errors/
+│   │       └── tool_execution_error.rb         # Custom error types
+│   ├── llm/
+│   │   ├── llm_service.rb              # OpenRouter API client
+│   │   ├── llm_response.rb             # Response parsing
+│   │   └── components/                 # LLM service components
+│   ├── conversation_session.rb         # Session management (existing)
 │   ├── memory_recall_service.rb        # Memory injection
 │   ├── tool_executor.rb                # Tool execution
 │   ├── tool_registry_service.rb        # Tool discovery

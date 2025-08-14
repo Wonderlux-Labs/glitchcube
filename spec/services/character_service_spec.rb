@@ -4,7 +4,7 @@ require 'spec_helper'
 require_relative '../../lib/personas/base_persona'
 require_relative '../../lib/personas/buddy_persona'
 
-RSpec.describe Services::CharacterService do
+RSpec.describe Services::System::CharacterService do
   let(:mock_home_assistant) { instance_double(HomeAssistantClient) }
 
   # Custom matcher for non-empty strings
@@ -277,7 +277,7 @@ RSpec.describe Services::CharacterService do
 
       it 'falls back to character config for tools' do
         tools = service.get_tools
-        expect(tools).to eq(Services::CharacterService::CHARACTERS[:default][:tools])
+        expect(tools).to eq(Services::System::CharacterService::CHARACTERS[:default][:tools])
       end
 
       it 'falls back to basic prompt' do

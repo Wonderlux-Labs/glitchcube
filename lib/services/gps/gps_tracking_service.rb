@@ -20,11 +20,6 @@ module Services
       coords.merge(context)
     end
 
-    # DEPRECATED - just use LocationContextService.full_context instead
-    def brc_address_from_coordinates(lat, lng)
-      Services::LocationContextService.full_context(lat, lng)[:address]
-    end
-
     # Get proximity data for map reactions using LocationContextService
     def proximity_data(lat, lng)
       context = Services::LocationContextService.full_context(lat, lng)
@@ -42,10 +37,10 @@ module Services
 
     def fetch_spoofed_location
       # Only allow spoofed locations in development
-      return nil unless ENV['RACK_ENV'] == 'development'
+      return nil unless GlitchCube.config.development?
 
       begin
-        redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://localhost:6379/0')
+        redis = Redis.new(url: GlitchCube.config.redis_url)
         spoofed_data = redis.get('current_cube_location')
         return nil unless spoofed_data
 

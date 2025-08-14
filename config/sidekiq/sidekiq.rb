@@ -57,7 +57,7 @@ class SimpleLoggerMiddleware
     jid = job['jid']
     worker_class = worker.class.to_s
 
-    Services::SimpleLogger.info(
+    Services::Logging::SimpleLogger.info(
       'Job started',
       tagged: %i[sidekiq job_start],
       worker: worker_class,
@@ -68,7 +68,7 @@ class SimpleLoggerMiddleware
     yield
 
     duration = ((Time.now - start_time) * 1000).round(2)
-    Services::SimpleLogger.info(
+    Services::Logging::SimpleLogger.info(
       'Job completed',
       tagged: %i[sidekiq job_complete],
       worker: worker_class,
@@ -82,7 +82,7 @@ class SimpleLoggerMiddleware
     rescue StandardError
       0
     end
-    Services::SimpleLogger.log_error(
+    Services::Logging::SimpleLogger.log_error(
       error: e,
       message: "Job failed: #{worker_class}",
       tagged: %i[sidekiq job_error],
