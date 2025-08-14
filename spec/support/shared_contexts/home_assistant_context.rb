@@ -14,8 +14,17 @@ module Services
       'buddy'
     end
 
-    def self.set_current_persona(persona, **kwargs)
-      # This will be mocked in tests
+    def self.set_current_persona(persona, **_kwargs)
+      # Validate persona exists (mimic real service behavior)
+      normalized = persona.to_s.downcase
+      valid_personas = %w[buddy jax lomi zorp]
+
+      unless valid_personas.include?(normalized)
+        raise ArgumentError, "Unknown persona: #{persona}"
+      end
+
+      # Return the persona name for test consistency
+      normalized
     end
   end
 

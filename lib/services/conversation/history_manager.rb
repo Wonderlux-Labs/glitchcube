@@ -29,7 +29,6 @@ module Services
         session.add_message(
           role: message_data[:role],
           content: message_data[:content],
-          timestamp: message_data[:timestamp] || Time.now.utc.iso8601,
           metadata: message_data[:context] || {}
         )
 
@@ -102,8 +101,8 @@ module Services
         end
 
         # Include timestamp range if available
-        first_timestamp = messages.first&.fetch(:timestamp, nil)
-        last_timestamp = messages.last&.fetch(:timestamp, nil)
+        first_timestamp = messages.first&.created_at
+        last_timestamp = messages.last&.created_at
 
         if first_timestamp && last_timestamp
           summary_parts << "Time range: #{format_timestamp_for_summary(first_timestamp)} to #{format_timestamp_for_summary(last_timestamp)}"
