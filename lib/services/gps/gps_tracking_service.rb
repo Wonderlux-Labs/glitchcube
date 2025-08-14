@@ -57,7 +57,8 @@ module Services
             lng: data[:lng],
             timestamp: Time.parse(data[:timestamp]),
             accuracy: nil,
-            battery: nil,
+            satellites: nil,
+            uptime: nil,
             source: 'spoofed'
           }
         rescue StandardError
@@ -98,25 +99,31 @@ module Services
       end
 
       def fetch_from_home_assistant
-        device_tracker_entity = begin
-          GlitchCube.config.gps.device_tracker_entity
-        rescue StandardError
-          'device_tracker.glitch_cube'
-        end
+        # Get latitude and longitude from the glitchcube sensors
+        lat_sensor = @ha_client.states.find { |s| s['entity_id'] == 'sensor.glitchcube_latitude' }
+        lng_sensor = @ha_client.states.find { |s| s['entity_id'] == 'sensor.glitchcube_longitude' }
 
-        entity_state = @ha_client.states.find { |state| state['entity_id'] == device_tracker_entity }
-        return nil unless entity_state && entity_state['attributes']
+        return nil unless lat_sensor && lng_sensor
 
-        lat = entity_state['attributes']['latitude']&.to_f
-        lng = entity_state['attributes']['longitude']&.to_f
-        return nil unless lat && lng
+        # Get GPS quality from HTIT tracker
+        quality_sensor = @ha_client.states.find { |s| s['entity_id'] == 'sensor.heltec_htit_tracker_gps_quality' }
+        gps_quality = quality_sensor ? quality_sensor['state'].to_i : nil
+
+        # Get satellite count from HTIT tracker
+        sat_sensor = @ha_client.states.find { |s| s['entity_id'] == 'sensor.heltec_htit_tracker_satellites' }
+        satellites = sat_sensor ? sat_sensor['state'].to_i : nil
+
+        # Get device uptime from HTIT tracker (instead of battery)
+        uptime_sensor = @ha_client.states.find { |s| s['entity_id'] == 'sensor.heltec_htit_tracker_device_uptime' }
+        uptime = uptime_sensor ? uptime_sensor['state'].to_i : nil
 
         {
-          lat: lat,
-          lng: lng,
-          timestamp: Time.parse(entity_state['last_updated']),
-          accuracy: entity_state['attributes']['gps_accuracy'],
-          battery: entity_state['attributes']['battery_level'],
+          lat: lat_sensor['state'].to_f,
+          lng: lng_sensor['state'].to_f,
+          timestamp: Time.now,
+          accuracy: gps_quality,  # 3=great, 2=degraded, 1/0=unavailable
+          satellites: satellites,
+          uptime: uptime,  # seconds of device uptime
           source: 'gps'
         }
       rescue StandardError
@@ -131,7 +138,8 @@ module Services
           lng: landmark.longitude.to_f,
           timestamp: Time.now,
           accuracy: nil,
-          battery: nil,
+          satellites: nil,
+          uptime: nil,
           source: 'random_landmark'
         }
       end

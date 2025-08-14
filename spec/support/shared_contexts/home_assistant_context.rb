@@ -141,6 +141,14 @@ if defined?(RSpec)
             friendly_name: 'Glitch Cube Context',
             context_data: { environment: 'test', location: 'burning_man' }
           }
+        },
+        'sensor.glitchcube_location' => {
+          state: 'burning_man_center_camp',
+          attributes: {
+            latitude: 40.7831,
+            longitude: -119.2034,
+            friendly_name: 'Glitch Cube Location'
+          }
         }
       }
     end

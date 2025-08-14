@@ -79,3 +79,8 @@ glitchcube_proactive:
   headers:
     Content-Type: application/json
   payload: '{{ data | to_json }}'
+
+update_location_context:
+  url: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/gps/cube_current_loc"
+  method: GET
+  timeout: 3

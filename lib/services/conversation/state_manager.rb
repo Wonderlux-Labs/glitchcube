@@ -107,7 +107,7 @@ module Services
 
         begin
           # Build query based on filters
-          conversations_scope = Conversation.all
+          conversations_scope = ::Conversation.all
 
           if filters[:start_date]
             conversations_scope = conversations_scope.where('created_at >= ?', Time.parse(filters[:start_date].to_s))
@@ -119,7 +119,7 @@ module Services
 
           if filters[:persona]
             # Filter by messages with specific persona
-            conversation_ids = Message.where(persona: filters[:persona]).distinct.pluck(:conversation_id)
+            conversation_ids = ::Message.where(persona: filters[:persona]).distinct.pluck(:conversation_id)
             conversations_scope = conversations_scope.where(id: conversation_ids)
           end
 
