@@ -1,11 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_persona'
-require_relative 'buddy_persona'
-require_relative 'jax_persona'
-require_relative 'lomi_persona'
-require_relative 'zorp_persona'
-
 module Personas
   class PersonaFactory
     PERSONA_MAP = {

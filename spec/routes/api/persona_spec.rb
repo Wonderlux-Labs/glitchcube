@@ -110,10 +110,10 @@ RSpec.describe 'Persona API Endpoints' do
   end
 
   describe 'POST /api/v1/persona/sync' do
-    let(:ha_client) { instance_double(HomeAssistantClient) }
+    let(:ha_client) { instance_double(Core::HomeAssistantClient) }
 
     before do
-      allow(HomeAssistantClient).to receive(:new).and_return(ha_client)
+      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
     end
 
     it 'syncs from Home Assistant by default' do

@@ -2,16 +2,13 @@
 
 require 'sinatra/base'
 require 'json'
-require_relative '../../../lib/services/admin/admin_pages'
-
-module GlitchCube
-  module Routes
-    module AdminScenarios
+module Routes
+  module Admin
+    module Scenarios
       # Predefined test scenarios
       def self.save_comparison
         Services::AdminPages.save_comparison
       end
-
       SCENARIOS = {
         'first_contact' => {
           name: 'First Contact',
@@ -86,23 +83,18 @@ module GlitchCube
           ]
         }
       }.freeze
-
       def self.registered(app)
         # Main scenarios interface
         app.get '/admin/scenarios' do
           @scenarios = SCENARIOS
-
           # Get available models directly
           @model_categories = Services::AdminPages.get_available_models
-
           # Flat list for backwards compatibility
           @models = Services::AdminPages.get_flat_model_list
-
           # Get recent comparisons
           begin
             redis = Redis.new(url: GlitchCube.config.redis_url)
             comparison_ids = redis.lrange('recent_scenario_comparisons', 0, 9)
-
             @recent_comparisons = []
             comparison_ids.each do |id|
               data = redis.get("scenario_comparison:#{id}")
@@ -120,34 +112,28 @@ module GlitchCube
           rescue Redis::CannotConnectError
             @recent_comparisons = []
           end
-          @free_models = GlitchCube::ModelPresets::FREE_MODELS
+          @free_models = ModelPresets::FREE_MODELS
           erb :admin_scenarios
         end
-
         # Run scenario comparison
         app.post '/admin/scenarios/compare' do
           content_type :json
-
           begin
             data = JSON.parse(request.body.read)
             scenario_id = data['scenario_id']
             models = data['models'] || []
             persona = data['persona'] || 'buddy'
-
             scenario = SCENARIOS[scenario_id]
             return { error: 'Scenario not found' }.to_json unless scenario
 
             # Run scenario for each model
             results = []
-
             models.each do |model|
               result = Services::AdminPages.run_scenario_for_model(scenario, model, persona)
               results << result
             end
-
             # Save comparison for history
             Services::AdminPages.save_comparison(scenario_id, results)
-
             {
               success: true,
               scenario: scenario,
@@ -160,41 +146,33 @@ module GlitchCube
             { error: e.message, backtrace: e.backtrace.first(5) }.to_json
           end
         end
-
         # Get scenario details
         app.get '/admin/scenarios/:id' do
           content_type :json
-
           scenario = SCENARIOS[params[:id]]
           return { error: 'Scenario not found' }.to_json unless scenario
 
           scenario.to_json
         end
-
         # Create custom scenario
         app.post '/admin/scenarios/custom' do
           content_type :json
-
           begin
             data = JSON.parse(request.body.read)
-
             custom_scenario = {
               name: data['name'] || 'Custom Scenario',
               category: 'custom',
               description: data['description'] || 'User-defined scenario',
               messages: data['messages'] || []
             }
-
             # Run the custom scenario
             models = data['models'] || ['google/gemini-2.0-flash-exp:free']
             persona = data['persona'] || 'buddy'
-
             results = []
             models.each do |model|
               result = Services::AdminPages.run_scenario_for_model(custom_scenario, model, persona)
               results << result
             end
-
             {
               success: true,
               scenario: custom_scenario,
@@ -206,16 +184,13 @@ module GlitchCube
             { error: e.message }.to_json
           end
         end
-
         # Export comparison results
         app.get '/admin/scenarios/export/:comparison_id' do
           content_type 'text/csv'
-
           comparison = Services::AdminPages.load_comparison(params[:comparison_id])
           return 'Comparison not found' unless comparison
 
           csv_data = Services::AdminPages.generate_comparison_csv(comparison)
-
           attachment "comparison_#{params[:comparison_id]}.csv"
           csv_data
         end

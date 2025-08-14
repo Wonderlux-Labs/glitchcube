@@ -82,7 +82,7 @@ RSpec.describe Core::CircuitBreaker, vcr: false do
 
         expect do
           circuit_breaker.call { 'should not execute' }
-        end.to raise_error(CircuitBreaker::CircuitOpenError)
+        end.to raise_error(Core::CircuitBreaker::CircuitOpenError)
       end
 
       it 'attempts reset after recovery timeout' do

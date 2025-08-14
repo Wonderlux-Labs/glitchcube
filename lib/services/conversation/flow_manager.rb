@@ -5,19 +5,19 @@ require 'securerandom'
 module Services
   module Conversation
     class FlowManager
-      def initialize(error_handler: ::Services::Conversation::ErrorHandler, logger: ::Services::Logging::SimpleLogger)
-        @state_manager = ::Services::Conversation::StateManager.new
-        @history_manager = ::Services::Conversation::HistoryManager.new
-        @llm_manager = ::Services::Conversation::LlmInteractionManager.new(logger: logger)
-        @tool_engine = ::Services::Conversation::ToolExecutionEngine.new(logger: logger)
-        @response_processor = ::Services::Conversation::ResponseProcessor.new(logger: logger)
+      def initialize(error_handler: ErrorHandler, logger: Logging::SimpleLogger)
+        @state_manager = StateManager.new
+        @history_manager = HistoryManager.new
+        @llm_manager = LlmInteractionManager.new(logger: logger)
+        @tool_engine = ToolExecutionEngine.new(logger: logger)
+        @response_processor = ResponseProcessor.new(logger: logger)
         @error_handler = error_handler
         @logger = logger
       end
 
       def process_conversation(message:, context: {}, persona: nil)
         start_time = Time.now
-        persona_name = persona || context[:persona] || ::Services::PersonaStateService.get_current_persona
+        persona_name = persona || context[:persona] || PersonaStateService.get_current_persona
         persona_instance = Personas::BasePersona.create(persona_name, context)
 
         context[:tools] ||= persona_instance.tool_schemas
@@ -47,7 +47,7 @@ module Services
       private
 
       def execute_conversation_cycle(message, session, persona_instance, context)
-        context = ::Services::Memory::ContextEnrichmentService.enrich(context)
+        context = Memory::ContextEnrichmentService.enrich(context)
         system_prompt = @llm_manager.build_system_prompt(persona_instance, context)
         conversation_history = @history_manager.get_conversation_context(session)
 
@@ -106,7 +106,7 @@ module Services
           options[:tool_choice] = 'auto'
           options[:max_tokens] = context[:max_tokens] || GlitchCube.config.ai.max_tool_tokens
         elsif (response_schema = @llm_manager.get_response_schema(context))
-          options[:response_format] = GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(response_schema)
+          options[:response_format] = Schemas::ConversationResponseSchema.to_openrouter_format(response_schema)
         end
 
         @logger.debug('Built LLM options', tagged: %i[conversation llm], session_id: session_id, model: options[:model], temperature: options[:temperature], has_tools: !options[:tools].nil?, has_response_format: !options[:response_format].nil?)

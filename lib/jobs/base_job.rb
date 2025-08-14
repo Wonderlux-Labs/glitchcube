@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'sidekiq'
-require_relative '../services/logging/simple_logger'
 
 module Jobs
   # Base class for all Sidekiq jobs
@@ -13,7 +12,7 @@ module Jobs
 
     # Provide easy access to logger for all jobs
     def logger
-      ::Services::Logging::SimpleLogger
+      Services::Logging::SimpleLogger
     end
   end
 end

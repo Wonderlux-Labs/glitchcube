@@ -9,8 +9,8 @@ module HomeAssistantHelpers
   def mock_ha_service_call(service_path, params = {}, response: { success: true })
     domain, service = service_path.split('.')
 
-    mock_ha_client = instance_double(HomeAssistantClient)
-    allow(HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
+    mock_ha_client = instance_double(Core::HomeAssistantClient)
+    allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
 
     # Mock the call_service method
     allow(mock_ha_client).to receive(:call_service)
@@ -24,8 +24,8 @@ module HomeAssistantHelpers
   # Mock Home Assistant entity state
   # Usage: mock_ha_entity_state('light.cube', 'on', brightness: 255)
   def mock_ha_entity_state(entity_id, state, attributes = {})
-    mock_ha_client = instance_double(HomeAssistantClient)
-    allow(HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
+    mock_ha_client = instance_double(Core::HomeAssistantClient)
+    allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
 
     entity_data = {
       'entity_id' => entity_id,
@@ -49,8 +49,8 @@ module HomeAssistantHelpers
   # Mock multiple entity states at once
   # Usage: mock_ha_entities({ 'light.cube' => { state: 'on', brightness: 255 } })
   def mock_ha_entities(entities_config)
-    mock_ha_client = instance_double(HomeAssistantClient)
-    allow(HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
+    mock_ha_client = instance_double(Core::HomeAssistantClient)
+    allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
 
     states_data = entities_config.map do |entity_id, config|
       {
@@ -93,9 +93,9 @@ module HomeAssistantHelpers
                     }
                   end
 
-    # Mock the tool execution via HomeAssistantClient
-    mock_ha_client = instance_double(HomeAssistantClient)
-    allow(HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
+    # Mock the tool execution via Core::HomeAssistantClient
+    mock_ha_client = instance_double(Core::HomeAssistantClient)
+    allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
 
     # Mock common tool execution patterns
     case tool_name
@@ -121,8 +121,8 @@ module HomeAssistantHelpers
   # Mock Home Assistant conversation pipeline response
   # Usage: mock_ha_conversation_response('Hello there!', continue: true)
   def mock_ha_conversation_response(response_text, _continue: false, _actions: [])
-    mock_ha_client = instance_double(HomeAssistantClient)
-    allow(HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
+    mock_ha_client = instance_double(Core::HomeAssistantClient)
+    allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
 
     response_data = {
       'conversation_id' => SecureRandom.uuid,
@@ -146,8 +146,8 @@ module HomeAssistantHelpers
   # Mock TTS (text-to-speech) call
   # Usage: mock_ha_tts('Hello world', voice: 'openai')
   def mock_ha_tts(text, voice: 'openai', success: true)
-    mock_ha_client = instance_double(HomeAssistantClient)
-    allow(HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
+    mock_ha_client = instance_double(Core::HomeAssistantClient)
+    allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
 
     result = success ? { success: true } : { success: false, error: 'TTS failed' }
 
@@ -161,8 +161,8 @@ module HomeAssistantHelpers
   # Create a fully stubbed Home Assistant client with common methods
   # Usage: ha_client = stubbed_ha_client
   def stubbed_ha_client
-    mock_ha_client = instance_double(HomeAssistantClient)
-    allow(HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
+    mock_ha_client = instance_double(Core::HomeAssistantClient)
+    allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
 
     # Stub common methods with reasonable defaults
     allow(mock_ha_client).to receive(:call_service).and_return({ success: true })
@@ -179,7 +179,7 @@ module HomeAssistantHelpers
   # Helper to verify Home Assistant service calls were made
   # Usage: expect_ha_service_call('light', 'turn_on', entity_id: 'light.cube')
   def expect_ha_service_call(domain, service, params = {})
-    expect_any_instance_of(HomeAssistantClient)
+    expect_any_instance_of(Core::HomeAssistantClient)
       .to receive(:call_service)
       .with(domain, service, hash_including(params))
   end
@@ -187,7 +187,7 @@ module HomeAssistantHelpers
   # Helper to verify TTS was called with specific text
   # Usage: expect_ha_tts('Hello world')
   def expect_ha_tts(text, voice: anything)
-    expect_any_instance_of(HomeAssistantClient)
+    expect_any_instance_of(Core::HomeAssistantClient)
       .to receive(:speak)
       .with(text, hash_including(voice: voice))
   end
@@ -195,8 +195,8 @@ module HomeAssistantHelpers
   # Mock Home Assistant entity list for EntityManagerService
   # Usage: mock_ha_entity_list(lights: ['light.cube'], sensors: ['sensor.temp'])
   def mock_ha_entity_list(entity_groups = {})
-    mock_ha_client = instance_double(HomeAssistantClient)
-    allow(HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
+    mock_ha_client = instance_double(Core::HomeAssistantClient)
+    allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
 
     all_entities = []
 

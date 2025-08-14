@@ -157,7 +157,7 @@ docker-compose --profile mariadb restart mariadb
 # Run migrations manually
 docker exec glitchcube_app bundle exec ruby -e "
 require './app.rb'
-GlitchCube::Persistence.configure!
+configure_database!
 "
 ```
 

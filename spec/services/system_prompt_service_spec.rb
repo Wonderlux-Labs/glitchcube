@@ -23,8 +23,8 @@ RSpec.describe Services::Conversation::SystemPromptService do
         mock_period = double('period', abbreviation: 'PST')
         allow(reno_tz).to receive(:current_period).and_return(mock_period)
 
-        # Mock GlitchCube::Constants
-        stub_const('GlitchCube::Constants::LOCATION', {
+        # Mock Constants
+        stub_const('Constants::LOCATION', {
                      timezone: 'America/Los_Angeles'
                    })
 

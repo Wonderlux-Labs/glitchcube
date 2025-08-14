@@ -14,8 +14,12 @@ module Tools
       # Tool identification
       def name
         # Default implementation: derive from class name
-        # e.g., LightingTool -> lighting_tool, BaseTool -> base_tool
+        # e.g., Tools::LightingTool -> lighting_tool, Tools::BaseTool -> base_tool
         class_name = to_s
+
+        # Remove module namespace prefix (e.g., Tools::BaseTool -> BaseTool)
+        class_name = class_name.split('::').last
+
         # Convert CamelCase to snake_case
         class_name.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
                   .gsub(/([a-z\d])([A-Z])/, '\1_\2')

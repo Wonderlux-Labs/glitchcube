@@ -3,7 +3,7 @@
 module Services
   module Conversation
     class ResponseProcessor
-      def initialize(logger: Services::Logging::SimpleLogger)
+      def initialize(logger: Logging::SimpleLogger)
         @logger = logger
       end
 

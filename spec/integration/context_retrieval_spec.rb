@@ -4,12 +4,12 @@ require 'spec_helper'
 require 'fileutils'
 
 RSpec.describe 'Context Retrieval Integration' do
-  let(:service) { Services::ContextRetrievalService.new }
+  let(:service) { Services::Memory::ContextRetrievalService.new }
   let(:test_context_dir) { 'spec/fixtures/test_context_documents' }
 
   before do
     # Use test directory instead of production directory
-    stub_const('Services::ContextRetrievalService::CONTEXT_DIR', test_context_dir)
+    stub_const('Services::Memory::ContextRetrievalService::CONTEXT_DIR', test_context_dir)
 
     # Create test documents
     FileUtils.mkdir_p(test_context_dir)
@@ -36,7 +36,7 @@ RSpec.describe 'Context Retrieval Integration' do
     )
 
     # Reload documents in service
-    @service = Services::ContextRetrievalService.new
+    @service = Services::Memory::ContextRetrievalService.new
   end
 
   after do
@@ -115,7 +115,7 @@ RSpec.describe 'Simple RAG Integration', :failing do
   let(:test_context_dir) { 'spec/fixtures/test_context_documents' }
 
   before do
-    stub_const('Services::ContextRetrievalService::CONTEXT_DIR', test_context_dir)
+    stub_const('Services::Memory::ContextRetrievalService::CONTEXT_DIR', test_context_dir)
     FileUtils.mkdir_p(test_context_dir)
 
     File.write(

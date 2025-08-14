@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 
 require 'open_router'
-require_relative 'llm_response'
-require_relative 'components/response_parser'
-require_relative 'components/error_handler'
-require_relative 'components/retry_handler'
 
 module Services
   module Llm
@@ -50,7 +46,7 @@ module Services
           parse_response(response, model, options)
         rescue StandardError => e
           if GlitchCube.config.debug?
-            Services::Logging::SimpleLogger.debug(
+            Logging::SimpleLogger.debug(
               'LLM error details',
               tagged: %i[llm error debug],
               error_class: e.class.name,
@@ -64,7 +60,7 @@ module Services
         # Define convenience methods for common model presets
         # Using explicit method definitions for better RSpec compatibility
         def complete_cheap_tools(prompt, **options)
-          model = GlitchCube::ModelPresets.get_model(:cheap_tools)
+          model = ModelPresets.get_model(:cheap_tools)
           if options[:user_message]
             complete(system_prompt: prompt, user_message: options.delete(:user_message), model: model, **options)
           else
@@ -73,7 +69,7 @@ module Services
         end
 
         def complete_cheap_no_tools(prompt, **options)
-          model = GlitchCube::ModelPresets.get_model(:cheap_no_tools)
+          model = ModelPresets.get_model(:cheap_no_tools)
           if options[:user_message]
             complete(system_prompt: prompt, user_message: options.delete(:user_message), model: model, **options)
           else
@@ -82,7 +78,7 @@ module Services
         end
 
         def complete_conversation(prompt, **options)
-          model = GlitchCube::ModelPresets.get_model(:conversation)
+          model = ModelPresets.get_model(:conversation)
           if options[:user_message]
             complete(system_prompt: prompt, user_message: options.delete(:user_message), model: model, **options)
           else
@@ -91,7 +87,7 @@ module Services
         end
 
         def complete_premium(prompt, **options)
-          model = GlitchCube::ModelPresets.get_model(:premium)
+          model = ModelPresets.get_model(:premium)
           if options[:user_message]
             complete(system_prompt: prompt, user_message: options.delete(:user_message), model: model, **options)
           else
@@ -100,7 +96,7 @@ module Services
         end
 
         def analyze_image(prompt, **options)
-          model = GlitchCube::ModelPresets.get_model(:multimodel)
+          model = ModelPresets.get_model(:multimodel)
           if options[:user_message]
             complete(system_prompt: prompt, user_message: options.delete(:user_message), model: model, **options)
           else
@@ -212,7 +208,7 @@ module Services
 
           # Consolidated request logging
           if GlitchCube.config.debug?
-            Services::Logging::SimpleLogger.debug(
+            Logging::SimpleLogger.debug(
               'LLM API REQUEST',
               tagged: %i[llm api_request],
               model: params[:model],
@@ -229,7 +225,7 @@ module Services
               **params[:extras]
             }
 
-            Services::Logging::SimpleLogger.debug(
+            Logging::SimpleLogger.debug(
               'RAW HTTP REQUEST',
               tagged: %i[llm raw_request],
               url: 'https://openrouter.ai/api/v1/chat/completions',
@@ -248,7 +244,7 @@ module Services
 
           # Detailed response logging for debugging (only when debug mode is on)
           if GlitchCube.config.debug?
-            Services::Logging::SimpleLogger.debug(
+            Logging::SimpleLogger.debug(
               'RAW HTTP RESPONSE',
               tagged: %i[llm raw_response],
               status: 200,
@@ -261,7 +257,7 @@ module Services
           if GlitchCube.config.debug? && response.respond_to?(:[]) && response[:choices]
             choice = response[:choices]&.first
             if choice
-              Services::Logging::SimpleLogger.debug(
+              Logging::SimpleLogger.debug(
                 'LLM RESPONSE DETAILS',
                 tagged: %i[llm api_response],
                 finish_reason: choice[:finish_reason],
@@ -282,22 +278,22 @@ module Services
 
         def parse_response(response, model, options = {})
           # Delegate to ResponseParser for cleaner separation of concerns
-          Services::Llm::ResponseParser.parse(response, model, options)
+          Components::ResponseParser.parse(response, model, options)
         end
 
         def validate_model!(model)
           # Check against blacklist if ModelPresets is available
-          return unless defined?(GlitchCube::ModelPresets)
+          return unless defined?(ModelPresets)
 
-          GlitchCube::ModelPresets.validate_model!(model)
+          ModelPresets.validate_model!(model)
         end
 
         def with_circuit_breaker(&)
           # Bypass circuit breaker when disabled in config
           return yield unless GlitchCube.config.enable_circuit_breakers
 
-          Services::System::CircuitBreakerService.openrouter_breaker.call(&)
-        rescue CircuitBreaker::CircuitOpenError => e
+          System::CircuitBreakerService.openrouter_breaker.call(&)
+        rescue Core::CircuitBreaker::CircuitOpenError => e
           raise LLMError, "OpenRouter service temporarily unavailable: #{e.message}"
         end
 
@@ -309,12 +305,12 @@ module Services
 
         def with_retry_logic(model:, max_attempts: 3, &)
           # Delegate to RetryHandler component for cleaner separation of concerns
-          Services::Llm::RetryHandler.with_retry_logic(model: model, max_attempts: max_attempts, &)
+          Components::RetryHandler.with_retry_logic(model: model, max_attempts: max_attempts, &)
         end
 
         def handle_error(error)
           # Delegate to ErrorHandler for cleaner separation of concerns
-          Services::Llm::ErrorHandler.handle_error(error)
+          Components::ErrorHandler.handle_error(error)
         end
 
         # Removed - delegated to ErrorHandler component
@@ -322,7 +318,7 @@ module Services
         # Removed - delegated to ErrorHandler component
 
         def log_api_request(params)
-          Services::Logging::SimpleLogger.info(
+          Logging::SimpleLogger.info(
             'OPENROUTER_REQUEST',
             tagged: %i[llm openrouter_request],
             service: 'openrouter',
@@ -357,7 +353,7 @@ module Services
             end
           end
 
-          Services::Logging::SimpleLogger.info(
+          Logging::SimpleLogger.info(
             'OPENROUTER_RESPONSE',
             tagged: %i[llm openrouter_response],
             service: 'openrouter',

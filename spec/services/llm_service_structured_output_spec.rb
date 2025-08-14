@@ -12,8 +12,8 @@ RSpec.describe Services::Llm::LLMService, 'structured output support' do
   describe '.complete with structured outputs' do
     context 'with simple structured response' do
       it 'returns JSON matching the schema', :vcr do
-        schema = GlitchCube::Schemas::ConversationResponseSchema.simple_response
-        formatted_schema = GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(schema)
+        schema = Schemas::ConversationResponseSchema.simple_response
+        formatted_schema = Schemas::ConversationResponseSchema.to_openrouter_format(schema)
 
         response = described_class.complete(
           system_prompt: 'You are a helpful assistant. Respond in JSON format.',
@@ -101,8 +101,8 @@ RSpec.describe Services::Llm::LLMService, 'structured output support' do
 
     context 'with conversation continuation' do
       let(:schema) do
-        GlitchCube::Schemas::ConversationResponseSchema.to_openrouter_format(
-          GlitchCube::Schemas::ConversationResponseSchema.simple_response
+        Schemas::ConversationResponseSchema.to_openrouter_format(
+          Schemas::ConversationResponseSchema.simple_response
         )
       end
 

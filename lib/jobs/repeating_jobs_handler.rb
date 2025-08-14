@@ -1,6 +1,5 @@
 #  frozen_string_literal: true
 
-require_relative 'base_job'
 require 'sidekiq/cron/job'
 
 module Jobs

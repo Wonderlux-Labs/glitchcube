@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_job'
-
 module Jobs
   class HostRegistrationWorker < BaseJob
     # Run every 5 minutes to ensure registration stays current

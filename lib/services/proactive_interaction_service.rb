@@ -18,9 +18,9 @@ module Services
         ]
 
         # Call LLM with tools enabled
-        llm_response = Services::Llm::LLMService.complete_with_messages(
+        llm_response = Llm::LLMService.complete_with_messages(
           messages: messages,
-          model: GlitchCube::ModelPresets.get_model(:conversation_small),
+          model: ModelPresets.get_model(:conversation_small),
           temperature: 0.9, # Higher creativity for attention-seeking
           max_tokens: 150,
           tools: tools,
@@ -30,7 +30,7 @@ module Services
         # Execute any tool calls (speaking, lights, music, etc.)
         if llm_response.has_tool_calls?
           tool_calls = llm_response.tool_calls
-          Services::ToolExecutor.execute(tool_calls)
+          ToolExecutor.execute(tool_calls)
         end
 
         # Log the proactive interaction
@@ -147,7 +147,7 @@ module Services
       end
 
       def log_proactive_event(event_type, llm_response)
-        Services::Logging::SimpleLogger.log_interaction(
+        Logging::SimpleLogger.log_interaction(
           user_message: "[PROACTIVE: #{event_type}]",
           ai_response: llm_response.response_text,
           persona: 'proactive',

@@ -3,7 +3,7 @@
 require 'spec_helper'
 require 'rack/test'
 
-RSpec.describe GlitchCube::Routes::Development::Analytics do
+RSpec.describe Routes::Development::Analytics do
   include Rack::Test::Methods
 
   def app
@@ -214,10 +214,10 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
   end
 
   describe 'context document management' do
-    let(:context_service) { instance_double(Services::ContextRetrievalService) }
+    let(:context_service) { instance_double(Services::Memory::ContextRetrievalService) }
 
     before do
-      allow(Services::ContextRetrievalService).to receive(:new).and_return(context_service)
+      allow(Services::Memory::ContextRetrievalService).to receive(:new).and_return(context_service)
     end
 
     describe 'GET /api/v1/context/documents' do

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_job'
 # ErrorHandling module now autoloaded via Zeitwerk
 
 module Jobs

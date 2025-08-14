@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../../personas/persona_factory'
-
 module Services
   module System
     class CharacterService
@@ -190,7 +188,7 @@ module Services
       def initialize(character: :default, home_assistant: nil)
         @character = character.to_sym
         @character_config = CHARACTERS[@character] || CHARACTERS[:default]
-        @home_assistant = home_assistant || HomeAssistantClient.new
+        @home_assistant = home_assistant || Core::HomeAssistantClient.new
 
         # Bridge to Persona system if available
         begin

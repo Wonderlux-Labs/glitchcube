@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'base_job'
-
 module Jobs
   class MemoryConsolidationJob < BaseJob
     sidekiq_options queue: 'low', retry: 1

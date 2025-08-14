@@ -41,22 +41,22 @@ module Services
       end
 
       def handle
-        Services::Logging::SimpleLogger.debug("Handling error of type: #{error.class.name}", tagged: %i[conversation error_handling])
-        Services::Logging::SimpleLogger.debug("Error message: #{error.message}", tagged: %i[conversation error_handling])
-        Services::Logging::SimpleLogger.debug("Error backtrace: #{error.backtrace&.first(3)&.join(', ')}", tagged: %i[conversation error_handling])
+        Logging::SimpleLogger.debug("Handling error of type: #{error.class.name}", tagged: %i[conversation error_handling])
+        Logging::SimpleLogger.debug("Error message: #{error.message}", tagged: %i[conversation error_handling])
+        Logging::SimpleLogger.debug("Error backtrace: #{error.backtrace&.first(3)&.join(', ')}", tagged: %i[conversation error_handling])
 
         response = case error
-                   when Services::Llm::LLMService::RateLimitError
-                     Services::Logging::SimpleLogger.debug('Matched RateLimitError case', tagged: %i[conversation error_handling])
+                   when Llm::LLMService::RateLimitError
+                     Logging::SimpleLogger.debug('Matched RateLimitError case', tagged: %i[conversation error_handling])
                      handle_rate_limit
-                   when Services::Conversation::Errors::ToolExecutionError
-                     Services::Logging::SimpleLogger.debug('Matched ToolExecutionError case', tagged: %i[conversation error_handling])
+                   when Conversation::Errors::ToolExecutionError
+                     Logging::SimpleLogger.debug('Matched ToolExecutionError case', tagged: %i[conversation error_handling])
                      handle_tool_execution_error
-                   when Services::Llm::LLMService::LLMError
-                     Services::Logging::SimpleLogger.debug('Matched LLMError case', tagged: %i[conversation error_handling])
+                   when Llm::LLMService::LLMError
+                     Logging::SimpleLogger.debug('Matched LLMError case', tagged: %i[conversation error_handling])
                      handle_llm_error
                    else
-                     Services::Logging::SimpleLogger.debug('Matched general error case', tagged: %i[conversation error_handling])
+                     Logging::SimpleLogger.debug('Matched general error case', tagged: %i[conversation error_handling])
                      handle_general_error
                    end
 
@@ -143,7 +143,7 @@ module Services
           persona: persona
         )
       rescue StandardError => e
-        Services::Logging::SimpleLogger.warn(
+        Logging::SimpleLogger.warn(
           'Could not record error response',
           tagged: %i[conversation error_recording],
           error: e.message
@@ -156,7 +156,7 @@ module Services
         persona_instance = Personas::BasePersona.create(persona.to_s, context)
         persona_instance.generate_offline_response(message)
       rescue StandardError => e
-        Services::Logging::SimpleLogger.warn(
+        Logging::SimpleLogger.warn(
           'Could not generate persona-specific offline response, using fallback',
           tagged: %i[conversation error_handling persona],
           error: e.message,
@@ -169,14 +169,14 @@ module Services
 
       def log_error
         # Log to SimpleLogger for debug visibility
-        Services::Logging::SimpleLogger.error("Conversation error: #{error.class.name} - #{error.message}",
-                                              tagged: %i[conversation error],
-                                              error_class: error.class.name,
-                                              persona: persona,
-                                              session_id: session&.session_id)
+        Logging::SimpleLogger.error("Conversation error: #{error.class.name} - #{error.message}",
+                                    tagged: %i[conversation error],
+                                    error_class: error.class.name,
+                                    persona: persona,
+                                    session_id: session&.session_id)
 
         # Also track in SimpleLogger for production monitoring
-        Services::Logging::SimpleLogger.error(
+        Logging::SimpleLogger.error(
           'CONVERSATION_ERROR_TRACKING',
           tagged: %i[conversation error_tracking],
           service: 'ConversationModule',
@@ -184,7 +184,7 @@ module Services
           error_class: error.class.name
         )
       rescue StandardError => e
-        Services::Logging::SimpleLogger.warn(
+        Logging::SimpleLogger.warn(
           'Could not log error',
           tagged: %i[conversation error_logging],
           error: e.message

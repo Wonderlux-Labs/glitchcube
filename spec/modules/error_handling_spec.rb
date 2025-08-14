@@ -88,7 +88,7 @@ RSpec.describe ErrorHandling do
       end
     end
 
-    context 'when a CircuitBreaker::CircuitOpenError occurs' do
+    context 'when a Core::CircuitBreaker::CircuitOpenError occurs' do
       it 'handles it as an operational error and returns fallback', :vcr do
         # Mock the Core::CircuitBreaker error class
         stub_const('Core::CircuitBreaker::CircuitOpenError', Class.new(StandardError))

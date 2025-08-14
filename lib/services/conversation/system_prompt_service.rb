@@ -2,8 +2,6 @@
 
 require 'time'
 require 'tzinfo'
-require_relative '../../personas/base_persona'
-require_relative '../../personas/persona_factory'
 
 module Services
   module Conversation
@@ -56,7 +54,7 @@ module Services
 
       def datetime_section
         # Get current time in Pacific timezone
-        timezone = defined?(GlitchCube::Constants) ? GlitchCube::Constants::LOCATION[:timezone] : 'America/Los_Angeles'
+        timezone = defined?(Constants) ? Constants::LOCATION[:timezone] : 'America/Los_Angeles'
         tz = TZInfo::Timezone.get(timezone)
         current_time = tz.now
 
@@ -165,7 +163,7 @@ module Services
       end
 
       def tool_description(tool)
-        Services::ToolRegistryService.get_tool_prompt(tool.to_s)
+        ToolRegistryService.get_tool_prompt(tool.to_s)
       end
 
       def structured_output_section

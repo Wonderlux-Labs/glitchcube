@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative '../../core/circuit_breaker'
-
 module Services
   module System
     class CircuitBreakerService

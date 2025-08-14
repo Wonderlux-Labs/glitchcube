@@ -26,13 +26,3 @@ unless defined?(Services)
 end
 
 module Utils; end unless defined?(Utils)
-
-# Create alias for Services within GlitchCube namespace
-# This allows both GlitchCube::Services and Services to work
-module GlitchCube
-  # Remove existing constant if it exists to avoid warnings
-  remove_const(:Services) if const_defined?(:Services, false)
-
-  # Create reference to global Services
-  Services = ::Services
-end

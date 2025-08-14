@@ -3,7 +3,7 @@
 module Services
   module Conversation
     class LlmInteractionManager
-      def initialize(logger: Services::Logging::SimpleLogger)
+      def initialize(logger: Logging::SimpleLogger)
         @logger = logger
       end
 
@@ -20,7 +20,7 @@ module Services
         @logger.info('Calling LLM', tagged: %i[conversation llm], session_id: session_id, model: llm_options[:model], message_count: messages.length)
         start_time = Time.now
 
-        response = Services::Llm::LLMService.complete_with_messages(
+        response = Llm::LLMService.complete_with_messages(
           messages: messages,
           **llm_options
         )
@@ -40,7 +40,7 @@ module Services
         )
 
         base_prompt = persona_instance.generate_system_prompt
-        final_prompt = Services::Memory::ContextInjectionService.inject_context(base_prompt, enriched_context)
+        final_prompt = Memory::ContextInjectionService.inject_context(base_prompt, enriched_context)
 
         unless context[:tools].present? && !context[:tools].empty?
           json_instruction = "\n\nIMPORTANT: Your response MUST be valid JSON in this exact format:\n" \
@@ -63,14 +63,14 @@ module Services
       end
 
       def get_response_schema(context)
-        return nil unless defined?(GlitchCube::Schemas::ConversationResponseSchema)
+        return nil unless defined?(Schemas::ConversationResponseSchema)
 
         if context[:image_analysis]
-          GlitchCube::Schemas::ConversationResponseSchema.image_analysis_response
+          Schemas::ConversationResponseSchema.image_analysis_response
         elsif context[:tools]
-          GlitchCube::Schemas::ConversationResponseSchema.tool_response
+          Schemas::ConversationResponseSchema.tool_response
         else
-          GlitchCube::Schemas::ConversationResponseSchema.simple_response
+          Schemas::ConversationResponseSchema.simple_response
         end
       end
     end

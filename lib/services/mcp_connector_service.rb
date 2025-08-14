@@ -44,15 +44,15 @@ module Services
           end
           @connected = true
 
-          Services::Logging::SimpleLogger.info('MCP connected successfully',
-                                               tagged: %i[mcp connection],
-                                               tool_count: @available_tools.size)
+          Logging::SimpleLogger.info('MCP connected successfully',
+                                     tagged: %i[mcp connection],
+                                     tool_count: @available_tools.size)
           true
         rescue StandardError => e
           @connected = false
-          Services::Logging::SimpleLogger.error('MCP connection failed',
-                                                tagged: %i[mcp connection error],
-                                                error: e.message)
+          Logging::SimpleLogger.error('MCP connection failed',
+                                      tagged: %i[mcp connection error],
+                                      error: e.message)
           raise ConnectionError, "Failed to connect to MCP: #{e.message}"
         end
       end
@@ -79,24 +79,24 @@ module Services
     def execute_tool(tool_name, parameters = {})
       connect! unless connected?
 
-      Services::Logging::SimpleLogger.info('Executing MCP tool',
-                                           tagged: %i[mcp tool_execution],
-                                           tool: tool_name,
-                                           params: parameters)
+      Logging::SimpleLogger.info('Executing MCP tool',
+                                 tagged: %i[mcp tool_execution],
+                                 tool: tool_name,
+                                 params: parameters)
 
       begin
         result = @client.call_tool(tool_name.to_s, parameters)
 
-        Services::Logging::SimpleLogger.info('MCP tool executed successfully',
-                                             tagged: %i[mcp tool_execution],
-                                             tool: tool_name)
+        Logging::SimpleLogger.info('MCP tool executed successfully',
+                                   tagged: %i[mcp tool_execution],
+                                   tool: tool_name)
 
         format_result(result)
       rescue StandardError => e
-        Services::Logging::SimpleLogger.error('MCP tool execution failed',
-                                              tagged: %i[mcp tool_execution error],
-                                              tool: tool_name,
-                                              error: e.message)
+        Logging::SimpleLogger.error('MCP tool execution failed',
+                                    tagged: %i[mcp tool_execution error],
+                                    tool: tool_name,
+                                    error: e.message)
         raise ExecutionError, "Failed to execute MCP tool #{tool_name}: #{e.message}"
       end
     end

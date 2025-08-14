@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Load required classes
-require_relative 'initializers/config' unless defined?(GlitchCube::Config)
+require_relative 'initializers/config' unless defined?(Config)
 
 module GlitchCube
   # Version

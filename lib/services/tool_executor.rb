@@ -27,24 +27,24 @@ module Services
         normalized_args = normalize_args(arguments)
 
         # Log tool execution with full details
-        Services::Logging::SimpleLogger.info('🔧 Executing tool method',
-                                             tagged: %i[tool_executor execution],
-                                             tool_class: tool_class.name,
-                                             tool_name: tool_name,
-                                             arguments: normalized_args,
-                                             arg_count: normalized_args.size,
-                                             arg_keys: normalized_args.keys.join(', '))
+        Logging::SimpleLogger.info('🔧 Executing tool method',
+                                   tagged: %i[tool_executor execution],
+                                   tool_class: tool_class.name,
+                                   tool_name: tool_name,
+                                   arguments: normalized_args,
+                                   arg_count: normalized_args.size,
+                                   arg_keys: normalized_args.keys.join(', '))
 
         # Execute the tool method
         result = if tool_class.respond_to?(tool_name)
                    # Filter arguments to match method signature to prevent keyword argument errors
                    filtered_args = filter_args_for_method(tool_class, tool_name, normalized_args)
 
-                   Services::Logging::SimpleLogger.debug('Method signature filtering',
-                                                         tagged: %i[tool_executor signature],
-                                                         method: "#{tool_class.name}.#{tool_name}",
-                                                         original_args: normalized_args.keys,
-                                                         filtered_args: filtered_args.keys)
+                   Logging::SimpleLogger.debug('Method signature filtering',
+                                               tagged: %i[tool_executor signature],
+                                               method: "#{tool_class.name}.#{tool_name}",
+                                               original_args: normalized_args.keys,
+                                               filtered_args: filtered_args.keys)
 
                    tool_class.send(tool_name, **filtered_args)
                  else
@@ -52,23 +52,23 @@ module Services
                  end
 
         # Log successful execution
-        Services::Logging::SimpleLogger.info('✅ Tool executed successfully',
-                                             tagged: %i[tool_executor success],
-                                             tool_class: tool_class.name,
-                                             tool_name: tool_name,
-                                             result_type: result.class.name,
-                                             result_preview: result.to_s[0..100])
+        Logging::SimpleLogger.info('✅ Tool executed successfully',
+                                   tagged: %i[tool_executor success],
+                                   tool_class: tool_class.name,
+                                   tool_name: tool_name,
+                                   result_type: result.class.name,
+                                   result_preview: result.to_s[0..100])
 
         success_result(tool_call, result)
       rescue StandardError => e
-        Services::Logging::SimpleLogger.error('❌ Tool execution failed',
-                                              tagged: %i[tool_executor error],
-                                              tool_class: tool_class&.name || 'Unknown',
-                                              tool_name: tool_name,
-                                              arguments: normalized_args,
-                                              error_class: e.class.name,
-                                              error_message: e.message,
-                                              backtrace: e.backtrace&.first(3))
+        Logging::SimpleLogger.error('❌ Tool execution failed',
+                                    tagged: %i[tool_executor error],
+                                    tool_class: tool_class&.name || 'Unknown',
+                                    tool_name: tool_name,
+                                    arguments: normalized_args,
+                                    error_class: e.class.name,
+                                    error_message: e.message,
+                                    backtrace: e.backtrace&.first(3))
         error_result(tool_call, e.message)
       end
 
@@ -95,21 +95,21 @@ module Services
         # Log which arguments are being filtered out
         rejected_keys = args.keys - accepted_keys
         if rejected_keys.any?
-          Services::Logging::SimpleLogger.warn('🚫 Filtering out unknown arguments',
-                                               tagged: %i[tool_executor signature_filter],
-                                               method: "#{tool_class.name}.#{method_name}",
-                                               accepted_params: accepted_keys,
-                                               rejected_params: rejected_keys,
-                                               rejected_values: args.slice(*rejected_keys))
+          Logging::SimpleLogger.warn('🚫 Filtering out unknown arguments',
+                                     tagged: %i[tool_executor signature_filter],
+                                     method: "#{tool_class.name}.#{method_name}",
+                                     accepted_params: accepted_keys,
+                                     rejected_params: rejected_keys,
+                                     rejected_values: args.slice(*rejected_keys))
         end
 
         # Otherwise, filter to only accepted keys
         args.slice(*accepted_keys)
       rescue StandardError => e
-        Services::Logging::SimpleLogger.warn('Failed to filter method args, using all',
-                                             tagged: %i[tool_executor signature_filter],
-                                             method: "#{tool_class.name}.#{method_name}",
-                                             error: e.message)
+        Logging::SimpleLogger.warn('Failed to filter method args, using all',
+                                   tagged: %i[tool_executor signature_filter],
+                                   method: "#{tool_class.name}.#{method_name}",
+                                   error: e.message)
         args
       end
 
@@ -123,32 +123,32 @@ module Services
       end
 
       def find_tool_class_for(tool_name)
-        Services::Logging::SimpleLogger.debug('🔍 Searching for tool class',
-                                              tagged: %i[tool_executor discovery],
-                                              tool_name: tool_name,
-                                              available_classes: tool_classes.map(&:name))
+        Logging::SimpleLogger.debug('🔍 Searching for tool class',
+                                    tagged: %i[tool_executor discovery],
+                                    tool_name: tool_name,
+                                    available_classes: tool_classes.map(&:name))
 
         found_class = tool_classes.find do |tool_class|
           next unless tool_class.respond_to?(:available_tools)
 
           available = tool_class.available_tools
-          Services::Logging::SimpleLogger.debug("Checking #{tool_class.name}",
-                                                tagged: %i[tool_executor discovery],
-                                                available_tools: available,
-                                                matches: available.include?(tool_name))
+          Logging::SimpleLogger.debug("Checking #{tool_class.name}",
+                                      tagged: %i[tool_executor discovery],
+                                      available_tools: available,
+                                      matches: available.include?(tool_name))
 
           available.include?(tool_name)
         end
 
         if found_class
-          Services::Logging::SimpleLogger.debug('✅ Found tool class',
-                                                tagged: %i[tool_executor discovery],
-                                                tool_name: tool_name,
-                                                tool_class: found_class.name)
+          Logging::SimpleLogger.debug('✅ Found tool class',
+                                      tagged: %i[tool_executor discovery],
+                                      tool_name: tool_name,
+                                      tool_class: found_class.name)
         else
-          Services::Logging::SimpleLogger.warn('❌ No tool class found',
-                                               tagged: %i[tool_executor discovery],
-                                               tool_name: tool_name)
+          Logging::SimpleLogger.warn('❌ No tool class found',
+                                     tagged: %i[tool_executor discovery],
+                                     tool_name: tool_name)
         end
 
         found_class
@@ -194,11 +194,11 @@ module Services
           defined?(::ConversationFeedbackTool) ? ::ConversationFeedbackTool : nil
         ].compact
 
-        Services::Logging::SimpleLogger.info('🧰 Tool classes loaded at startup',
-                                             tagged: %i[tool_executor initialization],
-                                             tool_classes: classes.map(&:name),
-                                             tool_count: classes.size,
-                                             available_methods: classes.flat_map { |tc| tc.respond_to?(:available_tools) ? tc.available_tools : [] })
+        Logging::SimpleLogger.info('🧰 Tool classes loaded at startup',
+                                   tagged: %i[tool_executor initialization],
+                                   tool_classes: classes.map(&:name),
+                                   tool_count: classes.size,
+                                   available_methods: classes.flat_map { |tc| tc.respond_to?(:available_tools) ? tc.available_tools : [] })
 
         classes
       end

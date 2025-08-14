@@ -4,7 +4,7 @@ module Services
   module Conversation
     # Executes tool calls from an LLM response and handles errors.
     class ToolExecutionEngine
-      def initialize(tool_executor: Services::ToolExecutor, logger: Services::Logging::SimpleLogger)
+      def initialize(tool_executor: ToolExecutor, logger: Logging::SimpleLogger)
         @tool_executor = tool_executor
         @logger = logger
       end

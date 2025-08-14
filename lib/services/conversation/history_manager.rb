@@ -3,7 +3,7 @@
 module Services
   module Conversation
     class HistoryManager
-      def initialize(logger: Services::Logging::SimpleLogger)
+      def initialize(logger: Logging::SimpleLogger)
         @logger = logger
       end
 
@@ -12,6 +12,31 @@ module Services
         llm_messages = session.messages_for_llm(limit: limit)
         @logger.debug("Retrieved #{llm_messages.count} messages for LLM context", tagged: %i[conversation history], session_id: session.session_id)
         llm_messages
+      end
+
+      # Saves a message to the conversation session
+      # This method delegates to the ConversationSession model for actual storage
+      def save_message(conversation_id, message_data)
+        @logger.info('Saving message to conversation', tagged: %i[conversation history], conversation_id: conversation_id, role: message_data[:role])
+
+        # Find or create the conversation session
+        session = ConversationSession.find_or_create(
+          session_id: conversation_id,
+          context: {}
+        )
+
+        # Add the message to the session
+        session.add_message(
+          role: message_data[:role],
+          content: message_data[:content],
+          timestamp: message_data[:timestamp] || Time.now.utc.iso8601,
+          metadata: message_data[:context] || {}
+        )
+
+        @logger.info('Message saved successfully', tagged: %i[conversation history], conversation_id: conversation_id, message_id: session.messages.last&.id)
+      rescue StandardError => e
+        @logger.log_error(error: e, message: 'Failed to save message', conversation_id: conversation_id, role: message_data[:role])
+        raise
       end
 
       def truncate_or_summarize_history(messages, session_id, max_messages: 50)

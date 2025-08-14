@@ -76,7 +76,7 @@ module Services
     def load_scenario(file_path)
       YAML.load_file(file_path).deep_symbolize_keys
     rescue StandardError => e
-      Services::Logging::SimpleLogger.error('Failed to load scenario', error: e.message)
+      Logging::SimpleLogger.error('Failed to load scenario', error: e.message)
       raise "Could not load scenario file: #{e.message}"
     end
 
@@ -160,10 +160,10 @@ module Services
           success: true
         }
       rescue StandardError => e
-        Services::Logging::SimpleLogger.error('Turn execution failed',
-                                              error: e.message,
-                                              model: conversation_model,
-                                              turn: turn_index)
+        Logging::SimpleLogger.error('Turn execution failed',
+                                    error: e.message,
+                                    model: conversation_model,
+                                    turn: turn_index)
 
         {
           turn_index: turn_index,

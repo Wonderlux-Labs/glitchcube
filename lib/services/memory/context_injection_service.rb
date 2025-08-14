@@ -63,14 +63,14 @@ module Services
         return base_prompt if context[:skip_memories] == true
 
         location = context[:location] || fetch_current_location
-        memories = Services::Memory::MemoryRecallService.get_relevant_memories(
+        memories = Memory::MemoryRecallService.get_relevant_memories(
           location: location,
           context: context,
           limit: 3
         )
 
         if memories.any?
-          memory_context = Services::Memory::MemoryRecallService.format_for_context(memories)
+          memory_context = Memory::MemoryRecallService.format_for_context(memories)
           final_prompt = "#{base_prompt}#{memory_context}"
 
           puts "📝 Injected #{memories.size} memories" if GlitchCube.config.debug?
@@ -122,14 +122,14 @@ module Services
 
       def add_memory_context(context_parts, context)
         location = context[:location] || fetch_current_location
-        memories = Services::Memory::MemoryRecallService.get_relevant_memories(
+        memories = Memory::MemoryRecallService.get_relevant_memories(
           location: location,
           context: context,
           limit: 2
         )
 
         if memories.any?
-          memory_context = Services::Memory::MemoryRecallService.format_for_context(memories)
+          memory_context = Memory::MemoryRecallService.format_for_context(memories)
           context_parts << memory_context.strip.gsub(/^CONTEXT:\s*/, '')
         end
       rescue StandardError => e

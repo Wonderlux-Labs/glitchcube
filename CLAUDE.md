@@ -243,18 +243,18 @@ Services::HomeAssistantClient.new.test_connection
 
 ```ruby
 # Get all Home Assistant entities organized by domain
-entities = GlitchCube::Services::EntityManagerService.get_entities_by_domain
+entities = Services::EntityManagerService.get_entities_by_domain
 
 # Force refresh entities from Home Assistant
-GlitchCube::Services::EntityManagerService.refresh_entities!
+Services::EntityManagerService.refresh_entities!
 
 # Get specific domain entities
-lights = GlitchCube::Services::EntityManagerService.get_rgb_lights
-motion_sensors = GlitchCube::Services::EntityManagerService.get_motion_sensors
-media_players = GlitchCube::Services::EntityManagerService.get_media_players
+lights = Services::EntityManagerService.get_rgb_lights
+motion_sensors = Services::EntityManagerService.get_motion_sensors
+media_players = Services::EntityManagerService.get_media_players
 
 # Get hardware capability summary
-caps = GlitchCube::Services::EntityManagerService.get_hardware_capabilities
+caps = Services::EntityManagerService.get_hardware_capabilities
 puts "RGB Lights: #{caps[:summary][:rgb_light_count]}"
 puts "Motion Sensors: #{caps[:summary][:motion_sensor_count]}"
 ```

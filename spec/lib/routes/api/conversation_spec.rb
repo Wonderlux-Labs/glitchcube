@@ -3,7 +3,7 @@
 require 'spec_helper'
 require 'rack/test'
 
-RSpec.describe GlitchCube::Routes::Api::Conversation do
+RSpec.describe Routes::Api::Conversation do
   include Rack::Test::Methods
 
   def app
@@ -21,7 +21,7 @@ RSpec.describe GlitchCube::Routes::Api::Conversation do
   # Mock TTS calls by default to prevent overwhelming Home Assistant
   before do
     # Mock HomeAssistant TTS calls by default - override in specific tests that need real calls
-    allow_any_instance_of(HomeAssistantClient).to receive(:speak)
+    allow_any_instance_of(Core::HomeAssistantClient).to receive(:speak)
       .and_return(true)
   end
 

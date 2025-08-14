@@ -5,7 +5,7 @@ module Services
     class AdminPages
       def self.run_scenario_for_model(scenario, model, persona)
         # Validate model against blacklist
-        if GlitchCube::ModelPresets.blacklisted?(model)
+        if ModelPresets.blacklisted?(model)
           return {
             model: model,
             persona: persona,
@@ -196,16 +196,16 @@ module Services
 
             get_available_models = lambda do
               {
-                'Free Models (Recommended for Testing)' => GlitchCube::ModelPresets::FREE_MODELS,
-                'Cheap Models with Tools' => GlitchCube::ModelPresets::CHEAP_TOOLS_MODELS,
-                'Conversation Models' => GlitchCube::ModelPresets::CONVERSATION_MODELS,
-                'Vision Models' => GlitchCube::ModelPresets::VISION_MODELS,
-                'Premium Models (Higher Cost)' => GlitchCube::ModelPresets::PREMIUM_MODELS
+                'Free Models (Recommended for Testing)' => ModelPresets::FREE_MODELS,
+                'Cheap Models with Tools' => ModelPresets::CHEAP_TOOLS_MODELS,
+                'Conversation Models' => ModelPresets::CONVERSATION_MODELS,
+                'Vision Models' => ModelPresets::VISION_MODELS,
+                'Premium Models (Higher Cost)' => ModelPresets::PREMIUM_MODELS
               }
             end
 
             get_flat_model_list = lambda do
-              get_available_models.call.values.flatten.uniq.reject { |model| GlitchCube::ModelPresets.blacklisted?(model) }
+              get_available_models.call.values.flatten.uniq.reject { |model| ModelPresets.blacklisted?(model) }
             end
           end
         end

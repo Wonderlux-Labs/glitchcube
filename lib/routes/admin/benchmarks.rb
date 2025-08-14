@@ -3,36 +3,30 @@
 require 'sinatra/base'
 require 'json'
 require 'fileutils'
-
-module GlitchCube
-  module Routes
-    module AdminBenchmarks
+module Routes
+  module Admin
+    module Benchmarks
       def self.registered(app)
         # Main benchmark page
         app.get '/admin/benchmarks' do
           # Ensure benchmark_scenarios directory exists
           scenarios_dir = 'benchmark_scenarios'
           FileUtils.mkdir_p(scenarios_dir) unless File.directory?(scenarios_dir)
-
           @scenarios = Dir.glob("#{scenarios_dir}/*.yaml").map do |file|
             scenario = YAML.load_file(file).deep_symbolize_keys
             scenario[:filename] = File.basename(file)
             scenario
           end
-
           @default_models = Services::ModelBenchmarkRunner::DEFAULT_MODELS
           @all_models = Services::ModelBenchmarkRunner::ALL_AVAILABLE_MODELS
-
           # Load any existing results inline
           begin
             results_dir = 'benchmark_results'
             FileUtils.mkdir_p(results_dir) unless File.directory?(results_dir)
-
             result_files = Dir.glob("#{results_dir}/*.json")
                               .sort_by { |f| File.mtime(f) }
                               .reverse
                               .first(10)
-
             @recent_results = if result_files.empty?
                                 []
                               else
@@ -48,25 +42,19 @@ module GlitchCube
           rescue StandardError => e
             @recent_results = []
           end
-
           erb :admin_benchmarks
         end
-
         # Run benchmark via AJAX
         app.post '/admin/benchmarks/run' do
           content_type :json
-
           scenario_file = params[:scenario]
           models = params[:models]&.split(',')&.map(&:strip) || Services::ModelBenchmarkRunner::DEFAULT_MODELS
           mode = params[:mode] || 'evaluation'
-
           begin
             runner = Services::ModelBenchmarkRunner.new(mode: mode.to_sym)
             results = runner.run_scenario("benchmark_scenarios/#{scenario_file}", models: models)
-
             # Save results
             save_results(results, scenario_file)
-
             {
               success: true,
               results: format_results_for_display(results),
@@ -80,19 +68,15 @@ module GlitchCube
             }.to_json
           end
         end
-
         # Get benchmark history
         app.get '/admin/benchmarks/history' do
           content_type :json
-
           results = load_all_results
           results.to_json
         end
-
         # Compare specific models
         app.post '/admin/benchmarks/compare' do
           content_type :json
-
           models = params[:models]&.split(',')&.map(&:strip)
           return { error: 'Please select at least 2 models to compare' }.to_json if models.nil? || models.size < 2
 
@@ -100,14 +84,11 @@ module GlitchCube
             # Run all scenarios for comparison
             runner = Services::ModelBenchmarkRunner.new(mode: :evaluation)
             all_results = []
-
             Dir.glob('benchmark_scenarios/*.yaml').each do |file|
               results = runner.run_scenario(file, models: models)
               all_results.concat(results)
             end
-
             comparison = generate_comparison(all_results, models)
-
             {
               success: true,
               comparison: comparison
@@ -127,12 +108,10 @@ module GlitchCube
         # Ensure the results directory exists
         results_dir = 'benchmark_results'
         FileUtils.mkdir_p(results_dir) unless File.directory?(results_dir)
-
         result_files = Dir.glob("#{results_dir}/*.json")
                           .sort_by { |f| File.mtime(f) }
                           .reverse
                           .first(limit)
-
         return [] if result_files.empty?
 
         result_files.map do |file|
@@ -159,12 +138,9 @@ module GlitchCube
       def self.save_results(results, scenario_file)
         timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
         scenario_name = File.basename(scenario_file, '.yaml')
-
         FileUtils.mkdir_p('benchmark_results')
-
         filename = "benchmark_results/#{scenario_name}_#{timestamp}.json"
         File.write(filename, JSON.pretty_generate(results))
-
         filename
       rescue StandardError => e
         Services::Logging::SimpleLogger.error('Failed to save results', error: e.message)
@@ -200,7 +176,6 @@ module GlitchCube
         best_performance = results.max_by { |r| r[:metrics][:assertion_pass_rate] }
         fastest = results.min_by { |r| r[:metrics][:avg_latency_ms] || Float::INFINITY }
         cheapest = results.min_by { |r| r[:metrics][:total_cost] || Float::INFINITY }
-
         {
           best_overall: best_performance[:model],
           best_score: best_performance[:metrics][:assertion_pass_rate],
@@ -213,10 +188,8 @@ module GlitchCube
 
       def self.generate_comparison(results, models)
         comparison = {}
-
         models.each do |model|
           model_results = results.select { |r| r[:model] == model }
-
           comparison[model] = {
             scenarios_run: model_results.size,
             avg_success_rate: model_results.map { |r| r[:metrics][:success_rate] }.sum / model_results.size.to_f,
@@ -225,7 +198,6 @@ module GlitchCube
             avg_assertion_rate: model_results.map { |r| r[:metrics][:assertion_pass_rate] }.sum / model_results.size.to_f
           }
         end
-
         comparison
       end
     end

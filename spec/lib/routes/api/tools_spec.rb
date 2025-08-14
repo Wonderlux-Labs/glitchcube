@@ -3,7 +3,7 @@
 require 'spec_helper'
 require 'rack/test'
 
-RSpec.describe GlitchCube::Routes::Api::Tools do
+RSpec.describe Routes::Api::Tools do
   include Rack::Test::Methods
 
   def app

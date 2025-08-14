@@ -6,7 +6,7 @@ RSpec.describe Services::System::CircuitBreakerService do
   describe '.home_assistant_breaker' do
     it 'returns a circuit breaker for home assistant', :vcr do
       breaker = described_class.home_assistant_breaker
-      expect(breaker).to be_a(CircuitBreaker)
+      expect(breaker).to be_a(Core::CircuitBreaker)
       expect(breaker.name).to eq('home_assistant')
     end
   end
@@ -14,7 +14,7 @@ RSpec.describe Services::System::CircuitBreakerService do
   describe '.openrouter_breaker' do
     it 'returns a circuit breaker for openrouter', :vcr do
       breaker = described_class.openrouter_breaker
-      expect(breaker).to be_a(CircuitBreaker)
+      expect(breaker).to be_a(Core::CircuitBreaker)
       expect(breaker.name).to eq('openrouter')
     end
   end

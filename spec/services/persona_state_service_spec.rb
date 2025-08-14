@@ -8,12 +8,12 @@ require_relative '../../lib/personas/buddy_persona'
 
 RSpec.describe Services::PersonaStateService do
   let(:redis_client) { instance_double(Redis) }
-  let(:ha_client) { instance_double(HomeAssistantClient) }
+  let(:ha_client) { instance_double(Core::HomeAssistantClient) }
 
   before do
     allow(described_class).to receive(:redis_client).and_return(redis_client)
     allow(described_class).to receive(:redis_available?).and_return(true)
-    allow(HomeAssistantClient).to receive(:new).and_return(ha_client)
+    allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
     # Stub cleanup methods that might be called
     allow(redis_client).to receive(:del).and_return(1)

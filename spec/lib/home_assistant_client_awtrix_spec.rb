@@ -4,7 +4,7 @@ require 'spec_helper'
 require 'core/home_assistant_client'
 # FIX CLIENT AND SPECS
 
-RSpec.describe HomeAssistantClient do
+RSpec.describe Core::HomeAssistantClient do
   let(:client) do
     described_class.new(
       base_url: GlitchCube.config.home_assistant.url,

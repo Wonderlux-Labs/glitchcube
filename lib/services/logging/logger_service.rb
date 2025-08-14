@@ -12,23 +12,23 @@ module Services
       class << self
         # Delegate standard logging methods to SimpleLogger
         def debug(msg, **metadata)
-          Services::Logging::SimpleLogger.debug(msg, **metadata)
+          SimpleLogger.debug(msg, **metadata)
         end
 
         def info(msg, **metadata)
-          Services::Logging::SimpleLogger.info(msg, **metadata)
+          SimpleLogger.info(msg, **metadata)
         end
 
         def warn(msg, **metadata)
-          Services::Logging::SimpleLogger.warn(msg, **metadata)
+          SimpleLogger.warn(msg, **metadata)
         end
 
         def error(msg, **metadata)
-          Services::Logging::SimpleLogger.error(msg, **metadata)
+          SimpleLogger.error(msg, **metadata)
         end
 
         def fatal(msg, **metadata)
-          Services::Logging::SimpleLogger.fatal(msg, **metadata)
+          SimpleLogger.fatal(msg, **metadata)
         end
 
         def setup_loggers
@@ -55,7 +55,7 @@ module Services
           interaction_data[:confidence] = confidence if confidence
 
           # Use SimpleLogger with appropriate tags
-          Services::Logging::SimpleLogger.info(
+          SimpleLogger.info(
             "Interaction: #{persona}",
             tagged: [:interaction, persona.downcase],
             session_id: session_id,
@@ -79,7 +79,7 @@ module Services
           level = error ? :error : :info
           tags = [:api, service.downcase]
 
-          Services::Logging::SimpleLogger.log(
+          SimpleLogger.log(
             msg: message,
             level: level,
             tagged: tags,
@@ -110,7 +110,7 @@ module Services
 
           level = error ? :error : :info
 
-          Services::Logging::SimpleLogger.log(
+          SimpleLogger.log(
             msg: message,
             level: level,
             tagged: [:request],
@@ -134,7 +134,7 @@ module Services
           log_msg = "#{status_emoji} \"#{truncated_msg}\""
           log_msg += " - #{error}" if error
 
-          Services::Logging::SimpleLogger.log(
+          SimpleLogger.log(
             msg: log_msg,
             level: error ? :error : :info,
             tagged: [:tts],
@@ -157,7 +157,7 @@ module Services
           message = "#{emoji} Circuit breaker #{name} -> #{state.upcase}"
           message += " (#{reason})" if reason
 
-          Services::Logging::SimpleLogger.warn(
+          SimpleLogger.warn(
             message,
             tagged: [:circuit_breaker],
             breaker: name,
@@ -204,7 +204,7 @@ module Services
 
       class ErrorTracker
         def initialize
-          @error_file = File.join(Services::Logging::SimpleLogger.send(:log_directory), 'errors.json')
+          @error_file = File.join(SimpleLogger.send(:log_directory), 'errors.json')
           @errors = load_errors
         end
 

@@ -166,10 +166,10 @@ module Services
           # No text field found in structured response
           # Return nil to indicate no textual response available
           # This prevents raw JSON from being passed as response text
-          if defined?(Services::Logging::SimpleLogger)
-            Services::Logging::SimpleLogger.debug('No response/text field in structured output',
-                                                  tagged: %i[llm_response structured],
-                                                  parsed_keys: parsed_content.keys)
+          if defined?(Logging::SimpleLogger)
+            Logging::SimpleLogger.debug('No response/text field in structured output',
+                                        tagged: %i[llm_response structured],
+                                        parsed_keys: parsed_content.keys)
           end
           return nil
         end
@@ -217,8 +217,8 @@ module Services
         return 0.0 unless @usage && @model
 
         # Use ModelPricing if available
-        if defined?(GlitchCube::ModelPricing)
-          GlitchCube::ModelPricing.calculate_cost(
+        if defined?(ModelPricing)
+          ModelPricing.calculate_cost(
             @model,
             @usage[:prompt_tokens] || 0,
             @usage[:completion_tokens] || 0

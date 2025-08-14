@@ -47,11 +47,12 @@ require_relative 'config/model_pricing'
 
 # All library files are now loaded by config/initializers/autoload.rb
 
-# Load core files manually since they're ignored by Zeitwerk
-Dir[File.join(__dir__, 'lib', 'core', '**', '*.rb')].each { |file| require file }
+# Core files now autoloaded by Zeitwerk with proper GlitchCube namespacing
 
-# Load routes manually since they're ignored by Zeitwerk
-Dir[File.join(__dir__, 'lib', 'routes', '**', '*.rb')].each { |file| require file }
+# Routes are now loaded by Zeitwerk autoloading with parent modules in place
+# Parent modules defined in:
+# - lib/routes/api.rb (defines Routes::Api)
+# - lib/routes/development.rb (defines Routes::Development)
 
 class GlitchCubeApp < Sinatra::Base
   # Include job scheduler helper for safe job scheduling
@@ -79,35 +80,32 @@ class GlitchCubeApp < Sinatra::Base
     # Run with: bundle exec rerun -- bundle exec ruby app.rb
   end
 
-  # Routes are loading correctly - diagnostics confirmed this
-
-  # Register route modules
-  # Core application routes
+  # Register route modules (now that constants are loaded)
 
   # Main API routes
-  register GlitchCube::Routes::Api::Gps
-  register GlitchCube::Routes::Api::Conversation
-  register GlitchCube::Routes::Api::Tools
-  register GlitchCube::Routes::Api::Deployment
-  register GlitchCube::Routes::Api::System
-  register GlitchCube::Routes::Api::Entities
-  register GlitchCube::Routes::Api::Proactive
-  register GlitchCube::Routes::Api::LLM
-  register GlitchCube::Routes::Api::Persona
+  register Routes::Api::Gps
+  register Routes::Api::Conversation
+  register Routes::Api::Tools
+  register Routes::Api::Deployment
+  register Routes::Api::System
+  register Routes::Api::Entities
+  register Routes::Api::Proactive
+  register Routes::Api::Llm
+  register Routes::Api::Persona
 
   # Mount context generation route
   use Routes::Api::ContextGeneration
 
   # Admin routes
-  register GlitchCube::Routes::Admin
-  register GlitchCube::Routes::AdminScenarios
-  register GlitchCube::Routes::AdminBenchmarks
+  register Routes::Admin
+  register Routes::Admin::Scenarios
+  register Routes::Admin::Benchmarks
 
   # Development-only routes (analytics, debugging, testing)
-  register GlitchCube::Routes::Development::Analytics if development? || test?
+  register Routes::Development::Analytics if development? || test?
 
-  # Deployment routes (conditionally loaded for Mac Mini setup)
-  register GlitchCube::Routes::Deploy if GlitchCube.config.deployment&.mac_mini && defined?(GlitchCube::Routes::Deploy)
+  # Deployment routes (unconditionally loaded)
+  register Routes::Deploy
 
   helpers do
     # Centralized conversation handler service

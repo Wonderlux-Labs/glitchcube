@@ -228,26 +228,26 @@ namespace :deploy do
   task :pull do
     puts '🚀 Deploying on Mac Mini...'
     puts '=========================='
-    
+
     # Stop existing services
     puts '🛑 Stopping services...'
     system('pkill -f "ruby app.rb" || true')
     system('pkill -f "sidekiq" || true')
     sleep 2
-    
+
     # Git pull
     puts '📥 Pulling from GitHub...'
     sh 'git fetch origin'
     sh 'git reset --hard origin/main'
-    
-    # Bundle install 
+
+    # Bundle install
     puts '📦 Installing dependencies...'
     sh 'bundle install --deployment --without development test'
-    
+
     # Database migrations
     puts '🗄️  Running migrations...'
     sh 'RACK_ENV=production bundle exec rake db:migrate'
-    
+
     # Start services
     puts '🚀 Starting services...'
     exec './bin/prod'

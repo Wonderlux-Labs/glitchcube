@@ -6,10 +6,10 @@ require_relative '../../lib/services/gps/location_context_service'
 
 RSpec.describe Services::Gps::GPSTrackingService do
   let(:service) { described_class.new }
-  let(:ha_client) { instance_double(HomeAssistantClient) }
+  let(:ha_client) { instance_double(Core::HomeAssistantClient) }
 
   before do
-    allow(HomeAssistantClient).to receive(:new).and_return(ha_client)
+    allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
     # Mock LocationContextService to avoid complex setup
     allow(Services::Gps::LocationContextService).to receive(:full_context).and_return({

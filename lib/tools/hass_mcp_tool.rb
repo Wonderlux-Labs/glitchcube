@@ -1,8 +1,6 @@
 #  frozen_string_literal: true
 
 module Tools
-  require_relative 'base_tool'
-
   # Tool for executing Home Assistant commands via MCP (Model Context Protocol)
   # Provides flexible access to all MCP-exposed HA functions
   class HassMcpTool < BaseTool

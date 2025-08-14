@@ -22,10 +22,7 @@ module Personas
         persona_class = @registry[name]
 
         # Default to BuddyPersona if persona not found
-        unless persona_class
-          require_relative 'buddy_persona'
-          persona_class = Personas::BuddyPersona
-        end
+        persona_class ||= Personas::BuddyPersona
 
         persona_class.new(context)
       end
@@ -122,8 +119,8 @@ module Personas
       # Lazy load tool classes only when needed
       loaded_tools = available_tools.map do |tool_class|
         if tool_class.is_a?(String)
-          require_relative "../tools/#{tool_class}"
-          Object.const_get(tool_class.split('_').map(&:capitalize).join)
+          # Zeitwerk will auto-load the tool class when we reference it
+          Object.const_get("Tools::#{tool_class.split('_').map(&:capitalize).join}")
         else
           tool_class
         end
@@ -153,7 +150,7 @@ module Personas
     private
 
     def datetime_section
-      timezone = defined?(GlitchCube::Constants) ? GlitchCube::Constants::LOCATION[:timezone] : 'America/Los_Angeles'
+      timezone = defined?(Constants) ? Constants::LOCATION[:timezone] : 'America/Los_Angeles'
       tz = TZInfo::Timezone.get(timezone)
       current_time = tz.now
 

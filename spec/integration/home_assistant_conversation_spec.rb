@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 RSpec.describe 'Home Assistant Conversation Integration', :vcr do
-  let(:client) { HomeAssistantClient.new }
+  let(:client) { Core::HomeAssistantClient.new }
 
   describe 'Wake word detection flow' do
     context 'when triggering conversation from Home Assistant side' do
@@ -46,7 +46,7 @@ RSpec.describe 'Home Assistant Conversation Integration', :vcr do
           }
         )
         expect(result).to be_truthy
-      rescue HomeAssistantClient::Error => e
+      rescue Core::HomeAssistantClient::Error => e
         # Service might not exist or entity might not be configured
         # This is acceptable for testing - the important thing is we can make the call
         expect(e.message).to include('Bad Request')
@@ -128,7 +128,7 @@ RSpec.describe 'Home Assistant Conversation Integration', :vcr do
         }
       )
       expect(result).to be_truthy
-    rescue HomeAssistantClient::Error => e
+    rescue Core::HomeAssistantClient::Error => e
       # Event firing might not be allowed in this HA configuration
       # This is acceptable for testing - the important thing is we can make the call
       expect(e.message).to include('Bad Request')

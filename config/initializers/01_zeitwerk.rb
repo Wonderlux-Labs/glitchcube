@@ -8,20 +8,13 @@ require 'zeitwerk'
 # Set up the main autoloader
 loader = Zeitwerk::Loader.new
 
-# Add lib directory to the load path
+# Add lib directory to the load path (no namespace)
 loader.push_dir(File.expand_path('../../lib', __dir__))
 
-# Ignore directories that need manual loading due to complex dependencies
-# modules and utils are now Zeitwerk-compatible
-loader.ignore(File.expand_path('../../lib/routes', __dir__))
-loader.ignore(File.expand_path('../../lib/personas', __dir__))
-loader.ignore(File.expand_path('../../lib/helpers', __dir__))
-loader.ignore(File.expand_path('../../lib/core', __dir__))
-loader.ignore(File.expand_path('../../lib/cube', __dir__))
-loader.ignore(File.expand_path('../../lib/schemas', __dir__))
-
-# Configure module naming for our directory structure
-# This maps directory paths to module namespaces
+# All files now fully autoloaded - no more ignores needed!
+# Routes: ✅ Working with parent modules
+# Core: ✅ Fixed namespacing
+# Personas: ⏳ Phase 2 - will remove manual loading from persona_factory.rb
 
 # Services directory maps to Services module
 loader.inflector.inflect(
@@ -44,32 +37,9 @@ loader.setup
 loader.eager_load unless defined?(Rake)
 
 # For backwards compatibility, ensure Services module exists globally
-# This allows existing code using ::Services to continue working
+# This allows existing code using Services to continue working
 unless defined?(Services)
   Object.const_set(:Services, Module.new)
-end
-
-# Make sure GlitchCube modules are available
-unless defined?(GlitchCube)
-  module GlitchCube
-    module Routes; end
-    module Jobs; end
-    module Personas; end
-    module Tools; end
-    module Helpers; end
-    module Modules; end
-    module Schemas; end
-    module Core; end
-  end
-end
-
-# Ensure top-level modules exist for Zeitwerk autoloading
-unless defined?(Modules)
-  module Modules; end
-end
-
-unless defined?(Utils)
-  module Utils; end
 end
 
 # Store the loader for potential reloading in development

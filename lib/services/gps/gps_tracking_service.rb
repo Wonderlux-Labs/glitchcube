@@ -6,7 +6,7 @@ module Services
   module Gps
     class GPSTrackingService
       def initialize
-        @ha_client = ::HomeAssistantClient.new
+        @ha_client = ::Core::HomeAssistantClient.new
       end
 
       # Get current GPS coordinates with full location context
@@ -15,7 +15,7 @@ module Services
         coords = fetch_spoofed_location || fetch_from_home_assistant || random_landmark_location
 
         # Get full context from LocationContextService (this is cached)
-        context = Services::Gps::LocationContextService.full_context(coords[:lat], coords[:lng])
+        context = Gps::LocationContextService.full_context(coords[:lat], coords[:lng])
 
         # Merge GPS metadata with location context
         coords.merge(context)
@@ -23,7 +23,7 @@ module Services
 
       # Get proximity data for map reactions using LocationContextService
       def proximity_data(lat, lng)
-        context = Services::Gps::LocationContextService.full_context(lat, lng)
+        context = Gps::LocationContextService.full_context(lat, lng)
         landmarks = context[:landmarks] || []
 
         {
@@ -36,7 +36,7 @@ module Services
 
       # Deprecated method for backward compatibility
       def brc_address_from_coordinates(lat, lng)
-        context = Services::Gps::LocationContextService.full_context(lat, lng)
+        context = Gps::LocationContextService.full_context(lat, lng)
         context[:address]
       end
 
