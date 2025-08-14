@@ -2,6 +2,7 @@
 
 require 'socket'
 require 'net/ping'
+require_relative '../logging/simple_logger'
 
 module Services
   module System

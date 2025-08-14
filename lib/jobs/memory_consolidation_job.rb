@@ -1,11 +1,9 @@
 # frozen_string_literal: true
 
-require 'sidekiq'
+require_relative 'base_job'
 
 module Jobs
-  class MemoryConsolidationJob
-    include Sidekiq::Job
-
+  class MemoryConsolidationJob < BaseJob
     sidekiq_options queue: 'low', retry: 1
 
     def perform(summary = nil)

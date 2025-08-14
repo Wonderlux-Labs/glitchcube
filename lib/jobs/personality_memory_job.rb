@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
-require 'sidekiq'
+require_relative 'base_job'
 # ErrorHandling module now autoloaded via Zeitwerk
 
 module Jobs
-  class PersonalityMemoryJob
-    include Sidekiq::Job
+  class PersonalityMemoryJob < BaseJob
     include ::Modules::ErrorHandling
 
     sidekiq_options queue: 'low', retry: 2

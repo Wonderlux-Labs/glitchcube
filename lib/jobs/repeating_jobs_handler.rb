@@ -1,14 +1,12 @@
 #  frozen_string_literal: true
 
-module Jobs
-  require 'sidekiq'
-  require 'sidekiq/cron/job'
+require_relative 'base_job'
+require 'sidekiq/cron/job'
 
+module Jobs
   # Unified handler for all repeating background services
   # Runs every 5 minutes and intelligently executes services based on their intervals
-  class RepeatingJobsHandler
-    include Sidekiq::Job
-
+  class RepeatingJobsHandler < BaseJob
     sidekiq_options retry: 3, backtrace: true
 
     # Service registry - defines what services to run and their intervals
