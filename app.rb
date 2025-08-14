@@ -280,8 +280,14 @@ if ENV['RACK_ENV'] == 'production' && !test?
   end
 end
 
+# NOTE: Other startup jobs removed for testing - only host registration remains
+
 # Register with Home Assistant on startup (Sidekiq job)
+# IMPORTANT: This is placed after global logger setup to ensure autoloading works
 if ENV['RACK_ENV'] == 'production'
+  startup_jobs = ['HostRegistrationWorker']
+  Services::Logging::SimpleLogger.info("Running jobs for startup: #{startup_jobs.join(', ')}", tagged: %i[startup jobs])
+
   if SidekiqConfig.available?
     Jobs::HostRegistrationWorker.perform_in(5, 'initial_registration') # 5 seconds
     Services::Logging::SimpleLogger.info('Scheduled initial host registration', tagged: %i[startup jobs])
@@ -289,8 +295,6 @@ if ENV['RACK_ENV'] == 'production'
     Services::Logging::SimpleLogger.warn('Sidekiq not available - skipping host registration', tagged: %i[startup jobs warning])
   end
 end
-
-# NOTE: Other startup jobs removed for testing - only host registration remains
 
 # Start the server when running directly (not via rackup)
 GlitchCubeApp.run! if __FILE__ == $PROGRAM_NAME

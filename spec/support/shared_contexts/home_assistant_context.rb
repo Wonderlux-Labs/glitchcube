@@ -134,6 +134,13 @@ if defined?(RSpec)
         'input_text.current_persona' => {
           state: 'buddy',
           attributes: { friendly_name: 'Current Persona' }
+        },
+        'sensor.glitchcube_context' => {
+          state: 'default_context',
+          attributes: {
+            friendly_name: 'Glitch Cube Context',
+            context_data: { environment: 'test', location: 'burning_man' }
+          }
         }
       }
     end
@@ -384,35 +391,13 @@ if defined?(RSpec)
     end
 
     before do
-      # Use flexible matching for find_or_create - accept any parameter order and values
-      # Create a factory-like behavior for different session IDs
-      allow(ConversationSession).to receive(:find_or_create) do |args|
-        requested_session_id = args[:session_id] || args['session_id'] || session_id
+      # Don't mock ConversationSession methods - let tests use real database records
+      # This allows analytics tests to work with actual data while still providing
+      # mock sessions for basic functionality tests that don't need real DB operations
 
-        # Create a mock session with the requested session_id
-        double('ConversationSession',
-               session_id: requested_session_id,
-               messages_for_llm: [],
-               add_message: true,
-               messages: create_comprehensive_messages_mock,
-               conversation: double('Conversation',
-                                    new_record?: false,
-                                    id: 123,
-                                    created_at: Time.now - 1.minute,
-                                    updated_at: Time.now - 1.minute,
-                                    started_at: Time.now - 1.minute,
-                                    message_count: 0,
-                                    total_cost: 0.0,
-                                    total_tokens: 0,
-                                    persona: 'buddy',
-                                    source: 'test'),
-               created_at: Time.now - 1.minute,
-               metadata: {})
-      end
-
-      # Also mock find for analytics tests
-      allow(ConversationSession).to receive(:find)
-        .and_return(mock_session)
+      # Only provide fallback mock_session for direct access if needed
+      # allow(ConversationSession).to receive(:find_or_create) - removed to allow real DB
+      # allow(ConversationSession).to receive(:find) - removed to allow real DB
     end
   end
 

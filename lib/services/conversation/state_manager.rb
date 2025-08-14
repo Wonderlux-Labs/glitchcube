@@ -79,7 +79,8 @@ module Services
 
             # Metadata
             personas_used: extract_personas_used(messages),
-            session_metadata: session.metadata || {}
+            session_metadata: session.metadata || {},
+            generated_at: Time.now.iso8601
           }
 
           @logger.info('Generated conversation analytics', tagged: %i[conversation analytics],

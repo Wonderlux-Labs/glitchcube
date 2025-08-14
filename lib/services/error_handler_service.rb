@@ -155,9 +155,9 @@ module Services
       end
 
       # Delegate to ErrorHandlingLLM for self-healing if it exists
-      return unless defined?(System::ErrorHandlingLLM)
+      return unless defined?(Services::System::ErrorHandlingLlm)
 
-      llm_handler = System::ErrorHandlingLLM.new
+      llm_handler = Services::System::ErrorHandlingLlm.new
       llm_handler.handle_error(error, context)
     end
 
