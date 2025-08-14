@@ -9,7 +9,7 @@ module Routes
       app.get '/admin' do
         # Get current GPS location for display
         begin
-          gps_service = Services::GpsTrackingService.new
+          gps_service = Services::Gps::GPSTrackingService.new
           @current_location = gps_service.current_location
         rescue StandardError => e
           @current_location = { error: e.message }
@@ -834,7 +834,7 @@ module Routes
       app.get '/admin/current_location' do
         content_type :json
         begin
-          gps_service = Services::GpsTrackingService.new
+          gps_service = Services::Gps::GPSTrackingService.new
           location = gps_service.current_location
           { success: true, location: location }.to_json
         rescue StandardError => e

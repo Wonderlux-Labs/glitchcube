@@ -35,7 +35,7 @@ module Services
                        session_id: session_id)
 
           ha_response = @ha_client.process_voice_command(
-            text: formatted_request,
+            formatted_request,
             agent_id: agent_id,
             conversation_id: session_id,
             return_response: true
@@ -93,6 +93,12 @@ module Services
 
           unified_result
         rescue StandardError => e
+          puts '🚨 ACTUAL ERROR IN HOME ASSISTANT TOOL PROXY:'
+          puts "  Error class: #{e.class}"
+          puts "  Error message: #{e.message}"
+          puts '  Backtrace:'
+          puts e.backtrace.first(10).map { |line| "    #{line}" }.join("\n")
+
           @logger.log_error(error: e,
                             message: '❌ Error in Home Assistant tool proxy',
                             session_id: session_id,
@@ -124,10 +130,11 @@ module Services
         end
 
         if tool_descriptions.any?
-          "Please execute these tools and report the results:\n" +
-            tool_descriptions.map.with_index { |desc, i| "#{i + 1}. #{desc}" }.join("\n")
+          "We have a request from a user to:\n" +
+            tool_descriptions.map.with_index { |desc, i| "#{i + 1}. #{desc}" }.join("\n") +
+            "\n\nDo your best to make it happen and return to us in TEXT ONLY (you are a background agent) your results of successes and failures."
         else
-          'Execute the requested tools and report any results.'
+          'We have a request from a user to execute some tools. Do your best to make it happen and return to us in TEXT ONLY (you are a background agent) your results of successes and failures.'
         end
       end
 
@@ -239,8 +246,9 @@ module Services
         case ha_response
         when Hash
           # Home Assistant conversation responses have a nested structure
-          # Try to extract the actual speech/text from the response
-          text = ha_response.dig('response', 'speech', 'plain', 'speech') ||
+          # For Claude conversation agent, the speech is in service_response
+          text = ha_response.dig('service_response', 'response', 'speech', 'plain', 'speech') ||
+                 ha_response.dig('response', 'speech', 'plain', 'speech') ||
                  ha_response.dig('response', 'text') ||
                  ha_response['text'] ||
                  ha_response['response'] ||

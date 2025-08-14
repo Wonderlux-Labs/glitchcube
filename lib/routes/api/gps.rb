@@ -10,7 +10,7 @@ module Routes
         end
         # Simple coords endpoint - just lat/lng
         app.get '/api/v1/gps/coords' do
-          location = Services::GpsTrackingService.new.current_location
+          location = Services::Gps::GPSTrackingService.new.current_location
           if location&.dig(:lat) && location[:lng]
             json({
                    lat: location[:lat],
@@ -34,7 +34,7 @@ module Routes
           content_type :json
           begin
             # Get current location with full context
-            location = Services::GpsTrackingService.new.current_location
+            location = Services::Gps::GPSTrackingService.new.current_location
             if location.nil?
               status 503 # Service Unavailable
               json({
@@ -58,9 +58,9 @@ module Routes
           content_type :json
           begin
             # Get current location
-            current_loc = Services::GpsTrackingService.new.current_location
+            current_loc = Services::Gps::GPSTrackingService.new.current_location
             if current_loc && current_loc[:lat] && current_loc[:lng]
-              proximity = Services::GpsTrackingService.new.proximity_data(current_loc[:lat], current_loc[:lng])
+              proximity = Services::Gps::GPSTrackingService.new.proximity_data(current_loc[:lat], current_loc[:lng])
               json(proximity)
             else
               json({ landmarks: [], portos: [], map_mode: 'normal', visual_effects: [] })
@@ -90,7 +90,7 @@ module Routes
               if File.exist?(history_file)
                 history_data = JSON.parse(File.read(history_file))
                 # Format history for display
-                gps_service = Services::GpsTrackingService.new
+                gps_service = Services::Gps::GPSTrackingService.new
                 formatted_history = history_data.map do |point|
                   address = gps_service.brc_address_from_coordinates(point['lat'], point['lng'])
                   {
@@ -352,7 +352,7 @@ module Routes
           headers 'Access-Control-Allow-Headers' => 'Content-Type'
           begin
             # Get GPS coordinates
-            location = Services::GpsTrackingService.new.current_location
+            location = Services::Gps::GPSTrackingService.new.current_location
             if location.nil? || !location[:lat] || !location[:lng]
               status 503
               return json({

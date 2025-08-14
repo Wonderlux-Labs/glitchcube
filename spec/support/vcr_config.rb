@@ -242,12 +242,14 @@ module ZeroLeakVCR
     end
 
     def filter_ha_sensitive_data!(interaction)
-      # Filter Home Assistant URLs and IPs
+      # Filter Home Assistant URLs and IPs with VALID URI placeholders
       uri_string = interaction.request.uri.to_s
       if uri_string.include?('glitch.local') || uri_string.match?(/\d+\.\d+\.\d+\.\d+/)
-        interaction.request.uri = interaction.request.uri.to_s
-                                             .gsub('glitch.local', '<HA_HOST>')
-                                             .gsub(/\d+\.\d+\.\d+\.\d+/, '<HA_IP>')
+        # Use VALID hostnames as placeholders that won't break URI parsing
+        new_uri = interaction.request.uri.to_s
+                             .gsub('glitch.local', 'test-homeassistant.local')
+                             .gsub(/\d+\.\d+\.\d+\.\d+/, '127.0.0.1')
+        interaction.request.uri = new_uri
       end
 
       # Filter sensitive Home Assistant data in response bodies

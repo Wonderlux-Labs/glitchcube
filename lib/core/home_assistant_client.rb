@@ -108,16 +108,16 @@ module Core
     end
 
     # Call a service
-    def call_service(domain, service, data = {}, return_response: false)
+    def call_service(domain, service, data = {}, return_response: false, timeout: 15)
       # Add return_response query parameter if requested
       path = "/api/services/#{domain}/#{service}"
       path += '?return_response' if return_response
 
       # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
-      return post(path, data) if GlitchCube.config.test? && !GlitchCube.config.enable_circuit_breakers
+      return post(path, data, timeout: timeout) if GlitchCube.config.test? && !GlitchCube.config.enable_circuit_breakers
 
       Services::System::CircuitBreakerService.home_assistant_breaker.call do
-        post(path, data)
+        post(path, data, timeout: timeout)
       end
     rescue Core::CircuitBreaker::CircuitOpenError => e
       Services::Logging::SimpleLogger.warn(
@@ -295,7 +295,7 @@ module Core
       params[:agent_id] = agent_id if agent_id
       params[:conversation_id] = conversation_id if conversation_id
 
-      call_service('conversation', 'process', params, return_response: return_response)
+      call_service('conversation', 'process', params, return_response: return_response, timeout: 60)
     end
 
     # Music Assistant search
@@ -535,7 +535,7 @@ module Core
       end
     end
 
-    def post(path, data)
+    def post(path, data, timeout: 15)
       # Handle query parameters in path
       if path.include?('?')
         base_path, query_string = path.split('?', 2)
@@ -555,7 +555,7 @@ module Core
         response = Net::HTTP.start(uri.hostname, uri.port,
                                    use_ssl: uri.scheme == 'https',
                                    open_timeout: 5,
-                                   read_timeout: 15) do |http| # Longer timeout for TTS requests
+                                   read_timeout: timeout) do |http|
           http.request(request)
         end
 

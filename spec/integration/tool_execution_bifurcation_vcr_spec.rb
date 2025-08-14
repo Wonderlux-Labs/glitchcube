@@ -27,7 +27,7 @@ RSpec.describe 'Tool Execution Bifurcation Integration', :vcr do
               type: 'function',
               function: {
                 name: 'speak',
-                arguments: '{"message": "The lights are now on", "voice": "Josh"}'
+                arguments: '{"message": "BIFURCATION TEST - lights activated via HA Claude agent", "voice": "Josh"}'
               }
             }
           ]
@@ -39,17 +39,24 @@ RSpec.describe 'Tool Execution Bifurcation Integration', :vcr do
     Services::Llm::LLMResponse.new(raw_response)
   end
 
-  describe 'back_to_hass pattern', vcr: { cassette_name: 'tool_execution_bifurcation/back_to_hass_pattern' } do
+  describe 'back_to_hass pattern', vcr: { cassette_name: 'bifurcation_back_to_hass_working' } do
     before do
       # FORCE BIFURCATION: Mock config to use back_to_hass pattern
       allow(GlitchCube.config).to receive(:tool_calling_pattern).and_return(:back_to_hass)
     end
 
     it 'branches to HomeAssistantToolProxy and returns unified response from HA Claude agent' do
+      # Debug what pattern is actually being used
+      puts "\n🔍 DEBUG: Config pattern = #{GlitchCube.config.tool_calling_pattern.inspect}"
+      puts '🔍 DEBUG: Expected pattern = :back_to_hass'
+      puts "🔍 DEBUG: Pattern match = #{GlitchCube.config.tool_calling_pattern == :back_to_hass}"
+
       # This should NOT call our ToolExecutor at all - complete bifurcation
       expect(Services::ToolExecutor).not_to receive(:execute)
 
+      puts '🔍 DEBUG: About to call execute_tool_calls with bifurcation enabled'
       result = execution_engine.execute_tool_calls(real_llm_response, session_id)
+      puts "🔍 DEBUG: Received result with #{result[:tool_results].count} tool results"
 
       # Basic structure validation
       expect(result).to be_a(Hash)
