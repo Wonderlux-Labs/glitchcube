@@ -18,4 +18,10 @@ module Services
 
   module Llm
   end
+
+  module Gps
+  end
+
+  module Admin
+  end
 end

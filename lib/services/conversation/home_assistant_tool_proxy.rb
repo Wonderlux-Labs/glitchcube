@@ -130,11 +130,18 @@ module Services
         end
 
         if tool_descriptions.any?
+          "BACKGROUND AGENT REQUEST - DO NOT SPEAK OUT LOUD OR USE TTS:\n\n" \
           "We have a request from a user to:\n" +
             tool_descriptions.map.with_index { |desc, i| "#{i + 1}. #{desc}" }.join("\n") +
-            "\n\nDo your best to make it happen and return to us in TEXT ONLY (you are a background agent) your results of successes and failures."
+            "\n\nIMPORTANT: You are a background agent. Do your best to make it happen and return to us in TEXT ONLY. " \
+            'DO NOT speak out loud, DO NOT use text-to-speech, DO NOT broadcast messages. ' \
+            'Only perform the requested actions silently and report back your results of successes and failures in text format.'
         else
-          'We have a request from a user to execute some tools. Do your best to make it happen and return to us in TEXT ONLY (you are a background agent) your results of successes and failures.'
+          'BACKGROUND AGENT REQUEST - DO NOT SPEAK OUT LOUD OR USE TTS:\n\n' \
+            'We have a request from a user to execute some tools. You are a background agent. ' \
+            'Do your best to make it happen and return to us in TEXT ONLY. ' \
+            'DO NOT speak out loud, DO NOT use text-to-speech, DO NOT broadcast messages. ' \
+            'Only perform the requested actions silently and report back your results in text format.'
         end
       end
 
