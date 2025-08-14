@@ -6,6 +6,10 @@
 
 set -e
 
+# CRITICAL: Set production environment FIRST before any Ruby code loads
+export RACK_ENV=production
+export APP_ENV=production
+
 # Source common configuration
 source "$(dirname "$0")/../utils/common_config.sh"
 
@@ -269,8 +273,7 @@ cd "$GLITCHCUBE_DIR"
 
 # Start the application using bin/prod in the background
 log_info "Starting Glitch Cube application using bin/prod..."
-export RACK_ENV=production
-export APP_ENV=production
+# Environment variables already set at script start
 
 # Run bin/prod in background, which handles both Sinatra and Sidekiq
 nohup ./bin/prod > "$GLITCHCUBE_DIR/logs/glitchcube.log" 2>&1 &
