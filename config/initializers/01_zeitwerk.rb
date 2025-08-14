@@ -36,11 +36,7 @@ end
 loader.setup
 loader.eager_load unless defined?(Rake)
 
-# For backwards compatibility, ensure Services module exists globally
-# This allows existing code using Services to continue working
-unless defined?(Services)
-  Object.const_set(:Services, Module.new)
-end
+# Services module is now properly defined in lib/services.rb and autoloaded by Zeitwerk
 
 # Store the loader for potential reloading in development
 $zeitwerk_loader = loader

@@ -30,6 +30,12 @@ configure_database!
 # Load all initializers (includes our new autoloader)
 Dir[File.join(__dir__, 'config', 'initializers', '*.rb')].each { |file| require file }
 
+# Set up global logger for easy access throughout the application
+# This provides a fallback and makes future refactoring easier
+# rubocop:disable Style/GlobalVars
+$logger = Services::Logging::SimpleLogger
+# rubocop:enable Style/GlobalVars
+
 # Log application startup after all initializers are loaded
 Services::Logging::SimpleLogger.info(
   'Cube starting up',
