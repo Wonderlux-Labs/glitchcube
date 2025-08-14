@@ -142,8 +142,8 @@ module Tools
       {
         entity_id: entity_id,
         state: state['state'],
-        attributes: state['attributes'] || {}
-      }
+        attributes: (state['attributes'] || {}).with_indifferent_access
+      }.with_indifferent_access
     rescue StandardError => e
       "❌ State Error: #{e.message}"
     end

@@ -106,10 +106,13 @@ module Tools
 
     # List available effects for a specific light entity
     def self.list_effects(entity_id:, **_kwargs)
-      state = get_ha_state(entity_id)
-      return format_response(false, "Entity #{entity_id} not found") unless state
+      # Convert target names to entity IDs if needed
+      entity_id = convert_target_to_entity_id(entity_id)
 
-      effect_list = state.dig('attributes', 'effect_list')
+      state = get_ha_state(entity_id)
+      return format_response(false, state) if state.is_a?(String) # Error message from get_ha_state
+
+      effect_list = state[:attributes][:effect_list]
       return format_response(false, "No effects available for #{entity_id}") unless effect_list
 
       format_response(true, "Available effects for #{entity_id}", { entity_id: entity_id, effects: effect_list })
@@ -119,11 +122,14 @@ module Tools
 
     # Set effect for a specific light entity
     def self.set_effect(entity_id:, effect:, **_kwargs)
+      # Convert target names to entity IDs if needed
+      entity_id = convert_target_to_entity_id(entity_id)
+
       # Validate the entity exists and supports effects
       state = get_ha_state(entity_id)
-      return format_response(false, "Entity #{entity_id} not found") unless state
+      return format_response(false, state) if state.is_a?(String) # Error message from get_ha_state
 
-      effect_list = state.dig('attributes', 'effect_list')
+      effect_list = state[:attributes][:effect_list]
       return format_response(false, "#{entity_id} does not support effects") unless effect_list
       return format_response(false, "Effect '#{effect}' not available for #{entity_id}. Available: #{effect_list.join(', ')}") unless effect_list.include?(effect)
 
@@ -266,6 +272,23 @@ module Tools
       return [target] if target.start_with?('light.')
 
       []
+    end
+
+    # Helper to convert target names to single entity IDs (for effects)
+    def self.convert_target_to_entity_id(target)
+      return LIGHTS[target] if LIGHTS.key?(target)
+      return target if target.start_with?('light.')
+
+      # If it's a group, return the first entity (effects are per-entity)
+      if GROUPS.key?(target)
+        return GROUPS[target].first
+      end
+
+      # Smart lookup - check if any light entity contains the target name
+      matching_entity = LIGHTS.values.find { |entity_id| entity_id.include?(target) }
+      return matching_entity if matching_entity
+
+      target # Return as-is if no conversion found
     end
 
     # Parse color from various formats
