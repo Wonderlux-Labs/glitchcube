@@ -18,6 +18,9 @@ node_modules/
 /test/version_tmp/
 /tmp/
 
+# Database schema - we use structure.sql for PostGIS instead of schema.rb
+/db/schema.rb
+
 # Python
 __pycache__/
 **/__pycache__/

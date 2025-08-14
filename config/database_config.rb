@@ -180,6 +180,9 @@ def configure_database!
 
   ActiveRecord::Base.establish_connection(config)
 
+  # Disable automatic schema dumping since we use structure.sql manually
+  ActiveRecord::Base.dump_schema_after_migration = false
+
   # Register PostGIS types to prevent unknown OID warnings
   if %w[postgis postgresql].include?(config['adapter'])
     begin
