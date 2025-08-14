@@ -32,7 +32,7 @@ RSpec.describe Jobs::MemoryConsolidationJob do
   end
 
   before do
-    stub_const('Services::ContextRetrievalService::CONTEXT_DIR', test_context_dir)
+    stub_const('Services::Memory::ContextRetrievalService::CONTEXT_DIR', test_context_dir)
     FileUtils.mkdir_p(test_context_dir)
   end
 

@@ -26,7 +26,11 @@ module Services
           @persona = Personas::BasePersona.create(@character.to_s, @context)
         rescue StandardError => e
           # Fall back to nil if persona can't be created
-          puts "Warning: Could not create persona for character '#{@character}': #{e.message}" if defined?(GlitchCube) && GlitchCube.config&.debug?
+          @logger.warn("Could not create persona for character '#{@character}'",
+                       tagged: %i[conversation persona_creation],
+                       character: @character,
+                       error: e.message,
+                       backtrace: e.backtrace&.first)
           @persona = nil
         end
       end
@@ -76,7 +80,11 @@ module Services
           default_glitch_cube_prompt
         end
       rescue StandardError => e
-        puts "Error loading prompt file: #{e.message}"
+        @logger.error('Error loading prompt file',
+                      tagged: %i[conversation prompt_loading],
+                      character: @character,
+                      error: e.message,
+                      backtrace: e.backtrace&.first)
         default_glitch_cube_prompt
       end
 

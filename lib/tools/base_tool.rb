@@ -72,7 +72,7 @@ module Tools
 
         raise ToolError, 'Home Assistant not configured. Set HOME_ASSISTANT_URL in .env' unless GlitchCube.config.home_assistant.url
 
-        HomeAssistantClient.new
+        Core::HomeAssistantClient.new
       end
     rescue StandardError => e
       raise ToolError, "Failed to connect to Home Assistant: #{e.message}"
@@ -94,7 +94,7 @@ module Tools
       else
         "❌ Service #{domain}.#{service} failed"
       end
-    rescue HomeAssistantClient::Error => e
+    rescue Core::HomeAssistantClient::Error => e
       # Enhanced HA error reporting with specific error details
       error_context = {
         domain: domain,

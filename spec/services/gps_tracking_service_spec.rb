@@ -11,6 +11,9 @@ RSpec.describe Services::Gps::GPSTrackingService do
   before do
     allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
+    # Add default mock for states method to prevent unexpected message errors
+    allow(ha_client).to receive(:states).and_return([])
+
     # Mock LocationContextService to avoid complex setup
     allow(Services::Gps::LocationContextService).to receive(:full_context).and_return({
                                                                                         zone: :city,
@@ -98,10 +101,15 @@ RSpec.describe Services::Gps::GPSTrackingService do
       end
 
       before do
+        # Mock GlitchCube.config for development mode and Redis URL
+        config_double = instance_double('Config')
+        allow(GlitchCube).to receive(:config).and_return(config_double)
+        allow(config_double).to receive(:development?).and_return(true)
+        allow(config_double).to receive(:redis_url).and_return('redis://localhost:6379/0')
+
+        # Mock Redis instance and the spoofed location data
         allow(Redis).to receive(:new).and_return(redis)
         allow(redis).to receive(:get).with('current_cube_location').and_return(spoofed_location.to_json)
-        allow(ENV).to receive(:[]).with('RACK_ENV').and_return('development')
-        allow(ENV).to receive(:[]).with('REDIS_URL').and_return('redis://localhost:6379/0')
       end
 
       it 'uses spoofed location when available in development' do

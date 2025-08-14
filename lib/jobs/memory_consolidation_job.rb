@@ -103,6 +103,7 @@ module Jobs
     end
 
     def read_daily_memories(filename)
+      context_service = Services::Memory::ContextRetrievalService.new
       path = File.join(Services::Memory::ContextRetrievalService::CONTEXT_DIR, filename)
       return "# Daily Memories\n\n" unless File.exist?(path)
 
@@ -126,7 +127,7 @@ module Jobs
     end
 
     def append_to_topic_document(filename, summary, context_service)
-      path = File.join('data/context_documents', filename)
+      path = File.join(Services::Memory::ContextRetrievalService::CONTEXT_DIR, filename)
 
       existing = File.exist?(path) ? File.read(path) : "# #{filename.gsub('_', ' ').capitalize}\n\n"
 

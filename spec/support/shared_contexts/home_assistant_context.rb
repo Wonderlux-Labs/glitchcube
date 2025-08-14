@@ -14,7 +14,7 @@ module Services
       'buddy'
     end
 
-    def self.set_current_persona(persona)
+    def self.set_current_persona(persona, **kwargs)
       # This will be mocked in tests
     end
   end

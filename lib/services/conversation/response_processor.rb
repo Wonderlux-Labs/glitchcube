@@ -25,6 +25,8 @@ module Services
                         llm_raw_choices: llm_response.raw_response&.dig('choices'),
                         model: llm_response.model)
           response_text = persona_instance.generate_fallback_response('I understand.')
+          # Fallback responses should end conversations as a safe default
+          continue_conversation = false
         end
 
         processed_response = {

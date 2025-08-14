@@ -183,16 +183,14 @@ module Services
     def self.tool_classes
       @tool_classes ||= begin
         classes = [
-          # Only load tool classes if they're defined
-          defined?(::SpeechTool) ? ::SpeechTool : nil,
-          defined?(::DisplayTool) ? ::DisplayTool : nil,
-          defined?(::LightingTool) ? ::LightingTool : nil,
-          defined?(::TestTool) ? ::TestTool : nil,
-          defined?(::MusicTool) ? ::MusicTool : nil,
-          defined?(::CameraTool) ? ::CameraTool : nil,
-          defined?(::ErrorHandlingTool) ? ::ErrorHandlingTool : nil,
-          defined?(::ConversationFeedbackTool) ? ::ConversationFeedbackTool : nil
-        ].compact
+          # Load only existing tool classes from Tools module
+          Tools::SpeechTool,
+          Tools::LightingTool,
+          Tools::MusicTool,
+          Tools::ErrorHandlingTool,
+          Tools::MarqeeDisplayTool,
+          Tools::HassMcpTool
+        ]
 
         Logging::SimpleLogger.info('🧰 Tool classes loaded at startup',
                                    tagged: %i[tool_executor initialization],
