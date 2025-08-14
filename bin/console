@@ -79,7 +79,7 @@ module ConsoleHelpers
   end
 
   def llm_service
-    @llm_service ||= Services::LLM::LLMService.new
+    @llm_service ||= Services::Llm::LLMService.new
   end
 
   # Keep openrouter method for backward compatibility during transition

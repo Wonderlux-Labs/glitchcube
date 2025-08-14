@@ -2,7 +2,7 @@
 
 require 'httparty'
 
-module Services
+module Services::System
   class HomeAssistantWebhookService
     include HTTParty
 

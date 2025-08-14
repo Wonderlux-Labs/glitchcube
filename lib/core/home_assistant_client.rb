@@ -54,7 +54,7 @@ class HomeAssistantClient
     # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
     return get('/api/states') if GlitchCube.config.test? && !GlitchCube.config.enable_circuit_breakers
 
-    Services::CircuitBreakerService.home_assistant_breaker.call do
+    Services::System::CircuitBreakerService.home_assistant_breaker.call do
       get('/api/states')
     end
   rescue CircuitBreaker::CircuitOpenError => e
@@ -72,7 +72,7 @@ class HomeAssistantClient
     # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
     return get("/api/states/#{entity_id}") if GlitchCube.config.test? && !GlitchCube.config.enable_circuit_breakers
 
-    Services::CircuitBreakerService.home_assistant_breaker.call do
+    Services::System::CircuitBreakerService.home_assistant_breaker.call do
       get("/api/states/#{entity_id}")
     end
   rescue CircuitBreaker::CircuitOpenError => e
@@ -115,7 +115,7 @@ class HomeAssistantClient
     # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
     return post(path, data) if GlitchCube.config.test? && !GlitchCube.config.enable_circuit_breakers
 
-    Services::CircuitBreakerService.home_assistant_breaker.call do
+    Services::System::CircuitBreakerService.home_assistant_breaker.call do
       post(path, data)
     end
   rescue CircuitBreaker::CircuitOpenError => e

@@ -14,8 +14,8 @@ module GlitchCube
               message = request_body['message'] || 'Tell me about the battery status'
 
               # Use the conversation handler service for tool-based conversations
-              conversation_handler = ::Services::ConversationHandlerService.new
-              result = conversation_handler.process_conversation(
+              conversation_handler = ConversationModule.new
+              result = conversation_handler.call(
                 message: message,
                 context: { tool_focused: true }
               )
@@ -44,8 +44,8 @@ module GlitchCube
               message = request_body['message'] || 'Check all sensors and set the light to blue'
 
               # Use the conversation handler service for Home Assistant integration
-              conversation_handler = ::Services::ConversationHandlerService.new
-              result = conversation_handler.process_conversation(
+              conversation_handler = ConversationModule.new
+              result = conversation_handler.call(
                 message: message,
                 context: { voice_interaction: true, ha_focused: true }
               )

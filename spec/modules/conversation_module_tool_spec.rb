@@ -66,7 +66,7 @@ RSpec.describe ConversationModule do
     end
 
     before do
-      allow(Services::System::ToolExecutor).to receive(:execute)
+      allow(Services::ToolExecutor).to receive(:execute)
         .with([{ name: 'set_lights', arguments: { 'state' => 'on', 'brightness' => 100 } }])
         .and_return([{ success: true, message: 'Lights turned on' }])
 
@@ -154,11 +154,11 @@ RSpec.describe ConversationModule do
       end
       allow(multi_llm_response).to receive(:message_data).and_return({ role: 'assistant', content: nil, tool_calls: multi_tool_calls })
 
-      allow(Services::System::ToolExecutor).to receive(:execute)
+      allow(Services::ToolExecutor).to receive(:execute)
         .with([{ name: 'set_lights', arguments: { 'state' => 'on' } }])
         .and_return([{ success: true }])
 
-      allow(Services::System::ToolExecutor).to receive(:execute)
+      allow(Services::ToolExecutor).to receive(:execute)
         .with([{ name: 'speak', arguments: { 'text' => 'Hello' } }])
         .and_return([{ success: true, spoken: 'Hello' }])
 
@@ -187,7 +187,7 @@ RSpec.describe ConversationModule do
       allow(invalid_llm_response).to receive(:message_data).and_return({ role: 'assistant', content: nil, tool_calls: invalid_tool_calls })
 
       # Tool executor should not be called when arguments can't be parsed
-      expect(Services::System::ToolExecutor).not_to receive(:execute)
+      expect(Services::ToolExecutor).not_to receive(:execute)
 
       expect do
         conversation_module.send(:handle_native_tool_response, invalid_llm_response, messages, llm_options, response_schema)

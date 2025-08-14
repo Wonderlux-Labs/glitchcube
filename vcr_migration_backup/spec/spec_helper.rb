@@ -124,7 +124,7 @@ RSpec.configure do |config|
     Conversation.destroy_all if defined?(Conversation) # This will cascade to messages via dependent: :destroy
 
     # Reset circuit breakers if they exist (but don't disable them globally)
-    Services::CircuitBreakerService.reset_all_breakers if defined?(Services::CircuitBreakerService) && Services::CircuitBreakerService.respond_to?(:reset_all_breakers)
+    Services::System::CircuitBreakerService.reset_all_breakers if defined?(Services::System::CircuitBreakerService) && Services::System::CircuitBreakerService.respond_to?(:reset_all_breakers)
 
     # Clear any Cube::Settings overrides
     Cube::Settings.clear_overrides! if defined?(Cube::Settings)

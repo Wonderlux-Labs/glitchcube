@@ -48,7 +48,7 @@ module GlitchCube
               # Call the LLM service with a simple system prompt
               system_prompt = options['system_prompt'] || "You are a helpful AI assistant. Respond concisely and directly to the user's request."
 
-              response = ::Services::LLMService.complete(
+              response = ::Services::Llm::LLMService.complete(
                 system_prompt: system_prompt,
                 user_message: prompt,
                 **llm_options
@@ -69,13 +69,13 @@ module GlitchCube
             rescue JSON::ParserError => e
               status 400
               { error: "Invalid JSON: #{e.message}" }.to_json
-            rescue ::Services::LLMService::RateLimitError => e
+            rescue ::Services::Llm::LLMService::RateLimitError => e
               status 429
               { error: "Rate limit exceeded: #{e.message}" }.to_json
-            rescue ::Services::LLMService::AuthenticationError => e
+            rescue ::Services::Llm::LLMService::AuthenticationError => e
               status 401
               { error: "Authentication failed: #{e.message}" }.to_json
-            rescue ::Services::LLMService::ModelNotFoundError => e
+            rescue ::Services::Llm::LLMService::ModelNotFoundError => e
               status 404
               { error: "Model not found: #{e.message}" }.to_json
             rescue StandardError => e

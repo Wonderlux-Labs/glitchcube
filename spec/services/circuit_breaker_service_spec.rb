@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Services::CircuitBreakerService do
+RSpec.describe Services::System::CircuitBreakerService do
   describe '.home_assistant_breaker' do
     it 'returns a circuit breaker for home assistant', :vcr do
       breaker = described_class.home_assistant_breaker

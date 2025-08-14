@@ -544,7 +544,7 @@ describe 'error handling' do
   
   it 'handles LLM service failures gracefully' do
     # Mock LLM service to raise an error
-    allow_any_instance_of(Services::LLMService).to receive(:complete)
+    allow_any_instance_of(Services::Llm::LLMService).to receive(:complete)
       .and_raise(StandardError, 'API unavailable')
     
     result = subject.process_conversation('Hello', session_id: 'test')

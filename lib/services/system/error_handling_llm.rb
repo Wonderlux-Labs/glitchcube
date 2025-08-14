@@ -87,7 +87,7 @@ module Services
 
         prompt = build_criticality_prompt(error, context)
 
-        response = Services::LLMService.complete_cheap_tools(
+        response = Services::Llm::LLMService.complete_cheap_tools(
           prompt,
           model: 'openai/gpt-4o-mini',
           response_format: { type: 'json_object' }
@@ -388,7 +388,7 @@ module Services
                    )
                  else
                    # Fallback to direct LLM call if Task agent not available
-                   response = Services::LLMService.complete_cheap_tools(
+                   response = Services::Llm::LLMService.complete_cheap_tools(
                      prompt,
                      model: 'openai/gpt-4o-mini',
                      response_format: { type: 'json_object' }

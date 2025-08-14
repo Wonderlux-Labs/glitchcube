@@ -107,7 +107,7 @@ class GlitchCubeApp < Sinatra::Base
   helpers do
     # Centralized conversation handler service
     def conversation_handler
-      @conversation_handler ||= Services::ConversationHandlerService.new
+      @conversation_handler ||= ConversationModule.new
     end
 
     # Helper to check if Sidekiq is available for job scheduling
@@ -185,7 +185,7 @@ class GlitchCubeApp < Sinatra::Base
 
   get '/health' do
     # Check circuit breaker status
-    circuit_status = Services::CircuitBreakerService.status
+    circuit_status = Services::System::CircuitBreakerService.status
     overall_health = circuit_status.all? { |breaker| breaker[:state] == :closed } ? 'healthy' : 'degraded'
 
     json({

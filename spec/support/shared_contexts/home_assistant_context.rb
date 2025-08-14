@@ -37,15 +37,8 @@ module Services
     end
   end
 
-  module LLMService
-    class LLMError < StandardError; end
-    class RateLimitError < LLMError; end
-
-    def self.complete_with_messages(*_args)
-      # This will be mocked in tests
-      raise 'LLMService method should be mocked in tests'
-    end
-  end
+  # Placeholder for LLMService - will be mocked in tests
+  # The real LLMService is autoloaded by Zeitwerk
 
   class PersonaStateService
     def self.get_current_persona
@@ -408,9 +401,9 @@ if defined?(RSpec)
   RSpec.shared_context 'with_circuit_breakers_reset' do
     before do
       # Reset all circuit breakers before test
-      if defined?(Services::CircuitBreakerService) &&
-         Services::CircuitBreakerService.respond_to?(:reset_all_breakers)
-        Services::CircuitBreakerService.reset_all_breakers
+      if defined?(Services::System::CircuitBreakerService) &&
+         Services::System::CircuitBreakerService.respond_to?(:reset_all_breakers)
+        Services::System::CircuitBreakerService.reset_all_breakers
       end
     end
   end

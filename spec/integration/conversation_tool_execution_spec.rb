@@ -66,7 +66,7 @@ RSpec.describe 'Conversation Tool Execution Integration', type: :integration do
           { tool_name: 'speech_synthesis', success: true, result: 'Spoke: Done!' }
         ]
 
-        allow(Services::System::ToolExecutor).to receive(:execute).and_return(tool_results)
+        allow(Services::ToolExecutor).to receive(:execute).and_return(tool_results)
 
         # Execute conversation
         result = conversation_module.call(
@@ -80,12 +80,12 @@ RSpec.describe 'Conversation Tool Execution Integration', type: :integration do
         expect(result[:success]).to be_falsy || result[:response].present?
 
         # Verify tool executor was called (standardized path)
-        expect(Services::System::ToolExecutor).to have_received(:execute).at_least(:once)
+        expect(Services::ToolExecutor).to have_received(:execute).at_least(:once)
       end
 
       it 'does NOT use fallback direct service calls' do
         # Mock tool execution failure to test no fallbacks occur
-        allow(Services::System::ToolExecutor).to receive(:execute).and_return([])
+        allow(Services::ToolExecutor).to receive(:execute).and_return([])
 
         # Mock services to ensure they're NOT called directly
         allow(Services::ConversationFeedbackService).to receive(:set_listening)

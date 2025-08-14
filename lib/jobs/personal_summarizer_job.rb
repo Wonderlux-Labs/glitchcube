@@ -58,7 +58,7 @@ module Jobs
 
       user_message = "Messages from the past hour:\n#{message_content}"
 
-      response = Services::LLMService.complete(
+      response = Services::Llm::LLMService.complete(
         system_prompt: system_prompt,
         user_message: user_message,
         max_tokens: 200,

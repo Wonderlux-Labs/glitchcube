@@ -97,12 +97,12 @@ module Services
 
       # Execute a tool directly (for admin testing)
       def execute_tool_directly(tool_name, parameters = {}, tool_class: nil)
-        Services::System::ToolExecutor.execute([{
-                                                 name: tool_name,
-                                                 arguments: parameters,
-                                                 id: "test_#{SecureRandom.hex(4)}",
-                                                 tool_class: tool_class
-                                               }]).first
+        Services::ToolExecutor.execute([{
+                                         name: tool_name,
+                                         arguments: parameters,
+                                         id: "test_#{SecureRandom.hex(4)}",
+                                         tool_class: tool_class
+                                       }]).first
       end
     end
   end

@@ -24,9 +24,9 @@ RSpec.describe Services::Conversation::ToolExecutionEngine do
   # Setup successful tool execution by default
   before do
     # Mock ToolExecutor.execute to return successful results
-    allow(Services::System::ToolExecutor).to receive(:execute).and_return([
-                                                                            { success: true, entity_id: 'light.cube', message: 'Light turned on successfully' }
-                                                                          ])
+    allow(Services::ToolExecutor).to receive(:execute).and_return([
+                                                                    { success: true, entity_id: 'light.cube', message: 'Light turned on successfully' }
+                                                                  ])
 
     # Mock function_arguments_for method on llm_response
     allow(llm_response).to receive(:function_arguments_for)
@@ -70,7 +70,7 @@ RSpec.describe Services::Conversation::ToolExecutionEngine do
       it 'delegates tool execution to ToolExecutor service' do
         subject.execute_tool_calls(llm_response, session_id)
 
-        expect(Services::System::ToolExecutor).to have_received(:execute)
+        expect(Services::ToolExecutor).to have_received(:execute)
           .with([{ name: 'turn_on_light', arguments: { entity_id: 'light.cube' } }])
       end
 
@@ -119,7 +119,7 @@ RSpec.describe Services::Conversation::ToolExecutionEngine do
       it 'does not call ToolExecutor for unparseable arguments' do
         subject.execute_tool_calls(llm_response, session_id)
 
-        expect(Services::System::ToolExecutor).not_to have_received(:execute)
+        expect(Services::ToolExecutor).not_to have_received(:execute)
       end
     end
 
@@ -127,7 +127,7 @@ RSpec.describe Services::Conversation::ToolExecutionEngine do
       let(:tool_error) { StandardError.new('Tool execution failed') }
 
       before do
-        allow(Services::System::ToolExecutor).to receive(:execute)
+        allow(Services::ToolExecutor).to receive(:execute)
           .and_raise(tool_error)
       end
 
@@ -173,7 +173,7 @@ RSpec.describe Services::Conversation::ToolExecutionEngine do
           .with('set_volume').and_return({})
 
         # Mock multiple tool executions
-        allow(Services::System::ToolExecutor).to receive(:execute)
+        allow(Services::ToolExecutor).to receive(:execute)
           .and_return([{ success: true }])
       end
 
@@ -187,9 +187,9 @@ RSpec.describe Services::Conversation::ToolExecutionEngine do
       it 'calls ToolExecutor for each tool separately' do
         subject.execute_tool_calls(multi_tool_response, session_id)
 
-        expect(Services::System::ToolExecutor).to have_received(:execute)
+        expect(Services::ToolExecutor).to have_received(:execute)
           .with([{ name: 'turn_on_light', arguments: {} }])
-        expect(Services::System::ToolExecutor).to have_received(:execute)
+        expect(Services::ToolExecutor).to have_received(:execute)
           .with([{ name: 'set_volume', arguments: {} }])
       end
     end
@@ -197,7 +197,7 @@ RSpec.describe Services::Conversation::ToolExecutionEngine do
     context 'with different result types' do
       context 'when tool returns string result' do
         before do
-          allow(Services::System::ToolExecutor).to receive(:execute)
+          allow(Services::ToolExecutor).to receive(:execute)
             .and_return(['Simple string result'])
         end
 
@@ -211,7 +211,7 @@ RSpec.describe Services::Conversation::ToolExecutionEngine do
 
       context 'when tool returns hash result' do
         before do
-          allow(Services::System::ToolExecutor).to receive(:execute)
+          allow(Services::ToolExecutor).to receive(:execute)
             .and_return([{ status: 'completed', data: { value: 42 } }])
         end
 

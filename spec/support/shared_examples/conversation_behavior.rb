@@ -120,9 +120,9 @@ if defined?(RSpec)
 
   RSpec.shared_examples 'processes Home Assistant actions' do
     it 'extracts and processes HA actions from conversation result' do
-      # Mock conversation handler service
-      mock_handler = instance_double(Services::ConversationHandlerService)
-      allow(Services::ConversationHandlerService).to receive(:new)
+      # Mock conversation module
+      mock_handler = instance_double(ConversationModule)
+      allow(ConversationModule).to receive(:new)
         .and_return(mock_handler)
 
       # Mock action extraction

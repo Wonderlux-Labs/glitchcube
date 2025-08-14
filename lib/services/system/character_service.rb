@@ -2,7 +2,7 @@
 
 require_relative '../../personas/persona_factory'
 
-module Services
+module Services::System
   class CharacterService
     # TTS provider types
     TTS_PROVIDERS = {

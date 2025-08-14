@@ -1,110 +1,179 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require_relative '../../../lib/services/system/tool_executor'
 
-RSpec.describe Services::System::ToolExecutor do
-  # Test tool for stubbing
-  let(:test_tool) do
-    Class.new do
-      def self.available_tools
-        %w[speak_text]
-      end
-
-      def self.speak_text(**args)
-        "Speech synthesized: #{args[:text]}"
-      end
-    end
-  end
-
-  before do
-    # Stub the tool_classes method to return our test tool
-    allow(described_class).to receive(:tool_classes).and_return([test_tool])
-  end
+RSpec.describe Services::ToolExecutor do
   describe '.execute' do
-    context 'with a valid tool' do
-      let(:tool_call) do
-        {
-          id: 'speech_123',
-          name: 'speak_text',
-          arguments: { text: 'Hello world' }
+    context 'with argument filtering' do
+      # Create a test tool class
+      let(:test_tool_class) do
+        Class.new do
+          def self.name
+            'TestTool'
+          end
+
+          def self.test_method(required_param:, optional_param: nil)
+            { required: required_param, optional: optional_param }
+          end
+
+          def self.method_with_kwargs(name:, **kwargs)
+            { name: name, extras: kwargs }
+          end
+
+          def self.mixed_params(required:, optional: 'default', **rest)
+            { required: required, optional: optional, rest: rest }
+          end
+        end
+      end
+
+      before do
+        # Mock the internal method that finds tool classes
+        allow(Services::ToolExecutor).to receive(:find_tool_class_for).and_return(test_tool_class)
+        allow(Services::Logging::SimpleLogger).to receive(:info)
+        allow(Services::Logging::SimpleLogger).to receive(:warn)
+      end
+
+      it 'filters arguments to match method signature' do
+        tool_call = {
+          name: 'test_method',
+          arguments: {
+            required_param: 'value1',
+            optional_param: 'value2',
+            extra_param: 'should be filtered out'
+          }
         }
+
+        result = Services::ToolExecutor.execute([tool_call])
+
+        expect(result.first).to include(
+          success: true,
+          tool_name: 'test_method'
+        )
+        # The actual return value is stringified in the result field
+        expect(result.first[:result]).to include('value1')
+        expect(result.first[:result]).to include('value2')
       end
 
-      it 'executes the tool and returns success' do
-        results = described_class.execute([tool_call])
-        result = results.first
+      it 'accepts all arguments when method has **kwargs' do
+        tool_call = {
+          name: 'method_with_kwargs',
+          arguments: {
+            name: 'test',
+            extra1: 'value1',
+            extra2: 'value2'
+          }
+        }
 
-        expect(result[:success]).to be true
-        expect(result[:tool_name]).to eq('speak_text')
-        expect(result[:result]).to include('Speech synthesized')
-        expect(result[:tool_call_id]).to eq('speech_123')
+        result = Services::ToolExecutor.execute([tool_call])
+
+        expect(result.first).to include(
+          success: true,
+          tool_name: 'method_with_kwargs'
+        )
+        expect(result.first[:result]).to include('test')
+        expect(result.first[:result]).to include('value1')
+        expect(result.first[:result]).to include('value2')
       end
-    end
 
-    context 'with invalid tool name' do
-      let(:tool_call) do
-        {
-          id: 'invalid_123',
-          name: 'nonexistent_tool',
+      it 'handles mixed parameter types correctly' do
+        tool_call = {
+          name: 'mixed_params',
+          arguments: {
+            required: 'required_value',
+            optional: 'optional_value',
+            extra_key: 'extra_value',
+            another_extra: 'another_value'
+          }
+        }
+
+        result = Services::ToolExecutor.execute([tool_call])
+
+        expect(result.first).to include(
+          success: true,
+          tool_name: 'mixed_params'
+        )
+        expect(result.first[:result]).to include('required_value')
+        expect(result.first[:result]).to include('optional_value')
+        expect(result.first[:result]).to include('extra_value')
+      end
+
+      it 'handles missing required parameters gracefully' do
+        tool_call = {
+          name: 'test_method',
+          arguments: {
+            optional_param: 'value'
+            # missing required_param
+          }
+        }
+
+        result = Services::ToolExecutor.execute([tool_call])
+
+        # Should return error result
+        expect(result.first).to include(:error)
+        expect(result.first[:error]).to include('required_param')
+      end
+
+      it 'works with no arguments' do
+        # Define a no-arg method on the test class
+        def test_tool_class.no_arg_method
+          { success: true }
+        end
+
+        tool_call = {
+          name: 'no_arg_method',
           arguments: {}
         }
+
+        result = Services::ToolExecutor.execute([tool_call])
+
+        expect(result.first).to include(success: true, tool_name: 'no_arg_method')
       end
 
-      it 'returns an error result' do
-        results = described_class.execute([tool_call])
-        result = results.first
-
-        expect(result[:success]).to be false
-        expect(result[:error]).to include("No tool handles 'nonexistent_tool'")
-        expect(result[:tool_name]).to eq('nonexistent_tool')
-      end
-    end
-
-    context 'with tool execution error' do
-      let(:tool_call) do
-        {
-          id: 'error_123',
-          name: 'speak_text',
-          arguments: { text: 'Error test' }
-        }
-      end
-
-      it 'catches the error and returns error result' do
-        # Make the test tool raise an error
-        allow(test_tool).to receive(:speak_text).and_raise(StandardError, 'Speech synthesis failed')
-
-        results = described_class.execute([tool_call])
-        result = results.first
-
-        expect(result[:success]).to be false
-        expect(result[:error]).to include('Speech synthesis failed')
-      end
-    end
-
-    context 'with empty tool calls' do
-      it 'returns empty array' do
-        expect(described_class.execute([])).to eq([])
-      end
-    end
-
-    context 'with multiple tool calls' do
-      let(:tool_calls) do
-        [
-          { id: '1', name: 'speak_text', arguments: { text: 'First message' } },
-          { id: '2', name: 'speak_text', arguments: { text: 'Second message' } }
+      it 'handles array of tool calls' do
+        tool_calls = [
+          { name: 'test_method', arguments: { required_param: 'value1' } },
+          { name: 'method_with_kwargs', arguments: { name: 'test2', extra: 'data' } }
         ]
+
+        results = Services::ToolExecutor.execute(tool_calls)
+
+        expect(results.length).to eq(2)
+        expect(results[0]).to include(success: true, tool_name: 'test_method')
+        expect(results[1]).to include(success: true, tool_name: 'method_with_kwargs')
+      end
+    end
+
+    context 'error handling' do
+      it 'returns error result for unknown tool' do
+        allow(Services::ToolExecutor).to receive(:find_tool_class_for).and_return(nil)
+
+        tool_call = { name: 'unknown_tool', arguments: {} }
+        result = Services::ToolExecutor.execute([tool_call])
+
+        expect(result.first).to include(:error)
+        expect(result.first[:error]).to include("No tool handles 'unknown_tool'")
       end
 
-      it 'executes all tools and returns results array' do
-        # Allow the test tool to handle both calls
-        allow(test_tool).to receive(:speak_text).with(text: 'First message').and_return('Speech 1')
-        allow(test_tool).to receive(:speak_text).with(text: 'Second message').and_return('Speech 2')
+      it 'handles exceptions during tool execution' do
+        error_tool = Class.new do
+          def self.name
+            'ErrorTool'
+          end
 
-        results = described_class.execute(tool_calls)
+          def self.failing_method
+            raise StandardError, 'Tool execution failed'
+          end
+        end
 
-        expect(results).to be_an(Array)
-        expect(results.size).to eq(2)
-        expect(results.all? { |r| r[:success] }).to be true
+        allow(Services::ToolExecutor).to receive(:find_tool_class_for).and_return(error_tool)
+        allow(Services::Logging::SimpleLogger).to receive(:error)
+
+        tool_call = { name: 'failing_method', arguments: {} }
+        result = Services::ToolExecutor.execute([tool_call])
+
+        expect(result.first).to include(:error)
+        expect(result.first[:error]).to include('Tool execution failed')
       end
     end
   end

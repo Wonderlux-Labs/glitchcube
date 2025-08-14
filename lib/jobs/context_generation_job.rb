@@ -8,7 +8,7 @@ module Jobs
 
     def perform(model:, prompt:, sensor:, attribute:)
       # Simple LLM call
-      response = Services::LLMService.complete_cheap_no_tools(
+      response = Services::Llm::LLMService.complete_cheap_no_tools(
         prompt,
         model: model,
         max_tokens: 100,  # Keep it concise

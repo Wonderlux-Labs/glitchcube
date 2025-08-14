@@ -46,13 +46,13 @@ module Services
         Services::Logging::SimpleLogger.debug("Error backtrace: #{error.backtrace&.first(3)&.join(', ')}", tagged: %i[conversation error_handling])
 
         response = case error
-                   when Services::LLMService::RateLimitError
+                   when Services::Llm::LLMService::RateLimitError
                      Services::Logging::SimpleLogger.debug('Matched RateLimitError case', tagged: %i[conversation error_handling])
                      handle_rate_limit
                    when Services::Conversation::Errors::ToolExecutionError
                      Services::Logging::SimpleLogger.debug('Matched ToolExecutionError case', tagged: %i[conversation error_handling])
                      handle_tool_execution_error
-                   when Services::LLMService::LLMError
+                   when Services::Llm::LLMService::LLMError
                      Services::Logging::SimpleLogger.debug('Matched LLMError case', tagged: %i[conversation error_handling])
                      handle_llm_error
                    else

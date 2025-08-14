@@ -162,7 +162,7 @@ module Services
 
     def create_generator
       # Use LLM service directly instead of Desiru
-      Services::LLMService
+      Services::Llm::LLMService
     end
 
     def generate_answer(question, contexts)

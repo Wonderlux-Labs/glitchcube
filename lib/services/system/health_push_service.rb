@@ -121,7 +121,7 @@ module Services
         circuit_status = {}
 
         # Check Home Assistant breaker
-        ha_breaker = Services::CircuitBreakerService.home_assistant_breaker
+        ha_breaker = Services::System::CircuitBreakerService.home_assistant_breaker
         if ha_breaker
           state = ha_breaker.state.to_s
           circuit_status['home_assistant'] = state
@@ -129,7 +129,7 @@ module Services
         end
 
         # Check OpenRouter breaker
-        or_breaker = Services::CircuitBreakerService.openrouter_breaker
+        or_breaker = Services::System::CircuitBreakerService.openrouter_breaker
         if or_breaker
           state = or_breaker.state.to_s
           circuit_status['openrouter'] = state

@@ -60,7 +60,7 @@ module Jobs
       prompt = build_extraction_prompt(context, location_data[:display])
 
       # Let the LLM be creative with JSON structure
-      response = Services::LLMService.complete(
+      response = Services::Llm::LLMService.complete(
         system_prompt: 'You are analyzing conversations from the Glitch Cube art installation at Burning Man. Return valid JSON.',
         user_message: prompt,
         model: GlitchCube.config.ai.small_model || 'google/gemini-2.5-flash',
@@ -258,7 +258,7 @@ module Jobs
         If you can't salvage the data, return an empty array: []
       PROMPT
 
-      response = Services::LLMService.complete(
+      response = Services::Llm::LLMService.complete(
         system_prompt: 'You fix malformed JSON. Return only valid JSON, no markdown or explanation.',
         user_message: fix_prompt,
         model: 'openai/gpt-4o-mini',

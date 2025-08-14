@@ -24,7 +24,7 @@ graph TD
     FlowManager --> ContextEnrich[Services::ContextEnrichmentService<br/>Inject Memories & Context]
     FlowManager --> LLMManager[LLMInteractionManager<br/>Build Messages & System Prompt]
     
-    LLMManager --> |Prepare Messages| LLM[Services::LLMService<br/>OpenRouter API Call]
+    LLMManager --> |Prepare Messages| LLM[Services::Llm::LLMService<br/>OpenRouter API Call]
     
     LLM --> ResponseCheck{Has Tool Calls?}
     

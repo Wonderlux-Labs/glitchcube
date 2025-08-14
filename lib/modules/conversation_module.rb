@@ -3,7 +3,7 @@
 require 'securerandom'
 require 'concurrent'
 
-require_relative '../services/conversation/conversation_flow_manager'
+require_relative '../services/conversation/flow_manager'
 require_relative 'error_handling'
 class ConversationModule
   include ErrorHandling
@@ -62,7 +62,7 @@ class ConversationModule
       Services::Logging::SimpleLogger.info('Conversation completed', tagged: [:conversation], duration_ms: total_duration)
 
       result
-    rescue Services::LLMService::RateLimitError, Services::LLMService::LLMError, StandardError => e
+    rescue Services::Llm::LLMService::RateLimitError, Services::Llm::LLMService::LLMError, StandardError => e
       puts "CAUGHT ERROR: #{e.class.name} - #{e.message}\n#{e.backtrace.join("\n")}"
       Services::Logging::SimpleLogger.log_error(error: e, message: 'Conversation error occurred', tagged: %i[conversation error])
 

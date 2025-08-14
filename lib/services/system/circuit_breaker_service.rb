@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Services
+module Services::System
   class CircuitBreakerService
     class << self
       def home_assistant_breaker

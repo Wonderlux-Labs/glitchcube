@@ -19,7 +19,7 @@ RSpec.describe GlitchCubeApp do
   describe 'GET /health' do
     it 'returns health status', :vcr do
       # Reset all circuit breakers to ensure clean state
-      Services::CircuitBreakerService.reset_all
+      Services::System::CircuitBreakerService.reset_all
 
       get '/health'
       expect(last_response).to be_ok

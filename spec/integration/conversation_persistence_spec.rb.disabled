@@ -118,7 +118,7 @@ RSpec.describe 'Conversation with Persistence Integration', :vcr do
   describe 'Error handling' do
     context 'when AI service fails' do
       before do
-        allow(Services::LLMService).to receive(:complete_with_messages)
+        allow(Services::Llm::LLMService).to receive(:complete_with_messages)
           .and_raise(StandardError.new('API Error'))
       end
 

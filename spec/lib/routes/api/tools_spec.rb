@@ -10,10 +10,10 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
     GlitchCubeApp
   end
 
-  let(:conversation_handler_service) { instance_double(Services::ConversationHandlerService) }
+  let(:conversation_module) { instance_double(ConversationModule) }
 
   before do
-    allow(Services::ConversationHandlerService).to receive(:new).and_return(conversation_handler_service)
+    allow(ConversationModule).to receive(:new).and_return(conversation_module)
   end
 
   describe 'POST /api/v1/tool_test' do
@@ -26,7 +26,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
     end
 
     before do
-      allow(conversation_handler_service).to receive(:process_conversation).and_return(tool_response)
+      allow(conversation_module).to receive(:call).and_return(tool_response)
     end
 
     it 'processes tool test requests using ReAct pattern', :vcr do
@@ -50,7 +50,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
 
       expect(last_response).to be_ok
 
-      expect(conversation_handler_service).to have_received(:process_conversation).with(
+      expect(conversation_module).to have_received(:call).with(
         message: 'Tell me about the battery status',
         context: { tool_focused: true }
       )
@@ -63,14 +63,14 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
            { message: custom_message }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
-      expect(conversation_handler_service).to have_received(:process_conversation).with(
+      expect(conversation_module).to have_received(:call).with(
         message: custom_message,
         context: { tool_focused: true }
       )
     end
 
     it 'handles tool agent errors gracefully', :vcr do
-      allow(conversation_handler_service).to receive(:process_conversation).and_raise(StandardError, 'Tool execution failed')
+      allow(conversation_module).to receive(:call).and_raise(StandardError, 'Tool execution failed')
 
       post '/api/v1/tool_test',
            { message: 'Test message' }.to_json,
@@ -90,7 +90,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
       error = StandardError.new('Test error')
       allow(error).to receive(:backtrace).and_return(backtrace)
 
-      allow(conversation_handler_service).to receive(:process_conversation).and_raise(error)
+      allow(conversation_module).to receive(:call).and_raise(error)
 
       post '/api/v1/tool_test',
            { message: 'Test' }.to_json,
@@ -109,7 +109,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
     end
 
     before do
-      allow(conversation_handler_service).to receive(:process_conversation).and_return(ha_response)
+      allow(conversation_module).to receive(:call).and_return(ha_response)
     end
 
     it 'processes Home Assistant integration requests', :vcr do
@@ -134,7 +134,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
 
       expect(last_response).to be_ok
 
-      expect(conversation_handler_service).to have_received(:process_conversation).with(
+      expect(conversation_module).to have_received(:call).with(
         message: 'Check all sensors and set the light to blue',
         context: { voice_interaction: true, ha_focused: true }
       )
@@ -147,7 +147,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
            { message: sensor_message }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
-      expect(conversation_handler_service).to have_received(:process_conversation).with(
+      expect(conversation_module).to have_received(:call).with(
         message: sensor_message,
         context: { voice_interaction: true, ha_focused: true }
       )
@@ -160,14 +160,14 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
            { message: control_message }.to_json,
            { 'CONTENT_TYPE' => 'application/json' }
 
-      expect(conversation_handler_service).to have_received(:process_conversation).with(
+      expect(conversation_module).to have_received(:call).with(
         message: control_message,
         context: { voice_interaction: true, ha_focused: true }
       )
     end
 
     it 'handles Home Assistant agent errors gracefully', :vcr do
-      allow(conversation_handler_service).to receive(:process_conversation).and_raise(StandardError, 'HA connection failed')
+      allow(conversation_module).to receive(:call).and_raise(StandardError, 'HA connection failed')
 
       post '/api/v1/home_assistant',
            { message: 'Turn on lights' }.to_json,
@@ -189,7 +189,7 @@ RSpec.describe GlitchCube::Routes::Api::Tools do
            { 'CONTENT_TYPE' => 'application/json' }
 
       expect(last_response).to be_ok
-      expect(conversation_handler_service).to have_received(:process_conversation).with(
+      expect(conversation_module).to have_received(:call).with(
         message: complex_message,
         context: { voice_interaction: true, ha_focused: true }
       )

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Services
-  module LLM
+  module Llm
     # Centralized error handling for LLM operations
     # Extracted from LLMService to improve maintainability and testability
     class ErrorHandler

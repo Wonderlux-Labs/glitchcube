@@ -20,7 +20,7 @@ module Services
         @logger.info('Calling LLM', tagged: %i[conversation llm], session_id: session_id, model: llm_options[:model], message_count: messages.length)
         start_time = Time.now
 
-        response = Services::LLMService.complete_with_messages(
+        response = Services::Llm::LLMService.complete_with_messages(
           messages: messages,
           **llm_options
         )

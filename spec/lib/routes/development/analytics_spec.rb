@@ -56,7 +56,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
     end
 
     before do
-      allow(Services::CircuitBreakerService).to receive(:status).and_return(circuit_status)
+      allow(Services::System::CircuitBreakerService).to receive(:status).and_return(circuit_status)
     end
 
     it 'returns circuit breaker status with action endpoints', :vcr do
@@ -76,7 +76,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
 
   describe 'POST /api/v1/logs/circuit_breakers/reset' do
     before do
-      allow(Services::CircuitBreakerService).to receive(:reset_all)
+      allow(Services::System::CircuitBreakerService).to receive(:reset_all)
     end
 
     it 'resets all circuit breakers', :vcr do
@@ -88,7 +88,7 @@ RSpec.describe GlitchCube::Routes::Development::Analytics do
       expect(body['message']).to eq('All circuit breakers reset')
       expect(body['status']).to eq('success')
 
-      expect(Services::CircuitBreakerService).to have_received(:reset_all)
+      expect(Services::System::CircuitBreakerService).to have_received(:reset_all)
     end
   end
 

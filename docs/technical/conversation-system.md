@@ -458,7 +458,7 @@ bin/console
 > Services::Conversation::ConversationFlowManager.new.process_conversation(...)
 
 # Check service states
-> Services::CircuitBreakerService.status
+> Services::System::CircuitBreakerService.status
 ```
 
 ---

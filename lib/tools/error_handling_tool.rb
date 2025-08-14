@@ -27,7 +27,7 @@ module Tools
 
       begin
         # Circuit breaker status
-        circuit_status = Services::CircuitBreakerService.status
+        circuit_status = Services::System::CircuitBreakerService.status
         result << ''
         result << '🔌 CIRCUIT BREAKERS:'
 
@@ -97,7 +97,7 @@ module Tools
         end
 
         # Reset all circuit breakers
-        Services::CircuitBreakerService.reset_all
+        Services::System::CircuitBreakerService.reset_all
 
         result << '✅ All circuit breakers have been reset'
         result << 'Services will attempt to reconnect on next call'
@@ -154,7 +154,7 @@ module Tools
         if GlitchCube.config.openrouter_api_key
           # Simple test - just check if we can initialize the service
 
-          Services::LLMService.new
+          Services::Llm::LLMService.new
           result << '  ✅ Service initialized'
           result << '  🔑 API key configured'
         else
@@ -195,7 +195,7 @@ module Tools
       # This would integrate with our logging system
       # For now, provide basic circuit breaker error info
       begin
-        circuit_status = Services::CircuitBreakerService.status
+        circuit_status = Services::System::CircuitBreakerService.status
 
         error_count = 0
         circuit_status.each do |breaker|
@@ -237,7 +237,7 @@ module Tools
 
       # Test key system functions
       tests = [
-        { name: 'Circuit breaker functionality', test: -> { Services::CircuitBreakerService.status.any? } },
+        { name: 'Circuit breaker functionality', test: -> { Services::System::CircuitBreakerService.status.any? } },
         { name: 'Configuration loading', test: -> { GlitchCube.config.present? } },
         { name: 'Logger service', test: -> { Services::LoggerService.respond_to?(:log_api_call) } }
       ]
@@ -257,7 +257,7 @@ module Tools
       issues_found = 0
 
       # Check if all circuit breakers are open (major system failure)
-      circuit_status = Services::CircuitBreakerService.status
+      circuit_status = Services::System::CircuitBreakerService.status
       open_breakers = circuit_status.select { |b| b[:state] == :open }
       if open_breakers.size == circuit_status.size && !circuit_status.empty?
         result << '🚨 CRITICAL: All circuit breakers are open - system isolation mode'
@@ -292,14 +292,14 @@ module Tools
       recovery_actions = []
 
       # Check circuit breaker status
-      circuit_status = Services::CircuitBreakerService.status
+      circuit_status = Services::System::CircuitBreakerService.status
       open_breakers = circuit_status.select { |b| b[:state] == :open }
 
       if open_breakers.any?
         recovery_actions << {
           action: 'Reset circuit breakers',
           reason: "#{open_breakers.size} circuit breakers are open",
-          execute: -> { Services::CircuitBreakerService.reset_all }
+          execute: -> { Services::System::CircuitBreakerService.reset_all }
         }
       end
 

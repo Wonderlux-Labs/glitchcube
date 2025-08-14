@@ -18,7 +18,7 @@ module Services
         ]
 
         # Call LLM with tools enabled
-        llm_response = Services::LLMService.complete_with_messages(
+        llm_response = Services::Llm::LLMService.complete_with_messages(
           messages: messages,
           model: GlitchCube::ModelPresets.get_model(:conversation_small),
           temperature: 0.9, # Higher creativity for attention-seeking
@@ -30,7 +30,7 @@ module Services
         # Execute any tool calls (speaking, lights, music, etc.)
         if llm_response.has_tool_calls?
           tool_calls = llm_response.tool_calls
-          Services::System::ToolExecutor.execute(tool_calls)
+          Services::ToolExecutor.execute(tool_calls)
         end
 
         # Log the proactive interaction

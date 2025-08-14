@@ -28,7 +28,7 @@ RSpec.describe Services::System::HealthPushService, :vcr do
 
       # Mock circuit breakers
       closed_breaker = double('breaker', state: :closed)
-      allow(Services::CircuitBreakerService).to receive_messages(home_assistant_breaker: closed_breaker, openrouter_breaker: closed_breaker)
+      allow(Services::System::CircuitBreakerService).to receive_messages(home_assistant_breaker: closed_breaker, openrouter_breaker: closed_breaker)
     end
 
     context 'when Home Assistant is available' do
@@ -75,7 +75,7 @@ RSpec.describe Services::System::HealthPushService, :vcr do
           open_breaker = double('breaker', state: :open)
           half_open_breaker = double('breaker', state: :half_open)
 
-          allow(Services::CircuitBreakerService).to receive_messages(home_assistant_breaker: open_breaker, openrouter_breaker: half_open_breaker)
+          allow(Services::System::CircuitBreakerService).to receive_messages(home_assistant_breaker: open_breaker, openrouter_breaker: half_open_breaker)
         end
 
         it 'includes circuit breaker status in fallback message', :vcr do
@@ -127,7 +127,7 @@ RSpec.describe Services::System::HealthPushService, :vcr do
           allow(ActiveRecord::Base.connection).to receive(:active?).and_return(true)
 
           closed_breaker = double('breaker', state: :closed)
-          allow(Services::CircuitBreakerService).to receive_messages(home_assistant_breaker: closed_breaker, openrouter_breaker: closed_breaker)
+          allow(Services::System::CircuitBreakerService).to receive_messages(home_assistant_breaker: closed_breaker, openrouter_breaker: closed_breaker)
         end
 
         it 'returns healthy status with no issues', :vcr do
@@ -146,7 +146,7 @@ RSpec.describe Services::System::HealthPushService, :vcr do
           allow(ActiveRecord::Base.connection).to receive(:active?).and_raise(StandardError, 'Connection error')
 
           open_breaker = double('breaker', state: :open)
-          allow(Services::CircuitBreakerService).to receive_messages(home_assistant_breaker: open_breaker, openrouter_breaker: nil)
+          allow(Services::System::CircuitBreakerService).to receive_messages(home_assistant_breaker: open_breaker, openrouter_breaker: nil)
         end
 
         it 'returns degraded status with issues list', :vcr do

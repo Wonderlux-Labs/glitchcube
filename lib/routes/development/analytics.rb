@@ -23,7 +23,7 @@ module GlitchCube
             content_type :json
 
             json({
-                   circuit_breakers: ::Services::CircuitBreakerService.status,
+                   circuit_breakers: ::Services::System::CircuitBreakerService.status,
                    actions: {
                      reset_all: '/api/v1/logs/circuit_breakers/reset',
                      reset_single: '/api/v1/logs/circuit_breakers/:name/reset'
@@ -33,7 +33,7 @@ module GlitchCube
 
           # Reset all circuit breakers
           app.post '/api/v1/logs/circuit_breakers/reset' do
-            ::Services::CircuitBreakerService.reset_all
+            ::Services::System::CircuitBreakerService.reset_all
             json({ message: 'All circuit breakers reset', status: 'success' })
           end
 

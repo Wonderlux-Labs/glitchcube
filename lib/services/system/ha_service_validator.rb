@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Services
+module Services::System
   # Validates Home Assistant service calls against actual service schemas
   # Provides real-time validation and schema comparison for tools
   class HAServiceValidator

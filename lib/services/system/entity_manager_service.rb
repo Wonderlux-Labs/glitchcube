@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module GlitchCube
-  module Services
+  module Services::System
     class EntityManagerService
       class << self
         # Get entities organized by domain with optional caching

@@ -3,7 +3,7 @@
 require 'active_support/core_ext/hash/indifferent_access'
 
 module Services
-  module LLM
+  module Llm
     class ResponseParser
       class << self
         def parse(response, model, options = {})
