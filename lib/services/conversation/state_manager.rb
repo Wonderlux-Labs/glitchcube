@@ -91,8 +91,8 @@ module Services
 
           analytics
         rescue StandardError => e
-          @logger.error('Failed to generate conversation analytics', tagged: %i[conversation analytics error],
-                                                                     session_id: session_id, error: e.message)
+          @logger.log_error(error: e, message: 'Failed to generate conversation analytics',
+                            tagged: %i[conversation analytics error], session_id: session_id)
           {
             session_id: session_id,
             error: e.message,
@@ -171,8 +171,8 @@ module Services
 
           analytics
         rescue StandardError => e
-          @logger.error('Failed to generate aggregated analytics', tagged: %i[conversation analytics aggregated error],
-                                                                   filters: filters, error: e.message)
+          @logger.log_error(error: e, message: 'Failed to generate aggregated analytics',
+                            tagged: %i[conversation analytics aggregated error], filters: filters)
           {
             error: e.message,
             generated_at: Time.now.iso8601

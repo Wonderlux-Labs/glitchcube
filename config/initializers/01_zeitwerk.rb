@@ -36,7 +36,7 @@ end
 loader.setup
 loader.eager_load unless defined?(Rake)
 
-# Services module is now properly defined in lib/services.rb and autoloaded by Zeitwerk
+# Services module is now properly inferred by Zeitwerk from directory structure - no explicit definition needed
 
 # Store the loader for potential reloading in development
 $zeitwerk_loader = loader
