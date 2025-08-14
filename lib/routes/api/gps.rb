@@ -422,7 +422,7 @@ module GlitchCube
               end
 
               # Get full context (hits Redis cache first, then LocationContextService)
-              context = Services::LocationContextService.full_context(location[:lat], location[:lng])
+              context = Services::Gps::LocationContextService.full_context(location[:lat], location[:lng])
 
               # Merge GPS metadata with full context
               response_data = location.merge(context).merge({

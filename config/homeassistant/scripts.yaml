@@ -1,0 +1,15 @@
+glitchcube_tts_queued_ui:
+  sequence:
+  - data:
+      entity_id: media_player.square_voice
+      message: '{{ message }}'
+      options:
+        voice: "{% set persona = states('input_text.current_persona') %} {% if persona
+          == 'Buddy' %}\n  en-US-Standard-B\n{% elif persona == 'Jax' %}\n  en-US-Standard-A\n{%
+          elif persona == 'Lomi' %}\n  en-US-Standard-C\n{% elif persona == 'Zorp'
+          %}\n  en-US-Standard-D\n{% else %}\n  en-US-Standard-B\n{% endif %}\n"
+    action: tts.speak
+  alias: GlitchCube TTS Queued - UI
+  mode: queued
+  max: 10
+  description: ''

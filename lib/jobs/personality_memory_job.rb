@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'sidekiq'
+require_relative '../modules/error_handling'
 
 module Jobs
   class PersonalityMemoryJob

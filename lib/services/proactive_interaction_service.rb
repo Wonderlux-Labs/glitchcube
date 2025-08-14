@@ -104,10 +104,10 @@ module Services
 
       def default_proactive_tools
         [
-          Tools::SpeechSynthesisTool.to_llm_tool,
-          Tools::LightingTool.to_llm_tool,
-          Tools::DisplayTool.to_llm_tool,
-          Tools::MusicTool.to_llm_tool
+          ::Tools::SpeechSynthesisTool.to_llm_tool,
+          ::Tools::LightingTool.to_llm_tool,
+          ::Tools::DisplayTool.to_llm_tool,
+          ::Tools::MusicTool.to_llm_tool
         ].compact
       end
 

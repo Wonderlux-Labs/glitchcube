@@ -3,7 +3,7 @@
 require 'spec_helper'
 require_relative '../../lib/services/gps/location_context_service'
 
-RSpec.describe Services::LocationContextService do
+RSpec.describe Services::Gps::LocationContextService do
   let(:lat) { 40.7863 }
   let(:lng) { -119.2065 }
   let(:service) { described_class.new(lat, lng) }

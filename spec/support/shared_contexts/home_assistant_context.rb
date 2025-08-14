@@ -6,37 +6,6 @@
 
 # Define dummy services to allow mocking without loading the actual implementations
 module Services
-  class ConversationSession
-    def self.find_or_create(*_args)
-      # This will be mocked in tests
-      new
-    end
-
-    def session_id
-      'test-session'
-    end
-
-    def messages_for_llm
-      []
-    end
-
-    def add_message(*_args) # rubocop:disable Naming/PredicateMethod
-      true
-    end
-
-    def messages
-      double('messages', count: 0)
-    end
-
-    def created_at
-      Time.now - 1.minute
-    end
-
-    def metadata
-      {}
-    end
-  end
-
   # Placeholder for LLMService - will be mocked in tests
   # The real LLMService is autoloaded by Zeitwerk
 

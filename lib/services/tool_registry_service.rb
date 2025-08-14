@@ -5,10 +5,10 @@ module Services
   class ToolRegistryService
     # Persona to tool mapping
     PERSONA_TOOLS = {
-      'buddy' => [LightingTool],
-      'jax' => [SpeechTool, LightingTool],
-      'lomi' => [SpeechTool, DisplayTool],
-      'zorp' => [SpeechTool, LightingTool, DisplayTool]
+      'buddy' => [::Tools::LightingTool],
+      'jax' => [::Tools::SpeechTool, ::Tools::LightingTool],
+      'lomi' => [::Tools::SpeechTool, ::Tools::MarqeeDisplayTool],
+      'zorp' => [::Tools::SpeechTool, ::Tools::LightingTool, ::Tools::MarqeeDisplayTool]
     }.freeze
 
     class << self
@@ -48,12 +48,12 @@ module Services
 
       # All available tool classes
       ALL_TOOL_CLASSES = [
-        SpeechTool,
-        DisplayTool,
-        LightingTool,
-        MusicTool,
-        ErrorHandlingTool,
-        HassMcpTool
+        ::Tools::SpeechTool,
+        ::Tools::MarqeeDisplayTool,
+        ::Tools::LightingTool,
+        ::Tools::MusicTool,
+        ::Tools::ErrorHandlingTool,
+        ::Tools::HassMcpTool
       ].freeze
 
       # Discover all available tools with metadata (for admin interface)

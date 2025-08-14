@@ -11,12 +11,10 @@ loader = Zeitwerk::Loader.new
 # Add lib directory to the load path
 loader.push_dir(File.expand_path('../../lib', __dir__))
 
-# Ignore directories that should not be autoloaded by Zeitwerk
-# These are manually loaded by the autoloader
+# Ignore directories that need manual loading due to complex dependencies
+# Tools and Jobs are now handled by Zeitwerk for consistency
 loader.ignore(File.expand_path('../../lib/routes', __dir__))
 loader.ignore(File.expand_path('../../lib/personas', __dir__))
-loader.ignore(File.expand_path('../../lib/tools', __dir__))
-loader.ignore(File.expand_path('../../lib/jobs', __dir__))
 loader.ignore(File.expand_path('../../lib/modules', __dir__))
 loader.ignore(File.expand_path('../../lib/helpers', __dir__))
 loader.ignore(File.expand_path('../../lib/utils', __dir__))
@@ -35,16 +33,17 @@ loader.inflector.inflect(
   'gps_tracking_service' => 'GPSTrackingService'
 )
 
-# Set up the loader with eager loading for production
+# Set up the loader with eager loading for both development and production
+# This ensures we catch autoloading issues early in development
+# Skip eager loading for rake tasks to avoid issues during migrations
 if ENV['RACK_ENV'] == 'production'
   loader.enable_reloading if ENV['ENABLE_RELOADING'] == 'true'
-  loader.setup
-  loader.eager_load
 else
-  # Development: enable reloading and setup lazy loading
+  # Development: enable reloading and eager loading to catch issues early
   loader.enable_reloading
-  loader.setup
 end
+loader.setup
+loader.eager_load unless defined?(Rake)
 
 # For backwards compatibility, ensure Services module exists globally
 # This allows existing code using ::Services to continue working

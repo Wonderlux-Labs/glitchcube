@@ -49,8 +49,7 @@ module Autoloader
         require f unless f.include?('error_handling')
       end
 
-      # Base tool class before specific tools
-      require_if_exists 'lib/tools/base_tool'
+      # Base tool class is now handled by Zeitwerk
     end
 
     def load_jobs
@@ -73,10 +72,7 @@ module Autoloader
     end
 
     def load_tools
-      # Base tool is already loaded, load the rest
-      Dir[File.join(root, 'lib', 'tools', '*.rb')].each do |f|
-        require f unless f.include?('base_tool')
-      end
+      # Tools are now handled by Zeitwerk - no manual loading needed
     end
 
     def load_routes

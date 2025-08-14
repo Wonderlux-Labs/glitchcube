@@ -4,7 +4,7 @@ require 'spec_helper'
 require_relative '../../lib/services/gps/gps_tracking_service'
 require_relative '../../lib/services/gps/location_context_service'
 
-RSpec.describe Services::GpsTrackingService do
+RSpec.describe Services::Gps::GPSTrackingService do
   let(:service) { described_class.new }
   let(:ha_client) { instance_double(HomeAssistantClient) }
 
@@ -12,13 +12,13 @@ RSpec.describe Services::GpsTrackingService do
     allow(HomeAssistantClient).to receive(:new).and_return(ha_client)
 
     # Mock LocationContextService to avoid complex setup
-    allow(Services::LocationContextService).to receive(:full_context).and_return({
-                                                                                   zone: :city,
-                                                                                   address: '6:00 & Esplanade',
-                                                                                   within_fence: true,
-                                                                                   distance_from_man: '0.5 miles',
-                                                                                   landmarks: []
-                                                                                 })
+    allow(Services::Gps::LocationContextService).to receive(:full_context).and_return({
+                                                                                        zone: :city,
+                                                                                        address: '6:00 & Esplanade',
+                                                                                        within_fence: true,
+                                                                                        distance_from_man: '0.5 miles',
+                                                                                        landmarks: []
+                                                                                      })
   end
 
   describe '#current_location' do
@@ -130,7 +130,7 @@ RSpec.describe Services::GpsTrackingService do
     end
 
     before do
-      allow(Services::LocationContextService).to receive(:full_context)
+      allow(Services::Gps::LocationContextService).to receive(:full_context)
         .with(40.7863, -119.2065)
         .and_return(context_with_landmarks)
     end
@@ -152,7 +152,7 @@ RSpec.describe Services::GpsTrackingService do
     end
 
     it 'handles empty landmarks gracefully' do
-      allow(Services::LocationContextService).to receive(:full_context).and_return({ landmarks: [] })
+      allow(Services::Gps::LocationContextService).to receive(:full_context).and_return({ landmarks: [] })
 
       result = service.proximity_data(40.7863, -119.2065)
 
@@ -163,7 +163,7 @@ RSpec.describe Services::GpsTrackingService do
 
   describe '#brc_address_from_coordinates (deprecated)' do
     it 'delegates to LocationContextService' do
-      expect(Services::LocationContextService).to receive(:full_context)
+      expect(Services::Gps::LocationContextService).to receive(:full_context)
         .with(40.7863, -119.2065)
         .and_return({ address: '6:00 & Esplanade' })
 

@@ -260,7 +260,7 @@ end
 # Register with Home Assistant on startup (Sidekiq job)
 if ENV['RACK_ENV'] == 'production'
   if SidekiqConfig.available?
-    HostRegistrationWorker.perform_in(5, 'initial_registration') # 5 seconds
+    Jobs::HostRegistrationWorker.perform_in(5, 'initial_registration') # 5 seconds
     Services::Logging::SimpleLogger.info('Scheduled initial host registration', tagged: %i[startup jobs])
   else
     Services::Logging::SimpleLogger.warn('Sidekiq not available - skipping host registration', tagged: %i[startup jobs warning])

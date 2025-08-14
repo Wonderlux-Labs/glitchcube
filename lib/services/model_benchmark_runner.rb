@@ -2,6 +2,7 @@
 
 require 'yaml'
 require 'benchmark'
+require_relative '../modules/error_handling'
 
 module Services
   class ModelBenchmarkRunner
