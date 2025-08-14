@@ -114,7 +114,7 @@ module Routes
         # Context document management endpoints
         app.get '/api/v1/context/documents' do
           content_type :json
-          service = Services::ContextRetrievalService.new
+          service = Services::Memory::ContextRetrievalService.new
           json({
                  success: true,
                  documents: service.list_documents
@@ -124,7 +124,7 @@ module Routes
           content_type :json
           begin
             data = JSON.parse(request.body.read)
-            service = Services::ContextRetrievalService.new
+            service = Services::Memory::ContextRetrievalService.new
             success = service.add_document(
               data['filename'],
               data['content'],
@@ -147,7 +147,7 @@ module Routes
           content_type :json
           begin
             data = JSON.parse(request.body.read)
-            service = Services::ContextRetrievalService.new
+            service = Services::Memory::ContextRetrievalService.new
             results = service.retrieve_context(data['query'], k: data['k'] || 3)
             json({
                    success: true,

@@ -94,7 +94,7 @@ module Services
 
         # Get social connections for a person
         def get_social_connections(person_name)
-          memories = Memory.about_person(person_name)
+          memories = ::Memory.about_person(person_name)
 
           connections = {
             name: person_name,
