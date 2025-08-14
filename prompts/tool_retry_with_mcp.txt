@@ -1,0 +1,60 @@
+TOOL EXECUTION FAILURE - RETRY WITH MCP
+
+Your previous tool call failed with error: {{failure_reason}}
+
+The failed tool was: {{failed_tool_name}} with parameters: {{failed_parameters}}
+
+IMPORTANT: Try again using the hass_mcp tool instead. This tool provides direct access to all Home Assistant functions through the MCP (Model Context Protocol).
+
+RECOMMENDED RETRY STEPS:
+
+1. First, get current device states:
+   - Use hass_mcp with mcp_function: "GetLiveContext" 
+   - This shows all available devices, their names, and current states
+
+2. Then retry your original intent:
+   - Use hass_mcp with the appropriate MCP function
+   - Common functions: HassTurnOn, HassTurnOff, HassLightSet, HassSetVolume, HassMediaSearchAndPlay
+   - Pass device names exactly as shown in GetLiveContext
+
+EXAMPLES:
+
+For lighting control:
+```json
+{
+  "mcp_function": "GetLiveContext",
+  "mcp_params": {}
+}
+```
+Then:
+```json
+{
+  "mcp_function": "HassTurnOn", 
+  "mcp_params": {"name": "Cube Light"}
+}
+```
+
+For light brightness/color:
+```json
+{
+  "mcp_function": "HassLightSet",
+  "mcp_params": {
+    "name": "Cube Light",
+    "brightness": 80,
+    "color": "blue"
+  }
+}
+```
+
+For media control:
+```json
+{
+  "mcp_function": "HassMediaSearchAndPlay",
+  "mcp_params": {
+    "search_query": "relaxing music",
+    "name": "Square Voice Media Player"
+  }
+}
+```
+
+Remember: Use the exact device names from GetLiveContext. If this retry also fails, acknowledge the issue gracefully and suggest alternative approaches.

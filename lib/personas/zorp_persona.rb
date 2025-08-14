@@ -8,7 +8,8 @@ module Personas
 
     def available_tools
       # Only lighting and display control - TTS is handled by the voice pipeline
-      [::Tools::LightingTool, ::Tools::MarqeeDisplayTool]
+      # HassMcpTool provides fallback access to all Home Assistant functions
+      [::Tools::LightingTool, ::Tools::MarqeeDisplayTool, ::Tools::HassMcpTool]
     end
 
     def fallback_responses

@@ -160,19 +160,15 @@ module Services
         args.transform_keys(&:to_sym)
       end
 
-      def success_result(tool_call, result)
+      def success_result(_tool_call, result)
         {
-          tool_call_id: tool_call[:id] || tool_call['id'],
-          tool_name: tool_call[:name] || tool_call['name'],
           success: true,
           result: result.to_s
         }
       end
 
-      def error_result(tool_call, message)
+      def error_result(_tool_call, message)
         {
-          tool_call_id: tool_call[:id] || tool_call['id'],
-          tool_name: tool_call[:name] || tool_call['name'],
           success: false,
           error: message
         }

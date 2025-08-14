@@ -304,10 +304,28 @@ module Tools
             hex[2..3].to_i(16),
             hex[4..5].to_i(16)
           ]
+        else
+          # Handle color names
+          COLOR_NAMES[color.downcase]
         end
       when Array
         color if color.length == 3 && color.all? { |c| c.between?(0, 255) }
       end
     end
+
+    # Common color name mappings
+    COLOR_NAMES = {
+      'red' => [255, 0, 0],
+      'green' => [0, 255, 0],
+      'blue' => [0, 0, 255],
+      'yellow' => [255, 255, 0],
+      'purple' => [128, 0, 128],
+      'magenta' => [255, 0, 255],
+      'cyan' => [0, 255, 255],
+      'orange' => [255, 165, 0],
+      'pink' => [255, 192, 203],
+      'white' => [255, 255, 255],
+      'black' => [0, 0, 0]
+    }.freeze
   end
 end

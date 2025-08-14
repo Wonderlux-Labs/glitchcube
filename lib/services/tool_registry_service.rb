@@ -5,10 +5,10 @@ module Services
   class ToolRegistryService
     # Persona to tool mapping
     PERSONA_TOOLS = {
-      'buddy' => [::Tools::LightingTool],
-      'jax' => [::Tools::SpeechTool, ::Tools::LightingTool],
-      'lomi' => [::Tools::SpeechTool, ::Tools::MarqeeDisplayTool],
-      'zorp' => [::Tools::SpeechTool, ::Tools::LightingTool, ::Tools::MarqeeDisplayTool]
+      'buddy' => [::Tools::LightingTool, ::Tools::HassMcpTool],
+      'jax' => [::Tools::SpeechTool, ::Tools::LightingTool, ::Tools::HassMcpTool],
+      'lomi' => [::Tools::SpeechTool, ::Tools::MarqeeDisplayTool, ::Tools::HassMcpTool],
+      'zorp' => [::Tools::SpeechTool, ::Tools::LightingTool, ::Tools::MarqeeDisplayTool, ::Tools::HassMcpTool]
     }.freeze
 
     class << self

@@ -76,6 +76,33 @@ module Tools
         'home_automation'
       end
 
+      def available_tools
+        ['hass_mcp']
+      end
+
+      def prompt_description
+        'Execute Home Assistant commands through MCP protocol - supports lights, switches, scenes, media players, and more'
+      end
+
+      def tool_schemas
+        {
+          'hass_mcp' => {
+            'type' => 'object',
+            'properties' => {
+              'mcp_function' => {
+                'type' => 'string',
+                'description' => 'The MCP function to call (e.g., HassTurnOn, HassTurnOff, HassLightSet, GetLiveContext)'
+              },
+              'mcp_params' => {
+                'type' => 'object',
+                'description' => 'Parameters for the MCP function (varies by function)'
+              }
+            },
+            'required' => ['mcp_function']
+          }
+        }
+      end
+
       def tool_prompt
         <<~PROMPT
         Use the hass_mcp tool to control Home Assistant devices through MCP (Model Context Protocol).

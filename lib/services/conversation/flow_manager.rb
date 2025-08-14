@@ -54,21 +54,61 @@ module Services
         messages = @llm_manager.prepare_messages(conversation_history, system_prompt, message)
         @state_manager.record_message(session: session, role: 'user', content: message, persona: persona_instance.name)
 
-        llm_options = build_llm_options(context, session.session_id)
-        llm_response = @llm_manager.call_llm(messages: messages, llm_options: llm_options, session_id: session.session_id)
-
+        max_iterations = GlitchCube.config.tool_retry&.max_iterations || 2
+        iteration = 1
         last_tool_calls = []
-        if llm_response.tool_calls?
-          @logger.info('LLM response includes tool calls. Executing tools.', tagged: %i[conversation tools], session_id: session.session_id, tool_call_count: llm_response.tool_calls.count)
+        llm_response = nil
+
+        while iteration <= max_iterations
+          @logger.info("Starting tool calling iteration #{iteration}/#{max_iterations}", tagged: %i[conversation tools iteration], session_id: session.session_id)
+
+          # Build context for this iteration
+          iteration_context = build_iteration_context(context, iteration, max_iterations)
+          llm_options = build_llm_options(iteration_context, session.session_id)
+
+          # Make LLM call
+          llm_response = @llm_manager.call_llm(messages: messages, llm_options: llm_options, session_id: session.session_id)
+
+          # If no tool calls, we're done
+          unless llm_response.tool_calls?
+            @logger.info("No tool calls in iteration #{iteration}. Ending cycle.", tagged: %i[conversation tools], session_id: session.session_id)
+            break
+          end
+
+          @logger.info("Executing #{llm_response.tool_calls.count} tool calls in iteration #{iteration}", tagged: %i[conversation tools], session_id: session.session_id, tool_call_count: llm_response.tool_calls.count)
+
+          # Execute tools
           tool_execution_result = @tool_engine.execute_tool_calls(llm_response, session.session_id)
           tool_results = tool_execution_result[:tool_results]
           last_tool_calls = tool_execution_result[:last_tool_calls]
+          failed_tool_calls = tool_execution_result[:failed_tool_calls]
 
+          # Add LLM response and tool results to conversation
           messages << llm_response.message_data
           messages.concat(tool_results)
 
-          @logger.info('Making follow-up LLM call with tool results.', tagged: %i[conversation tools], session_id: session.session_id)
-          llm_response = @llm_manager.call_llm(messages: messages, llm_options: build_llm_options(context, session.session_id, with_tools: false), session_id: session.session_id)
+          # Check if we should continue to next iteration
+          if should_continue_iteration?(failed_tool_calls, iteration, max_iterations)
+            @logger.info("Tool failures detected in iteration #{iteration}. Continuing to iteration #{iteration + 1}", tagged: %i[conversation tools iteration], session_id: session.session_id, failed_count: failed_tool_calls.count)
+
+            # Add gentle MCP suggestion if this is the second-to-last iteration
+            if iteration == max_iterations - 1
+              add_mcp_suggestion_to_messages(messages, failed_tool_calls)
+            end
+
+            iteration += 1
+          else
+            @logger.info('No failures or max iterations reached. Ending tool calling cycle.', tagged: %i[conversation tools], session_id: session.session_id)
+            break
+          end
+        end
+
+        # Final response call if we ended on tool calls
+        if llm_response&.tool_calls?
+          @logger.info('Making final LLM call after tool iterations.', tagged: %i[conversation tools], session_id: session.session_id)
+          post_tool_context = context.dup
+          post_tool_context[:tools] = nil
+          llm_response = @llm_manager.call_llm(messages: messages, llm_options: build_llm_options(post_tool_context, session.session_id, with_tools: false), session_id: session.session_id)
         end
 
         [llm_response, last_tool_calls]
@@ -126,6 +166,93 @@ module Services
           tts_handled: false,
           voice_interaction: context[:voice_interaction] || false,
           error: nil
+        }
+      end
+
+      def should_continue_iteration?(failed_tool_calls, current_iteration, max_iterations)
+        return false if failed_tool_calls.empty?
+        return false if current_iteration >= max_iterations
+        return false unless GlitchCube.config.tool_retry&.enabled
+        return false unless GlitchCube.config.tool_retry&.use_mcp_fallback
+
+        # Only continue for Home Assistant related tools
+        failed_tool_calls.any? { |call| home_assistant_tool?(call[:function_name]) }
+      end
+
+      def build_iteration_context(context, iteration, max_iterations)
+        iteration_context = context.dup
+
+        # On the last iteration, add MCP tool to available tools
+        if iteration == max_iterations && GlitchCube.config.tool_retry&.use_mcp_fallback
+          @logger.debug('Adding MCP tool to context for final iteration', tagged: %i[conversation tools iteration])
+
+          # Get existing tools and add MCP tool schema
+          existing_tools = iteration_context[:tools] || []
+          mcp_tool_schema = build_mcp_tool_schema
+
+          # Only add if not already present
+          unless existing_tools.any? { |tool| tool.dig('function', 'name') == 'hass_mcp' }
+            iteration_context[:tools] = existing_tools + [mcp_tool_schema]
+          end
+        end
+
+        iteration_context
+      end
+
+      def add_mcp_suggestion_to_messages(messages, failed_tool_calls)
+        return if failed_tool_calls.empty?
+
+        suggestion_text = build_mcp_suggestion_text(failed_tool_calls)
+
+        messages << {
+          role: 'system',
+          content: suggestion_text
+        }
+
+        @logger.debug('Added MCP suggestion to conversation', tagged: %i[conversation tools mcp_suggestion])
+      end
+
+      def build_mcp_suggestion_text(failed_tool_calls)
+        first_failure = failed_tool_calls.first
+
+        "I notice some of your tool calls failed (#{first_failure[:error]}). " \
+          'You now have access to the hass_mcp tool which can directly interface with Home Assistant. ' \
+          'Consider using GetLiveContext first to see all available devices, then try the appropriate MCP function ' \
+          '(like HassTurnOn, HassLightSet, etc.) to accomplish your goal.'
+      end
+
+      def home_assistant_tool?(tool_name)
+        # Tools that interact with Home Assistant and could benefit from MCP fallback
+        ha_tools = %w[
+          set_light_state set_light_color set_light_brightness
+          turn_on_light turn_off_light
+          play_media pause_media set_volume
+          display_text show_notification
+        ]
+        ha_tools.include?(tool_name)
+      end
+
+      def build_mcp_tool_schema
+        {
+          'type' => 'function',
+          'function' => {
+            'name' => 'hass_mcp',
+            'description' => 'Execute Home Assistant commands through MCP protocol - supports lights, switches, scenes, media players, and more',
+            'parameters' => {
+              'type' => 'object',
+              'properties' => {
+                'mcp_function' => {
+                  'type' => 'string',
+                  'description' => 'The MCP function to call (e.g., HassTurnOn, HassTurnOff, HassLightSet, GetLiveContext)'
+                },
+                'mcp_params' => {
+                  'type' => 'object',
+                  'description' => 'Parameters for the MCP function (varies by function)'
+                }
+              },
+              'required' => ['mcp_function']
+            }
+          }
         }
       end
     end

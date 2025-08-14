@@ -15,6 +15,7 @@ module Services
 
         tool_results = []
         last_tool_calls = []
+        failed_tool_calls = []
 
         llm_response.tool_calls.each_with_index do |tool_call, index|
           function_call = llm_response.function_calls[index]
@@ -41,6 +42,16 @@ module Services
             # Check if tool execution failed (discovery failure, etc.)
             if result.is_a?(Hash) && result[:success] == false
               @logger.warn("Tool execution failed: #{result[:error]}", tagged: %i[conversation tools tool_failure], session_id: session_id, tool_name: function_name, error: result[:error])
+
+              # Store failed tool call for potential retry
+              unless function_name == 'hass_mcp' # Don't retry MCP tool failures
+                failed_tool_calls << {
+                  tool_call: tool_call,
+                  function_name: function_name,
+                  arguments: arguments,
+                  error: result[:error]
+                }
+              end
               # Still add to tool_results so LLM can see the failure and respond
             end
 
@@ -72,7 +83,13 @@ module Services
 
         duration_ms = ((Time.now - start_time) * 1000).round
         @logger.info("Finished tool execution cycle in #{duration_ms}ms", tagged: %i[conversation tools], session_id: session_id, duration_ms: duration_ms)
-        { tool_results: tool_results, last_tool_calls: last_tool_calls }
+
+        # Return results with info about failures for retry handling
+        {
+          tool_results: tool_results,
+          last_tool_calls: last_tool_calls,
+          failed_tool_calls: failed_tool_calls
+        }
       end
 
       private

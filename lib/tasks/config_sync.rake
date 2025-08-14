@@ -331,7 +331,7 @@ namespace :config do
     
     unless has_changes
       puts_colored('✅ No changes detected - files are in sync!', GREEN)
-      return
+      next
     end
     
     puts_colored('📊 Sync Analysis Results:', PURPLE)
@@ -387,10 +387,10 @@ namespace :config do
         execute_rsync('Resolving conflicts by pulling', pull_cmd)
       else
         puts_colored('❌ Sync cancelled for manual review', YELLOW)
-        return
+        next
       end
     else
-      return unless confirm_action('Continue with bidirectional sync?', true)
+      next unless confirm_action('Continue with bidirectional sync?', true)
       
       create_backup('before_bidirectional_sync')
       

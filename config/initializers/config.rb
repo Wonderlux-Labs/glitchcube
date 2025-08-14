@@ -90,6 +90,13 @@ module GlitchCube
       debug_mode: false,
       conversation_tracing_enabled: false,
 
+      # Tool Execution
+      tool_retry: {
+        enabled: true,
+        max_iterations: 2,
+        use_mcp_fallback: true
+      },
+
       # Personality System
       default_personality: 'buddy' # From .env.defaults
     }.freeze
@@ -154,6 +161,11 @@ module GlitchCube
         internal_token: ['INTERNAL_DEPLOYMENT_TOKEN'],
         hass_vm_host: ['HASS_VM_HOST'],
         hass_vm_user: ['HASS_VM_USER']
+      },
+      tool_retry: {
+        enabled: ['TOOL_RETRY_ENABLED'],
+        max_iterations: ['TOOL_MAX_ITERATIONS'],
+        use_mcp_fallback: ['TOOL_USE_MCP_FALLBACK']
       }
     }.freeze
 
