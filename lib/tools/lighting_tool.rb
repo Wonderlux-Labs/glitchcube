@@ -17,12 +17,12 @@ module Tools
     end
 
     def self.tool_prompt
-      'Control RGB lighting with set_light(), turn_off_light(), set_effect(). Main targets: cube (LED strips), cart (mobile LEDs), awtrix_mood_light (matrix ambient). Use "all" for everything.'
+      'Control RGB lighting with set_state(), get_state(), list_states(), list_effects(entity_id), set_effect(entity_id, effect). Main targets: cube (LED strips), cart (mobile LEDs), matrix (LED matrix). Use list_effects first to see available effects per light.'
     end
 
     # List of available tool methods for this class
     def self.available_tools
-      %w[set_state get_state list_states]
+      %w[set_state get_state list_states list_effects set_effect]
     end
 
     # Prompt description for LLM
@@ -39,8 +39,7 @@ module Tools
             'state' => { 'type' => 'string', 'enum' => %w[on off] },
             'target' => { 'type' => 'string', 'enum' => %w[cube cart voice_ring matrix indicators all] },
             'color' => { 'type' => 'string' },
-            'brightness' => { 'type' => 'integer', 'minimum' => 0, 'maximum' => 255 },
-            'effect' => { 'type' => 'string', 'enum' => %w[solid pulse rainbow strobe] }
+            'brightness' => { 'type' => 'integer', 'minimum' => 0, 'maximum' => 255 }
           },
           'required' => ['state']
         },
@@ -50,17 +49,30 @@ module Tools
             'target' => { 'type' => 'string', 'enum' => %w[cube cart voice_ring matrix indicators all] }
           }
         },
-        'list_states' => { 'type' => 'object', 'properties' => {} }
+        'list_states' => { 'type' => 'object', 'properties' => {} },
+        'list_effects' => {
+          'type' => 'object',
+          'properties' => {
+            'entity_id' => { 'type' => 'string' }
+          },
+          'required' => ['entity_id']
+        },
+        'set_effect' => {
+          'type' => 'object',
+          'properties' => {
+            'entity_id' => { 'type' => 'string' },
+            'effect' => { 'type' => 'string' }
+          },
+          'required' => %w[entity_id effect]
+        }
       }
     end
 
     # Main method for setting light state
-    def self.set_state(state:, target: 'all', color: nil, brightness: 150, effect: 'solid', **_kwargs)
+    def self.set_state(state:, target: 'all', color: nil, brightness: 150, **_kwargs)
       return turn_off(target: target) if state == 'off'
 
-      params = { target: target, color: color, brightness: brightness }
-      params[:pulse] = rand(5) if effect == 'pulse'
-      set_light(**params)
+      set_light(target: target, color: color, brightness: brightness)
     end
 
     # Get current state of lights
@@ -90,6 +102,40 @@ module Tools
       end
 
       format_response(true, 'All light states', states)
+    end
+
+    # List available effects for a specific light entity
+    def self.list_effects(entity_id:, **_kwargs)
+      state = get_ha_state(entity_id)
+      return format_response(false, "Entity #{entity_id} not found") unless state
+
+      effect_list = state.dig('attributes', 'effect_list')
+      return format_response(false, "No effects available for #{entity_id}") unless effect_list
+
+      format_response(true, "Available effects for #{entity_id}", { entity_id: entity_id, effects: effect_list })
+    rescue StandardError => e
+      format_response(false, "Failed to get effects for #{entity_id}: #{e.message}")
+    end
+
+    # Set effect for a specific light entity
+    def self.set_effect(entity_id:, effect:, **_kwargs)
+      # Validate the entity exists and supports effects
+      state = get_ha_state(entity_id)
+      return format_response(false, "Entity #{entity_id} not found") unless state
+
+      effect_list = state.dig('attributes', 'effect_list')
+      return format_response(false, "#{entity_id} does not support effects") unless effect_list
+      return format_response(false, "Effect '#{effect}' not available for #{entity_id}. Available: #{effect_list.join(', ')}") unless effect_list.include?(effect)
+
+      service_data = {
+        entity_id: entity_id,
+        effect: effect
+      }
+
+      result = call_ha_service('light', 'turn_on', service_data)
+      result.include?('✅') ? format_response(true, "Set #{entity_id} effect to #{effect}") : result
+    rescue StandardError => e
+      format_response(false, "Failed to set effect for #{entity_id}: #{e.message}")
     end
 
     # Set light color and brightness
