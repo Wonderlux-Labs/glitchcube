@@ -45,3 +45,4 @@ repeating_jobs_handler:
   class: "Jobs::RepeatingJobsHandler"
   queue: default
   description: "Execute miscellaneous repeating services (weather, health checks, battery monitoring)"
+  active: false

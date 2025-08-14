@@ -8,16 +8,7 @@ namespace :jobs do
     job_name = args[:job_name]
     
     if job_name.nil? || job_name.empty?
-      puts "Available jobs:"
-      puts "  memory_consolidation  - Consolidate and optimize memory storage"
-      puts "  personality_memory    - Extract memories from recent conversations" 
-      puts "  personal_summarizer   - Summarize cube's internal state"
-      puts "  interaction_summarizer - Summarize social dynamics"
-      puts "  event_memory_summarizer - Identify significant moments"
-      puts "  daily_summary         - Consolidate daily summaries"
-      puts ""
-      puts "Usage: rake jobs:run[job_name]"
-      puts "Example: rake jobs:run[personality_memory]"
+      puts "ERROR run with job name"
       exit
     end
 

@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-module Jobs
-  class DailySummaryJob
-    include Sidekiq::Job
+require_relative 'base_job'
 
+module Jobs
+  class DailySummaryJob < BaseJob
     sidekiq_options queue: 'summaries', retry: 3
 
     def perform

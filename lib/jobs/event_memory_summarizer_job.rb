@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-module Jobs
-  class EventMemorySummarizerJob
-    include Sidekiq::Job
+require_relative 'base_job'
 
+module Jobs
+  class EventMemorySummarizerJob < BaseJob
     sidekiq_options queue: 'summaries', retry: 3
 
     def perform

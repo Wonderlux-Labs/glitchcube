@@ -13,7 +13,7 @@ module Jobs
 
     # Provide easy access to logger for all jobs
     def logger
-      Services::Logging::SimpleLogger
+      ::Services::Logging::SimpleLogger
     end
   end
 end

@@ -267,32 +267,7 @@ if ENV['RACK_ENV'] == 'production'
   end
 end
 
-# Schedule background summarizer and memory jobs to run after startup (production only)
-if SidekiqConfig.available? && ENV['RACK_ENV'] == 'production'
-  Services::Logging::SimpleLogger.info('📅 Scheduling background jobs for startup...', tagged: %i[startup jobs])
-
-  startup_jobs = [
-    { job: Jobs::MemoryConsolidationJob, delay: 10, name: 'memory_consolidation' },
-    { job: Jobs::PersonalityMemoryJob, delay: 15, name: 'personality_memory' },
-    { job: Jobs::PersonalSummarizerJob, delay: 20, name: 'personal_summarizer' },
-    { job: Jobs::InteractionSummarizerJob, delay: 25, name: 'interaction_summarizer' },
-    { job: Jobs::EventMemorySummarizerJob, delay: 30, name: 'event_memory_summarizer' }
-  ]
-
-  startup_jobs.each do |job_info|
-    job_info[:job].perform_in(job_info[:delay])
-    Services::Logging::SimpleLogger.info("✅ Scheduled #{job_info[:name]} in #{job_info[:delay]} seconds", tagged: %i[startup jobs])
-  rescue StandardError => e
-    Services::Logging::SimpleLogger.error("❌ Failed to schedule #{job_info[:name]}: #{e.message}", tagged: %i[startup jobs error])
-  end
-else
-  reason = if SidekiqConfig.available?
-             'Development environment'
-           else
-             'Sidekiq not available'
-           end
-  Services::Logging::SimpleLogger.info("Background jobs not scheduled - #{reason}", tagged: %i[startup jobs])
-end
+# NOTE: Other startup jobs removed for testing - only host registration remains
 
 # Start the server when running directly (not via rackup)
 GlitchCubeApp.run! if __FILE__ == $PROGRAM_NAME

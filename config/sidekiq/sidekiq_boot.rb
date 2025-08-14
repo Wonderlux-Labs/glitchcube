@@ -23,6 +23,9 @@ puts "   Database: #{config['database']}"
 puts "   Username: #{config['username']}"
 puts "   Pool: #{config['pool']}"
 
+# Load Zeitwerk configuration BEFORE loading the app to ensure autoloading works
+require_relative '../initializers/01_zeitwerk'
+
 # Now load the main application - this loads all the autoloader and services
 require_relative '../../app'
 

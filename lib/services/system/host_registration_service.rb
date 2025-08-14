@@ -2,7 +2,6 @@
 
 require 'socket'
 require 'net/ping'
-require_relative '../logging/simple_logger'
 
 module Services
   module System
@@ -60,7 +59,7 @@ module Services
         # Test connectivity to Home Assistant
         ha_host = extract_host_from_url(GlitchCube.config.home_assistant.url)
         unless ping_host(ha_host)
-          Services::Logging::SimpleLogger.log_api_call(
+          Logging::SimpleLogger.log_api_call(
             service: 'host_registration',
             endpoint: 'ping_test',
             error: "Cannot reach Home Assistant at #{ha_host}"
@@ -83,7 +82,7 @@ module Services
             }
           )
 
-          Services::Logging::SimpleLogger.log_api_call(
+          Logging::SimpleLogger.log_api_call(
             service: 'host_registration',
             endpoint: 'register_ip',
             status: 200,
@@ -94,7 +93,7 @@ module Services
           puts "✅ Registered Glitch Cube at #{current_ip} with Home Assistant"
           true
         rescue HomeAssistantClient::Error => e
-          Services::Logging::SimpleLogger.log_api_call(
+          Logging::SimpleLogger.log_api_call(
             service: 'host_registration',
             endpoint: 'register_ip',
             error: "Failed to register IP: #{e.message}"
