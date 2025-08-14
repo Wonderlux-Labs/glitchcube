@@ -108,6 +108,12 @@ module Routes
                 # Map continue_conversation to end_conversation for backward compatibility
                 response_data[:end_conversation] = !response_data[:continue_conversation]
               end
+
+              # Log what we're actually sending back to Home Assistant for TTS
+              log.info('📢 TTS Callback Response',
+                       tagged: %i[conversation tts_callback],
+                       session_id: context[:session_id],
+                       response_data: response_data.inspect)
               # Log performance
               duration = ((Time.now - start_time) * 1000).round
               log.performance(

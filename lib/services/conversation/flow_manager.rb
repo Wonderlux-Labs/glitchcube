@@ -39,7 +39,7 @@ module Services
           final_result
         rescue StandardError => e
           # Delegate error handling to the centralized handler
-          @logger.log_error(error: e, message: 'Error during conversation processing', session_id: session.session_id, persona: persona_name)
+          @logger.log_error(error: e, message: 'Error during conversation processing', session_id: session.session_id, persona: persona_name, backtrace: e.backtrace)
           @error_handler.handle(e, session: session, message: message, persona: persona_name, context: context)
         end
       end

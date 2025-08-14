@@ -319,7 +319,7 @@ module Core
 
     def get_service_schema(domain, service)
       services = get_services
-      service_info = services.dig(domain, service)
+      service_info = services&.dig(domain, service)
 
       return nil unless service_info
 
