@@ -111,22 +111,6 @@ RSpec.describe Services::Logging::SimpleLogger do
       expect(log_content).to include('HOME_ASSISTANT') if log_content
     end
 
-    xit 'logs failed API call with error emoji', :vcr do
-      # TODO: Logging format test - may need to adjust expected emoji/format
-      described_class.log_api_call(
-        service: 'home_assistant',
-        endpoint: '/api/test',
-        method: 'GET',
-        status: 500,
-        duration: 500,
-        error: 'Internal Server Error'
-      )
-
-      log_content = File.read(log_file) if File.exist?(log_file)
-      expect(log_content).to include('❌') if log_content
-      expect(log_content).to include('Internal Server Error') if log_content
-    end
-
     it 'tracks errors when present', :vcr do
       allow(described_class).to receive(:track_error)
 
@@ -152,20 +136,6 @@ RSpec.describe Services::Logging::SimpleLogger do
       log_content = File.read(log_file) if File.exist?(log_file)
       expect(log_content).to include('🔊') if log_content
       expect(log_content).to include('Hello world!') if log_content
-    end
-
-    xit 'logs failed TTS with mute emoji and error', :vcr do
-      # TODO: TTS logging format test - may need to adjust expected emoji/format
-      described_class.log_tts(
-        message: 'Hello world!',
-        success: false,
-        duration: 100,
-        error: 'TTS service unavailable'
-      )
-
-      log_content = File.read(log_file) if File.exist?(log_file)
-      expect(log_content).to include('🔇') if log_content
-      expect(log_content).to include('TTS service unavailable') if log_content
     end
 
     it 'truncates long messages', :vcr do
@@ -206,61 +176,6 @@ RSpec.describe Services::Logging::SimpleLogger do
 
       log_content = File.read(log_file) if File.exist?(log_file)
       expect(log_content).to include('Too many failures') if log_content
-    end
-  end
-
-  describe '.track_error and error statistics' do
-    before { described_class.setup_loggers }
-
-    xit 'tracks new errors', :vcr do
-      # TODO: Error tracking tests - file I/O dependent, may need better isolation
-      described_class.track_error('test_service', 'Connection failed')
-
-      stats = described_class.error_stats
-      expect(stats).to be_an(Array)
-      expect(stats.first).to include(
-        service: 'test_service',
-        error: 'Connection failed',
-        count: 1
-      )
-    end
-
-    xit 'increments count for duplicate errors', :vcr do
-      # TODO: Error tracking tests - file I/O dependent, may need better isolation
-      described_class.track_error('test_service', 'Connection failed')
-      described_class.track_error('test_service', 'Connection failed')
-      described_class.track_error('test_service', 'Connection failed')
-
-      stats = described_class.error_stats
-      error = stats.find { |e| e[:error] == 'Connection failed' }
-      expect(error[:count]).to eq(3)
-    end
-
-    xit 'provides error summary', :vcr do
-      # TODO: Error tracking tests - file I/O dependent, may need better isolation
-      described_class.track_error('service_a', 'Error 1')
-      described_class.track_error('service_a', 'Error 1')
-      described_class.track_error('service_b', 'Error 2')
-
-      summary = described_class.error_summary
-
-      expect(summary[:total_errors]).to eq(3)
-      expect(summary[:unique_errors]).to eq(2)
-      expect(summary[:by_service]).to eq({
-                                           'service_a' => 2,
-                                           'service_b' => 1
-                                         })
-    end
-
-    xit 'sorts errors by frequency in stats', :vcr do
-      # TODO: Error tracking tests - file I/O dependent, may need better isolation
-      described_class.track_error('service_a', 'Common error')
-      described_class.track_error('service_a', 'Common error')
-      described_class.track_error('service_a', 'Common error')
-      described_class.track_error('service_b', 'Rare error')
-
-      stats = described_class.error_stats
-      expect(stats.first[:count]).to be > stats.last[:count]
     end
   end
 

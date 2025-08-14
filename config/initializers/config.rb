@@ -91,6 +91,7 @@ module GlitchCube
       conversation_tracing_enabled: false,
 
       # Tool Execution
+      tool_calling_pattern: :default, # :default or :back_to_hass
       tool_retry: {
         enabled: true,
         max_iterations: 2,
@@ -118,6 +119,7 @@ module GlitchCube
       self_healing_error_threshold: 'SELF_HEALING_ERROR_THRESHOLD',
       debug_mode: 'DEBUG',
       conversation_tracing_enabled: 'CONVERSATION_TRACING',
+      tool_calling_pattern: 'TOOL_CALLING_PATTERN',
       port: 'PORT',
       session_secret: 'SESSION_SECRET',
       default_personality: 'DEFAULT_PERSONALITY',
@@ -219,6 +221,8 @@ module GlitchCube
         value.to_i
       when Float
         value.to_f
+      when Symbol
+        value.to_sym
       else
         value
       end

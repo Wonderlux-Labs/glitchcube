@@ -1,0 +1,63 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: http://<HA_HOST>:8123/api/services/conversation/process?return_response
+    body:
+      encoding: UTF-8
+      base64_string: 'eyJ0ZXh0IjoiVHVybiBvbiB0aGUgbGl2aW5nIHJvb20gbGlnaHRzIn0=
+
+        '
+    headers:
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+      User-Agent:
+      - Ruby
+      Host:
+      - glitch.local:8123
+      Authorization:
+      - Bearer <TOKEN>
+      Content-Type:
+      - application/json
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Content-Type:
+      - application/json
+      Referrer-Policy:
+      - no-referrer
+      X-Content-Type-Options:
+      - nosniff
+      Server:
+      - ''
+      X-Frame-Options:
+      - SAMEORIGIN
+      Content-Length:
+      - '717'
+      Date:
+      - Thu, 14 Aug 2025 15:41:55 GMT
+    body:
+      encoding: ASCII-8BIT
+      base64_string: |
+        eyJjaGFuZ2VkX3N0YXRlcyI6W3siZW50aXR5X2lkIjoiY29udmVyc2F0aW9u
+        LmhvbWVfYXNzaXN0YW50Iiwic3RhdGUiOiIyMDI1LTA4LTE0VDE1OjQxOjU1
+        LjU1Mjg3MyswMDowMCIsImF0dHJpYnV0ZXMiOnsiZnJpZW5kbHlfbmFtZSI6
+        IkhvbWUgQXNzaXN0YW50Iiwic3VwcG9ydGVkX2ZlYXR1cmVzIjoxfSwibGFz
+        dF9jaGFuZ2VkIjoiMjAyNS0wOC0xNFQxNTo0MTo1NS41NTI5NzArMDA6MDAi
+        LCJsYXN0X3JlcG9ydGVkIjoiMjAyNS0wOC0xNFQxNTo0MTo1NS41NTI5NzAr
+        MDA6MDAiLCJsYXN0X3VwZGF0ZWQiOiIyMDI1LTA4LTE0VDE1OjQxOjU1LjU1
+        Mjk3MCswMDowMCIsImNvbnRleHQiOnsiaWQiOiIwMUsyTUtYQ1lZVFhFUVQw
+        UTJXRlNHSFJRNCIsInBhcmVudF9pZCI6bnVsbCwidXNlcl9pZCI6ImM5NWQz
+        NTAyM2M3MjQ3MzQ5NDYxYmYxZWZmMTVmNmI2In19XSwic2VydmljZV9yZXNw
+        b25zZSI6eyJyZXNwb25zZSI6eyJzcGVlY2giOnsicGxhaW4iOnsic3BlZWNo
+        IjoiU29ycnksIEkgY291bGRuJ3QgdW5kZXJzdGFuZCB0aGF0IiwiZXh0cmFf
+        ZGF0YSI6bnVsbH19LCJjYXJkIjp7fSwibGFuZ3VhZ2UiOiJlbiIsInJlc3Bv
+        bnNlX3R5cGUiOiJlcnJvciIsImRhdGEiOnsiY29kZSI6Im5vX3ZhbGlkX3Rh
+        cmdldHMifX0sImNvbnZlcnNhdGlvbl9pZCI6IjAxSzJNS1hDWjEwRzBXOUJB
+        OUQ5UDY0VlM4IiwiY29udGludWVfY29udmVyc2F0aW9uIjpmYWxzZX19
+  recorded_at: Thu, 14 Aug 2025 15:41:55 GMT
+recorded_with: VCR 6.3.1

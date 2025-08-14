@@ -44,6 +44,13 @@ module Services
 
             status = error.response[:status]
             case status
+            when 400
+              error_msg = error.respond_to?(:message) ? error.message : error.inspect
+              # Check if this looks like a JSON schema error that we could retry without schema
+              raise LLMService::JSONSchemaError, "JSON schema not supported (#{status}): #{error_msg}" if error_msg.to_s.downcase.include?('response_format') || error_msg.to_s.downcase.include?('json_schema')
+
+              raise LLMService::LLMError, "Bad request (#{status}): #{error_msg}"
+
             when 402
               raise LLMService::LLMError, 'Payment required - check your OpenRouter account balance'
             when 404
@@ -51,7 +58,8 @@ module Services
             when 429
               raise LLMService::RateLimitError, 'Rate limit exceeded'
             else
-              raise LLMService::LLMError, "API error (#{status}): #{error.message}"
+              error_msg = error.respond_to?(:message) ? error.message : error.inspect
+              raise LLMService::LLMError, "API error (#{status}): #{error_msg}"
             end
           end
         end

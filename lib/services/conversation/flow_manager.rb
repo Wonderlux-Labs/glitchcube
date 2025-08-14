@@ -66,8 +66,8 @@ module Services
           iteration_context = build_iteration_context(context, iteration, max_iterations)
           llm_options = build_llm_options(iteration_context, session.session_id)
 
-          # Make LLM call
-          llm_response = @llm_manager.call_llm(messages: messages, llm_options: llm_options, session_id: session.session_id)
+          # Make LLM call with schema retry logic
+          llm_response = call_llm_with_schema_retry(messages, llm_options, session.session_id)
 
           # If no tool calls, we're done
           unless llm_response.tool_calls?
@@ -108,7 +108,7 @@ module Services
           @logger.info('Making final LLM call after tool iterations.', tagged: %i[conversation tools], session_id: session.session_id)
           post_tool_context = context.dup
           post_tool_context[:tools] = nil
-          llm_response = @llm_manager.call_llm(messages: messages, llm_options: build_llm_options(post_tool_context, session.session_id, with_tools: false), session_id: session.session_id)
+          llm_response = call_llm_with_schema_retry(messages, build_llm_options(post_tool_context, session.session_id, with_tools: false), session.session_id)
         end
 
         [llm_response, last_tool_calls]
@@ -145,7 +145,7 @@ module Services
           options[:tools] = context[:tools]
           options[:tool_choice] = 'auto'
           options[:max_tokens] = context[:max_tokens] || GlitchCube.config.ai.max_tool_tokens
-        elsif (response_schema = @llm_manager.get_response_schema(context))
+        elsif (response_schema = @llm_manager.get_response_schema(context)) && Services::Llm::LLMService.supports_json_schema?(options[:model])
           options[:response_format] = Schemas::ConversationResponseSchema.to_openrouter_format(response_schema)
         end
 
@@ -254,6 +254,19 @@ module Services
             }
           }
         }
+      end
+
+      # Call LLM with retry logic for JSON schema errors
+      def call_llm_with_schema_retry(messages, llm_options, session_id)
+        @llm_manager.call_llm(messages: messages, llm_options: llm_options, session_id: session_id)
+      rescue Services::Llm::LLMService::JSONSchemaError => e
+        @logger.warn('JSON schema error, retrying without response_format', tagged: %i[conversation llm retry], session_id: session_id, error: e.message)
+
+        # Remove response_format and retry
+        retry_options = llm_options.dup
+        retry_options.delete(:response_format)
+
+        @llm_manager.call_llm(messages: messages, llm_options: retry_options, session_id: session_id)
       end
     end
   end

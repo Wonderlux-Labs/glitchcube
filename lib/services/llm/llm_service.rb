@@ -11,8 +11,23 @@ module Services
       class RateLimitError < LLMError; end
       class AuthenticationError < LLMError; end
       class ModelNotFoundError < LLMError; end
+      class JSONSchemaError < LLMError; end
+
+      # Get models that support JSON schema structured outputs from config file (memoized)
+      def self.json_schema_supported_models
+        @json_schema_supported_models ||= begin
+          config_path = File.join(GlitchCube.root, 'config', 'json_schema_supported_models.json')
+          models_data = JSON.parse(File.read(config_path))
+          models_data.map { |model| model['id'] }
+        end
+      end
 
       class << self
+        # Check if a model supports JSON schema structured outputs
+        def supports_json_schema?(model)
+          json_schema_supported_models.include?(model)
+        end
+
         # Simple completion with system prompt and user message
         def complete(system_prompt:, user_message:, model: nil, **)
           messages = [

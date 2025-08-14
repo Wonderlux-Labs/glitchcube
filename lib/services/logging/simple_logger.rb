@@ -211,8 +211,12 @@ module Services
         end
 
         def track_error(service, error_message)
-          ensure_error_tracker
-          @error_tracker.track(service, error_message)
+          @error_tracker ||= ErrorTracker.new
+          if @error_tracker.nil?
+            warn "⚠️  ErrorTracker failed to initialize - cannot track error: #{service}:#{error_message}"
+          else
+            @error_tracker.track(service, error_message)
+          end
         end
 
         def error_stats

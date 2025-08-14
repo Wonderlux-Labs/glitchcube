@@ -290,8 +290,12 @@ module Core
     public
 
     # Voice assistant
-    def process_voice_command(text)
-      call_service('conversation', 'process', { text: text })
+    def process_voice_command(text, agent_id: nil, conversation_id: nil, return_response: false)
+      params = { text: text }
+      params[:agent_id] = agent_id if agent_id
+      params[:conversation_id] = conversation_id if conversation_id
+
+      call_service('conversation', 'process', params, return_response: return_response)
     end
 
     # Music Assistant search

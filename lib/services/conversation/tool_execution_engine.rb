@@ -11,7 +11,23 @@ module Services
 
       def execute_tool_calls(llm_response, session_id)
         start_time = Time.now
-        @logger.info('Starting tool execution cycle', tagged: %i[conversation tools], session_id: session_id, tool_count: llm_response.tool_calls.count)
+        @logger.info('Starting tool execution cycle',
+                     tagged: %i[conversation tools],
+                     session_id: session_id,
+                     tool_count: llm_response.tool_calls.count,
+                     pattern: GlitchCube.config.tool_calling_pattern)
+
+        # Bifurcation point: Choose execution pattern
+        if GlitchCube.config.tool_calling_pattern == :back_to_hass
+          @logger.info('Using Home Assistant tool proxy for execution',
+                       tagged: %i[conversation tools hass_proxy],
+                       session_id: session_id)
+          return execute_via_home_assistant(llm_response, session_id)
+        end
+
+        @logger.debug('Using default tool execution pattern',
+                      tagged: %i[conversation tools default],
+                      session_id: session_id)
 
         tool_results = []
         last_tool_calls = []
@@ -93,6 +109,11 @@ module Services
       end
 
       private
+
+      def execute_via_home_assistant(llm_response, session_id)
+        proxy = HomeAssistantToolProxy.new(logger: @logger)
+        proxy.execute_via_hass(llm_response, session_id)
+      end
 
       def create_error_result(tool_call, function_name, error_message)
         {

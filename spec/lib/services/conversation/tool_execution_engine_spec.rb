@@ -236,4 +236,80 @@ RSpec.describe Services::Conversation::ToolExecutionEngine do
               hash_including(tagged: include(:conversation, :tools), duration_ms: Integer))
     end
   end
+
+  describe 'tool calling pattern bifurcation' do
+    let(:proxy_instance) { instance_double(Services::Conversation::HomeAssistantToolProxy) }
+    let(:proxy_result) do
+      {
+        tool_results: [{ tool_call_id: tool_call_id, role: 'tool', name: 'turn_on_light', content: '{"success": true}' }],
+        last_tool_calls: [{ tool_name: 'turn_on_light', arguments: {}, result: { success: true } }],
+        failed_tool_calls: []
+      }
+    end
+
+    context 'when tool_calling_pattern is :default' do
+      before do
+        allow(GlitchCube.config).to receive(:tool_calling_pattern).and_return(:default)
+      end
+
+      it 'uses the default tool execution path' do
+        result = subject.execute_tool_calls(llm_response, session_id)
+
+        expect(result).to have_key(:tool_results)
+        expect(Services::ToolExecutor).to have_received(:execute)
+      end
+
+      it 'logs the default pattern usage' do
+        subject.execute_tool_calls(llm_response, session_id)
+
+        expect(Services::Logging::SimpleLogger).to have_received(:debug)
+          .with('Using default tool execution pattern',
+                hash_including(tagged: %i[conversation tools default], session_id: session_id))
+      end
+    end
+
+    context 'when tool_calling_pattern is :back_to_hass' do
+      before do
+        allow(GlitchCube.config).to receive(:tool_calling_pattern).and_return(:back_to_hass)
+        allow(Services::Conversation::HomeAssistantToolProxy).to receive(:new).and_return(proxy_instance)
+        allow(proxy_instance).to receive(:execute_via_hass).and_return(proxy_result)
+      end
+
+      it 'uses the Home Assistant tool proxy' do
+        result = subject.execute_tool_calls(llm_response, session_id)
+
+        expect(Services::Conversation::HomeAssistantToolProxy).to have_received(:new)
+          .with(logger: anything)
+        expect(proxy_instance).to have_received(:execute_via_hass)
+          .with(llm_response, session_id)
+        expect(result).to eq(proxy_result)
+      end
+
+      it 'does not call the default ToolExecutor' do
+        subject.execute_tool_calls(llm_response, session_id)
+
+        expect(Services::ToolExecutor).not_to have_received(:execute)
+      end
+
+      it 'logs the Home Assistant proxy usage' do
+        subject.execute_tool_calls(llm_response, session_id)
+
+        expect(Services::Logging::SimpleLogger).to have_received(:info)
+          .with('Using Home Assistant tool proxy for execution',
+                hash_including(tagged: %i[conversation tools hass_proxy], session_id: session_id))
+      end
+
+      it 'logs the tool calling pattern in the initial log' do
+        subject.execute_tool_calls(llm_response, session_id)
+
+        expect(Services::Logging::SimpleLogger).to have_received(:info)
+          .with('Starting tool execution cycle',
+                hash_including(
+                  pattern: :back_to_hass,
+                  session_id: session_id,
+                  tool_count: 1
+                ))
+      end
+    end
+  end
 end
