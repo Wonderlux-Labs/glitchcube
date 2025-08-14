@@ -5,14 +5,37 @@ require_relative '../../lib/services/persona_state_service'
 require_relative '../../lib/personas/persona_factory'
 require_relative '../../lib/personas/base_persona'
 require_relative '../../lib/personas/buddy_persona'
+require_relative '../../lib/personas/jax_persona'
+require_relative '../../lib/personas/lomi_persona'
+require_relative '../../lib/personas/zorp_persona'
 
 RSpec.describe Services::PersonaStateService do
   include_context 'with_home_assistant_entities'
   include_context 'with_clean_redis'
 
+  let(:mock_redis) { instance_double(Redis) }
+  let(:mock_config) { double('Config', redis_url: 'redis://localhost:6379/0') }
+
   before do
     # Register personas for testing
     Personas::PersonaFactory.register_all
+
+    # Clear memoized instance variables to ensure clean state
+    Services::PersonaStateService.instance_variable_set(:@redis_client, nil)
+    Services::PersonaStateService.instance_variable_set(:@redis_available, nil)
+
+    # Mock GlitchCube.config to return a redis_url
+    allow(GlitchCube).to receive(:config).and_return(mock_config)
+
+    # Mock Redis client and make it available
+    allow(Redis).to receive(:new).and_return(mock_redis)
+    allow(mock_redis).to receive(:ping).and_return('PONG')
+    allow(mock_redis).to receive(:get).and_return(nil)
+    allow(mock_redis).to receive(:set).and_return(true)
+    allow(mock_redis).to receive(:incr).and_return(1)
+    allow(mock_redis).to receive(:expire).and_return(true)
+    allow(mock_redis).to receive(:del).and_return(1)
+    allow(mock_redis).to receive(:keys).and_return([])
 
     # Mock the logger to prevent noise
     allow(Services::Logging::SimpleLogger).to receive(:info)
@@ -27,8 +50,8 @@ RSpec.describe Services::PersonaStateService do
     end
 
     it 'returns the currently set persona' do
-      # Set a persona first
-      described_class.set_current_persona('jax')
+      # Mock Redis to return 'jax' when get is called
+      allow(mock_redis).to receive(:get).with('glitchcube:current_persona').and_return('jax')
 
       result = described_class.get_current_persona
       expect(result).to eq('jax')
@@ -45,7 +68,12 @@ RSpec.describe Services::PersonaStateService do
       expect(ha_client).to receive(:set_state).with(
         'input_text.current_persona',
         'jax',
-        hash_including(attributes: hash_including(friendly_name: 'Current AI Persona'))
+        hash_including(
+          attributes: hash_including(
+            friendly_name: 'Current AI Persona',
+            icon: 'mdi:robot'
+          )
+        )
       ).and_return(true)
 
       result = described_class.set_current_persona('jax')
@@ -65,6 +93,9 @@ RSpec.describe Services::PersonaStateService do
     end
 
     it 'persists the persona setting' do
+      # Set up Redis to return the persona after it's set
+      allow(mock_redis).to receive(:get).with('glitchcube:current_persona').and_return('jax')
+
       described_class.set_current_persona('jax')
 
       result = described_class.get_current_persona
@@ -80,8 +111,8 @@ RSpec.describe Services::PersonaStateService do
 
   describe '.sync_with_home_assistant' do
     it 'updates Home Assistant entity with current persona' do
-      # Set a persona first
-      described_class.set_current_persona('lomi', sync_with_ha: false)
+      # Mock Redis to return 'lomi' as current persona
+      allow(mock_redis).to receive(:get).with('glitchcube:current_persona').and_return('lomi')
 
       expect(ha_client).to receive(:set_state).with(
         'input_text.current_persona',
@@ -92,7 +123,7 @@ RSpec.describe Services::PersonaStateService do
             friendly_name: 'Current AI Persona'
           )
         )
-      )
+      ).and_return(true)
 
       expect(described_class.sync_with_home_assistant).to be true
     end
@@ -134,6 +165,9 @@ RSpec.describe Services::PersonaStateService do
       # Should sync the persona internally without triggering another HA call
       expect(ha_client).not_to receive(:set_state)
 
+      # Mock Redis to return 'jax' after the sync
+      allow(mock_redis).to receive(:get).with('glitchcube:current_persona').and_return('jax')
+
       described_class.sync_from_home_assistant
 
       # Verify the persona was updated
@@ -143,32 +177,42 @@ RSpec.describe Services::PersonaStateService do
 
   describe '.get_usage_stats' do
     it 'returns usage statistics as a hash' do
-      # Use personas to generate some stats
-      described_class.set_current_persona('buddy')
-      described_class.set_current_persona('jax')
-      described_class.set_current_persona('jax')  # jax used twice
+      # Mock Redis to return stats for personas
+      allow(mock_redis).to receive(:get).with('glitchcube:persona_stats:buddy').and_return('1')
+      allow(mock_redis).to receive(:get).with('glitchcube:persona_stats:jax').and_return('2')
+      allow(mock_redis).to receive(:get).with('glitchcube:persona_stats:lomi').and_return('0')
+      allow(mock_redis).to receive(:get).with('glitchcube:persona_stats:zorp').and_return('0')
 
       stats = described_class.get_usage_stats
 
       expect(stats).to be_a(Hash)
       expect(stats.keys).to include('buddy', 'jax')
+      expect(stats['buddy']).to eq(1)
+      expect(stats['jax']).to eq(2)
     end
 
     it 'handles the case when no stats are available' do
+      # Mock Redis to return '0' for all stats (which will be filtered out)
+      allow(mock_redis).to receive(:get).and_return('0')
+
       stats = described_class.get_usage_stats
       expect(stats).to be_a(Hash)
+      expect(stats).to be_empty
     end
   end
 
   describe '.clear_state!' do
     it 'clears persona state successfully' do
-      # Set some state first
-      described_class.set_current_persona('jax')
+      # Initially mock Redis to return 'jax'
+      allow(mock_redis).to receive(:get).with('glitchcube:current_persona').and_return('jax')
       expect(described_class.get_current_persona).to eq('jax')
 
       # Clear the state
       result = described_class.clear_state!
       expect(result).to be true
+
+      # After clearing, mock Redis to return nil (cleared)
+      allow(mock_redis).to receive(:get).with('glitchcube:current_persona').and_return(nil)
 
       # Verify state was cleared (should return to default)
       expect(described_class.get_current_persona).to eq('buddy')
