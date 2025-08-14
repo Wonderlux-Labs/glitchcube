@@ -224,36 +224,32 @@ namespace :backup do
 end
 
 namespace :deploy do
-  desc 'Push to production - commits local changes, pushes to GitHub, deploys to Mac Mini'
-  task :push, [:message] do |_t, args|
-    unless args[:message]
-      puts '❌ Error: Commit message required'
-      puts 'Usage: rake deploy:push["Your commit message"]'
-      puts 'Flow: Local → GitHub → Mac Mini (via SSH)'
-      exit 1
-    end
-
-    sh "./scripts/push-to-production.sh \"#{args[:message]}\""
-  end
-
-  desc 'Quick push to production with timestamp message'
-  task :quick do
-    timestamp = Time.now.strftime('%Y-%m-%d %H:%M')
-    sh "./scripts/push-to-production.sh \"Deploy at #{timestamp}\""
-  end
-
-  desc 'Manual pull from GitHub (run on Mac Mini)'
+  desc 'Deploy on Mac Mini - git pull, restart services'
   task :pull do
-    puts '📥 Manually pulling and deploying from GitHub...'
-    sh './scripts/pull-from-github.sh'
-  end
-
-  desc 'Check for updates (run on Mac Mini)'
-  task :check do
-    puts '🔍 Checking for updates from GitHub...'
-    sh './scripts/check-for-updates.sh' do |ok, res|
-      # Don't fail if exit code is 1 (no updates)
-      puts 'No updates available.' if !ok && res.exitstatus == 1
-    end
+    puts '🚀 Deploying on Mac Mini...'
+    puts '=========================='
+    
+    # Stop existing services
+    puts '🛑 Stopping services...'
+    system('pkill -f "ruby app.rb" || true')
+    system('pkill -f "sidekiq" || true')
+    sleep 2
+    
+    # Git pull
+    puts '📥 Pulling from GitHub...'
+    sh 'git fetch origin'
+    sh 'git reset --hard origin/main'
+    
+    # Bundle install 
+    puts '📦 Installing dependencies...'
+    sh 'bundle install --deployment --without development test'
+    
+    # Database migrations
+    puts '🗄️  Running migrations...'
+    sh 'RACK_ENV=production bundle exec rake db:migrate'
+    
+    # Start services
+    puts '🚀 Starting services...'
+    exec './bin/prod'
   end
 end

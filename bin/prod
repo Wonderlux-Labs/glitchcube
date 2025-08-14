@@ -46,6 +46,22 @@ echo "Sidekiq started with PID: $SIDEKIQ_PID"
 # Give Sidekiq a moment to start
 sleep 2
 
+# Clear old/stuck jobs from previous runs
+echo "🗑️  Clearing old Sidekiq jobs..."
+bundle exec ruby -r './config/environment' -e "
+require 'sidekiq/api'
+%w[default critical low summaries].each do |q|
+  size = Sidekiq::Queue.new(q).size
+  Sidekiq::Queue.new(q).clear
+  puts \"   Cleared #{q}: \#{size} jobs\" if size > 0
+end
+retry_size = Sidekiq::RetrySet.new.size
+Sidekiq::RetrySet.new.clear if retry_size > 0
+dead_size = Sidekiq::DeadSet.new.size  
+Sidekiq::DeadSet.new.clear if dead_size > 0
+puts '✅ Queue cleanup complete'
+"
+
 # Start the app in background
 echo "🚀 Starting app..."
 bundle exec ruby app.rb &
