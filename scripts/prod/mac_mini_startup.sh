@@ -157,6 +157,28 @@ if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
 else
     log "Git not available or not a git repository"
 fi
+
+# Clear application caches to prevent stale code issues (especially after Zeitwerk namespace changes)
+log_info "Clearing application caches..."
+if [ -d "tmp/cache" ]; then
+    rm -rf tmp/cache/*
+    log_success "Application cache cleared"
+else
+    log "No tmp/cache directory found - creating it"
+    mkdir -p tmp/cache
+fi
+
+# Clear any PID files and sockets
+if [ -d "tmp/pids" ]; then
+    rm -rf tmp/pids/*
+    log "PID files cleared"
+fi
+
+if [ -d "tmp/sockets" ]; then
+    rm -rf tmp/sockets/*
+    log "Socket files cleared"
+fi
+
 #
 # Load environment variables from .env.production if it exists
 if [ -f ".env.production" ]; then
