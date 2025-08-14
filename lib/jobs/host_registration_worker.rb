@@ -18,7 +18,7 @@ module Jobs
           tagged: %i[host_registration startup]
         )
 
-        success = Services::HostRegistrationService.register_with_retry_loop
+        success = Services::System::HostRegistrationService.register_with_retry_loop
 
         if success
           Services::Logging::SimpleLogger.info(
@@ -40,7 +40,7 @@ module Jobs
         )
 
         # This is the regular cron job - just register normally
-        success = Services::HostRegistrationService.register_with_home_assistant
+        success = Services::System::HostRegistrationService.register_with_home_assistant
 
         if success
           Services::Logging::SimpleLogger.debug(

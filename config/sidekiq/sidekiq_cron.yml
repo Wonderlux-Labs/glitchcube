@@ -6,7 +6,7 @@ memory_consolidation:
 
 host_registration:
   cron: "*/5 * * * *"  # Every 5 minutes
-  class: "HostRegistrationWorker"
+  class: "Jobs::HostRegistrationWorker"
   queue: default
   description: "Register Glitch Cube IP with Home Assistant for dynamic discovery"
 

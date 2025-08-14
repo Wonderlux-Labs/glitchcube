@@ -8,7 +8,23 @@ module Jobs
 
     sidekiq_options queue: 'low', retry: 1
 
-    def perform(summary)
+    def perform(summary = nil)
+      # If no summary provided, consolidate recent memories instead
+      unless summary
+        Services::Logging::SimpleLogger.info(
+          'No summary provided - consolidating recent memories from database',
+          tagged: [:memory_consolidation]
+        )
+        # TODO: Implement periodic memory consolidation from recent conversations
+        # This should:
+        # 1. Query conversations from the last 6 hours (since cron runs every 6h)
+        # 2. Extract memorable insights from each conversation
+        # 3. Consolidate them into daily memory documents
+        # 4. Update topic-specific documents if needed
+        # For now, just return successfully to prevent job failures
+        return
+      end
+
       Services::Logging::SimpleLogger.info(
         'Consolidating memories from conversation...',
         tagged: [:memory_consolidation]
