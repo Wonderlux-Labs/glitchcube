@@ -146,7 +146,8 @@ module Services
           # Check for the continue_conversation field in parsed JSON and coerce to a strict boolean
           [true, 'true', 1, '1'].include?(parsed_content[:continue_conversation])
         else
-          parsed_content.nil? && content.present?
+          # Safe default: if we can't parse the response, end the conversation
+          false
         end
       end
 

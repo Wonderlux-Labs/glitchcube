@@ -257,7 +257,7 @@ module Routes
         }
         # Check HA - but don't let it break everything
         begin
-          ha_client = HomeAssistantClient.new
+          ha_client = Core::HomeAssistantClient.new
           # Just check if we can initialize - don't call states yet
           response[:home_assistant] = true
           response[:ha_url] = ha_client.base_url || 'http://glitch.local:8123'

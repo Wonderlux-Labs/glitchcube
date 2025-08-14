@@ -55,7 +55,7 @@ RSpec.describe 'Conversation Continuation Logic', type: :integration do
         allow(Services::Llm::LLMService).to receive(:complete_with_messages)
           .and_return(OpenStruct.new(
                         response_text: "I'm not sure what you mean",
-                        continue_conversation?: nil,
+                        continue_conversation?: false,
                         cost: 0.001,
                         usage: { prompt_tokens: 10, completion_tokens: 10 },
                         model: 'test-model',

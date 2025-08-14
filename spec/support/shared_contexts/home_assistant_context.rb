@@ -85,28 +85,7 @@ module Services
     end
   end
 
-  module Conversation
-    class FlowManager
-      def initialize(*args); end
-
-      def process_conversation(*_args)
-        # This will be mocked in tests
-        {
-          response: 'Default response',
-          conversation_id: 'conv-123',
-          session_id: 'test-session',
-          persona: 'buddy',
-          model: 'test-model',
-          cost: 0.001,
-          tokens: { prompt_tokens: 10, completion_tokens: 15 },
-          continue_conversation: true,
-          tts_handled: false,
-          voice_interaction: false,
-          error: nil
-        }
-      end
-    end
-  end
+  # NOTE: FlowManager mock removed to allow integration tests to use real implementation
 end
 
 if defined?(RSpec)
@@ -309,6 +288,32 @@ if defined?(RSpec)
     end
   end
 
+  # Helper to create comprehensive messages mocks
+  def create_comprehensive_messages_mock
+    # Create a chainable mock that handles all ActiveRecord-like queries
+    mock = double('messages')
+    allow(mock).to receive(:count).and_return(0)
+    allow(mock).to receive(:last).and_return(nil)
+    allow(mock).to receive(:first).and_return(nil)
+    allow(mock).to receive(:empty?).and_return(true)
+    allow(mock).to receive(:sum).and_return(0.0)
+
+    # Create where result mock that can chain
+    where_result = double('where_result')
+    allow(where_result).to receive(:count).and_return(0)
+    allow(where_result).to receive(:not).and_return(double('not_result', pluck: []))
+
+    # Create order result mock
+    order_result = double('order_result')
+    allow(order_result).to receive(:first).and_return(nil)
+    allow(order_result).to receive(:last).and_return(nil)
+
+    allow(mock).to receive(:where).and_return(where_result)
+    allow(mock).to receive(:order).and_return(order_result)
+
+    mock
+  end
+
   RSpec.shared_context 'with_conversation_session' do
     let(:session_id) { 'test-session-123' }
     let(:conversation_context) do
@@ -320,19 +325,60 @@ if defined?(RSpec)
       }
     end
 
+    let(:mock_conversation) do
+      double('Conversation',
+             new_record?: false,
+             id: 123,
+             created_at: Time.now - 1.minute,
+             updated_at: Time.now - 1.minute,
+             started_at: Time.now - 1.minute,
+             message_count: 0,
+             total_cost: 0.0,
+             total_tokens: 0,
+             persona: 'buddy',
+             source: 'test')
+    end
+
     let(:mock_session) do
-      instance_double(ConversationSession,
-                      session_id: session_id,
-                      messages_for_llm: [],
-                      add_message: true,
-                      messages: double('messages', count: 0),
-                      created_at: Time.now - 1.minute,
-                      metadata: {})
+      double('ConversationSession',
+             session_id: session_id,
+             messages_for_llm: [],
+             add_message: true,
+             messages: create_comprehensive_messages_mock,
+             conversation: mock_conversation,
+             created_at: Time.now - 1.minute,
+             metadata: {})
     end
 
     before do
-      allow(ConversationSession).to receive(:find_or_create)
-        .with(session_id: session_id, context: anything)
+      # Use flexible matching for find_or_create - accept any parameter order and values
+      # Create a factory-like behavior for different session IDs
+      allow(ConversationSession).to receive(:find_or_create) do |args|
+        requested_session_id = args[:session_id] || args['session_id'] || session_id
+
+        # Create a mock session with the requested session_id
+        double('ConversationSession',
+               session_id: requested_session_id,
+               messages_for_llm: [],
+               add_message: true,
+               messages: create_comprehensive_messages_mock,
+               conversation: double('Conversation',
+                                    new_record?: false,
+                                    id: 123,
+                                    created_at: Time.now - 1.minute,
+                                    updated_at: Time.now - 1.minute,
+                                    started_at: Time.now - 1.minute,
+                                    message_count: 0,
+                                    total_cost: 0.0,
+                                    total_tokens: 0,
+                                    persona: 'buddy',
+                                    source: 'test'),
+               created_at: Time.now - 1.minute,
+               metadata: {})
+      end
+
+      # Also mock find for analytics tests
+      allow(ConversationSession).to receive(:find)
         .and_return(mock_session)
     end
   end

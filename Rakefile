@@ -1,6 +1,15 @@
 # frozen_string_literal: true
 
+# Load environment configuration first (sets RACK_ENV default)
+require_relative 'config/environment'
+
+require 'rake'
 require 'rspec/core/rake_task'
+
+# Set up database before loading sinatra-activerecord rake tasks
+require_relative 'config/database_config'
+configure_database!
+
 require 'sinatra/activerecord/rake'
 
 # Load custom rake tasks

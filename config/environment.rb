@@ -2,6 +2,9 @@
 
 # Centralized environment loader for GlitchCube
 
+# Set default environment if not specified
+ENV['RACK_ENV'] ||= 'development'
+
 # Load environment variables BEFORE anything else
 # Priority (lowest to highest): .env.defaults < .env.{environment} < .env < ENV vars
 # Dotenv.load uses reverse order - first file wins, so list from most to least specific

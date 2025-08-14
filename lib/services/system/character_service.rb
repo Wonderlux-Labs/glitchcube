@@ -87,7 +87,7 @@ module Services
           name: 'ZORP',
           description: 'The Slacker God - Divine party bro',
           tts_provider: :elevenlabs, # Use ElevenLabs as primary
-          voice: 'Josh', # ElevenLabs voice name (mapped to ID in HomeAssistantClient)
+          voice: 'Josh', # ElevenLabs voice name (mapped to ID in Core::HomeAssistantClient)
           language: 'en-US', # Not used by ElevenLabs but kept for consistency
           speed: 90, # Slow, drawn-out delivery
           volume: 0.7,

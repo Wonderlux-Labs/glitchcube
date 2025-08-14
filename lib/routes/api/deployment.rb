@@ -284,7 +284,7 @@ module Routes
 
       # Check Home Assistant status
       def self.check_home_assistant_status
-        ha_client = HomeAssistantClient.new
+        ha_client = Core::HomeAssistantClient.new
         states = ha_client.states
         {
           status: 'online',

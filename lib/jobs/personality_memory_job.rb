@@ -127,7 +127,7 @@ module Jobs
       # Try to get location and coordinates from Home Assistant
       return { display: 'Somewhere in the dust', coordinates: nil } unless GlitchCube.config.home_assistant.url
 
-      client = HomeAssistantClient.new
+      client = Core::HomeAssistantClient.new
 
       # Get location name
       all_states = client.states

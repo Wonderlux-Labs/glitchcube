@@ -16,7 +16,8 @@ module Services
           tags = normalize_tags(tagged)
 
           # Format: [timestamp] [LEVEL] [ENV] message #tag1 #tag2 (caller) key=value
-          line = "[#{timestamp}] [#{level.upcase}] [#{rack_env}] #{msg}"
+          colored_level = colorize_level(level)
+          line = "[#{timestamp}] [#{colored_level}] [#{rack_env}] #{msg}"
           line += " #{tags.map { |t| "##{t}" }.join(' ')}" unless tags.empty?
           line += " (#{caller_info})"
           line += " #{format_metadata(metadata)}" unless metadata.empty?
@@ -276,6 +277,25 @@ module Services
           return [] unless tagged
 
           Array(tagged).map(&:to_s).reject(&:empty?)
+        end
+
+        def colorize_level(level)
+          return level.upcase unless should_echo_to_screen?
+
+          case level
+          when :debug
+            "\e[90m#{level.upcase}\e[0m"  # Dark gray
+          when :info
+            "\e[36m#{level.upcase}\e[0m"   # Cyan
+          when :warn
+            "\e[33m#{level.upcase}\e[0m"   # Yellow
+          when :error
+            "\e[31m#{level.upcase}\e[0m"   # Red
+          when :fatal
+            "\e[35m#{level.upcase}\e[0m"   # Magenta
+          else
+            level.upcase
+          end
         end
 
         def format_metadata(metadata)

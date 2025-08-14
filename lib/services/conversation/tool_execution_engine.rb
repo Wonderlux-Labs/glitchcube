@@ -38,6 +38,12 @@ module Services
             result = results.first
             @logger.debug("Tool execution result for #{function_name}", tagged: %i[conversation tools], session_id: session_id, tool_name: function_name, result: result)
 
+            # Check if tool execution failed (discovery failure, etc.)
+            if result.is_a?(Hash) && result[:success] == false
+              @logger.warn("Tool execution failed: #{result[:error]}", tagged: %i[conversation tools tool_failure], session_id: session_id, tool_name: function_name, error: result[:error])
+              # Still add to tool_results so LLM can see the failure and respond
+            end
+
             # Store the last tool calls for context
             last_tool_calls << {
               tool_name: function_name,

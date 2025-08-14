@@ -188,7 +188,7 @@ RSpec.describe Services::Conversation::StateManager do
     context 'error handling' do
       before do
         # Mock an error scenario
-        allow(ConversationSession).to receive(:find_by_session_id)
+        allow(ConversationSession).to receive(:find)
           .and_raise(StandardError.new('Database connection failed'))
       end
 

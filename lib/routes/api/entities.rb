@@ -71,7 +71,7 @@ module Routes
           content_type :json
           begin
             # Get fresh entities from Home Assistant
-            home_assistant = HomeAssistantClient.new
+            home_assistant = Core::HomeAssistantClient.new
             entities = home_assistant.states
             # Organize by domain
             entities_by_domain = entities.group_by { |entity| entity['entity_id'].split('.').first }
@@ -106,7 +106,7 @@ module Routes
           domain = params[:domain]
           begin
             # Get entities from Home Assistant
-            home_assistant = HomeAssistantClient.new
+            home_assistant = Core::HomeAssistantClient.new
             all_entities = home_assistant.states
             # Filter by domain
             domain_entities = all_entities.select do |entity|
