@@ -249,6 +249,15 @@ module Services
             )
           end
 
+          raw_payload = {
+            messages: params[:messages],
+            model: params[:model],
+            **params[:extras]
+          }
+
+          Logging::SimpleLogger.error("RAW REQUEST THAT'S FAILING",
+                                      payload_json: raw_payload.to_json,
+                                      payload_size: raw_payload.to_json.bytesize)
           # Make the actual API call using the gem's signature:
           # complete(messages, model: 'model', extras: { all other params })
           response = client.complete(
