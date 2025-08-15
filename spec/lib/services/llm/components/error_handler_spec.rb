@@ -46,33 +46,32 @@ RSpec.describe Services::Llm::Components::ErrorHandler do
         faraday_error = Faraday::BadRequestError.new('the server responded with status 400')
         allow(faraday_error).to receive(:response).and_return(error_response)
 
-        # Expect the debug dump to be logged first
-        expect(Services::Logging::SimpleLogger).to receive(:debug).with(
+        # Allow logging calls so they don't interfere with the test
+        allow(Services::Logging::SimpleLogger).to receive(:debug)
+        allow(Services::Logging::SimpleLogger).to receive(:error)
+
+        # Should raise an LLMError using error.inspect as fallback
+        expect do
+          described_class.handle_error(faraday_error)
+        end.to raise_error(Services::Llm::LLMService::LLMError) do |error|
+          expect(error.message).to include('400')
+          expect(error.message).to include('Faraday::BadRequestError') # From error.inspect
+        end
+
+        # Verify the debug dump was called
+        expect(Services::Logging::SimpleLogger).to have_received(:debug).with(
           'RAW ERROR DUMP',
           tagged: %i[llm error_debug],
           raw_error_info: include('API Response: invalid json response')
         )
 
-        # Should still log the response body
-        expect(Services::Logging::SimpleLogger).to receive(:error).with(
+        # Verify the error response body was logged
+        expect(Services::Logging::SimpleLogger).to have_received(:error).with(
           'LLM API ERROR RESPONSE BODY',
           tagged: %i[llm error_response],
           status: 400,
           response_body: 'invalid json response'
         )
-
-        # Should raise an LLMError using error.inspect as fallback
-        expect do
-          described_class.handle_error(faraday_error)
-        end.to raise_error(Services::Llm::LLMService::LLMError)
-
-        # Verify the error message includes expected content
-        begin
-          described_class.handle_error(faraday_error)
-        rescue Services::Llm::LLMService::LLMError => e
-          expect(e.message).to include('400')
-          expect(e.message).to include('Faraday::BadRequestError') # From error.inspect
-        end
       end
     end
   end

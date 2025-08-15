@@ -171,26 +171,26 @@ module Services
       # @return [String] The response text
       def response_text
         if parsed_content.is_a?(Hash)
-          # Try to extract the actual response text from structured output
-          # Use standard 'response' field, fall back to 'text' for compatibility
-          text = parsed_content[:response] ||
-                 parsed_content[:text]
-
-          # Return the text if found (even if empty string)
-          return text unless text.nil?
-
-          # No text field found in structured response
-          # Return nil to indicate no textual response available
-          # This prevents raw JSON from being passed as response text
-          if defined?(Logging::SimpleLogger)
-            Logging::SimpleLogger.debug('No response/text field in structured output',
-                                        tagged: %i[llm_response structured],
-                                        parsed_keys: parsed_content.keys)
-          end
-          return nil
+          # Extract just the response field from JSON
+          return parsed_content[:response] || parsed_content[:text]
         end
 
-        # Non-JSON content is likely plain text response - return as-is
+        # Handle mixed format: "summary\n\n{json}"
+        if content.is_a?(String) && content.include?('{')
+          # Try to extract JSON from the end of the content
+          json_start = content.rindex('{')
+          if json_start
+            json_part = content[json_start..-1]
+            begin
+              parsed = JSON.parse(json_part)
+              return parsed['response'] if parsed.is_a?(Hash) && parsed['response']
+            rescue JSON::ParserError
+              # Fall through to return original content
+            end
+          end
+        end
+
+        # For non-JSON responses, return content as-is
         content
       end
 
@@ -286,12 +286,21 @@ module Services
         cleaned = @content.strip
         cleaned = cleaned.gsub(/^```json\s*/, '').gsub(/\s*```$/, '') if cleaned.include?('```')
 
-        # Only try to parse if it looks like JSON
-        return nil unless cleaned.start_with?('{') || cleaned.start_with?('[')
+        # First try parsing the cleaned content directly if it starts with JSON
+        if cleaned.start_with?('{') || cleaned.start_with?('[')
+          result = parse_json_safely(cleaned)
+          return result.is_a?(Hash) ? result.with_indifferent_access : result if result
+        end
 
-        # Parse and convert to indifferent hash
-        result = parse_json_safely(cleaned)
-        result.is_a?(Hash) ? result.with_indifferent_access : result
+        # If that fails, try to find JSON within the content
+        # Look for JSON object or array within the text
+        json_match = cleaned.match(/(\{.*\}|\[.*\])/m)
+        if json_match
+          result = parse_json_safely(json_match[1])
+          return result.is_a?(Hash) ? result.with_indifferent_access : result if result
+        end
+
+        nil
       end
 
       def parse_json_safely(str)
