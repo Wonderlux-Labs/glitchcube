@@ -5,7 +5,6 @@ module Helpers
   # This maintains backward compatibility while ensuring logs go to files
   module LogHelper
     def self.log(message, level = :info)
-      # Map LogHelper levels to SimpleLogger methods
       case level
       when :error
         Services::Logging::SimpleLogger.error(message, tagged: [:log_helper])
@@ -20,19 +19,33 @@ module Helpers
       end
     end
 
-    def self.error(message)
+    def self.handles_extra_args(message, context = nil)
+      return message unless context.present?
+
+      "#{message} | WARNING EXTRA ARGS PASSED #{context.inspect}"
+    end
+
+    def self.error(message, context = nil)
+      message = handles_extra_args(message, context) if context.present?
+
       Services::Logging::SimpleLogger.error(message, tagged: [:log_helper])
     end
 
-    def self.warning(message)
+    def self.warning(message, context = nil)
+      message = handles_extra_args(message, context) if context.present?
+
       Services::Logging::SimpleLogger.warn(message, tagged: [:log_helper])
     end
 
-    def self.success(message)
+    def self.success(message, context = nil)
+      message = handles_extra_args(message, context) if context.present?
+
       Services::Logging::SimpleLogger.info("✅ #{message}", tagged: %i[log_helper success])
     end
 
-    def self.debug(message)
+    def self.debug(message, context = nil)
+      message = handles_extra_args(message, context) if context.present?
+
       Services::Logging::SimpleLogger.debug(message, tagged: [:log_helper])
     end
 

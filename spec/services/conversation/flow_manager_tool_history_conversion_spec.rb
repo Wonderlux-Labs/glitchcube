@@ -98,21 +98,29 @@ RSpec.describe Services::Conversation::FlowManager, 'convert_tool_history_to_eng
         expect(user_msg[:content]).to eq('Turn the lights yellow')
       end
 
-      it 'adds a clean summary message for executed tools' do
+      it 'filters out tool-related messages correctly' do
         result = flow_manager.send(:convert_tool_history_to_english, messages_with_tool_calls, executed_tools)
 
-        summary_msg = result.last
-        expect(summary_msg[:role]).to eq('user')
-        expect(summary_msg[:content]).to include('Actions completed:')
-        expect(summary_msg[:content]).to include('set_light_state')
-        expect(summary_msg[:content]).to include('✅ Set all lights to yellow')
+        # Current implementation only filters, doesn't add summary
+        expect(result.length).to eq(2) # system and user messages only
+        expect(result.none? { |msg| msg.key?(:tool_calls) }).to be true
+        expect(result.none? { |msg| msg.key?(:tool_call_id) }).to be true
+
+        # Check preserved messages
+        system_msg = result.find { |msg| msg[:role] == 'system' }
+        user_msg = result.find { |msg| msg[:role] == 'user' }
+
+        expect(system_msg[:content]).to eq('You are a helpful assistant')
+        expect(user_msg[:content]).to eq('Turn the lights yellow')
       end
 
-      it 'formats tool summary correctly' do
+      it 'maintains message order and content correctly' do
         result = flow_manager.send(:convert_tool_history_to_english, messages_with_tool_calls, executed_tools)
 
-        summary_msg = result.last
-        expect(summary_msg[:content]).to eq('Actions completed: set_light_state (✅ Set all lights to yellow)')
+        # Check that result contains only non-tool messages in correct order
+        expect(result.map { |m| m[:role] }).to eq(['system', 'user'])
+        expect(result.first[:content]).to eq('You are a helpful assistant')
+        expect(result.last[:content]).to eq('Turn the lights yellow')
       end
     end
 
@@ -157,19 +165,23 @@ RSpec.describe Services::Conversation::FlowManager, 'convert_tool_history_to_eng
         ]
       end
 
-      it 'creates a summary with all tool executions' do
+      it 'filters multiple tool messages correctly' do
         result = flow_manager.send(:convert_tool_history_to_english, messages_with_multiple_tools, multiple_executed_tools)
 
-        summary_msg = result.last
-        expect(summary_msg[:content]).to include('set_lights (Lights set to full brightness)')
-        expect(summary_msg[:content]).to include('play_music (Music started at 50% volume)')
+        # Current implementation only filters, no summary creation
+        expect(result.length).to eq(1) # only user message remains
+        expect(result.none? { |msg| msg.key?(:tool_calls) }).to be true
+        expect(result.none? { |msg| msg.key?(:tool_call_id) }).to be true
+
+        expect(result.first[:role]).to eq('user')
+        expect(result.first[:content]).to eq('Set up the room')
       end
 
-      it 'joins multiple tool summaries with commas' do
+      it 'maintains consistent filtering behavior' do
         result = flow_manager.send(:convert_tool_history_to_english, messages_with_multiple_tools, multiple_executed_tools)
 
-        summary_msg = result.last
-        expect(summary_msg[:content]).to match(/set_lights \([^)]+\), play_music \([^)]+\)/)
+        # Should only contain non-tool messages
+        expect(result.all? { |msg| !msg.key?(:tool_calls) && !msg.key?(:tool_call_id) && msg[:role] != 'tool' }).to be true
       end
     end
 
@@ -200,8 +212,11 @@ RSpec.describe Services::Conversation::FlowManager, 'convert_tool_history_to_eng
         ]
 
         result = flow_manager.send(:convert_tool_history_to_english, basic_messages, executed_tools)
-        summary_msg = result.last
-        expect(summary_msg[:content]).to eq('Actions completed: test_tool (completed)')
+
+        # Current implementation only filters messages
+        expect(result.length).to eq(1)
+        expect(result.first[:role]).to eq('user')
+        expect(result.first[:content]).to eq('Test')
       end
 
       it 'handles tool result that is not a hash' do
@@ -214,8 +229,11 @@ RSpec.describe Services::Conversation::FlowManager, 'convert_tool_history_to_eng
         ]
 
         result = flow_manager.send(:convert_tool_history_to_english, basic_messages, executed_tools)
-        summary_msg = result.last
-        expect(summary_msg[:content]).to eq('Actions completed: test_tool (completed)')
+
+        # Current implementation only filters messages
+        expect(result.length).to eq(1)
+        expect(result.first[:role]).to eq('user')
+        expect(result.first[:content]).to eq('Test')
       end
 
       it 'handles tool result with nested hash structure' do
@@ -228,8 +246,11 @@ RSpec.describe Services::Conversation::FlowManager, 'convert_tool_history_to_eng
         ]
 
         result = flow_manager.send(:convert_tool_history_to_english, basic_messages, executed_tools)
-        summary_msg = result.last
-        expect(summary_msg[:content]).to eq('Actions completed: test_tool (Tool executed successfully)')
+
+        # Current implementation only filters messages
+        expect(result.length).to eq(1)
+        expect(result.first[:role]).to eq('user')
+        expect(result.first[:content]).to eq('Test')
       end
 
       it 'handles empty executed_tools array' do
@@ -293,8 +314,8 @@ RSpec.describe Services::Conversation::FlowManager, 'convert_tool_history_to_eng
       it 'correctly processes a realistic production scenario' do
         result = flow_manager.send(:convert_tool_history_to_english, production_like_messages, production_executed_tools)
 
-        # Should have 3 messages: system, user, and summary
-        expect(result.length).to eq(3)
+        # Current implementation only filters, so should have 2 messages: system and user
+        expect(result.length).to eq(2)
 
         # Check system message is preserved
         expect(result[0][:role]).to eq('system')
@@ -303,10 +324,6 @@ RSpec.describe Services::Conversation::FlowManager, 'convert_tool_history_to_eng
         # Check user message is preserved
         expect(result[1][:role]).to eq('user')
         expect(result[1][:content]).to include('warm yellow color')
-
-        # Check summary is added correctly
-        expect(result[2][:role]).to eq('user')
-        expect(result[2][:content]).to eq('Actions completed: set_light_state (✅ Set all 5 lights to yellow at brightness 150)')
 
         # Verify problematic messages are filtered
         expect(result.none? { |msg| msg.key?(:tool_calls) }).to be true

@@ -181,7 +181,7 @@ module Services
           model: @llm_manager.select_appropriate_model(context, session_id),
           temperature: context[:temperature] || GlitchCube.config.conversation&.temperature || 0.8,
           max_tokens: context[:max_tokens] || GlitchCube.config.conversation&.max_tokens || GlitchCube.config.ai.max_tokens,
-          timeout: context[:timeout] || GlitchCube.config.conversation&.completion_timeout || 20
+          timeout: context[:timeout] || GlitchCube.config.conversation&.completion_timeout || 60
         }
 
         # Simple logic: use tools if available, otherwise rely on prompt-based structured output

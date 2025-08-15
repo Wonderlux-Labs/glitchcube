@@ -98,6 +98,11 @@ module GlitchCube
         use_mcp_fallback: true
       },
 
+      # Conversation Configuration
+      conversation: {
+        completion_timeout: 60  # Default 60 seconds for LLM calls
+      },
+
       # Personality System
       default_personality: 'buddy' # From .env.defaults
     }.freeze
@@ -152,6 +157,9 @@ module GlitchCube
         max_tokens: ['AI_MAX_TOKENS'],
         max_tool_tokens: ['MAX_TOOL_TOKENS'],
         max_session_messages: ['MAX_SESSION_MESSAGES']
+      },
+      conversation: {
+        completion_timeout: ['COMPLETION_TIMEOUT']
       },
       gps: {
         device_tracker_entity: ['GPS_DEVICE_TRACKER_ENTITY']
