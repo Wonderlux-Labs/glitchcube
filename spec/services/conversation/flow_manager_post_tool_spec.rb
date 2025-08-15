@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 RSpec.describe Services::Conversation::FlowManager do
-  describe 'post-tool LLM call schema handling' do
+  describe 'post-tool LLM call tool clearing' do
     let(:flow_manager) { described_class.new }
     let(:context_with_tools) { { tools: [{ name: 'test_tool' }], session_id: 'test_session' } }
     let(:llm_manager) { instance_double(Services::Conversation::LlmInteractionManager) }
@@ -11,36 +11,22 @@ RSpec.describe Services::Conversation::FlowManager do
     before do
       allow(Services::Conversation::LlmInteractionManager).to receive(:new).and_return(llm_manager)
       allow(llm_manager).to receive(:select_appropriate_model).and_return('test-model')
-      allow(llm_manager).to receive(:get_response_schema)
-        .with(hash_including(tools: [{ name: 'test_tool' }]))
-        .and_return({ type: 'object' })
-      allow(llm_manager).to receive(:get_response_schema)
-        .with(hash_including(tools: nil))
-        .and_return(nil)
     end
 
-    it 'clears tools context for post-tool LLM call to avoid schema enforcement' do
-      # Test the build_llm_options method indirectly by checking schema behavior
+    it 'clears tools context for post-tool LLM call to avoid tool calling on final response' do
+      # Test the build_llm_options method with tools disabled
       original_context = context_with_tools.dup
 
-      # Call build_llm_options with tools (should have schema)
-      options_with_tools = flow_manager.send(:build_llm_options, original_context, 'test_session', with_tools: false)
+      # Call build_llm_options with tools disabled for final call
+      options_without_tools = flow_manager.send(:build_llm_options, original_context, 'test_session', with_tools: false)
 
-      # Should have response_format because get_response_schema returns a schema for tools context
-      expect(options_with_tools).to have_key(:response_format)
+      # Should NOT have tools or tool_choice since with_tools is false
+      expect(options_without_tools).not_to have_key(:tools)
+      expect(options_without_tools).not_to have_key(:tool_choice)
 
-      # Now test with cleared tools context
-      cleared_context = original_context.dup
-      cleared_context[:tools] = nil
-
-      options_without_tools = flow_manager.send(:build_llm_options, cleared_context, 'test_session', with_tools: false)
-
-      # Should NOT have response_format because get_response_schema returns nil for nil tools
-      expect(options_without_tools).not_to have_key(:response_format)
-
-      # Verify the schema methods were called with correct contexts
-      expect(llm_manager).to have_received(:get_response_schema).with(hash_including(tools: [{ name: 'test_tool' }]))
-      expect(llm_manager).to have_received(:get_response_schema).with(hash_including(tools: nil))
+      # Should have basic options
+      expect(options_without_tools[:model]).to eq('test-model')
+      expect(options_without_tools[:temperature]).to be_present
     end
 
     it 'preserves other context values when clearing tools' do
@@ -51,7 +37,7 @@ RSpec.describe Services::Conversation::FlowManager do
         temperature: 0.7
       }
 
-      # Simulate what happens in the flow_manager
+      # Simulate what happens in the flow_manager for final call
       post_tool_context = original_context.dup
       post_tool_context[:tools] = nil
 
@@ -75,39 +61,42 @@ RSpec.describe Services::Conversation::FlowManager do
       let(:context) { { tools: [{ name: 'lighting_control' }] } }
 
       it 'includes tools in options when with_tools is true' do
-        allow(llm_manager).to receive(:get_response_schema).and_return(nil)
-
         options = flow_manager.send(:build_llm_options, context, 'test_session', with_tools: true)
 
         expect(options[:tools]).to eq([{ name: 'lighting_control' }])
         expect(options[:tool_choice]).to eq('auto')
       end
 
-      it 'excludes tools and uses schema when with_tools is false' do
-        mock_schema = { type: 'object', properties: { response: { type: 'string' } } }
-        allow(llm_manager).to receive(:get_response_schema).and_return(mock_schema)
-
+      it 'excludes tools when with_tools is false (for final model call)' do
         options = flow_manager.send(:build_llm_options, context, 'test_session', with_tools: false)
 
         expect(options).not_to have_key(:tools)
         expect(options).not_to have_key(:tool_choice)
-        expect(options[:response_format]).to eq(
-          Schemas::ConversationResponseSchema.to_openrouter_format(mock_schema)
-        )
+        # No response_format - we use prompt-based structured output for final calls
+        expect(options).not_to have_key(:response_format)
       end
     end
 
     context 'when tools are nil' do
       let(:context) { { tools: nil } }
 
-      it 'does not include tools or schema' do
-        allow(llm_manager).to receive(:get_response_schema).and_return(nil)
-
+      it 'does not include tools regardless of with_tools parameter' do
         options = flow_manager.send(:build_llm_options, context, 'test_session', with_tools: false)
 
         expect(options).not_to have_key(:tools)
         expect(options).not_to have_key(:tool_choice)
         expect(options).not_to have_key(:response_format)
+      end
+    end
+
+    context 'when tools are empty array' do
+      let(:context) { { tools: [] } }
+
+      it 'does not include tools when array is empty' do
+        options = flow_manager.send(:build_llm_options, context, 'test_session', with_tools: true)
+
+        expect(options).not_to have_key(:tools)
+        expect(options).not_to have_key(:tool_choice)
       end
     end
   end

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ::Services
+module Services
   module Conversation
     # Handles different types of errors in conversations and generates appropriate responses
     class ErrorHandler

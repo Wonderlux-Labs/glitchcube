@@ -2,7 +2,7 @@
 
 require 'securerandom'
 
-module ::Services
+module Services
   module Conversation
     class FlowManager
       def initialize(error_handler: ErrorHandler, logger: Logging::SimpleLogger)
@@ -39,7 +39,7 @@ module ::Services
           final_result
         rescue StandardError => e
           # Delegate error handling to the centralized handler
-          @logger.log_error(error: e, message: 'Error during conversation processing', session_id: session.session_id, persona: persona_name, backtrace: e.backtrace)
+          @logger.log_error(error: e, message: 'Error during conversation processing', session_id: session.session_id, persona: persona_name)
           @error_handler.handle(e, session: session, message: message, persona: persona_name, context: context)
         end
       end
@@ -66,6 +66,27 @@ module ::Services
           iteration_context = build_iteration_context(context, iteration, max_iterations)
           llm_options = build_llm_options(iteration_context, session.session_id)
 
+          # Validate message structure before sending to OpenRouter
+          validate_message_structure(messages)
+
+          # Log EXACTLY what we're sending to OpenRouter for debugging
+          @logger.info("ITERATION #{iteration} - Sending messages to LLM",
+                       tagged: %i[conversation tools messages],
+                       session_id: session.session_id,
+                       model: llm_options[:model],
+                       message_count: messages.count,
+                       has_tools: !llm_options[:tools].nil?,
+                       messages_structure: messages.map do |m|
+                         {
+                           role: m[:role] || m['role'],
+                           has_content: !m[:content].nil? && !m['content'].nil?,
+                           content_preview: (m[:content] || m['content'] || '').to_s[0..50],
+                           has_tool_calls: m.key?(:tool_calls) || m.key?('tool_calls'),
+                           has_tool_call_id: m.key?(:tool_call_id) || m.key?('tool_call_id'),
+                           is_tool_role: m[:role] == 'tool' || m['role'] == 'tool'
+                         }
+                       end)
+
           # Make LLM call with schema retry logic
           llm_response = call_llm_with_schema_retry(messages, llm_options, session.session_id)
 
@@ -83,9 +104,24 @@ module ::Services
           last_tool_calls = tool_execution_result[:last_tool_calls]
           failed_tool_calls = tool_execution_result[:failed_tool_calls]
 
-          # Add LLM response and tool results to conversation
-          messages << llm_response.message_data
-          messages.concat(tool_results)
+          # Create ONE assistant message with proper content (intent + tool summary)
+          response_text = llm_response.response_text
+          intent = if response_text.nil? || response_text.strip.empty?
+                     "I'll help you with that"
+                   else
+                     response_text
+                   end
+
+          tool_summary = create_simple_tool_summary(last_tool_calls)
+
+          # Combine intent and summary in a single, always-valid message
+          content = "#{intent}. #{tool_summary}".strip
+          content = 'Working on your request...' if content.empty?
+
+          messages << {
+            role: 'assistant',
+            content: content
+          }
 
           # Check if we should continue to next iteration
           if should_continue_iteration?(failed_tool_calls, iteration, max_iterations)
@@ -106,9 +142,16 @@ module ::Services
         # Final response call if we ended on tool calls
         if llm_response&.tool_calls?
           @logger.info('Making final LLM call after tool iterations.', tagged: %i[conversation tools], session_id: session.session_id)
+
+          # Convert tool execution results to plain English for the final model
+          final_messages = convert_tool_history_to_english(messages, last_tool_calls)
+
+          # Validate final messages before sending to non-tool model
+          validate_message_structure(final_messages)
+
           post_tool_context = context.dup
           post_tool_context[:tools] = nil
-          llm_response = call_llm_with_schema_retry(messages, build_llm_options(post_tool_context, session.session_id, with_tools: false), session.session_id)
+          llm_response = call_llm_with_schema_retry(final_messages, build_llm_options(post_tool_context, session.session_id, with_tools: false), session.session_id)
         end
 
         [llm_response, last_tool_calls]
@@ -141,15 +184,19 @@ module ::Services
           timeout: context[:timeout] || GlitchCube.config.conversation&.completion_timeout || 20
         }
 
-        if with_tools && context[:tools].present? && !context[:tools].empty?
+        # Simple logic: use tools if available, otherwise rely on prompt-based structured output
+        use_tools = with_tools && context[:tools].present? && !context[:tools].empty?
+
+        if use_tools
+          @logger.debug('Using native tool calling', tagged: %i[conversation tools], tools_count: context[:tools].count)
           options[:tools] = context[:tools]
           options[:tool_choice] = 'auto'
           options[:max_tokens] = context[:max_tokens] || GlitchCube.config.ai.max_tool_tokens
-        elsif (response_schema = @llm_manager.get_response_schema(context)) && Services::Llm::LLMService.supports_json_schema?(options[:model])
-          options[:response_format] = Schemas::ConversationResponseSchema.to_openrouter_format(response_schema)
+        else
+          @logger.debug('Using prompt-based structured output', tagged: %i[conversation structured_output])
         end
 
-        @logger.debug('Built LLM options', tagged: %i[conversation llm], session_id: session_id, model: options[:model], temperature: options[:temperature], has_tools: !options[:tools].nil?, has_response_format: !options[:response_format].nil?)
+        @logger.debug('Built LLM options', tagged: %i[conversation llm], session_id: session_id, model: options[:model], temperature: options[:temperature], has_tools: !options[:tools].nil?)
         options
       end
 
@@ -259,7 +306,7 @@ module ::Services
       # Call LLM with retry logic for JSON schema errors
       def call_llm_with_schema_retry(messages, llm_options, session_id)
         @llm_manager.call_llm(messages: messages, llm_options: llm_options, session_id: session_id)
-      rescue Services::Llm::LLMService::JSONSchemaError => e
+      rescue ::Services::Llm::LLMService::JSONSchemaError => e
         @logger.warn('JSON schema error, retrying without response_format', tagged: %i[conversation llm retry], session_id: session_id, error: e.message)
 
         # Remove response_format and retry
@@ -267,6 +314,64 @@ module ::Services
         retry_options.delete(:response_format)
 
         @llm_manager.call_llm(messages: messages, llm_options: retry_options, session_id: session_id)
+      end
+
+      # Create simple tool summary for immediate addition to conversation
+      def create_simple_tool_summary(tool_calls)
+        return "I'm working on that..." if tool_calls.nil? || tool_calls.empty?
+
+        results = tool_calls.map do |tc|
+          result_text = if tc[:result].is_a?(Hash) && tc[:result][:result]
+                          tc[:result][:result]
+                        elsif tc[:result].is_a?(Hash) && tc[:result][:success] == false
+                          "failed: #{tc[:result][:error]}"
+                        else
+                          'completed'
+                        end
+          "#{tc[:tool_name]} (#{result_text})"
+        end
+
+        "Actions taken: #{results.join(', ')}"
+      end
+
+      # Validate message structure before sending to OpenRouter
+      def validate_message_structure(messages)
+        prev_role = nil
+
+        messages.each do |msg|
+          # No empty content (proper Ruby check)
+          content = msg[:content] || msg['content']
+          if content.nil? || content.to_s.strip.empty?
+            @logger.error('Empty content in message', tagged: %i[conversation validation], role: msg[:role] || msg['role'])
+            msg[:content] = 'Processing...'
+          end
+
+          # No consecutive assistant messages
+          current_role = msg[:role] || msg['role']
+          if current_role == 'assistant' && prev_role == 'assistant'
+            @logger.error('Consecutive assistant messages detected', tagged: %i[conversation validation])
+          end
+
+          prev_role = current_role
+        end
+      end
+
+      # Convert tool call history to simple text for non-tool models
+      def convert_tool_history_to_english(messages, executed_tools)
+        # Handle nil or empty inputs
+        return [] if messages.nil? || messages.empty?
+
+        executed_tools ||= []
+
+        # 1. Filter out the raw tool messages that cause 400 errors
+        # CRITICAL: Check both symbol AND string keys (OpenRouter returns string keys)
+        messages.reject do |msg|
+          msg.key?(:tool_calls) || msg.key?(:tool_call_id) ||
+            msg.key?('tool_calls') || msg.key?('tool_call_id') ||
+            msg['role'] == 'tool' || msg[:role] == 'tool'
+        end
+
+        # 2. Tool summary already added during iteration - no need to add again
       end
     end
   end

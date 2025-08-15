@@ -3,7 +3,7 @@
 require 'socket'
 require 'net/ping'
 
-module ::Services
+module Services
   module System
     class HostRegistrationService
       class Error < StandardError; end

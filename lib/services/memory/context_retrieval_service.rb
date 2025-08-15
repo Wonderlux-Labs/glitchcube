@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ::Services
+module Services
   module Memory
     class ContextRetrievalService
       CONTEXT_DIR = 'data/context_documents'

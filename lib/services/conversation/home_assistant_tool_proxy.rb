@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ::Services
+module Services
   module Conversation
     # Proxies tool execution through Home Assistant's conversation agent
     class HomeAssistantToolProxy

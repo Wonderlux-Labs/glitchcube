@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ::Services
+module Services
   module Admin
     class AdminPages
       def self.run_scenario_for_model(scenario, model, persona)

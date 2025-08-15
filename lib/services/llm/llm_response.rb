@@ -3,7 +3,7 @@
 require 'json'
 require 'active_support/core_ext/hash/indifferent_access'
 
-module ::Services
+module Services
   module Llm
     # The Response class represents the response received from the OpenRouter/LLM API.
     # It provides convenience methods to access structured outputs, tool calls, and parsed JSON responses.
@@ -62,9 +62,23 @@ module ::Services
       #
       # @return [Array, nil] Tool calls or nil if not found
       def tool_calls
-        # Convert tool calls to indifferent hashes for consistent access
-        @tool_calls ||= (message_data&.[](:tool_calls) || []).map do |tc|
-          tc.respond_to?(:with_indifferent_access) ? tc.with_indifferent_access : tc
+        @tool_calls ||= begin
+          # First check native format (message structure)
+          native_tool_calls = message_data&.[](:tool_calls)
+
+          # If native format exists, use it
+          if native_tool_calls.present?
+            native_tool_calls.map do |tc|
+              tc.respond_to?(:with_indifferent_access) ? tc.with_indifferent_access : tc
+            end
+          # Otherwise check JSON structured output format
+          elsif parsed_content.is_a?(Hash) && parsed_content[:tool_calls].present?
+            parsed_content[:tool_calls].map do |tc|
+              tc.respond_to?(:with_indifferent_access) ? tc.with_indifferent_access : tc
+            end
+          else
+            []
+          end
         end
       end
 
@@ -271,13 +285,6 @@ module ::Services
         # Clean content - handle markdown JSON blocks
         cleaned = @content.strip
         cleaned = cleaned.gsub(/^```json\s*/, '').gsub(/\s*```$/, '') if cleaned.include?('```')
-
-        # Handle case where LLM outputs reasoning text followed by JSON
-        # Look for JSON patterns in the content
-        json_match = cleaned.match(/(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})/m)
-        if json_match
-          cleaned = json_match[1]
-        end
 
         # Only try to parse if it looks like JSON
         return nil unless cleaned.start_with?('{') || cleaned.start_with?('[')

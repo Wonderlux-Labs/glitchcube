@@ -2,7 +2,7 @@
 
 # Simple service to get GPS coordinates from Home Assistant
 # All location context comes from LocationContextService
-module ::Services
+module Services
   module Gps
     class GPSTrackingService
       def initialize

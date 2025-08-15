@@ -2,7 +2,7 @@
 
 require 'active_support/core_ext/hash/indifferent_access'
 
-module ::Services
+module Services
   module Llm
     module Components
       class ResponseParser
@@ -55,24 +55,57 @@ module ::Services
             message = choice[:message]
             return nil unless message
 
+            # First check native format (message structure)
             tool_calls = message[:tool_calls]
-            return nil unless tool_calls.is_a?(Array)
+            if tool_calls.is_a?(Array) && tool_calls.any?
+              return tool_calls.filter_map do |tool_call|
+                tool_call = tool_call.with_indifferent_access if tool_call.is_a?(Hash)
+                func = tool_call[:function]
+                next unless func
 
-            tool_calls.filter_map do |tool_call|
-              tool_call = tool_call.with_indifferent_access if tool_call.is_a?(Hash)
-              func = tool_call[:function]
-              next unless func
+                func = func.with_indifferent_access if func.is_a?(Hash)
 
-              func = func.with_indifferent_access if func.is_a?(Hash)
-
-              {
-                id: tool_call[:id],
-                type: tool_call[:type] || 'function',
-                function: {
-                  name: func[:name],
-                  arguments: func[:arguments]
+                {
+                  id: tool_call[:id],
+                  type: tool_call[:type] || 'function',
+                  function: {
+                    name: func[:name],
+                    arguments: func[:arguments]
+                  }
                 }
-              }
+              end
+            end
+
+            # If no native tool calls, check if content is JSON with tool_calls
+            content = message[:content]
+            return nil unless content.is_a?(String)
+
+            begin
+              parsed_content = JSON.parse(content)
+              return nil unless parsed_content.is_a?(Hash)
+
+              parsed_content = parsed_content.with_indifferent_access
+              json_tool_calls = parsed_content[:tool_calls]
+              return nil unless json_tool_calls.is_a?(Array) && json_tool_calls.any?
+
+              json_tool_calls.filter_map do |tool_call|
+                tool_call = tool_call.with_indifferent_access if tool_call.is_a?(Hash)
+                func = tool_call[:function]
+                next unless func
+
+                func = func.with_indifferent_access if func.is_a?(Hash)
+
+                {
+                  id: tool_call[:id],
+                  type: tool_call[:type] || 'function',
+                  function: {
+                    name: func[:name],
+                    arguments: func[:arguments]
+                  }
+                }
+              end
+            rescue JSON::ParserError
+              nil
             end
           end
 

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ::Services
+module Services
   module Llm
     module Components
       # Centralized error handling for LLM operations

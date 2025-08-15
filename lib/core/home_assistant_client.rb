@@ -68,6 +68,31 @@ module Core
       []
     end
 
+    # Test connection to Home Assistant (for health checks)
+    def ping
+      # Bypass circuit breaker in test environment unless explicitly testing circuit breakers
+      return get('/api') if GlitchCube.config.test? && !GlitchCube.config.enable_circuit_breakers
+
+      Services::System::CircuitBreakerService.home_assistant_breaker.call do
+        response = get('/api')
+        response.is_a?(Hash) && response['message'] == 'API running.'
+      end
+    rescue Core::CircuitBreaker::CircuitOpenError => e
+      Services::Logging::SimpleLogger.warn(
+        'Home Assistant circuit breaker is open',
+        tagged: %i[home_assistant circuit_breaker ping],
+        error: e.message
+      )
+      false
+    rescue StandardError => e
+      Services::Logging::SimpleLogger.error(
+        'Home Assistant ping failed',
+        tagged: %i[home_assistant ping error],
+        error: e.message
+      )
+      false
+    end
+
     # Get specific entity state
     def state(entity_id)
       # Bypass circuit breaker in test environment unless explicitly testing circuit breakers

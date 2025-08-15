@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ::Services
+module Services
   module Conversation
     class StateManager
       def initialize(logger: Logging::SimpleLogger)

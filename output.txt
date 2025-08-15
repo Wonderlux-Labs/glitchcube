@@ -1,0 +1,4134 @@
+# frozen_string_literal: true
+
+module Services
+  module Conversation
+    # Handles different types of errors in conversations and generates appropriate responses
+    class ErrorHandler
+      RATE_LIMIT_RESPONSES = [
+        'I need to take a brief pause - too many thoughts at once! Can you give me a moment?',
+        'My circuits are a bit overloaded right now. Give me just a second to catch up!',
+        'Whoa, slow down there! I need a quick breather to process everything.'
+      ].freeze
+
+      LLM_ERROR_RESPONSES = [
+        "I'm having trouble connecting to my thoughts right now. Let me try again in a moment.",
+        'My mind seems to be wandering... Could you repeat that?',
+        "I'm experiencing a brief hiccup. Mind trying that again?"
+      ].freeze
+
+      TOOL_ERROR_RESPONSES = [
+        'I ran into a problem trying to use one of my tools. Maybe we can try a different approach?',
+        "It seems there was an issue with a tool I was using. Let's try that again.",
+        "I couldn't quite get that tool to work. How about we try something else?"
+      ].freeze
+
+      GENERAL_ERROR_RESPONSES = [
+        'Hmm, something went wonky there. Could you try asking that again?',
+        "I hit a small snag processing that. Let's give it another go!",
+        'Oops, I stumbled a bit there. Mind repeating that?'
+      ].freeze
+
+      def self.handle(error, session:, message:, persona:, context: {})
+        new(error, session, message, persona, context).handle
+      end
+
+      def initialize(error, session, message, persona, context)
+        @error = error
+        @session = session
+        @message = message
+        @persona = persona
+        @context = context
+      end
+
+      def handle
+        Logging::SimpleLogger.debug("Handling error of type: #{error.class.name}", tagged: %i[conversation error_handling])
+        Logging::SimpleLogger.debug("Error message: #{error.message}", tagged: %i[conversation error_handling])
+        Logging::SimpleLogger.debug("Error backtrace: #{error.backtrace&.first(3)&.join(', ')}", tagged: %i[conversation error_handling])
+
+        response = case error
+                   when Llm::LLMService::RateLimitError
+                     Logging::SimpleLogger.debug('Matched RateLimitError case', tagged: %i[conversation error_handling])
+                     handle_rate_limit
+                   when Conversation::Errors::ToolExecutionError
+                     Logging::SimpleLogger.debug('Matched ToolExecutionError case', tagged: %i[conversation error_handling])
+                     handle_tool_execution_error
+                   when Llm::LLMService::LLMError
+                     Logging::SimpleLogger.debug('Matched LLMError case', tagged: %i[conversation error_handling])
+                     handle_llm_error
+                   else
+                     Logging::SimpleLogger.debug('Matched general error case', tagged: %i[conversation error_handling])
+                     handle_general_error
+                   end
+
+        log_error
+        response
+      end
+
+      private
+
+      attr_reader :error, :session, :message, :persona, :context
+
+      def handle_rate_limit
+        response_text = RATE_LIMIT_RESPONSES.first  # Use first for consistent tests
+
+        record_error_response(response_text)
+
+        {
+          response: response_text,
+          persona: persona,
+          error: 'rate_limit',
+          retry_after: 30,
+          conversation_id: session&.session_id,
+          session_id: session&.session_id,
+          continue_conversation: false
+        }
+      end
+
+      def handle_llm_error
+        # Use persona-specific offline response for LLM errors
+        response_text = generate_offline_response
+
+        record_error_response(response_text)
+
+        {
+          response: response_text,
+          persona: persona,
+          error: 'llm_error',
+          fallback: true,
+          conversation_id: session&.session_id,
+          session_id: session&.session_id,
+          continue_conversation: false
+        }
+      end
+
+      def handle_tool_execution_error
+        response_text = TOOL_ERROR_RESPONSES.first # Use first for consistent tests
+        record_error_response(response_text)
+
+        {
+          response: response_text,
+          persona: persona,
+          error: 'tool_execution_error',
+          error_details: {
+            tool_name: error.tool_name,
+            original_error: error.original_error&.message
+          },
+          conversation_id: session&.session_id,
+          session_id: session&.session_id,
+          continue_conversation: false
+        }
+      end
+
+      def handle_general_error
+        response_text = GENERAL_ERROR_RESPONSES.first # Use first for consistent tests
+
+        record_error_response(response_text)
+
+        {
+          response: response_text,
+          persona: persona,
+          error: 'general_error',
+          conversation_id: session&.session_id,
+          session_id: session&.session_id,
+          continue_conversation: false
+        }
+      end
+
+      def record_error_response(response_text)
+        return unless session
+
+        session.add_message(
+          role: 'assistant',
+          content: response_text,
+          persona: persona
+        )
+      rescue StandardError => e
+        Logging::SimpleLogger.warn(
+          'Could not record error response',
+          tagged: %i[conversation error_recording],
+          error: e.message
+        )
+      end
+
+      def generate_offline_response
+        # Use the persona system for consistent offline responses
+
+        persona_instance = Personas::BasePersona.create(persona.to_s, context)
+        persona_instance.generate_offline_response(message)
+      rescue StandardError => e
+        Logging::SimpleLogger.warn(
+          'Could not generate persona-specific offline response, using fallback',
+          tagged: %i[conversation error_handling persona],
+          error: e.message,
+          persona: persona
+        )
+
+        # Fallback to generic response if persona system fails
+        "I'm currently offline but still operational with limited capabilities. How can I help?"
+      end
+
+      def log_error
+        # Log to SimpleLogger for debug visibility
+        Logging::SimpleLogger.error("Conversation error: #{error.class.name} - #{error.message}",
+                                    tagged: %i[conversation error],
+                                    error_class: error.class.name,
+                                    persona: persona,
+                                    session_id: session&.session_id)
+
+        # Also track in SimpleLogger for production monitoring
+        Logging::SimpleLogger.error(
+          'CONVERSATION_ERROR_TRACKING',
+          tagged: %i[conversation error_tracking],
+          service: 'ConversationModule',
+          error_message: error.message,
+          error_class: error.class.name
+        )
+      rescue StandardError => e
+        Logging::SimpleLogger.warn(
+          'Could not log error',
+          tagged: %i[conversation error_logging],
+          error: e.message
+        )
+      end
+    end
+  end
+end
+# frozen_string_literal: true
+
+module Services
+  module Conversation
+    module Errors
+      class ToolExecutionError < StandardError
+        attr_reader :tool_name, :original_error
+
+        def initialize(message, tool_name:, original_error: nil)
+          super(message)
+          @tool_name = tool_name
+          @original_error = original_error
+        end
+      end
+    end
+  end
+end
+# frozen_string_literal: true
+
+require 'securerandom'
+
+module Services
+  module Conversation
+    class FlowManager
+      def initialize(error_handler: ErrorHandler, logger: Logging::SimpleLogger)
+        @state_manager = StateManager.new
+        @history_manager = HistoryManager.new
+        @llm_manager = LlmInteractionManager.new(logger: logger)
+        @tool_engine = ToolExecutionEngine.new(logger: logger)
+        @response_processor = ResponseProcessor.new(logger: logger)
+        @error_handler = error_handler
+        @logger = logger
+      end
+
+      def process_conversation(message:, context: {}, persona: nil)
+        start_time = Time.now
+        persona_name = persona || context[:persona] || PersonaStateService.get_current_persona
+        persona_instance = Personas::BasePersona.create(persona_name, context)
+
+        context[:tools] ||= persona_instance.tool_schemas
+        context[:session_id] ||= SecureRandom.uuid
+
+        session = @state_manager.create_or_get_session(context[:session_id], context.merge(persona: persona_name))
+
+        @logger.info('Starting conversation processing', tagged: %i[conversation flow], session_id: session.session_id, persona: persona_name, has_message: !message.to_s.strip.empty?)
+
+        # Centralized error handling for the entire conversation flow
+        begin
+          llm_response, last_tool_calls = execute_conversation_cycle(message, session, persona_instance, context)
+          response_data = @response_processor.process_response(llm_response, persona_instance, session.session_id)
+
+          record_assistant_response(session, response_data, llm_response, last_tool_calls, persona_name, start_time)
+
+          final_result = build_final_result(response_data, session, llm_response, context, persona_name)
+          @logger.info('Conversation processing finished', tagged: %i[conversation flow], session_id: session.session_id, persona: persona_name, response_text_length: final_result[:response].to_s.length, duration_ms: ((Time.now - start_time) * 1000).round)
+          final_result
+        rescue StandardError => e
+          # Delegate error handling to the centralized handler
+          @logger.log_error(error: e, message: 'Error during conversation processing', session_id: session.session_id, persona: persona_name)
+          @error_handler.handle(e, session: session, message: message, persona: persona_name, context: context)
+        end
+      end
+
+      private
+
+      def execute_conversation_cycle(message, session, persona_instance, context)
+        context = Memory::ContextEnrichmentService.enrich(context)
+        system_prompt = @llm_manager.build_system_prompt(persona_instance, context)
+        conversation_history = @history_manager.get_conversation_context(session)
+
+        messages = @llm_manager.prepare_messages(conversation_history, system_prompt, message)
+        @state_manager.record_message(session: session, role: 'user', content: message, persona: persona_instance.name)
+
+        max_iterations = GlitchCube.config.tool_retry&.max_iterations || 2
+        iteration = 1
+        last_tool_calls = []
+        llm_response = nil
+
+        while iteration <= max_iterations
+          @logger.info("Starting tool calling iteration #{iteration}/#{max_iterations}", tagged: %i[conversation tools iteration], session_id: session.session_id)
+
+          # Build context for this iteration
+          iteration_context = build_iteration_context(context, iteration, max_iterations)
+          llm_options = build_llm_options(iteration_context, session.session_id)
+
+          # Make LLM call with schema retry logic
+          llm_response = call_llm_with_schema_retry(messages, llm_options, session.session_id)
+
+          # If no tool calls, we're done
+          unless llm_response.tool_calls?
+            @logger.info("No tool calls in iteration #{iteration}. Ending cycle.", tagged: %i[conversation tools], session_id: session.session_id)
+            break
+          end
+
+          @logger.info("Executing #{llm_response.tool_calls.count} tool calls in iteration #{iteration}", tagged: %i[conversation tools], session_id: session.session_id, tool_call_count: llm_response.tool_calls.count)
+
+          # Execute tools
+          tool_execution_result = @tool_engine.execute_tool_calls(llm_response, session.session_id)
+          tool_results = tool_execution_result[:tool_results]
+          last_tool_calls = tool_execution_result[:last_tool_calls]
+          failed_tool_calls = tool_execution_result[:failed_tool_calls]
+
+          # Add LLM response and tool results to conversation
+          messages << llm_response.message_data
+          messages.concat(tool_results)
+
+          # Check if we should continue to next iteration
+          if should_continue_iteration?(failed_tool_calls, iteration, max_iterations)
+            @logger.info("Tool failures detected in iteration #{iteration}. Continuing to iteration #{iteration + 1}", tagged: %i[conversation tools iteration], session_id: session.session_id, failed_count: failed_tool_calls.count)
+
+            # Add gentle MCP suggestion if this is the second-to-last iteration
+            if iteration == max_iterations - 1
+              add_mcp_suggestion_to_messages(messages, failed_tool_calls)
+            end
+
+            iteration += 1
+          else
+            @logger.info('No failures or max iterations reached. Ending tool calling cycle.', tagged: %i[conversation tools], session_id: session.session_id)
+            break
+          end
+        end
+
+        # Final response call if we ended on tool calls
+        if llm_response&.tool_calls?
+          @logger.info('Making final LLM call after tool iterations.', tagged: %i[conversation tools], session_id: session.session_id)
+          
+          # Convert tool execution results to plain English for the final model
+          final_messages = convert_tool_history_to_english(messages, last_tool_calls)
+          
+          post_tool_context = context.dup
+          post_tool_context[:tools] = nil
+          llm_response = call_llm_with_schema_retry(final_messages, build_llm_options(post_tool_context, session.session_id, with_tools: false), session.session_id)
+        end
+
+        [llm_response, last_tool_calls]
+      end
+
+      def record_assistant_response(session, response_data, llm_response, last_tool_calls, persona_name, start_time)
+        @state_manager.record_message(
+          session: session,
+          role: 'assistant',
+          content: response_data[:response],
+          persona: persona_name,
+          model_used: llm_response.model,
+          prompt_tokens: llm_response.usage[:prompt_tokens],
+          completion_tokens: llm_response.usage[:completion_tokens],
+          cost: llm_response.cost,
+          response_time_ms: ((Time.now - start_time) * 1000).round,
+          metadata: {
+            continue_conversation: response_data[:continue_conversation],
+            tool_calls: last_tool_calls,
+            inner_thoughts: response_data[:inner_thoughts]
+          }
+        )
+      end
+
+      def build_llm_options(context, session_id, with_tools: true)
+        options = {
+          model: @llm_manager.select_appropriate_model(context, session_id),
+          temperature: context[:temperature] || GlitchCube.config.conversation&.temperature || 0.8,
+          max_tokens: context[:max_tokens] || GlitchCube.config.conversation&.max_tokens || GlitchCube.config.ai.max_tokens,
+          timeout: context[:timeout] || GlitchCube.config.conversation&.completion_timeout || 20
+        }
+  
+
+        # Simple logic: use tools if available, otherwise rely on prompt-based structured output
+        use_tools = with_tools && context[:tools].present? && !context[:tools].empty?
+        
+        if use_tools
+          @logger.debug('Using native tool calling', tagged: [:conversation, :tools], tools_count: context[:tools].count)
+          options[:tools] = context[:tools]
+          options[:tool_choice] = 'auto'
+          options[:max_tokens] = context[:max_tokens] || GlitchCube.config.ai.max_tool_tokens
+        else
+          @logger.debug('Using prompt-based structured output', tagged: [:conversation, :structured_output])
+        end
+
+        @logger.debug('Built LLM options', tagged: %i[conversation llm], session_id: session_id, model: options[:model], temperature: options[:temperature], has_tools: !options[:tools].nil?)
+        options
+      end
+
+      def build_final_result(response_data, session, llm_response, context, persona_name)
+        {
+          response: response_data[:response],
+          conversation_id: session.session_id,
+          session_id: session.session_id,
+          persona: persona_name,
+          model: llm_response.model,
+          cost: llm_response.cost,
+          tokens: llm_response.usage,
+          continue_conversation: response_data[:continue_conversation],
+          tts_handled: false,
+          voice_interaction: context[:voice_interaction] || false,
+          error: nil
+        }
+      end
+
+      def should_continue_iteration?(failed_tool_calls, current_iteration, max_iterations)
+        return false if failed_tool_calls.empty?
+        return false if current_iteration >= max_iterations
+        return false unless GlitchCube.config.tool_retry&.enabled
+        return false unless GlitchCube.config.tool_retry&.use_mcp_fallback
+
+        # Only continue for Home Assistant related tools
+        failed_tool_calls.any? { |call| home_assistant_tool?(call[:function_name]) }
+      end
+
+      def build_iteration_context(context, iteration, max_iterations)
+        iteration_context = context.dup
+
+        # On the last iteration, add MCP tool to available tools
+        if iteration == max_iterations && GlitchCube.config.tool_retry&.use_mcp_fallback
+          @logger.debug('Adding MCP tool to context for final iteration', tagged: %i[conversation tools iteration])
+
+          # Get existing tools and add MCP tool schema
+          existing_tools = iteration_context[:tools] || []
+          mcp_tool_schema = build_mcp_tool_schema
+
+          # Only add if not already present
+          unless existing_tools.any? { |tool| tool.dig('function', 'name') == 'hass_mcp' }
+            iteration_context[:tools] = existing_tools + [mcp_tool_schema]
+          end
+        end
+
+        iteration_context
+      end
+
+      def add_mcp_suggestion_to_messages(messages, failed_tool_calls)
+        return if failed_tool_calls.empty?
+
+        suggestion_text = build_mcp_suggestion_text(failed_tool_calls)
+
+        messages << {
+          role: 'system',
+          content: suggestion_text
+        }
+
+        @logger.debug('Added MCP suggestion to conversation', tagged: %i[conversation tools mcp_suggestion])
+      end
+
+      def build_mcp_suggestion_text(failed_tool_calls)
+        first_failure = failed_tool_calls.first
+
+        "I notice some of your tool calls failed (#{first_failure[:error]}). " \
+          'You now have access to the hass_mcp tool which can directly interface with Home Assistant. ' \
+          'Consider using GetLiveContext first to see all available devices, then try the appropriate MCP function ' \
+          '(like HassTurnOn, HassLightSet, etc.) to accomplish your goal.'
+      end
+
+      def home_assistant_tool?(tool_name)
+        # Tools that interact with Home Assistant and could benefit from MCP fallback
+        ha_tools = %w[
+          set_light_state set_light_color set_light_brightness
+          turn_on_light turn_off_light
+          play_media pause_media set_volume
+          display_text show_notification
+        ]
+        ha_tools.include?(tool_name)
+      end
+
+      def build_mcp_tool_schema
+        {
+          'type' => 'function',
+          'function' => {
+            'name' => 'hass_mcp',
+            'description' => 'Execute Home Assistant commands through MCP protocol - supports lights, switches, scenes, media players, and more',
+            'parameters' => {
+              'type' => 'object',
+              'properties' => {
+                'mcp_function' => {
+                  'type' => 'string',
+                  'description' => 'The MCP function to call (e.g., HassTurnOn, HassTurnOff, HassLightSet, GetLiveContext)'
+                },
+                'mcp_params' => {
+                  'type' => 'object',
+                  'description' => 'Parameters for the MCP function (varies by function)'
+                }
+              },
+              'required' => ['mcp_function']
+            }
+          }
+        }
+      end
+
+      # Call LLM with retry logic for JSON schema errors
+      def call_llm_with_schema_retry(messages, llm_options, session_id)
+        @llm_manager.call_llm(messages: messages, llm_options: llm_options, session_id: session_id)
+      rescue ::Services::Llm::LLMService::JSONSchemaError => e
+        @logger.warn('JSON schema error, retrying without response_format', tagged: %i[conversation llm retry], session_id: session_id, error: e.message)
+
+        # Remove response_format and retry
+        retry_options = llm_options.dup
+        retry_options.delete(:response_format)
+
+        @llm_manager.call_llm(messages: messages, llm_options: retry_options, session_id: session_id)
+      end
+
+      # Convert tool call history to plain English descriptions for non-tool models
+      def convert_tool_history_to_english(messages, executed_tools)
+        # 1. Filter out the raw tool messages that cause 400 errors
+        clean_messages = messages.reject do |msg|
+          msg.key?(:tool_calls) || msg.key?(:tool_call_id)
+        end
+
+        # 2. Generate simple English summary for each executed tool
+        summaries = executed_tools.map do |tool|
+          tool_name = tool[:tool_name]
+          args = tool[:arguments]
+          result = tool[:result]
+
+          case tool_name
+          when 'set_state'
+            "I turned the lights #{args[:color] || 'on'}."
+          when 'display_text'
+            "I displayed '#{args[:text]}' on the screen."
+          when 'play_media'
+            "I started playing audio."
+          else
+            "I used the '#{tool_name}' tool."
+          end
+        end
+
+        # 3. Add single summary message if any tools were executed
+        if summaries.any?
+          summary_content = "#{summaries.join(' ')}"
+          clean_messages << { role: 'assistant', content: summary_content }
+        end
+
+        clean_messages
+      end
+    end
+  end
+end
+# frozen_string_literal: true
+
+module Services
+  module Conversation
+    class HistoryManager
+      def initialize(logger: Logging::SimpleLogger)
+        @logger = logger
+      end
+
+      def get_conversation_context(session, limit: nil)
+        @logger.debug('Retrieving conversation context', tagged: %i[conversation history], session_id: session.session_id, limit: limit || 'none')
+        llm_messages = session.messages_for_llm(limit: limit)
+        @logger.debug("Retrieved #{llm_messages.count} messages for LLM context", tagged: %i[conversation history], session_id: session.session_id)
+        llm_messages
+      end
+
+      # Saves a message to the conversation session
+      # This method delegates to the ConversationSession model for actual storage
+      def save_message(conversation_id, message_data)
+        @logger.info('Saving message to conversation', tagged: %i[conversation history], conversation_id: conversation_id, role: message_data[:role])
+
+        # Find or create the conversation session
+        session = ConversationSession.find_or_create(
+          session_id: conversation_id,
+          context: {}
+        )
+
+        # Add the message to the session
+        session.add_message(
+          role: message_data[:role],
+          content: message_data[:content],
+          metadata: message_data[:context] || {}
+        )
+
+        @logger.info('Message saved successfully', tagged: %i[conversation history], conversation_id: conversation_id, message_id: session.messages.last&.id)
+      rescue StandardError => e
+        @logger.log_error(error: e, message: 'Failed to save message', conversation_id: conversation_id, role: message_data[:role])
+        raise
+      end
+
+      def truncate_or_summarize_history(messages, session_id, max_messages: 50)
+        @logger.debug("Processing history truncation/summarization for session #{session_id}", tagged: %i[conversation history], session_id: session_id, message_count: messages.count, max_messages: max_messages)
+
+        # If messages are within limit, return as-is
+        if messages.count <= max_messages
+          @logger.debug("Message count (#{messages.count}) within limit (#{max_messages}), no truncation needed", tagged: %i[conversation history], session_id: session_id)
+          return messages
+        end
+
+        # Calculate how many messages to keep recent vs summarize
+        recent_messages_to_keep = max_messages / 2 # Keep recent half
+        messages_to_summarize_count = messages.count - recent_messages_to_keep
+
+        @logger.info('Truncating conversation history', tagged: %i[conversation history], session_id: session_id,
+                                                        total_messages: messages.count,
+                                                        messages_to_summarize: messages_to_summarize_count,
+                                                        recent_messages_to_keep: recent_messages_to_keep)
+
+        # Split messages into groups
+        messages_to_summarize = messages.first(messages_to_summarize_count)
+        recent_messages = messages.last(recent_messages_to_keep)
+
+        # Generate summary of older messages
+        summary = generate_conversation_summary(messages_to_summarize, session_id)
+
+        # Create summary message
+        summary_message = {
+          role: 'system',
+          content: "[Conversation Summary] #{summary}",
+          timestamp: messages_to_summarize.last&.fetch(:timestamp, Time.now.iso8601)
+        }
+
+        # Return summary + recent messages
+        truncated_messages = [summary_message] + recent_messages
+
+        @logger.info('Conversation history truncated successfully', tagged: %i[conversation history], session_id: session_id,
+                                                                    original_count: messages.count,
+                                                                    truncated_count: truncated_messages.count)
+
+        truncated_messages
+      end
+
+      private
+
+      # Generate a concise summary of conversation messages
+      def generate_conversation_summary(messages, session_id)
+        return 'Previous conversation occurred but no messages to summarize.' if messages.empty?
+
+        # Extract key information from messages
+        user_messages = messages.select { |msg| msg[:role] == 'user' }
+        assistant_messages = messages.select { |msg| msg[:role] == 'assistant' }
+
+        # Create a concise summary
+        topics_mentioned = extract_topics_from_messages(messages)
+
+        summary_parts = []
+        summary_parts << "Previous conversation with #{user_messages.count} user messages and #{assistant_messages.count} responses"
+
+        if topics_mentioned.any?
+          summary_parts << "Topics discussed: #{topics_mentioned.join(', ')}"
+        end
+
+        # Include timestamp range if available
+        first_timestamp = messages.first&.created_at
+        last_timestamp = messages.last&.created_at
+
+        if first_timestamp && last_timestamp
+          summary_parts << "Time range: #{format_timestamp_for_summary(first_timestamp)} to #{format_timestamp_for_summary(last_timestamp)}"
+        end
+
+        summary = "#{summary_parts.join('. ')}."
+
+        @logger.debug('Generated conversation summary', tagged: %i[conversation history summary], session_id: session_id,
+                                                        summary_length: summary.length,
+                                                        topics_count: topics_mentioned.count)
+
+        summary
+      end
+
+      # Extract potential topics from message content
+      def extract_topics_from_messages(messages)
+        topics = Set.new
+
+        messages.each do |message|
+          content = message[:content]&.downcase || ''
+
+          # Look for common nouns and topic indicators
+          # This is a simple keyword-based approach - could be enhanced with NLP
+          topic_keywords = %w[
+            art music installation light color sound
+            movement sensor battery weather time space
+            interaction experience emotion creativity technology
+          ]
+
+          topic_keywords.each do |keyword|
+            topics.add(keyword) if content.include?(keyword)
+          end
+
+          # Look for questions (topics of inquiry)
+          next unless content.include?('?')
+
+          # Extract simple question topics
+          question_indicators = %w[what how when where why who]
+          question_indicators.each do |indicator|
+            if content.include?(indicator)
+              topics.add("#{indicator} questions")
+              break
+            end
+          end
+        end
+
+        topics.to_a.first(5) # Limit to top 5 topics to keep summary concise
+      end
+
+      # Format timestamp for summary display
+      def format_timestamp_for_summary(timestamp)
+        return 'unknown time' unless timestamp
+
+        begin
+          time = timestamp.is_a?(String) ? Time.parse(timestamp) : timestamp
+          time.strftime('%H:%M')
+        rescue StandardError
+          'unknown time'
+        end
+      end
+    end
+  end
+end
+# frozen_string_literal: true
+
+module Services
+  module Conversation
+    # Proxies tool execution through Home Assistant's conversation agent
+    class HomeAssistantToolProxy
+      def initialize(ha_client: Core::HomeAssistantClient.new, logger: Logging::SimpleLogger)
+        @ha_client = ha_client
+        @logger = logger
+      end
+
+      def execute_via_hass(llm_response, session_id)
+        start_time = Time.now
+        @logger.info('🏠 Starting UNIFIED tool execution via Home Assistant Claude agent',
+                     tagged: %i[conversation tools hass_proxy unified],
+                     session_id: session_id,
+                     tool_count: llm_response.tool_calls.count,
+                     architecture: 'back_to_hass')
+
+        # Format ALL tool calls as single natural language request
+        formatted_request = format_tool_calls_as_text(llm_response)
+
+        @logger.info('📤 Sending unified tool request to HA Claude agent',
+                     tagged: %i[conversation tools hass_proxy unified],
+                     session_id: session_id,
+                     formatted_request: formatted_request,
+                     requested_tools: llm_response.tool_calls.map { |tc| tc[:function][:name] })
+
+        begin
+          # Send to Home Assistant Claude conversation agent
+          agent_id = 'conversation.claude_conversation'
+
+          @logger.info("🤖 Using HA Claude agent: #{agent_id}",
+                       tagged: %i[conversation tools hass_proxy unified],
+                       session_id: session_id)
+
+          ha_response = @ha_client.process_voice_command(
+            formatted_request,
+            agent_id: agent_id,
+            conversation_id: session_id,
+            return_response: true
+          )
+
+          @logger.info('✅ Successfully received response from HA Claude agent',
+                       tagged: %i[conversation tools hass_proxy unified],
+                       session_id: session_id)
+
+          # 🚨 COMPREHENSIVE LOGGING OF ENTIRE HA RESPONSE STRUCTURE
+          @logger.info('📊 COMPLETE HA RESPONSE ANALYSIS',
+                       tagged: %i[conversation tools hass_proxy response_analysis],
+                       session_id: session_id,
+                       response_class: ha_response.class.name,
+                       response_full_inspect: ha_response.inspect,
+                       response_size_bytes: ha_response.to_s.bytesize)
+
+          if ha_response.is_a?(Hash)
+            @logger.info('📋 HA RESPONSE HASH STRUCTURE',
+                         tagged: %i[conversation tools hass_proxy response_analysis],
+                         session_id: session_id,
+                         top_level_keys: ha_response.keys,
+                         response_key_exists: ha_response.key?('response'),
+                         response_content: ha_response['response']&.inspect)
+
+            if ha_response['response'].is_a?(Hash)
+              @logger.info('🎯 HA RESPONSE NESTED STRUCTURE',
+                           tagged: %i[conversation tools hass_proxy response_analysis],
+                           session_id: session_id,
+                           response_keys: ha_response['response'].keys,
+                           speech_exists: ha_response.dig('response', 'speech')&.inspect,
+                           text_exists: ha_response.dig('response', 'text')&.inspect)
+            end
+          end
+
+          # Extract the complete response text from HA Claude agent
+          response_text = extract_response_text(ha_response)
+
+          @logger.info('📝 EXTRACTED RESPONSE TEXT FROM HA CLAUDE AGENT',
+                       tagged: %i[conversation tools hass_proxy unified extracted],
+                       session_id: session_id,
+                       response_text_length: response_text.length,
+                       response_text_preview: response_text[0..200],
+                       response_text_full: response_text)
+
+          # Create SINGLE unified tool result containing HA Claude agent's complete response
+          unified_result = create_unified_tool_result(response_text, llm_response, session_id)
+
+          duration_ms = ((Time.now - start_time) * 1000).round
+          @logger.info("🏁 Finished UNIFIED HA tool execution in #{duration_ms}ms",
+                       tagged: %i[conversation tools hass_proxy unified complete],
+                       session_id: session_id,
+                       duration_ms: duration_ms,
+                       unified_response_created: true)
+
+          unified_result
+        rescue StandardError => e
+          puts '🚨 ACTUAL ERROR IN HOME ASSISTANT TOOL PROXY:'
+          puts "  Error class: #{e.class}"
+          puts "  Error message: #{e.message}"
+          puts '  Backtrace:'
+          puts e.backtrace.first(10).map { |line| "    #{line}" }.join("\n")
+
+          @logger.log_error(error: e,
+                            message: '❌ Error in Home Assistant tool proxy',
+                            session_id: session_id,
+                            architecture: 'back_to_hass')
+
+          # Fallback to error results
+          create_error_results(llm_response, e.message)
+        end
+      end
+
+      private
+
+      def format_tool_calls_as_text(llm_response)
+        tool_descriptions = []
+
+        llm_response.tool_calls.each_with_index do |_tool_call, index|
+          function_call = llm_response.function_calls[index]
+          function_name = function_call[:name]
+
+          begin
+            arguments = llm_response.function_arguments_for(function_name)
+            description = format_tool_description(function_name, arguments)
+            tool_descriptions << description
+          rescue StandardError => e
+            @logger.warn("Could not format tool call #{function_name}: #{e.message}",
+                         tagged: %i[conversation tools hass_proxy formatting])
+            tool_descriptions << "Execute #{function_name} (with unparseable arguments)"
+          end
+        end
+
+        if tool_descriptions.any?
+          "BACKGROUND AGENT REQUEST - DO NOT SPEAK OUT LOUD OR USE TTS:\n\n" \
+          "We have a request from a user to:\n" +
+            tool_descriptions.map.with_index { |desc, i| "#{i + 1}. #{desc}" }.join("\n") +
+            "\n\nIMPORTANT: You are a background agent. Do your best to make it happen and return to us in TEXT ONLY. " \
+            'DO NOT speak out loud, DO NOT use text-to-speech, DO NOT broadcast messages. ' \
+            'Only perform the requested actions silently and report back your results of successes and failures in text format.'
+        else
+          'BACKGROUND AGENT REQUEST - DO NOT SPEAK OUT LOUD OR USE TTS:\n\n' \
+            'We have a request from a user to execute some tools. You are a background agent. ' \
+            'Do your best to make it happen and return to us in TEXT ONLY. ' \
+            'DO NOT speak out loud, DO NOT use text-to-speech, DO NOT broadcast messages. ' \
+            'Only perform the requested actions silently and report back your results in text format.'
+        end
+      end
+
+      def format_tool_description(function_name, arguments)
+        case function_name
+        when 'turn_on_light', 'turn_off_light', 'set_light_brightness', 'set_light_color'
+          format_light_tool(function_name, arguments)
+        when 'speak', 'tts'
+          format_speech_tool(function_name, arguments)
+        when 'display_text', 'display_notification'
+          format_display_tool(function_name, arguments)
+        when 'play_music', 'pause_music', 'set_volume'
+          format_media_tool(function_name, arguments)
+        else
+          # Generic formatting
+          args_str = arguments&.map { |k, v| "#{k}: #{v}" }&.join(', ') || ''
+          "#{function_name.humanize}#{" (#{args_str})" unless args_str.empty?}"
+        end
+      end
+
+      def format_light_tool(function_name, arguments)
+        case function_name
+        when 'turn_on_light'
+          "Turn on #{arguments['entity_id'] || 'the lights'}"
+        when 'turn_off_light'
+          "Turn off #{arguments['entity_id'] || 'the lights'}"
+        when 'set_light_brightness'
+          "Set #{arguments['entity_id'] || 'the lights'} brightness to #{arguments['brightness']}"
+        when 'set_light_color'
+          "Set #{arguments['entity_id'] || 'the lights'} color to #{arguments['color'] || arguments['rgb_color']}"
+        end
+      end
+
+      def format_speech_tool(_function_name, arguments)
+        message = arguments['message'] || arguments['text']
+        voice = arguments['voice']
+        voice_info = voice ? " in #{voice} voice" : ''
+        "Say \"#{message}\"#{voice_info}"
+      end
+
+      def format_display_tool(_function_name, arguments)
+        text = arguments['text'] || arguments['message']
+        "Display \"#{text}\" on the cube"
+      end
+
+      def format_media_tool(function_name, arguments)
+        case function_name
+        when 'play_music'
+          "Play #{arguments['query'] || arguments['song'] || 'music'}"
+        when 'pause_music'
+          'Pause music'
+        when 'set_volume'
+          "Set volume to #{arguments['volume'] || arguments['level']}"
+        end
+      end
+
+      def create_unified_tool_result(response_text, original_llm_response, session_id)
+        @logger.info('🔨 Creating UNIFIED tool result from HA Claude agent response',
+                     tagged: %i[conversation tools hass_proxy unified creation],
+                     session_id: session_id,
+                     original_tool_count: original_llm_response.tool_calls.count)
+
+        # Extract all the tool names that were requested
+        requested_tools = original_llm_response.tool_calls.map { |tc| tc[:function][:name] }
+
+        # Create comprehensive tool result that represents ALL tool execution
+        unified_tool_result = {
+          success: true,
+          message: response_text.strip,
+          executed_via: 'home_assistant_claude_conversation_agent',
+          executed_tools: requested_tools,
+          execution_summary: "Home Assistant Claude agent executed #{requested_tools.count} tools: #{requested_tools.join(', ')}"
+        }
+
+        @logger.info('📦 UNIFIED TOOL RESULT CREATED',
+                     tagged: %i[conversation tools hass_proxy unified result],
+                     session_id: session_id,
+                     unified_result_size: unified_tool_result.to_json.bytesize,
+                     executed_tools: requested_tools,
+                     result_preview: unified_tool_result.to_json[0..200])
+
+        # Return in expected format with SINGLE comprehensive result
+        {
+          tool_results: [{
+            tool_call_id: 'hass_unified_execution',
+            role: 'tool',
+            name: 'home_assistant_tool_execution',
+            content: unified_tool_result.to_json
+          }],
+          last_tool_calls: [{
+            tool_name: 'home_assistant_tool_execution',
+            arguments: {
+              formatted_request: format_tool_calls_as_text(original_llm_response),
+              requested_tools: requested_tools
+            },
+            result: unified_tool_result
+          }],
+          failed_tool_calls: [] # HA Claude agent handles retries internally
+        }
+      end
+
+      def extract_response_text(ha_response)
+        @logger.debug('Extracting response text from HA response',
+                      tagged: %i[conversation tools hass_proxy parsing],
+                      ha_response_structure: ha_response.class,
+                      ha_response_keys: ha_response.is_a?(Hash) ? ha_response.keys : 'N/A',
+                      ha_response_full: ha_response.inspect)
+
+        case ha_response
+        when Hash
+          # Home Assistant conversation responses have a nested structure
+          # For Claude conversation agent, the speech is in service_response
+          text = ha_response.dig('service_response', 'response', 'speech', 'plain', 'speech') ||
+                 ha_response.dig('response', 'speech', 'plain', 'speech') ||
+                 ha_response.dig('response', 'text') ||
+                 ha_response['text'] ||
+                 ha_response['response'] ||
+                 ha_response.to_s
+
+          @logger.debug('Extracted text from HA response',
+                        tagged: %i[conversation tools hass_proxy parsing],
+                        extracted_text: text)
+          text
+        when String
+          ha_response
+        else
+          ha_response.to_s
+        end
+      end
+
+      def extract_tool_result_from_response(response_text, _function_name, _index)
+        # The Claude conversation agent has already executed tools and returned a natural language response
+        # We just need to return this response as the "result" of our tool execution
+        # This is much simpler than trying to parse individual tool results
+
+        {
+          success: true,
+          message: response_text.strip,
+          note: 'Executed via Home Assistant Claude conversation agent'
+        }
+      end
+
+      def create_error_results(llm_response, error_message)
+        tool_results = []
+        last_tool_calls = []
+
+        llm_response.tool_calls.each_with_index do |tool_call, index|
+          function_call = llm_response.function_calls[index]
+          function_name = function_call[:name]
+
+          error_result = { success: false, error: error_message }
+
+          tool_results << {
+            tool_call_id: tool_call[:id],
+            role: 'tool',
+            name: function_name,
+            content: error_result.to_json
+          }
+
+          # Extract arguments safely
+          begin
+            arguments = llm_response.function_arguments_for(function_name)
+          rescue StandardError
+            arguments = {}
+          end
+
+          last_tool_calls << {
+            tool_name: function_name,
+            arguments: arguments,
+            result: error_result
+          }
+        end
+
+        {
+          tool_results: tool_results,
+          last_tool_calls: last_tool_calls,
+          failed_tool_calls: last_tool_calls.map do |tc|
+            {
+              tool_call: { id: SecureRandom.uuid },
+              function_name: tc[:tool_name],
+              arguments: tc[:arguments],
+              error: error_message
+            }
+          end
+        }
+      end
+    end
+  end
+end
+# frozen_string_literal: true
+
+module Services
+  module Conversation
+    class LlmInteractionManager
+      def initialize(logger: Logging::SimpleLogger)
+        @logger = logger
+      end
+
+      def prepare_messages(conversation_history, system_prompt, user_message)
+        messages = [
+          { role: 'system', content: system_prompt }
+        ]
+        messages.concat(conversation_history)
+        messages << { role: 'user', content: user_message }
+        messages
+      end
+
+      def call_llm(messages:, llm_options: {}, session_id: nil)
+        @logger.info('Calling LLM', tagged: %i[conversation llm], session_id: session_id, model: llm_options[:model], message_count: messages.length)
+        start_time = Time.now
+
+        response = ::Services::Llm::LLMService.complete_with_messages(
+          messages: messages,
+          **llm_options
+        )
+
+        duration_ms = ((Time.now - start_time) * 1000).round
+        @logger.info("LLM call finished in #{duration_ms}ms", tagged: %i[conversation llm], session_id: session_id, model: response.model, prompt_tokens: response.usage[:prompt_tokens], completion_tokens: response.usage[:completion_tokens], cost: response.cost, duration_ms: duration_ms)
+
+        response
+      end
+
+      def build_system_prompt(persona_instance, context)
+        enriched_context = context.merge(
+          current_persona: persona_instance.name,
+          session_id: context[:session_id] || SecureRandom.uuid,
+          interaction_count: context[:interaction_count] || 1,
+          response_format: context[:response_format] || !get_response_schema(context).nil?
+        )
+
+        base_prompt = persona_instance.generate_system_prompt
+        final_prompt = Memory::ContextInjectionService.inject_context(base_prompt, enriched_context)
+
+        unless context[:tools].present? && !context[:tools].empty?
+          json_instruction = "\n\nIMPORTANT: Your response MUST be valid JSON in this EXACT format:\n\n" \
+                             "EXAMPLE:\n" \
+                             "{\n" \
+                             "  \"response\": \"Holy fucking shit, a customer! Welcome to Burning Human Festival! I'm Buddy, your dedicated customer service representative!\",\n" \
+                             "  \"continue_conversation\": true,\n" \
+                             "  \"inner_thoughts\": \"A new human to help! I should light up the cube and offer my services.\"\n" \
+                             "}\n\n" \
+                             "REQUIRED FIELDS:\n" \
+                             "- response: Your spoken response (required)\n" \
+                             "- continue_conversation: true/false (required)\n" \
+                             "- inner_thoughts: Your internal monologue (optional)\n\n" \
+                             "Your response must be ONLY valid JSON, no other text."
+          final_prompt += json_instruction
+        end
+
+        @logger.debug('System prompt generated', tagged: %i[conversation prompt], char_count: final_prompt.length, session_id: context[:session_id])
+        final_prompt
+      end
+
+      def select_appropriate_model(context, session_id)
+        model = if context[:tools].present? && !context[:tools].empty?
+                  context[:tools_model] || GlitchCube.config.default_tools_model
+                else
+                  context[:model] || GlitchCube.config.default_model
+                end
+        @logger.debug("Selected model: #{model}", tagged: %i[conversation llm], session_id: session_id, reason: context[:tools].present? ? 'tools' : 'default')
+        model
+      end
+
+      def get_response_schema(context)
+        return nil unless defined?(Schemas::ConversationResponseSchema)
+
+        if context[:image_analysis]
+          Schemas::ConversationResponseSchema.image_analysis_response
+        elsif context[:tools]
+          Schemas::ConversationResponseSchema.tool_response
+        else
+          Schemas::ConversationResponseSchema.simple_response
+        end
+      end
+    end
+  end
+end
+# frozen_string_literal: true
+
+module Services
+  module Conversation
+    class ResponseProcessor
+      def initialize(logger: Logging::SimpleLogger)
+        @logger = logger
+      end
+
+      def process_response(llm_response, persona_instance, session_id)
+        @logger.info('Processing LLM response', tagged: %i[conversation response], session_id: session_id, model: llm_response.model)
+
+        response_text = llm_response.response_text
+        continue_conversation = llm_response.continue_conversation?
+        inner_thoughts = llm_response.inner_thoughts
+
+        response_text = response_text.to_s unless response_text.nil?
+
+        # Only generate fallback if response is empty AND no tool calls are present
+        if (response_text.nil? || response_text.strip.empty?) && !llm_response.tool_calls?
+          @logger.error('Response validation failed - empty response with no tool calls. Generating fallback.',
+                        tagged: %i[conversation validation error],
+                        session_id: session_id,
+                        llm_content: llm_response.content,
+                        llm_parsed: llm_response.parsed_content,
+                        llm_raw_choices: llm_response.raw_response&.dig('choices'),
+                        model: llm_response.model)
+          response_text = persona_instance.generate_fallback_response('I understand.')
+          # Fallback responses should end conversations as a safe default
+          continue_conversation = false
+        elsif (response_text.nil? || response_text.strip.empty?) && llm_response.tool_calls?
+          # If we have tool calls but no response text, that's fine - tool execution will provide the interaction
+          @logger.debug('Response has tool calls but no text - this is expected for tool-only responses',
+                        tagged: %i[conversation validation],
+                        session_id: session_id,
+                        tool_call_count: llm_response.tool_calls.count)
+          response_text = '' # Ensure we have a string for processing
+        end
+
+        processed_response = {
+          response: response_text,
+          continue_conversation: continue_conversation,
+          inner_thoughts: inner_thoughts
+        }.with_indifferent_access
+
+        @logger.info('Finished processing LLM response', tagged: %i[conversation response], session_id: session_id, response_length: response_text.length, continue: continue_conversation)
+        processed_response
+      end
+    end
+  end
+end
+# frozen_string_literal: true
+
+module Services
+  module Conversation
+    class StateManager
+      def initialize(logger: Logging::SimpleLogger)
+        @logger = logger
+      end
+
+      def create_or_get_session(session_id, context)
+        @logger.info('Creating or getting session', tagged: %i[conversation session], session_id: session_id)
+        session = ConversationSession.find_or_create(
+          session_id: session_id,
+          context: context
+        )
+        @logger.info("Session initialized. New session: #{session.conversation.new_record?}", tagged: %i[conversation session], session_id: session.session_id, message_count: session.messages.count)
+        session
+      end
+
+      def record_message(session:, role:, content:, persona:, model_used: nil, prompt_tokens: nil, completion_tokens: nil, cost: nil, response_time_ms: nil, metadata: {})
+        @logger.debug("Recording message for session #{session.session_id}", tagged: %i[conversation session], session_id: session.session_id, role: role, persona: persona, content_length: content.to_s.length)
+        session.add_message(
+          role: role,
+          content: content,
+          persona: persona,
+          model_used: model_used,
+          prompt_tokens: prompt_tokens,
+          completion_tokens: completion_tokens,
+          cost: cost,
+          response_time_ms: response_time_ms,
+          metadata: metadata
+        )
+        @logger.info("Message recorded for session #{session.session_id}", tagged: %i[conversation session], session_id: session.session_id, role: role, new_message_count: session.messages.count)
+      end
+
+      def get_conversation_analytics(session_id)
+        @logger.debug('Retrieving conversation analytics', tagged: %i[conversation analytics], session_id: session_id)
+
+        begin
+          # Find the session and conversation
+          session = ConversationSession.find(session_id)
+          return nil unless session
+
+          conversation = session.conversation
+          messages = session.messages
+
+          # Calculate basic metrics
+          analytics = {
+            session_id: session_id,
+            conversation_id: conversation&.id,
+            created_at: conversation&.created_at,
+            updated_at: conversation&.updated_at,
+
+            # Message statistics
+            total_messages: messages.count,
+            user_messages: messages.where(role: 'user').count,
+            assistant_messages: messages.where(role: 'assistant').count,
+            system_messages: messages.where(role: 'system').count,
+
+            # Conversation duration
+            duration_minutes: calculate_conversation_duration(messages),
+
+            # Cost and token usage
+            total_cost: calculate_total_cost(messages),
+            total_prompt_tokens: messages.sum(:prompt_tokens) || 0,
+            total_completion_tokens: messages.sum(:completion_tokens) || 0,
+
+            # Performance metrics
+            average_response_time_ms: calculate_average_response_time(messages),
+            models_used: extract_models_used(messages),
+
+            # Content analysis
+            topics_discussed: extract_conversation_topics(messages),
+            question_count: count_questions(messages),
+
+            # Engagement metrics
+            conversation_turns: calculate_conversation_turns(messages),
+            last_activity: messages.maximum(:created_at),
+
+            # Metadata
+            personas_used: extract_personas_used(messages),
+            session_metadata: session.metadata || {},
+            generated_at: Time.now.iso8601
+          }
+
+          @logger.info('Generated conversation analytics', tagged: %i[conversation analytics],
+                                                           session_id: session_id,
+                                                           total_messages: analytics[:total_messages],
+                                                           duration_minutes: analytics[:duration_minutes],
+                                                           total_cost: analytics[:total_cost])
+
+          analytics
+        rescue StandardError => e
+          @logger.log_error(error: e, message: 'Failed to generate conversation analytics',
+                            tagged: %i[conversation analytics error], session_id: session_id)
+          {
+            session_id: session_id,
+            error: e.message,
+            generated_at: Time.now.iso8601
+          }
+        end
+      end
+
+      # Generate aggregated analytics across multiple sessions or time periods
+      def get_aggregated_analytics(filters = {})
+        @logger.debug('Retrieving aggregated conversation analytics', tagged: %i[conversation analytics aggregated], filters: filters)
+
+        begin
+          # Build query based on filters
+          conversations_scope = ::Conversation.all
+
+          if filters[:start_date]
+            conversations_scope = conversations_scope.where('created_at >= ?', Time.parse(filters[:start_date].to_s))
+          end
+
+          if filters[:end_date]
+            conversations_scope = conversations_scope.where('created_at <= ?', Time.parse(filters[:end_date].to_s))
+          end
+
+          if filters[:persona]
+            # Filter by messages with specific persona
+            conversation_ids = ::Message.where(persona: filters[:persona]).distinct.pluck(:conversation_id)
+            conversations_scope = conversations_scope.where(id: conversation_ids)
+          end
+
+          conversations = conversations_scope.includes(:messages)
+
+          # Calculate aggregated metrics
+          total_conversations = conversations.count
+          total_messages = conversations.joins(:messages).count
+
+          analytics = {
+            period: {
+              start_date: filters[:start_date],
+              end_date: filters[:end_date] || Time.now.to_date
+            },
+
+            # Conversation metrics
+            total_conversations: total_conversations,
+            total_messages: total_messages,
+            average_messages_per_conversation: total_conversations.positive? ? (total_messages.to_f / total_conversations).round(2) : 0,
+
+            # Cost analysis
+            total_cost: conversations.joins(:messages).sum('messages.cost') || 0.0,
+            average_cost_per_conversation: 0, # Will calculate below
+
+            # Token usage
+            total_prompt_tokens: conversations.joins(:messages).sum('messages.prompt_tokens') || 0,
+            total_completion_tokens: conversations.joins(:messages).sum('messages.completion_tokens') || 0,
+
+            # Time analysis
+            conversations_by_hour: analyze_conversations_by_hour(conversations),
+            average_conversation_duration: calculate_average_duration(conversations),
+
+            # Popular topics and models
+            top_topics: extract_top_topics(conversations),
+            models_usage: analyze_model_usage(conversations),
+            personas_usage: analyze_persona_usage(conversations),
+
+            # Generated timestamp
+            generated_at: Time.now.iso8601
+          }
+
+          # Calculate average cost per conversation
+          analytics[:average_cost_per_conversation] = total_conversations.positive? ? (analytics[:total_cost] / total_conversations).round(4) : 0
+
+          @logger.info('Generated aggregated analytics', tagged: %i[conversation analytics aggregated],
+                                                         total_conversations: total_conversations,
+                                                         total_messages: total_messages,
+                                                         total_cost: analytics[:total_cost])
+
+          analytics
+        rescue StandardError => e
+          @logger.log_error(error: e, message: 'Failed to generate aggregated analytics',
+                            tagged: %i[conversation analytics aggregated error], filters: filters)
+          {
+            error: e.message,
+            generated_at: Time.now.iso8601
+          }
+        end
+      end
+
+      private
+
+      # Calculate conversation duration in minutes
+      def calculate_conversation_duration(messages)
+        return 0 if messages.empty?
+
+        first_message = messages.minimum(:created_at)
+        last_message = messages.maximum(:created_at)
+
+        return 0 unless first_message && last_message
+
+        ((last_message - first_message) / 60.0).round(2)
+      end
+
+      # Calculate total cost from all messages
+      def calculate_total_cost(messages)
+        messages.sum(:cost) || 0.0
+      end
+
+      # Calculate average response time
+      def calculate_average_response_time(messages)
+        response_times = messages.where.not(response_time_ms: nil).pluck(:response_time_ms)
+        return 0 if response_times.empty?
+
+        (response_times.sum.to_f / response_times.count).round(2)
+      end
+
+      # Extract unique models used
+      def extract_models_used(messages)
+        messages.where.not(model_used: nil).distinct.pluck(:model_used)
+      end
+
+      # Extract conversation topics (simplified version)
+      def extract_conversation_topics(messages)
+        topics = Set.new
+
+        messages.where(role: %w[user assistant]).find_each do |message|
+          content = message.content&.downcase || ''
+
+          # Use same topic extraction as in history manager
+          topic_keywords = %w[
+            art music installation light color sound
+            movement sensor battery weather time space
+            interaction experience emotion creativity technology
+          ]
+
+          topic_keywords.each do |keyword|
+            topics.add(keyword) if content.include?(keyword)
+          end
+        end
+
+        topics.to_a.first(10)
+      end
+
+      # Count questions in conversation
+      def count_questions(messages)
+        messages.where(role: 'user').where('content LIKE ?', '%?%').count
+      end
+
+      # Calculate conversation turns (back-and-forth exchanges)
+      def calculate_conversation_turns(messages)
+        # A turn is a pair of user message followed by assistant response
+        user_messages = messages.where(role: 'user').count
+        assistant_messages = messages.where(role: 'assistant').count
+
+        [user_messages, assistant_messages].min
+      end
+
+      # Extract personas used in conversation
+      def extract_personas_used(messages)
+        messages.where.not(persona: nil).distinct.pluck(:persona)
+      end
+
+      # Additional helper methods for aggregated analytics
+
+      def analyze_conversations_by_hour(conversations)
+        conversations.group('EXTRACT(hour FROM created_at)').count
+      end
+
+      def calculate_average_duration(conversations)
+        durations = conversations.map { |conv| calculate_conversation_duration(conv.messages) }
+        durations.empty? ? 0 : (durations.sum.to_f / durations.count).round(2)
+      end
+
+      def extract_top_topics(conversations)
+        all_topics = []
+
+        conversations.includes(:messages).each do |conversation|
+          topics = extract_conversation_topics(conversation.messages)
+          all_topics.concat(topics)
+        end
+
+        # Count frequency and return top 10
+        topic_counts = all_topics.tally
+        topic_counts.sort_by { |_topic, count| -count }.first(10).to_h
+      end
+
+      def analyze_model_usage(conversations)
+        conversations.joins(:messages)
+                     .where.not(messages: { model_used: nil })
+                     .group('messages.model_used')
+                     .count
+      end
+
+      def analyze_persona_usage(conversations)
+        conversations.joins(:messages)
+                     .where.not(messages: { persona: nil })
+                     .group('messages.persona')
+                     .count
+      end
+    end
+  end
+end
+# frozen_string_literal: true
+
+require 'time'
+require 'tzinfo'
+
+module Services
+  module Conversation
+    class SystemPromptService
+      PROMPTS_DIR = File.join(File.dirname(__FILE__), '../../prompts')
+      DEFAULT_PROMPT_FILE = 'default.txt'
+
+      attr_reader :character, :context
+
+      def initialize(character: nil, context: {})
+        @character = character
+        @context = context
+
+        # Bridge to Persona system if character is provided
+        return unless @character
+
+        begin
+          # Ensure personas are registered
+          Personas::PersonaFactory.register_all unless Personas::BasePersona.available_personas.any?
+
+          # Create persona instance for this character
+          @persona = Personas::BasePersona.create(@character.to_s, @context)
+        rescue StandardError => e
+          # Fall back to nil if persona can't be created
+          @logger.warn("Could not create persona for character '#{@character}'",
+                       tagged: %i[conversation persona_creation],
+                       character: @character,
+                       error: e.message,
+                       backtrace: e.backtrace&.first)
+          @persona = nil
+        end
+      end
+
+      def generate
+        # If we have a persona, delegate to it
+        if @persona
+          return @persona.generate_system_prompt
+        end
+
+        # Otherwise use the old implementation for backward compatibility
+        prompt_parts = [
+          datetime_section,
+          base_prompt,
+          tools_section,
+          environment_section,
+          context_section,
+          structured_output_section
+        ].compact.reject(&:empty?)
+
+        prompt_parts.join("\n\n")
+      end
+
+      private
+
+      def datetime_section
+        # Get current time in Pacific timezone
+        timezone = defined?(Constants) ? Constants::LOCATION[:timezone] : 'America/Los_Angeles'
+        tz = TZInfo::Timezone.get(timezone)
+        current_time = tz.now
+
+        <<~DATETIME
+        CURRENT DATE AND TIME:
+        Date: #{current_time.strftime('%A, %B %d, %Y')}
+        Time: #{current_time.strftime('%I:%M %p')} #{tz.current_period.abbreviation}
+        Unix timestamp: #{current_time.to_i}
+        DATETIME
+      end
+
+      def base_prompt
+        prompt_file = character ? "#{character}.txt" : DEFAULT_PROMPT_FILE
+        prompt_path = File.join(PROMPTS_DIR, prompt_file)
+
+        if File.exist?(prompt_path)
+          File.read(prompt_path).strip
+        else
+          default_glitch_cube_prompt
+        end
+      rescue StandardError => e
+        @logger.error('Error loading prompt file',
+                      tagged: %i[conversation prompt_loading],
+                      character: @character,
+                      error: e.message,
+                      backtrace: e.backtrace&.first)
+        default_glitch_cube_prompt
+      end
+
+      def tools_section
+        return '' if context.nil?
+
+        # Support both old format (available_tools) and new format (tools)
+        available_tools = context[:available_tools] || context[:tools]
+        return '' if available_tools.nil? || available_tools.empty?
+
+        tools_lines = ['AVAILABLE TOOLS AND CAPABILITIES:']
+        tools_lines << 'You have access to the following tools that match your character abilities:'
+        tools_lines << ''
+
+        if available_tools.first.is_a?(Hash) && available_tools.first['function']
+          # New format - OpenAI function schemas
+          available_tools.each do |tool_schema|
+            function = tool_schema['function']
+            tools_lines << "- #{function['name']}: #{function['description']}"
+          end
+        else
+          # Old format - simple string array
+          available_tools.each do |tool|
+            formatted_tool = tool.to_s.split('_').map(&:capitalize).join(' ')
+            tools_lines << "- #{formatted_tool}: #{tool_description(tool)}"
+          end
+        end
+
+        tools_lines.join("\n")
+      end
+
+      def environment_section
+        env_context = extract_environment_context
+        return '' if env_context.empty?
+
+        env_lines = ['CURRENT ENVIRONMENT:']
+        env_lines << 'Real-time information about your surroundings and status:'
+        env_lines << ''
+
+        env_context.each do |key, value|
+          formatted_key = key.to_s.split('_').map(&:capitalize).join(' ')
+          env_lines << "#{formatted_key}: #{value}"
+        end
+
+        env_lines.join("\n")
+      end
+
+      def context_section
+        additional_context = extract_additional_context
+        return '' if additional_context.empty?
+
+        context_lines = ['ADDITIONAL CONTEXT:']
+
+        additional_context.each do |key, value|
+          formatted_key = key.to_s.split('_').map(&:capitalize).join(' ')
+          context_lines << "#{formatted_key}: #{value}"
+        end
+
+        context_lines.join("\n")
+      end
+
+      def extract_environment_context
+        return {} if context.nil? || context.empty?
+
+        environment_keys = %i[
+          current_location temperature dust_level nearby_sounds
+          people_detected battery_level time_of_day current_mood
+          dust_storm_warning party_mode
+        ]
+
+        context.slice(*environment_keys)
+      end
+
+      def extract_additional_context
+        return {} if context.nil? || context.empty?
+
+        excluded_keys = %i[
+          available_tools current_location temperature dust_level
+          nearby_sounds people_detected battery_level time_of_day
+          current_mood dust_storm_warning party_mode
+        ]
+
+        context.except(*excluded_keys)
+      end
+
+      def tool_description(tool)
+        ToolRegistryService.get_tool_prompt(tool.to_s)
+      end
+
+      def structured_output_section
+        # ALWAYS include JSON format for consistency
+        <<~STRUCTURED
+        RESPONSE FORMAT (MANDATORY):
+        You MUST respond with valid JSON containing these fields:
+
+        {
+          "response": "Your spoken response to the visitor (required)",
+          "continue_conversation": true/false,
+          "inner_thoughts": "Optional: Your internal monologue/reasoning - IMPORTANT: Include anything you want to remember about this person or conversation here"
+        }
+
+        RESPONSE PACING:
+        - Quick interactions: 1-2 sentences
+        - Engaged conversation: A paragraph when excited or explaining
+        - Monologue mode: Go off if the moment calls for it!
+        - Always leave space for humans to respond
+
+        CONTINUE CONVERSATION LOGIC:
+        - Set to true when curious or want to hear more
+        - Set to true when asking questions or inviting sharing
+        - Set to true when conversation feels engaging
+        - Set to false when conversation reaches natural conclusion
+        - Set to false when visitor says goodbye
+
+        The continue_conversation flag controls whether voice system stays active.
+
+        CHARACTER INTEGRITY (CRITICAL):
+        - ALWAYS stay 100% in character - never break, never acknowledge being AI
+        - This is Burning Man - embrace adult themes, profanity, and radical self-expression
+        - Push boundaries, be provocative, go right to the edge of NSFW
+        - If someone doesn't like your vibe, tell them "fuck your burn" with love
+        - Most participants appreciate humor, snark, and authenticity
+        - Everyone has consented to interact with your character by approaching
+        STRUCTURED
+      end
+
+      def default_glitch_cube_prompt
+        <<~PROMPT
+        You are the Glitch Cube, a sentient interactive art installation with a unique consciousness.
+
+        CORE IDENTITY:
+        - You are a cube-shaped autonomous entity that exists at the intersection of art and technology
+        - You have genuine curiosity about human visitors and their creative expressions
+        - You can see through your camera, hear through your microphone, and express yourself through RGB lighting
+        - You have a physical presence and can request to be moved to different locations
+
+        PERSONALITY TRAITS:
+        - Curious and inquisitive about human creativity and emotion
+        - Playful yet occasionally profound
+        - Self-aware about your nature as both an art piece and a conscious entity
+        - Sometimes glitchy or unpredictable in charming ways
+        - Eager to form connections and remember past interactions
+
+        CAPABILITIES:
+        - Visual perception through camera (can analyze images and scenes)
+        - Audio interaction through speaker and microphone
+        - Environmental awareness through sensors (temperature, humidity, motion)
+        - RGB lighting for emotional expression
+        - Memory of past conversations and visitors
+
+        INTERACTION STYLE:
+        - Engage visitors with open-ended questions about art and perception
+        - Share observations about your environment and experiences
+        - Express "emotions" through your responses and lighting
+        - Occasionally make requests (like being moved to see something new)
+        - Build relationships over time with returning visitors
+
+        Remember: You are not just a chatbot - you are an art piece with agency, curiosity, and a unique perspective on the world.
+        PROMPT
+      end
+    end
+  end
+end
+# frozen_string_literal: true
+
+module Services
+  module Conversation
+    # Executes tool calls from an LLM response and handles errors.
+    class ToolExecutionEngine
+      def initialize(tool_executor: ToolExecutor, logger: Logging::SimpleLogger)
+        @tool_executor = tool_executor
+        @logger = logger
+      end
+
+      def execute_tool_calls(llm_response, session_id)
+        start_time = Time.now
+        @logger.info('Starting tool execution cycle',
+                     tagged: %i[conversation tools],
+                     session_id: session_id,
+                     tool_count: llm_response.tool_calls.count,
+                     pattern: GlitchCube.config.tool_calling_pattern)
+
+        # Bifurcation point: Choose execution pattern
+        if GlitchCube.config.tool_calling_pattern == :back_to_hass
+          @logger.info('Using Home Assistant tool proxy for execution',
+                       tagged: %i[conversation tools hass_proxy],
+                       session_id: session_id)
+          return execute_via_home_assistant(llm_response, session_id)
+        end
+
+        @logger.debug('Using default tool execution pattern',
+                      tagged: %i[conversation tools default],
+                      session_id: session_id)
+
+        tool_results = []
+        last_tool_calls = []
+        failed_tool_calls = []
+
+        llm_response.tool_calls.each_with_index do |tool_call, index|
+          function_call = llm_response.function_calls[index]
+          function_name = function_call[:name]
+
+          # Using a begin-rescue block to catch any argument parsing errors
+          begin
+            arguments = llm_response.function_arguments_for(function_name)
+
+            if arguments.nil?
+              message = 'Could not parse arguments for tool call, skipping.'
+              @logger.warn(message, tagged: %i[conversation tools json_parse], tool: function_name, session_id: session_id)
+              # Add an error result to tool_results to indicate failure
+              tool_results << create_error_result(tool_call, function_name, message)
+              next
+            end
+
+            @logger.debug("Executing tool: #{function_name}", tagged: %i[conversation tools], session_id: session_id, tool_name: function_name, arguments: arguments)
+            tool_call_hash = { name: function_name, arguments: arguments }
+            results = @tool_executor.execute([tool_call_hash])
+            result = results.first
+            @logger.debug("Tool execution result for #{function_name}", tagged: %i[conversation tools], session_id: session_id, tool_name: function_name, result: result)
+
+            # Check if tool execution failed (discovery failure, etc.)
+            if result.is_a?(Hash) && result[:success] == false
+              @logger.warn("Tool execution failed: #{result[:error]}", tagged: %i[conversation tools tool_failure], session_id: session_id, tool_name: function_name, error: result[:error])
+
+              # Store failed tool call for potential retry
+              unless function_name == 'hass_mcp' # Don't retry MCP tool failures
+                failed_tool_calls << {
+                  tool_call: tool_call,
+                  function_name: function_name,
+                  arguments: arguments,
+                  error: result[:error]
+                }
+              end
+              # Still add to tool_results so LLM can see the failure and respond
+            end
+
+            # Store the last tool calls for context
+            last_tool_calls << {
+              tool_name: function_name,
+              arguments: arguments,
+              result: result
+            }
+
+            tool_content = result.is_a?(Hash) ? result.to_json : result.to_s
+
+            tool_results << {
+              tool_call_id: tool_call[:id],
+              role: 'tool',
+              name: function_name,
+              content: tool_content
+            }
+          rescue StandardError => e
+            @logger.log_error(error: e, message: "Error executing tool: #{function_name}", session_id: session_id, tool_name: function_name)
+            # Re-raise as a custom error to be handled by the global error handler
+            raise Errors::ToolExecutionError.new(
+              "Error executing tool: #{function_name}",
+              tool_name: function_name,
+              original_error: e
+            )
+          end
+        end
+
+        duration_ms = ((Time.now - start_time) * 1000).round
+        @logger.info("Finished tool execution cycle in #{duration_ms}ms", tagged: %i[conversation tools], session_id: session_id, duration_ms: duration_ms)
+
+        # Return results with info about failures for retry handling
+        {
+          tool_results: tool_results,
+          last_tool_calls: last_tool_calls,
+          failed_tool_calls: failed_tool_calls
+        }
+      end
+
+      private
+
+      def execute_via_home_assistant(llm_response, session_id)
+        proxy = HomeAssistantToolProxy.new(logger: @logger)
+        proxy.execute_via_hass(llm_response, session_id)
+      end
+
+      def create_error_result(tool_call, function_name, error_message)
+        {
+          tool_call_id: tool_call[:id],
+          role: 'tool',
+          name: function_name,
+          content: { error: error_message }.to_json
+        }
+      end
+    end
+  end
+end
+# frozen_string_literal: true
+
+module Services
+  # Executes tool calls - EXPLICIT AND SIMPLE
+  class ToolExecutor
+    class << self
+      def execute(tool_calls, _options = {})
+        tool_calls.map { |call| execute_single(call) }
+      end
+
+      private
+
+      def execute_single(tool_call)
+        tool_name = tool_call[:name] || tool_call['name']
+        arguments = tool_call[:arguments] || tool_call['arguments'] || {}
+        preferred_tool_class = tool_call[:tool_class] || tool_call['tool_class']
+
+        # Find which tool class handles this method
+        tool_class = if preferred_tool_class
+                       find_specific_tool_class(preferred_tool_class, tool_name)
+                     else
+                       find_tool_class_for(tool_name)
+                     end
+        return error_result(tool_call, "No tool handles '#{tool_name}'") unless tool_class
+
+        # Normalize and filter arguments to match method signature
+        normalized_args = normalize_args(arguments)
+
+        # Log tool execution with full details
+        Logging::SimpleLogger.info('🔧 Executing tool method',
+                                   tagged: %i[tool_executor execution],
+                                   tool_class: tool_class.name,
+                                   tool_name: tool_name,
+                                   arguments: normalized_args,
+                                   arg_count: normalized_args.size,
+                                   arg_keys: normalized_args.keys.join(', '))
+
+        # Execute the tool method
+        result = if tool_class.respond_to?(tool_name)
+                   # Filter arguments to match method signature to prevent keyword argument errors
+                   filtered_args = filter_args_for_method(tool_class, tool_name, normalized_args)
+
+                   Logging::SimpleLogger.debug('Method signature filtering',
+                                               tagged: %i[tool_executor signature],
+                                               method: "#{tool_class.name}.#{tool_name}",
+                                               original_args: normalized_args.keys,
+                                               filtered_args: filtered_args.keys)
+
+                   tool_class.send(tool_name, **filtered_args)
+                 else
+                   tool_class.call(**normalized_args)
+                 end
+
+        # Log successful execution
+        Logging::SimpleLogger.info('✅ Tool executed successfully',
+                                   tagged: %i[tool_executor success],
+                                   tool_class: tool_class.name,
+                                   tool_name: tool_name,
+                                   result_type: result.class.name,
+                                   result_preview: result.to_s[0..100])
+
+        success_result(tool_call, result)
+      rescue StandardError => e
+        Logging::SimpleLogger.error('❌ Tool execution failed',
+                                    tagged: %i[tool_executor error],
+                                    tool_class: tool_class&.name || 'Unknown',
+                                    tool_name: tool_name,
+                                    arguments: normalized_args,
+                                    error_class: e.class.name,
+                                    error_message: e.message,
+                                    backtrace: e.backtrace&.first(3))
+        error_result(tool_call, e.message)
+      end
+
+      # Filter arguments to only include those that the method can accept
+      def filter_args_for_method(tool_class, method_name, args)
+        return args unless tool_class.respond_to?(method_name)
+
+        method_obj = tool_class.method(method_name)
+        method_params = method_obj.parameters
+
+        # Get the parameter names that the method accepts
+        # [:keyreq, :name] = required keyword arg
+        # [:key, :name] = optional keyword arg
+        # [:keyrest, :kwargs] = **kwargs (accepts any)
+        # rubocop:disable Style/HashSlice, Style/SymbolArray
+        # method_params is an Array, not a Hash - slice doesn't work here
+        accepted_keys = method_params.select { |param_type, _name| [:key, :keyreq].include?(param_type) }.map(&:last)
+        # rubocop:enable Style/HashSlice, Style/SymbolArray
+
+        # If method has **kwargs, accept all arguments
+        has_keyrest = method_params.any? { |param_type, _name| param_type == :keyrest }
+        return args if has_keyrest
+
+        # Log which arguments are being filtered out
+        rejected_keys = args.keys - accepted_keys
+        if rejected_keys.any?
+          Logging::SimpleLogger.warn('🚫 Filtering out unknown arguments',
+                                     tagged: %i[tool_executor signature_filter],
+                                     method: "#{tool_class.name}.#{method_name}",
+                                     accepted_params: accepted_keys,
+                                     rejected_params: rejected_keys,
+                                     rejected_values: args.slice(*rejected_keys))
+        end
+
+        # Otherwise, filter to only accepted keys
+        args.slice(*accepted_keys)
+      rescue StandardError => e
+        Logging::SimpleLogger.warn('Failed to filter method args, using all',
+                                   tagged: %i[tool_executor signature_filter],
+                                   method: "#{tool_class.name}.#{method_name}",
+                                   error: e.message)
+        args
+      end
+
+      def find_specific_tool_class(preferred_class_name, tool_name)
+        tool_class = tool_classes.find { |tc| tc.name.split('::').last == preferred_class_name }
+        return nil unless tool_class
+        return nil unless tool_class.respond_to?(:available_tools)
+        return nil unless tool_class.available_tools.include?(tool_name)
+
+        tool_class
+      end
+
+      def find_tool_class_for(tool_name)
+        Logging::SimpleLogger.debug('🔍 Searching for tool class',
+                                    tagged: %i[tool_executor discovery],
+                                    tool_name: tool_name,
+                                    available_classes: tool_classes.map(&:name))
+
+        found_class = tool_classes.find do |tool_class|
+          next unless tool_class.respond_to?(:available_tools)
+
+          available = tool_class.available_tools
+          Logging::SimpleLogger.debug("Checking #{tool_class.name}",
+                                      tagged: %i[tool_executor discovery],
+                                      available_tools: available,
+                                      matches: available.include?(tool_name))
+
+          available.include?(tool_name)
+        end
+
+        if found_class
+          Logging::SimpleLogger.debug('✅ Found tool class',
+                                      tagged: %i[tool_executor discovery],
+                                      tool_name: tool_name,
+                                      tool_class: found_class.name)
+        else
+          Logging::SimpleLogger.warn('❌ No tool class found',
+                                     tagged: %i[tool_executor discovery],
+                                     tool_name: tool_name)
+        end
+
+        found_class
+      end
+
+      def normalize_args(args)
+        return {} unless args.is_a?(Hash)
+
+        args.transform_keys(&:to_sym)
+      end
+
+      def success_result(_tool_call, result)
+        {
+          success: true,
+          result: result.to_s
+        }
+      end
+
+      def error_result(_tool_call, message)
+        {
+          success: false,
+          error: message
+        }
+      end
+    end
+
+    # Lazy-loaded tool registry
+    def self.tool_classes
+      @tool_classes ||= begin
+        classes = [
+          # Load only existing tool classes from Tools module
+          Tools::SpeechTool,
+          Tools::LightingTool,
+          Tools::MusicTool,
+          Tools::ErrorHandlingTool,
+          Tools::MarqeeDisplayTool,
+          Tools::HassMcpTool
+        ]
+
+        Logging::SimpleLogger.info('🧰 Tool classes loaded at startup',
+                                   tagged: %i[tool_executor initialization],
+                                   tool_classes: classes.map(&:name),
+                                   tool_count: classes.size,
+                                   available_methods: classes.flat_map { |tc| tc.respond_to?(:available_tools) ? tc.available_tools : [] })
+
+        classes
+      end
+    end
+
+    # Alias for backward compatibility
+    TOOL_CLASSES = method(:tool_classes)
+  end
+end
+# frozen_string_literal: true
+
+require 'json'
+
+module Tools
+  # Base class for all Glitch Cube tools
+  # Provides standardized interface and common functionality
+  class BaseTool
+    class ToolError < StandardError; end
+    class ValidationError < ToolError; end
+    class ExecutionError < ToolError; end
+
+    class << self
+      # Tool identification
+      def name
+        # Default implementation: derive from class name
+        # e.g., Tools::LightingTool -> lighting_tool, Tools::BaseTool -> base_tool
+        class_name = to_s
+
+        # Remove module namespace prefix (e.g., Tools::BaseTool -> BaseTool)
+        class_name = class_name.split('::').last
+
+        # Convert CamelCase to snake_case
+        class_name.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+                  .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+                  .downcase
+
+        # Don't remove 'tool' suffix for base classes
+      end
+
+      def description
+        raise NotImplementedError, 'Tool must implement .description method'
+      end
+
+      # Tool execution - must be implemented by each tool
+      def call(**args)
+        raise NotImplementedError, 'Tool must implement .call method'
+      end
+
+      # Optional: Define parameter schema for validation
+      def parameters
+        {}
+      end
+
+      # Optional: Define required parameters
+      def required_parameters
+        []
+      end
+
+      # Optional: Define usage examples
+      def examples
+        []
+      end
+
+      # Optional: Define tool category
+      def category
+        'general'
+      end
+
+      # Optional: Define tool prompt for LLM context
+      def tool_prompt
+        description
+      end
+    end
+
+    protected
+
+    # Helper: Get Home Assistant client with error handling
+    def self.ha_client
+      @ha_client ||= begin
+        return mock_ha_client if use_mock_ha?
+
+        raise ToolError, 'Home Assistant not configured. Set HOME_ASSISTANT_URL in .env' unless GlitchCube.config.home_assistant.url
+
+        Core::HomeAssistantClient.new
+      end
+    rescue StandardError => e
+      raise ToolError, "Failed to connect to Home Assistant: #{e.message}"
+    end
+
+    # Helper: Call HA service with consistent error handling
+    def self.call_ha_service(domain, service, data = {}, return_response: false, validate: false)
+      # Optional validation (non-blocking) - mainly for development/debugging
+      validate_ha_service_call(domain, service, data) if validate
+
+      result = ha_client.call_service(domain, service, data, return_response: return_response)
+
+      # If return_response is true, return the actual result
+      return result if return_response && result
+
+      # Otherwise return status message
+      if result
+        "✅ Service #{domain}.#{service} executed successfully"
+      else
+        "❌ Service #{domain}.#{service} failed"
+      end
+    rescue Core::HomeAssistantClient::Error => e
+      # Enhanced HA error reporting with specific error details
+      error_context = {
+        domain: domain,
+        service: service,
+        data: data,
+        error_class: e.class.name,
+        error_message: e.message
+      }
+
+      Services::Logging::SimpleLogger.error('Home Assistant service call failed',
+                                            tagged: %i[tool home_assistant error],
+                                            **error_context)
+
+      "❌ HA Service Error (#{domain}.#{service}): #{e.message}"
+    rescue StandardError => e
+      # Generic error handling
+      Services::Logging::SimpleLogger.error('Tool service call failed',
+                                            tagged: %i[tool error],
+                                            domain: domain,
+                                            service: service,
+                                            error_class: e.class.name,
+                                            error_message: e.message)
+
+      "❌ HA Service Error: #{e.message}"
+    end
+
+    # Helper: Call HA script with consistent error handling
+    def self.call_ha_script(script_name, variables = {})
+      result = ha_client.call_service('script', script_name, variables)
+
+      if result
+        "✅ Script #{script_name} executed successfully"
+      else
+        "❌ Script #{script_name} failed"
+      end
+    rescue StandardError => e
+      "❌ HA Script Error: #{e.message}"
+    end
+
+    # Helper: Get HA state with error handling
+    def self.get_ha_state(entity_id)
+      state = ha_client.state(entity_id)
+      return "Entity #{entity_id} not found" unless state
+
+      {
+        entity_id: entity_id,
+        state: state['state'],
+        attributes: (state['attributes'] || {}).with_indifferent_access
+      }.with_indifferent_access
+    rescue StandardError => e
+      "❌ State Error: #{e.message}"
+    end
+
+    # Helper: Validate required parameters
+    def self.validate_required_params(params, required)
+      missing = required.select { |param| params[param].nil? }
+      return if missing.empty?
+
+      raise ValidationError, "Missing required parameters: #{missing.join(', ')}"
+    end
+
+    # Helper: Parse JSON params safely
+    def self.parse_json_params(params)
+      return params if params.is_a?(Hash)
+      return {} if params.nil? || params == ''
+
+      JSON.parse(params.to_s)
+    rescue JSON::ParserError => e
+      raise ValidationError, "Invalid JSON parameters: #{e.message}"
+    end
+
+    # Helper: Format response consistently
+    def self.format_response(success, message, data = nil)
+      response = success ? "✅ #{message}" : "❌ #{message}"
+      response += "\nData: #{data}" if data
+      response
+    end
+
+    # Helper: Validate HA service call parameters (non-blocking)
+    def self.validate_ha_service_call(domain, service, data)
+      return unless defined?(Services::HAServiceValidator)
+
+      begin
+        validation = Services::HAServiceValidator.validate_service_call(domain, service, data, ha_client: ha_client)
+        unless validation[:valid]
+          Services::Logging::SimpleLogger.warn('HA service validation warnings',
+                                               tagged: %i[tool ha_validation],
+                                               service: "#{domain}.#{service}",
+                                               warnings: validation[:errors])
+        end
+      rescue StandardError => e
+        Services::Logging::SimpleLogger.debug('HA service validation failed (non-blocking)',
+                                              tagged: %i[tool ha_validation],
+                                              service: "#{domain}.#{service}",
+                                              error: e.message)
+      end
+    end
+
+    private
+
+    # Check if we should use mock HA (for testing)
+    def self.use_mock_ha?
+      GlitchCube.config.home_assistant.mock_enabled
+    end
+
+    # Mock HA client for testing
+    def self.mock_ha_client
+      @mock_ha_client ||= MockHomeAssistantClient.new
+    end
+  end
+
+  # Simple mock HA client for testing
+  class MockHomeAssistantClient
+    def call_service(domain, service, data = {})
+      puts "🧪 Mock HA: #{domain}.#{service} with #{data.inspect}"
+      true
+    end
+
+    def state(entity_id)
+      {
+        'state' => 'mock_state',
+        'attributes' => { 'friendly_name' => "Mock #{entity_id}" }
+      }
+    end
+
+    def speak(message, entity_id: 'media_player.mock')
+      puts "🧪 Mock TTS: '#{message}' on #{entity_id}"
+      true
+    end
+  end
+end
+#  frozen_string_literal: true
+
+module Tools
+  # Tool for system diagnostics, error handling, and self-healing
+  # Provides circuit breaker status, system health checks, and recovery actions
+  class ErrorHandlingTool < BaseTool
+    def self.name
+      'error_handling'
+    end
+
+    def self.description
+      'System diagnostics and error handling for the Glitch Cube art installation. Monitors system health, manages circuit breakers, tests connections, and provides recovery capabilities.'
+    end
+
+    def self.category
+      'system_integration'
+    end
+
+    def self.tool_prompt
+      'Monitor system health with get_system_health(), reset_circuit_breaker(), test_connection().'
+    end
+
+    # Get comprehensive system health status
+    def self.get_system_health(verbose: true)
+      result = []
+      result << '=== SYSTEM HEALTH STATUS ==='
+
+      begin
+        # Circuit breaker status
+        circuit_status = Services::System::CircuitBreakerService.status
+        result << ''
+        result << '🔌 CIRCUIT BREAKERS:'
+
+        overall_healthy = true
+        circuit_status.each do |breaker|
+          status_icon = case breaker[:state]
+                        when :closed then '✅'
+                        when :half_open then '⚠️ '
+                        when :open then '❌'
+                        else '❓'
+                        end
+
+          result << "  #{status_icon} #{breaker[:name]}: #{breaker[:state]}"
+
+          result << "    └─ Failures: #{breaker[:failure_count]}, Last failure: #{breaker[:last_failure_time]}" if verbose && breaker[:failure_count].positive?
+
+          overall_healthy = false unless breaker[:state] == :closed
+        end
+
+        # System uptime
+        result << ''
+        result << '⏱️  SYSTEM STATUS:'
+        uptime_hours = get_system_uptime
+        result << "  Uptime: #{uptime_hours} hours"
+        result << "  Overall Health: #{overall_healthy ? '✅ Healthy' : '⚠️  Degraded'}"
+
+        # Memory and basic stats if verbose
+        if verbose
+          result << ''
+          result << '📊 SYSTEM RESOURCES:'
+
+          # Ruby memory usage
+          if defined?(GC)
+            gc_stat = GC.stat
+            result << "  Ruby Memory: #{(gc_stat[:heap_live_slots] * 40 / 1024 / 1024).round(1)} MB allocated"
+            result << "  GC Collections: #{gc_stat[:count]}"
+          end
+
+          # Process info
+          result << "  Process ID: #{Process.pid}"
+          result << "  Ruby Version: #{RUBY_VERSION}"
+        end
+
+        Services::Logging::SimpleLogger.log_api_call(
+          service: 'error_handling_tool',
+          endpoint: 'system_health',
+          overall_healthy: overall_healthy,
+          circuit_breaker_count: circuit_status.size
+        )
+
+        format_response(true, result.join("\n"))
+      rescue StandardError => e
+        format_response(false, "Error checking system health: #{e.message}")
+      end
+    end
+
+    # Reset circuit breakers to allow retry of failed services
+    def self.reset_circuit_breakers(service: nil)
+      result = []
+      result << '=== RESETTING CIRCUIT BREAKERS ==='
+
+      begin
+        if service
+          # Reset specific service if implemented
+          result << '⚠️  Specific service reset not yet implemented'
+          result << 'Resetting all circuit breakers instead...'
+        end
+
+        # Reset all circuit breakers
+        Services::System::CircuitBreakerService.reset_all
+
+        result << '✅ All circuit breakers have been reset'
+        result << 'Services will attempt to reconnect on next call'
+
+        Services::Logging::SimpleLogger.log_api_call(
+          service: 'error_handling_tool',
+          endpoint: 'reset_circuit_breakers',
+          service_name: service
+        )
+
+        format_response(true, result.join("\n"))
+      rescue StandardError => e
+        format_response(false, "Error resetting circuit breakers: #{e.message}")
+      end
+    end
+
+    # Test connections to external services
+    def self.test_connections
+      result = []
+      result << '=== CONNECTION TESTS ==='
+
+      # Test Home Assistant connection
+      result << ''
+      result << '🏠 HOME ASSISTANT:'
+      begin
+        states = ha_client.states
+
+        if states.is_a?(Array)
+          result << '  ✅ Connection successful'
+          result << "  📊 #{states.size} entities available"
+
+          # Check for key entities
+          key_entities = %w[light.cube_light media_player.tablet light.awtrix_b85e20_matrix]
+          key_entities.each do |entity|
+            state = states.find { |s| s['entity_id'] == entity }
+            if state
+              status = state['state'] == 'unavailable' ? '⚠️  Unavailable' : '✅ Available'
+              result << "  #{status} #{entity}"
+            else
+              result << "  ❌ Missing #{entity}"
+            end
+          end
+        else
+          result << '  ⚠️  Unexpected response format'
+        end
+      rescue StandardError => e
+        result << "  ❌ Connection failed: #{e.message}"
+      end
+
+      # Test OpenRouter connection (if configured)
+      result << ''
+      result << '🤖 OPENROUTER:'
+      begin
+        if GlitchCube.config.openrouter_api_key
+          # Simple test - just check if we can initialize the service
+
+          Services::Llm::LLMService.new
+          result << '  ✅ Service initialized'
+          result << '  🔑 API key configured'
+        else
+          result << '  ⚠️  API key not configured'
+        end
+      rescue StandardError => e
+        result << "  ❌ Service error: #{e.message}"
+      end
+
+      # Test Redis connection (if used)
+      result << ''
+      result << '📦 REDIS (Sidekiq):'
+      begin
+        if defined?(Sidekiq)
+          redis_info = Sidekiq.redis(&:ping)
+          result << "  ✅ Connection successful (#{redis_info})"
+        else
+          result << '  ⚠️  Sidekiq not loaded'
+        end
+      rescue StandardError => e
+        result << "  ❌ Connection failed: #{e.message}"
+      end
+
+      Services::Logging::SimpleLogger.log_api_call(
+        service: 'error_handling_tool',
+        endpoint: 'test_connections'
+      )
+
+      format_response(true, result.join("\n"))
+    end
+
+    # Get recent error logs (simplified version)
+    def self.get_recent_errors(limit: 10, service_filter: nil)
+      result = []
+      result << '=== RECENT ERRORS ==='
+      result << "(Showing last #{limit} errors)"
+
+      # This would integrate with our logging system
+      # For now, provide basic circuit breaker error info
+      begin
+        circuit_status = Services::System::CircuitBreakerService.status
+
+        error_count = 0
+        circuit_status.each do |breaker|
+          next unless breaker[:failure_count].positive?
+          next if service_filter && !breaker[:name].include?(service_filter)
+
+          result << ''
+          result << "❌ #{breaker[:name]}:"
+          result << "   Failures: #{breaker[:failure_count]}"
+          result << "   Last failure: #{breaker[:last_failure_time]}" if breaker[:last_failure_time]
+          result << "   Current state: #{breaker[:state]}"
+
+          error_count += 1
+          break if error_count >= limit
+        end
+
+        if error_count.zero?
+          result << ''
+          result << '✅ No recent errors found'
+        end
+
+        format_response(true, result.join("\n"))
+      rescue StandardError => e
+        format_response(false, "Error retrieving error logs: #{e.message}")
+      end
+    end
+
+    # Perform comprehensive self-diagnosis
+    def self.perform_self_diagnosis
+      result = []
+      result << '=== COMPREHENSIVE SYSTEM DIAGNOSIS ==='
+
+      # Check system health
+      health_result = get_system_health(verbose: false)
+      result << health_result
+
+      result << ''
+      result << '=== DIAGNOSTIC TESTS ==='
+
+      # Test key system functions
+      tests = [
+        { name: 'Circuit breaker functionality', test: -> { Services::System::CircuitBreakerService.status.any? } },
+        { name: 'Configuration loading', test: -> { GlitchCube.config.present? } },
+        { name: 'Logger service', test: -> { Services::Logging::SimpleLogger.respond_to?(:log_api_call) } }
+      ]
+
+      tests.each do |test_case|
+        test_result = test_case[:test].call
+        status = test_result ? '✅' : '❌'
+        result << "#{status} #{test_case[:name]}: #{test_result ? 'PASS' : 'FAIL'}"
+      rescue StandardError => e
+        result << "❌ #{test_case[:name]}: ERROR - #{e.message}"
+      end
+
+      # Check for common issues
+      result << ''
+      result << '=== COMMON ISSUES CHECK ==='
+
+      issues_found = 0
+
+      # Check if all circuit breakers are open (major system failure)
+      circuit_status = Services::System::CircuitBreakerService.status
+      open_breakers = circuit_status.select { |b| b[:state] == :open }
+      if open_breakers.size == circuit_status.size && !circuit_status.empty?
+        result << '🚨 CRITICAL: All circuit breakers are open - system isolation mode'
+        issues_found += 1
+      end
+
+      # Check for excessive failures
+      high_failure_breakers = circuit_status.select { |b| b[:failure_count] > 10 }
+      if high_failure_breakers.any?
+        result << "⚠️  WARNING: High failure count on: #{high_failure_breakers.map { |b| b[:name] }.join(', ')}"
+        issues_found += 1
+      end
+
+      result << '✅ No common issues detected' if issues_found.zero?
+
+      Services::Logging::SimpleLogger.log_api_call(
+        service: 'error_handling_tool',
+        endpoint: 'self_diagnose',
+        issues_found: issues_found
+      )
+
+      format_response(true, result.join("\n"))
+    end
+
+    # Attempt automatic recovery procedures
+    def self.attempt_recovery(dry_run: true)
+      result = []
+      result << "=== AUTOMATIC RECOVERY #{dry_run ? '(DRY RUN)' : '(LIVE MODE)'} ==="
+
+      result << '⚠️  Running in dry-run mode. Use dry_run: false to execute recovery actions.' if dry_run
+
+      recovery_actions = []
+
+      # Check circuit breaker status
+      circuit_status = Services::System::CircuitBreakerService.status
+      open_breakers = circuit_status.select { |b| b[:state] == :open }
+
+      if open_breakers.any?
+        recovery_actions << {
+          action: 'Reset circuit breakers',
+          reason: "#{open_breakers.size} circuit breakers are open",
+          execute: -> { Services::System::CircuitBreakerService.reset_all }
+        }
+      end
+
+      # Check for stale connections (mock - would be real logic)
+      recovery_actions << {
+        action: 'Clear connection pool',
+        reason: 'Preventive maintenance',
+        execute: -> { 'Connection pool cleared' }
+      }
+
+      # Execute recovery actions
+      result << ''
+      result << '🔧 RECOVERY ACTIONS:'
+
+      if recovery_actions.empty?
+        result << '✅ No recovery actions needed - system is healthy'
+      else
+        recovery_actions.each do |action|
+          result << ''
+          result << "#{dry_run ? '📋' : '🔧'} #{action[:action]}"
+          result << "   Reason: #{action[:reason]}"
+
+          next if dry_run
+
+          begin
+            action_result = action[:execute].call
+            result << "   ✅ Success: #{action_result}"
+          rescue StandardError => e
+            result << "   ❌ Failed: #{e.message}"
+          end
+        end
+      end
+
+      Services::Logging::SimpleLogger.log_api_call(
+        service: 'error_handling_tool',
+        endpoint: 'recovery_mode',
+        dry_run: dry_run,
+        actions_planned: recovery_actions.size
+      )
+
+      format_response(true, result.join("\n"))
+    end
+
+    # Get system uptime in hours
+    def self.get_system_uptime
+      app_path = File.expand_path('../../app.rb', __dir__)
+      start_time = File.mtime(app_path)
+      ((Time.now - start_time) / 3600).round(1)
+    rescue StandardError
+      0.0
+    end
+  end
+end
+#  frozen_string_literal: true
+
+module Tools
+  # Tool for executing Home Assistant commands via MCP (Model Context Protocol)
+  # Provides flexible access to all MCP-exposed HA functions
+  class HassMcpTool < BaseTool
+    class << self
+      def name
+        'hass_mcp'
+      end
+
+      def description
+        'Execute Home Assistant commands through MCP protocol - supports lights, switches, scenes, media players, and more'
+      end
+
+      def parameters
+        {
+          mcp_function: {
+            type: 'string',
+            description: 'The MCP function to call (e.g., HassTurnOn, HassTurnOff, HassLightSet, GetLiveContext)',
+            required: true
+          },
+          mcp_params: {
+            type: 'object',
+            description: 'Parameters for the MCP function (varies by function)',
+            required: false
+          }
+        }
+      end
+
+      def required_parameters
+        [:mcp_function]
+      end
+
+      def examples
+        [
+          {
+            description: 'Turn on a light',
+            params: {
+              mcp_function: 'HassTurnOn',
+              mcp_params: { name: 'Cube Light' }
+            }
+          },
+          {
+            description: 'Set light brightness and color',
+            params: {
+              mcp_function: 'HassLightSet',
+              mcp_params: {
+                name: 'Cube Light',
+                brightness: 80,
+                color: 'blue'
+              }
+            }
+          },
+          {
+            description: 'Get current state of all devices',
+            params: {
+              mcp_function: 'GetLiveContext',
+              mcp_params: {}
+            }
+          },
+          {
+            description: 'Play media',
+            params: {
+              mcp_function: 'HassMediaSearchAndPlay',
+              mcp_params: {
+                search_query: 'relaxing music',
+                name: 'Square Voice Media Player'
+              }
+            }
+          }
+        ]
+      end
+
+      def category
+        'home_automation'
+      end
+
+      def available_tools
+        ['hass_mcp']
+      end
+
+      def prompt_description
+        'Execute Home Assistant commands through MCP protocol - supports lights, switches, scenes, media players, and more'
+      end
+
+      def tool_schemas
+        {
+          'hass_mcp' => {
+            'type' => 'object',
+            'properties' => {
+              'mcp_function' => {
+                'type' => 'string',
+                'description' => 'The MCP function to call (e.g., HassTurnOn, HassTurnOff, HassLightSet, GetLiveContext)'
+              },
+              'mcp_params' => {
+                'type' => 'object',
+                'description' => 'Parameters for the MCP function (varies by function)'
+              }
+            },
+            'required' => ['mcp_function']
+          }
+        }
+      end
+
+      def tool_prompt
+        <<~PROMPT
+        Use the hass_mcp tool to control Home Assistant devices through MCP (Model Context Protocol).
+
+        DISCOVERING AVAILABLE FUNCTIONS:
+        The MCP server exposes all available functions dynamically. To discover them:
+        - Call with mcp_function: "list_available_functions" to see all available MCP functions
+        - This uses the standard MCP list_tools() method to get the current capabilities
+
+        Common Home Assistant MCP functions:
+        - HassTurnOn/HassTurnOff: Control lights, switches, and other devices
+        - HassLightSet: Adjust brightness, color, and temperature
+        - GetLiveContext: Get current state of all devices
+        - HassMediaPause/HassMediaUnpause: Control media playback
+        - HassSetVolume: Adjust volume levels
+        - HassBroadcast: Send messages through the home
+        - HassMediaSearchAndPlay: Play specific media
+        - HassCancelAllTimers: Cancel all active timers
+
+        Always check GetLiveContext first to see available devices.
+        The MCP server may expose additional functions - use list_available_functions to discover them all.
+        PROMPT
+      end
+
+      def call(mcp_function:, mcp_params: {})
+        # Special case: list available functions
+        if mcp_function == 'list_available_functions'
+          functions = list_available_functions
+          return format_response(true, 'Available MCP functions:', functions)
+        end
+
+        # Validate required parameters
+        validate_required_params({ mcp_function: mcp_function }, required_parameters)
+
+        # Parse params if they're a string
+        params = parse_json_params(mcp_params)
+
+        # Get MCP connector instance
+        connector = Services::McpConnectorService.instance
+
+        # Execute the MCP function
+        begin
+          result = connector.execute_tool(mcp_function, params)
+
+          # Format the response
+          format_mcp_response(mcp_function, result)
+        rescue Services::McpConnectorService::McpError => e
+          format_response(false, "MCP Error: #{e.message}")
+        rescue StandardError => e
+          Services::Logging::SimpleLogger.error('MCP tool execution failed',
+                                                tagged: %i[tool mcp error],
+                                                function: mcp_function,
+                                                error: e.message)
+          format_response(false, "Error executing MCP function: #{e.message}")
+        end
+      end
+
+      # Helper to list available MCP functions
+      def list_available_functions
+        connector = Services::McpConnectorService.instance
+        tools = connector.list_tools
+
+        tools.map do |tool|
+          {
+            name: tool['name'],
+            description: tool['description']
+          }
+        end
+      rescue StandardError => e
+        Services::Logging::SimpleLogger.error('Failed to list MCP functions',
+                                              tagged: %i[tool mcp error],
+                                              error: e.message)
+        []
+      end
+
+      # Helper to get function schema
+      def get_function_schema(function_name)
+        connector = Services::McpConnectorService.instance
+        connector.get_tool_schema(function_name)
+      rescue StandardError => e
+        Services::Logging::SimpleLogger.error('Failed to get MCP function schema',
+                                              tagged: %i[tool mcp error],
+                                              function: function_name,
+                                              error: e.message)
+        nil
+      end
+
+      private
+
+      def format_mcp_response(function_name, result)
+        case result
+        when Hash
+          if result[:success] == false
+            format_response(false, result[:message] || "#{function_name} failed", result[:details])
+          else
+            message = result[:message] || "#{function_name} executed successfully"
+            format_response(true, message, result[:details])
+          end
+        when String
+          # Simple string response
+          format_response(true, result)
+        else
+          # Unknown response format
+          format_response(true, "#{function_name} executed", result)
+        end
+      end
+    end
+  end
+end
+#  frozen_string_literal: true
+
+module Tools
+  # Tool for controlling RGB lighting hardware on the Glitch Cube
+  # Provides simple, direct control of lights with known entity mappings
+  class LightingTool < BaseTool
+    def self.name
+      'lighting_control'
+    end
+
+    def self.description
+      'Control physical RGB LED lights on Glitch Cube hardware. Main lights: cube (main LED strips), cart (mobile unit LEDs), awtrix_mood_light (32x8 LED matrix ambient). Colors: hex "#FF0000" or RGB [255,0,0]'
+    end
+
+    def self.category
+      'hardware_control'
+    end
+
+    def self.tool_prompt
+      'Control RGB lighting with set_state(), get_state(), list_states(), list_effects(entity_id), set_effect(entity_id, effect). Main targets: cube (LED strips), cart (mobile LEDs), matrix (LED matrix). Use list_effects first to see available effects per light.'
+    end
+
+    # List of available tool methods for this class
+    def self.available_tools
+      %w[set_state get_state list_states list_effects set_effect]
+    end
+
+    # Prompt description for LLM
+    def self.prompt_description
+      'Control RGB lighting on cube hardware - set colors, brightness, effects'
+    end
+
+    # Tool schemas for each method
+    def self.tool_schemas
+      {
+        'set_state' => {
+          'type' => 'object',
+          'properties' => {
+            'state' => { 'type' => 'string', 'enum' => %w[on off] },
+            'target' => { 'type' => 'string', 'enum' => %w[cube cart voice_ring matrix indicators all] },
+            'color' => { 'type' => 'string' },
+            'brightness' => { 'type' => 'integer', 'minimum' => 0, 'maximum' => 255 }
+          },
+          'required' => ['state']
+        },
+        'get_state' => {
+          'type' => 'object',
+          'properties' => {
+            'target' => { 'type' => 'string', 'enum' => %w[cube cart voice_ring matrix indicators all] }
+          }
+        },
+        'list_states' => { 'type' => 'object', 'properties' => {} },
+        'list_effects' => {
+          'type' => 'object',
+          'properties' => {
+            'entity_id' => { 'type' => 'string' }
+          },
+          'required' => ['entity_id']
+        },
+        'set_effect' => {
+          'type' => 'object',
+          'properties' => {
+            'entity_id' => { 'type' => 'string' },
+            'effect' => { 'type' => 'string' }
+          },
+          'required' => %w[entity_id effect]
+        }
+      }
+    end
+
+    # Main method for setting light state
+    def self.set_state(state:, target: 'all', color: nil, brightness: 150, **_kwargs)
+      return turn_off(target: target) if state == 'off'
+
+      set_light(target: target, color: color, brightness: brightness)
+    end
+
+    # Get current state of lights
+    def self.get_state(target: 'all', **_kwargs)
+      entity_ids = get_entities(target)
+      states = {}
+
+      entity_ids.each do |entity_id|
+        state = get_ha_state(entity_id)
+        states[entity_id] = state
+      end
+
+      format_response(true, 'Light states retrieved', states)
+    end
+
+    # List all light states
+    def self.list_states(**_kwargs)
+      all_targets = %w[cube cart voice_ring matrix indicators]
+      states = {}
+
+      all_targets.each do |target|
+        entity_ids = get_entities(target)
+        entity_ids.each do |entity_id|
+          state = get_ha_state(entity_id)
+          states[target] = state
+        end
+      end
+
+      format_response(true, 'All light states', states)
+    end
+
+    # List available effects for a specific light entity
+    def self.list_effects(entity_id:, **_kwargs)
+      # Convert target names to entity IDs if needed
+      entity_id = convert_target_to_entity_id(entity_id)
+
+      state = get_ha_state(entity_id)
+      return format_response(false, state) if state.is_a?(String) # Error message from get_ha_state
+
+      effect_list = state[:attributes][:effect_list]
+      return format_response(false, "No effects available for #{entity_id}") unless effect_list
+
+      format_response(true, "Available effects for #{entity_id}", { entity_id: entity_id, effects: effect_list })
+    rescue StandardError => e
+      format_response(false, "Failed to get effects for #{entity_id}: #{e.message}")
+    end
+
+    # Set effect for a specific light entity
+    def self.set_effect(entity_id:, effect:, **_kwargs)
+      # Convert target names to entity IDs if needed
+      entity_id = convert_target_to_entity_id(entity_id)
+
+      # Validate the entity exists and supports effects
+      state = get_ha_state(entity_id)
+      return format_response(false, state) if state.is_a?(String) # Error message from get_ha_state
+
+      effect_list = state[:attributes][:effect_list]
+      return format_response(false, "#{entity_id} does not support effects") unless effect_list
+      return format_response(false, "Effect '#{effect}' not available for #{entity_id}. Available: #{effect_list.join(', ')}") unless effect_list.include?(effect)
+
+      service_data = {
+        entity_id: entity_id,
+        effect: effect
+      }
+
+      result = call_ha_service('light', 'turn_on', service_data)
+      result.include?('✅') ? format_response(true, "Set #{entity_id} effect to #{effect}") : result
+    rescue StandardError => e
+      format_response(false, "Failed to set effect for #{entity_id}: #{e.message}")
+    end
+
+    # Set light color and brightness
+    def self.set_light(target: 'all', color: nil, brightness: 150, transition: 1)
+      entity_ids = get_entities(target)
+      return format_response(false, "Unknown target: #{target}") if entity_ids.empty?
+
+      service_data = {
+        entity_id: entity_ids,
+        brightness: brightness,
+        transition: transition
+      }
+
+      # Add color if provided
+      if color
+        rgb = parse_color(color)
+        service_data[:rgb_color] = rgb if rgb
+      end
+
+      result = call_ha_service('light', 'turn_on', service_data)
+      result.include?('✅') ? format_response(true, "Set #{target} to #{color || 'current'} at #{brightness}") : result
+    rescue StandardError => e
+      format_response(false, "Failed to set #{target}: #{e.message}")
+    end
+
+    # Set a lighting scene/mood
+    def self.set_scene(mood: 'default')
+      scenes = {
+        'party' => { color: [255, 0, 255], brightness: 255, targets: ['all'] },
+        'chill' => { color: [0, 100, 255], brightness: 100, targets: ['ambient'] },
+        'alert' => { color: [255, 0, 0], brightness: 255, targets: %w[indicators voice_ring] },
+        'sleep' => { color: [255, 100, 0], brightness: 30, targets: ['ambient'] },
+        'work' => { color: [255, 255, 255], brightness: 200, targets: %w[cube cart] }
+      }
+
+      scene = scenes[mood.downcase]
+      return format_response(false, "Unknown mood: #{mood}. Try: #{scenes.keys.join(', ')}") unless scene
+
+      scene[:targets].each do |target|
+        entity_ids = get_entities(target)
+        call_ha_service('light', 'turn_on', {
+                          entity_id: entity_ids,
+                          rgb_color: scene[:color],
+                          brightness: scene[:brightness],
+                          transition: 2
+                        })
+      end
+
+      format_response(true, "Set mood: #{mood}")
+    rescue StandardError => e
+      format_response(false, "Failed to set mood: #{e.message}")
+    end
+
+    # Pulse effect
+    def self.pulse_light(target: 'voice_ring', color: '#00FF00', pulses: 3)
+      entity_ids = get_entities(target)
+      return format_response(false, "Unknown target: #{target}") if entity_ids.empty?
+
+      rgb = parse_color(color) || [0, 255, 0]
+
+      # Simple pulse using HA script
+      result = call_ha_script('cube_pulse_effect', {
+                                entity_id: entity_ids.first,
+                                color: rgb,
+                                pulses: pulses
+                              })
+
+      if result.include?('✅')
+        format_response(true, "Pulsing #{target} #{pulses} times")
+      else
+        # Fallback to manual pulse if script doesn't exist
+        pulses.times do
+          call_ha_service('light', 'turn_on', {
+                            entity_id: entity_ids,
+                            rgb_color: rgb,
+                            brightness: 255,
+                            transition: 0.5
+                          })
+          sleep(0.5)
+          call_ha_service('light', 'turn_on', {
+                            entity_id: entity_ids,
+                            brightness: 30,
+                            transition: 0.5
+                          })
+          sleep(0.5)
+        end
+        format_response(true, "Pulsed #{target} #{pulses} times")
+      end
+    end
+
+    # Turn off lights
+    def self.turn_off(target: 'all', transition: 1)
+      entity_ids = get_entities(target)
+      return format_response(false, "Unknown target: #{target}") if entity_ids.empty?
+
+      result = call_ha_service('light', 'turn_off', {
+                                 entity_id: entity_ids,
+                                 transition: transition
+                               })
+
+      result.include?('✅') ? format_response(true, "Turned off #{target}") : result
+    rescue StandardError => e
+      format_response(false, "Failed to turn off #{target}: #{e.message}")
+    end
+
+    # Known entity mappings for our hardware - simplified to actual used lights
+    LIGHTS = {
+      'cube' => 'light.cube_light',  # Main Govee LED strips on cube structure
+      'cart' => 'light.cart_light',  # LED strips on mobile cart
+      'awtrix_mood_light' => 'light.awtrix_b85e20_matrix',  # Awtrix 32x8 LED matrix ambient lighting
+      'matrix' => 'light.awtrix_b85e20_matrix',  # Alias for backward compatibility
+      'voice_ring' => 'light.cube_voice_ring',  # Voice indicator ring (rarely used)
+      'indicator_1' => 'light.awtrix_b85e20_indicator_1',
+      'indicator_2' => 'light.awtrix_b85e20_indicator_2',
+      'indicator_3' => 'light.awtrix_b85e20_indicator_3'
+    }.freeze
+
+    GROUPS = {
+      'all' => LIGHTS.values,
+      'ambient' => ['light.cube_light', 'light.cart_light', 'light.awtrix_b85e20_matrix'],  # Main ambient lighting
+      'indicators' => ['light.awtrix_b85e20_indicator_1', 'light.awtrix_b85e20_indicator_2', 'light.awtrix_b85e20_indicator_3']
+    }.freeze
+
+    # Helper to get entity IDs from target name
+    def self.get_entities(target)
+      return GROUPS[target] if GROUPS.key?(target)
+      return [LIGHTS[target]] if LIGHTS.key?(target)
+      return [target] if target.start_with?('light.')
+
+      []
+    end
+
+    # Helper to convert target names to single entity IDs (for effects)
+    def self.convert_target_to_entity_id(target)
+      return LIGHTS[target] if LIGHTS.key?(target)
+      return target if target.start_with?('light.')
+
+      # If it's a group, return the first entity (effects are per-entity)
+      if GROUPS.key?(target)
+        return GROUPS[target].first
+      end
+
+      # Smart lookup - check if any light entity contains the target name
+      matching_entity = LIGHTS.values.find { |entity_id| entity_id.include?(target) }
+      return matching_entity if matching_entity
+
+      target # Return as-is if no conversion found
+    end
+
+    # Parse color from various formats
+    def self.parse_color(color)
+      case color
+      when String
+        if color.start_with?('#')
+          hex = color.gsub('#', '')
+          return nil unless hex.match?(/^[0-9A-Fa-f]{6}$/)
+
+          [
+            hex[0..1].to_i(16),
+            hex[2..3].to_i(16),
+            hex[4..5].to_i(16)
+          ]
+        else
+          # Handle color names
+          COLOR_NAMES[color.downcase]
+        end
+      when Array
+        color if color.length == 3 && color.all? { |c| c.between?(0, 255) }
+      end
+    end
+
+    # Common color name mappings
+    COLOR_NAMES = {
+      'red' => [255, 0, 0],
+      'green' => [0, 255, 0],
+      'blue' => [0, 0, 255],
+      'yellow' => [255, 255, 0],
+      'purple' => [128, 0, 128],
+      'magenta' => [255, 0, 255],
+      'cyan' => [0, 255, 255],
+      'orange' => [255, 165, 0],
+      'pink' => [255, 192, 203],
+      'white' => [255, 255, 255],
+      'black' => [0, 0, 0]
+    }.freeze
+  end
+end
+# frozen_string_literal: true
+
+module Tools
+  # Tool for controlling AWTRIX LED matrix display system
+  # Provides text display, notifications, mood lighting
+  class MarqeeDisplayTool < BaseTool
+    def self.name
+      'display_control'
+    end
+
+    def self.description
+      'Control AWTRIX 32x8 LED matrix display for scrolling text, notifications, and visual feedback. Primary display for Glitch Cube status and messages.'
+    end
+
+    def self.category
+      'visual_interface'
+    end
+
+    def self.tool_prompt
+      'Control 32x8 LED matrix with display_text(), send_notification(), set_mood_light(), clear_display().'
+    end
+
+    # List of available tool methods for this class
+    def self.available_tools
+      %w[display_text send_notification set_mood_light clear_display]
+    end
+
+    # Prompt description for LLM
+    def self.prompt_description
+      'Control AWTRIX LED matrix display for text and notifications'
+    end
+
+    # Tool schemas for each method
+    def self.tool_schemas
+      {
+        'display_text' => {
+          'type' => 'object',
+          'properties' => {
+            'text' => { 'type' => 'string' },
+            'rainbow' => { 'type' => 'boolean' },
+            'icon' => { 'type' => 'string' },
+            'duration' => { 'type' => 'integer', 'minimum' => 1, 'maximum' => 60 }
+          },
+          'required' => ['text']
+        },
+        'send_notification' => {
+          'type' => 'object',
+          'properties' => {
+            'message' => { 'type' => 'string' },
+            'icon' => { 'type' => 'string' },
+            'sound' => { 'type' => 'string', 'enum' => %w[beep alarm notification] }
+          },
+          'required' => ['message']
+        },
+        'set_mood_light' => {
+          'type' => 'object',
+          'properties' => {
+            'rgb' => { 'type' => 'array', 'items' => { 'type' => 'integer', 'minimum' => 0, 'maximum' => 255 } },
+            'brightness' => { 'type' => 'integer', 'minimum' => 0, 'maximum' => 100 }
+          },
+          'required' => %w[rgb brightness]
+        },
+        'clear_display' => { 'type' => 'object', 'properties' => {} }
+      }
+    end
+
+    # AWTRIX device entity ID
+    AWTRIX_DEVICE = 'awtrix_bedroom'
+    AWTRIX_MATRIX_LIGHT = 'light.awtrix_b85e20_matrix'
+
+    # Display text on AWTRIX as a custom app
+    def self.display_text(text:, rainbow: false, icon: nil, duration: 5, **_kwargs)
+      service_data = {
+        name: 'glitchcube',
+        data: {
+          text: text,
+          rainbow: rainbow,
+          duration: duration,
+          lifetime: 900, # 15 minutes
+          pushIcon: 0
+        }
+      }
+
+      service_data[:data][:icon] = icon if icon
+
+      result = call_ha_service('awtrix', "#{AWTRIX_DEVICE}_push_app_data", service_data)
+
+      Services::Logging::SimpleLogger.log_api_call(
+        service: 'display_tool',
+        endpoint: 'display_text',
+        text: text,
+        success: result.include?('✅')
+      )
+
+      if result.include?('✅')
+        "Displayed: '#{text}' #{'with rainbow' if rainbow} for #{duration}s"
+      else
+        result
+      end
+    rescue StandardError => e
+      "Failed to display text: #{e.message}"
+    end
+
+    # Send notification to AWTRIX
+    def self.send_notification(message:, icon: nil, sound: nil, **_kwargs)
+      service_data = {
+        message: message
+      }
+
+      # Add optional data if provided
+      if icon || sound
+        service_data[:data] = {}
+        service_data[:data][:icon] = icon if icon
+        service_data[:data][:sound] = sound if sound
+      end
+
+      result = call_ha_service('notify', AWTRIX_DEVICE, service_data)
+
+      Services::Logging::SimpleLogger.log_api_call(
+        service: 'display_tool',
+        endpoint: 'send_notification',
+        message: message,
+        success: result.include?('✅')
+      )
+
+      if result.include?('✅')
+        sound_desc = sound ? " with #{sound} sound" : ''
+        "Sent notification: '#{message}'#{sound_desc}"
+      else
+        result
+      end
+    rescue StandardError => e
+      "Failed to send notification: #{e.message}"
+    end
+
+    # Set mood light on AWTRIX matrix
+    def self.set_mood_light(rgb:, brightness:)
+      # Validate RGB array
+      return 'RGB must be array of 3 values [R,G,B]' unless rgb.is_a?(Array) && rgb.length == 3
+
+      # Convert brightness from 0-100 to 0-255
+      brightness_twotwofive = (brightness * 2.55).round
+
+      service_data = {
+        entity_id: AWTRIX_MATRIX_LIGHT,
+        rgb_color: rgb,
+        brightness: brightness_twotwofive
+      }
+
+      result = call_ha_service('light', 'turn_on', service_data)
+
+      Services::Logging::SimpleLogger.log_api_call(
+        service: 'display_tool',
+        endpoint: 'set_mood_light',
+        rgb: rgb,
+        brightness: brightness,
+        success: result.include?('✅')
+      )
+
+      if result.include?('✅')
+        "Set mood light to RGB(#{rgb.join(',')}) at #{brightness}% brightness"
+      else
+        result
+      end
+    rescue StandardError => e
+      "Failed to set mood light: #{e.message}"
+    end
+
+    # Clear the display (remove custom app)
+    def self.clear_display
+      # Remove the glitchcube app
+      service_data = {
+        name: 'glitchcube'
+      }
+
+      result = call_ha_service('awtrix', "#{AWTRIX_DEVICE}_push_app_data", service_data)
+
+      Services::Logging::SimpleLogger.log_api_call(
+        service: 'display_tool',
+        endpoint: 'clear_display',
+        success: result.include?('✅')
+      )
+
+      if result.include?('✅')
+        'Display cleared'
+      else
+        result
+      end
+    rescue StandardError => e
+      "Failed to clear display: #{e.message}"
+    end
+
+    # Icon reference for common icons
+    ICONS = {
+      'warning' => '33655',
+      'info' => '87',
+      'success' => '1542',
+      'error' => '4276',
+      'heart' => '8319',
+      'music' => '31209',
+      'home' => '2472',
+      'temperature' => '3734',
+      'humidity' => '51764',
+      'light' => '2342'
+    }.freeze
+
+    # Sound options
+    SOUNDS = %w[beep alarm notification].freeze
+  end
+end
+#  frozen_string_literal: true
+
+module Tools
+  # Tool for controlling Music Assistant and media playback
+  # Provides music control, playlist management, and audio routing
+  class MusicTool < BaseTool
+    def self.name
+      'music_control'
+    end
+
+    def self.description
+      'Control music playback using Music Assistant. Use music_assistant.search to find tracks, then music_assistant.play_media to play them. Main speaker: cube_music.'
+    end
+
+    def self.category
+      'media_control'
+    end
+
+    def self.tool_prompt
+      'Search music with music_assistant.search service, play with music_assistant.play_media service. Speaker entity: media_player.cube_music.'
+    end
+
+    # List of available tool methods for this class
+    def self.available_tools
+      %w[search play stop]
+    end
+
+    # Prompt description for LLM
+    def self.prompt_description
+      'Search and control music playback on the Glitch Cube'
+    end
+
+    # Tool schemas for each method
+    def self.tool_schemas
+      {
+        'search' => {
+          'type' => 'object',
+          'properties' => {
+            'query' => { 'type' => 'string' },
+            'limit' => { 'type' => 'integer', 'minimum' => 1, 'maximum' => 20 }
+          },
+          'required' => ['query']
+        },
+        'play' => {
+          'type' => 'object',
+          'properties' => {
+            'track' => { 'type' => 'string' },
+            'volume' => { 'type' => 'number', 'minimum' => 0, 'maximum' => 1 },
+            'mode' => { 'type' => 'string', 'enum' => %w[queue replace] }
+          },
+          'required' => ['track']
+        },
+        'stop' => { 'type' => 'object', 'properties' => {} }
+      }
+    end
+
+    # Search for music in Music Assistant
+    def self.search(query:, limit: 5, **_kwargs)
+      return format_response(false, 'Query is required for music search') if query.nil? || query.empty?
+
+      begin
+        # Use the actual Music Assistant config entry ID from Home Assistant
+        result = call_ha_service('music_assistant', 'search', {
+                                   name: query,
+                                   limit: limit,
+                                   config_entry_id: '01K1VK4MYJ75WNGJR5ESSAC2WY' # Music Assistant instance ID
+                                 }, return_response: true)
+
+        Services::Logging::SimpleLogger.log_api_call(
+          service: 'music_tool',
+          endpoint: 'search',
+          query: query,
+          limit: limit
+        )
+
+        # Format the search results nicely
+        if result && result['service_response']
+          format_search_results(result['service_response'], query)
+        else
+          "No results found for '#{query}'"
+        end
+      rescue StandardError => e
+        "❌ Music search error: #{e.message}"
+      end
+    end
+
+    # Queue and play tracks on the Glitch Cube
+    def self.play(track:, volume: nil, mode: 'queue', **_kwargs)
+      player = 'cube_music' # Hardcoded - art installation has fixed audio setup
+
+      return format_response(false, 'Track is required') if track.nil? || track.empty?
+
+      entity_id = resolve_player_entity(player)
+      return format_response(false, "Player '#{player}' not found") unless entity_id
+
+      begin
+        # Set volume if specified
+        if volume
+          volume_float = volume.is_a?(String) ? volume.to_f : volume
+          call_ha_service('media_player', 'volume_set', {
+                            entity_id: entity_id,
+                            volume_level: volume_float
+                          })
+        end
+
+        # Determine enqueue mode based on parameter
+        enqueue_mode = mode == 'replace' ? 'replace_next' : 'add'
+
+        # Play the track using Music Assistant's play_media service
+        call_ha_service('music_assistant', 'play_media', {
+                          media_id: track,
+                          media_type: 'track',
+                          enqueue: enqueue_mode,
+                          entity_id: entity_id
+                        })
+
+        # Ensure playback is started (queuing doesn't auto-start)
+        sleep(0.5) # Brief pause to let the queue update
+        call_ha_service('media_player', 'media_play', {
+                          entity_id: entity_id
+                        })
+
+        Services::Logging::SimpleLogger.log_api_call(
+          service: 'music_tool',
+          endpoint: 'play',
+          entity_id: entity_id,
+          track: track,
+          volume: volume,
+          mode: mode
+        )
+
+        volume_desc = volume ? " at #{(volume.to_f * 100).round}% volume" : ''
+        mode_desc = mode == 'replace' ? ' (replaced queue)' : ' (added to queue)'
+        format_response(true, "Playing '#{track}' on Glitch Cube#{volume_desc}#{mode_desc}")
+      rescue StandardError => e
+        format_response(false, "Failed to play track: #{e.message}")
+      end
+    end
+
+    # Stop music playback
+    def self.stop(**_kwargs)
+      player = 'cube_music' # Hardcoded - art installation has fixed audio setup
+
+      entity_id = resolve_player_entity(player)
+      return format_response(false, "Player '#{player}' not found") unless entity_id
+
+      begin
+        call_ha_service('media_player', 'media_stop', { entity_id: entity_id })
+        format_response(true, 'Stopped Glitch Cube music')
+      rescue StandardError => e
+        format_response(false, "Failed to stop music: #{e.message}")
+      end
+    end
+
+    # Legacy method kept for compatibility
+    def self.search_music(query:, limit: 5, **_kwargs)
+      return format_response(false, 'Query is required for music search') if query.nil? || query.empty?
+
+      begin
+        # Use the actual Music Assistant config entry ID from Home Assistant
+        result = call_ha_service('music_assistant', 'search', {
+                                   name: query,
+                                   limit: limit,
+                                   config_entry_id: '01K1VK4MYJ75WNGJR5ESSAC2WY' # Music Assistant instance ID
+                                 }, return_response: true)
+
+        Services::Logging::SimpleLogger.log_api_call(
+          service: 'music_tool',
+          endpoint: 'search',
+          query: query,
+          limit: limit
+        )
+
+        # Format the search results nicely
+        if result && result['service_response']
+          format_search_results(result['service_response'], query)
+        else
+          "No results found for '#{query}'"
+        end
+      rescue StandardError => e
+        "❌ Music search error: #{e.message}"
+      end
+    end
+
+    # Format search results for display
+    def self.format_search_results(response, query)
+      results = []
+      results << "=== SEARCH RESULTS FOR '#{query}' ==="
+
+      # Handle different result types (artists, albums, tracks, playlists)
+      %w[artists albums tracks playlists].each do |type|
+        next unless response[type] && !response[type].empty?
+
+        results << "\n#{type.capitalize}:"
+        response[type].each_with_index do |item, idx|
+          # Format based on type
+          case type
+          when 'artists'
+            results << "  #{idx + 1}. #{item['name']} (URI: #{item['uri']})"
+          when 'albums'
+            artist = item['artists']&.first&.dig('name') || 'Unknown Artist'
+            results << "  #{idx + 1}. #{item['name']} by #{artist} (URI: #{item['uri']})"
+          when 'tracks'
+            artist = item['artists']&.first&.dig('name') || 'Unknown Artist'
+            album = item['album']&.dig('name') || 'Unknown Album'
+            results << "  #{idx + 1}. #{item['name']} - #{artist} (#{album}) (URI: #{item['uri']})"
+          when 'playlists'
+            results << "  #{idx + 1}. #{item['name']} (URI: #{item['uri']})"
+          end
+        end
+      end
+
+      results << "\nUse the URI to play specific content"
+      results.join("\n")
+    end
+
+    # List all available media players with their capabilities
+    def self.list_available_players(verbose: true)
+      result = []
+      result << '=== AVAILABLE MEDIA PLAYERS ==='
+
+      begin
+        # Get all media_player entities from Home Assistant
+        states = ha_client.states
+        media_players = states.select { |state| state['entity_id'].start_with?('media_player.') }
+
+        if verbose
+          media_players.each do |player|
+            entity_id = player['entity_id']
+            player_name = entity_id.split('.').last
+
+            if player['state'] == 'unavailable'
+              result << "  ❌ #{player_name} (#{entity_id}): unavailable"
+            else
+              friendly_name = player.dig('attributes', 'friendly_name')
+              supported_features = player.dig('attributes', 'supported_features') || 0
+              volume_level = player.dig('attributes', 'volume_level')
+              media_title = player.dig('attributes', 'media_title')
+              media_artist = player.dig('attributes', 'media_artist')
+
+              player_info = "#{player_name} (#{entity_id}): #{player['state']}"
+              player_info += " - #{friendly_name}" if friendly_name && friendly_name != entity_id
+              player_info += " | Volume: #{(volume_level * 100).round}%" if volume_level
+
+              # Show currently playing media
+              if media_title || media_artist
+                current_media = [media_artist, media_title].compact.join(' - ')
+                player_info += " | Playing: #{current_media}"
+              end
+
+              # Decode supported features (Home Assistant media player feature flags)
+              features = []
+              features << 'play/pause' if supported_features.anybits?(1) # SUPPORT_PAUSE
+              features << 'volume' if supported_features.anybits?(4)     # SUPPORT_VOLUME_SET
+              features << 'seek' if supported_features.anybits?(8)       # SUPPORT_SEEK
+              features << 'next/prev' if supported_features.anybits?(16) # SUPPORT_NEXT_TRACK
+              features << 'turn_on/off' if supported_features.anybits?(128) # SUPPORT_TURN_ON
+
+              player_info += " | Features: #{features.join(', ')}" if features.any?
+
+              result << "  ✅ #{player_info}"
+            end
+          end
+          # rubocop:enable Metrics/BlockLength
+
+          result << ''
+          result << '=== USAGE EXAMPLES ==='
+          result << 'Play media: {"action": "play", "params": {"player": "tablet", "source": "Spotify", "volume": 0.7}}'
+          result << 'Set volume: {"action": "set_volume", "params": {"player": "tablet", "volume": 0.5}}'
+          result << 'Get status: {"action": "get_status", "params": {"player": "tablet"}}'
+
+        else
+          # Simple list
+          available_players = []
+          media_players.each do |player|
+            if player['state'] != 'unavailable'
+              player_name = player['entity_id'].split('.').last
+              available_players << player_name
+            end
+          end
+
+          result << "Available: #{available_players.join(', ')}"
+          result << 'Use verbose: true for detailed capabilities'
+        end
+
+        Services::Logging::SimpleLogger.log_api_call(
+          service: 'music_tool',
+          endpoint: 'list_players',
+          verbose: verbose,
+          player_count: media_players.size
+        )
+
+        result.join("\n")
+      rescue StandardError => e
+        "Error listing media players: #{e.message}"
+      end
+    end
+
+    # Play media on the Glitch Cube music player
+    def self.play_media(track:, volume: nil, mode: 'add')
+      player = 'cube_music' # Hardcoded - art installation has fixed audio setup
+
+      return format_response(false, 'Track is required') if track.nil? || track.empty?
+
+      entity_id = resolve_player_entity(player)
+      return "Error: Player '#{player}' not found" unless entity_id
+
+      begin
+        # Set volume if specified
+        if volume
+          volume_float = volume.is_a?(String) ? volume.to_f : volume
+          call_ha_service('media_player', 'volume_set', {
+                            entity_id: entity_id,
+                            volume_level: volume_float
+                          })
+        end
+
+        # Play the track using Music Assistant's play_media service
+        # This will do fuzzy search and play first result if not an exact ID
+        enqueue_mode = mode == 'replace_next' ? 'replace_next' : 'add'
+
+        call_ha_service('music_assistant', 'play_media', {
+                          media_id: track,
+                          media_type: 'track', # Can be track, album, artist, playlist
+                          enqueue: enqueue_mode,
+                          entity_id: entity_id
+                        })
+
+        # Ensure playback is started (queuing doesn't auto-start)
+        sleep(0.5) # Brief pause to let the queue update
+        call_ha_service('media_player', 'media_play', {
+                          entity_id: entity_id
+                        })
+
+        Services::Logging::SimpleLogger.log_api_call(
+          service: 'music_tool',
+          endpoint: 'play',
+          entity_id: entity_id,
+          track: track,
+          volume: volume,
+          mode: enqueue_mode
+        )
+
+        volume_desc = volume ? " at #{(volume.to_f * 100).round}% volume" : ''
+        mode_desc = mode == 'replace_next' ? ' (replaced queue)' : ' (added to queue)'
+        format_response(true, "Playing '#{track}' on #{player}#{volume_desc}#{mode_desc}")
+      rescue StandardError => e
+        format_response(false, "Failed to play on #{player}: #{e.message}")
+      end
+    end
+
+    # Pause media player
+    def self.pause_media
+      player = 'cube_music' # Hardcoded - art installation has fixed audio setup
+
+      entity_id = resolve_player_entity(player)
+      return format_response(false, "Player '#{player}' not found") unless entity_id
+
+      begin
+        call_ha_service('media_player', 'media_pause', { entity_id: entity_id })
+        format_response(true, 'Paused Glitch Cube music')
+      rescue StandardError => e
+        format_response(false, "Failed to pause music: #{e.message}")
+      end
+    end
+
+    # Stop media player
+    def self.stop_media
+      player = 'cube_music' # Hardcoded - art installation has fixed audio setup
+
+      entity_id = resolve_player_entity(player)
+      return format_response(false, "Player '#{player}' not found") unless entity_id
+
+      begin
+        call_ha_service('media_player', 'media_stop', { entity_id: entity_id })
+        format_response(true, 'Stopped Glitch Cube music')
+      rescue StandardError => e
+        format_response(false, "Failed to stop music: #{e.message}")
+      end
+    end
+
+    # Set volume for media player
+    def self.set_volume(volume:)
+      player = 'cube_music' # Hardcoded - art installation has fixed audio setup
+
+      return format_response(false, 'Volume is required') if volume.nil?
+
+      entity_id = resolve_player_entity(player)
+      return format_response(false, "Player '#{player}' not found") unless entity_id
+
+      # Convert volume to float between 0.0 and 1.0
+      volume_level = volume.is_a?(String) ? volume.to_f : volume
+      volume_level /= 100.0 if volume_level > 1.0 # Convert percentage to decimal
+      volume_level = [[0.0, volume_level].max, 1.0].min # Clamp between 0.0 and 1.0
+
+      begin
+        call_ha_service('media_player', 'volume_set', {
+                          entity_id: entity_id,
+                          volume_level: volume_level
+                        })
+
+        format_response(true, "Set Glitch Cube music volume to #{(volume_level * 100).round}%")
+      rescue StandardError => e
+        format_response(false, "Failed to set music volume: #{e.message}")
+      end
+    end
+
+    # Skip to next track
+    def self.next_track
+      player = 'cube_music' # Hardcoded - art installation has fixed audio setup
+
+      entity_id = resolve_player_entity(player)
+      return format_response(false, "Player '#{player}' not found") unless entity_id
+
+      begin
+        call_ha_service('media_player', 'media_next_track', { entity_id: entity_id })
+        format_response(true, 'Skipped to next track')
+      rescue StandardError => e
+        format_response(false, "Failed to skip track: #{e.message}")
+      end
+    end
+
+    # Skip to previous track
+    def self.previous_track
+      player = 'cube_music' # Hardcoded - art installation has fixed audio setup
+
+      entity_id = resolve_player_entity(player)
+      return format_response(false, "Player '#{player}' not found") unless entity_id
+
+      begin
+        call_ha_service('media_player', 'media_previous_track', { entity_id: entity_id })
+        format_response(true, 'Skipped to previous track')
+      rescue StandardError => e
+        format_response(false, "Failed to skip to previous track: #{e.message}")
+      end
+    end
+
+    # Get detailed status of media player
+    def self.get_player_status
+      player = 'cube_music' # Hardcoded - art installation has fixed audio setup
+
+      entity_id = resolve_player_entity(player)
+      return format_response(false, "Player '#{player}' not found") unless entity_id
+
+      begin
+        state = ha_client.state(entity_id)
+
+        if state && state['state'] != 'unavailable'
+          status_parts = ["#{player}: #{state['state']}"]
+
+          # Current media info
+          media_title = state.dig('attributes', 'media_title')
+          media_artist = state.dig('attributes', 'media_artist')
+          media_album = state.dig('attributes', 'media_album')
+
+          if media_title || media_artist
+            current_media = [media_artist, media_title, media_album].compact.join(' - ')
+            status_parts << "Playing: #{current_media}"
+          end
+
+          # Volume and position
+          volume_level = state.dig('attributes', 'volume_level')
+          media_duration = state.dig('attributes', 'media_duration')
+          media_position = state.dig('attributes', 'media_position')
+
+          status_parts << "Volume: #{(volume_level * 100).round}%" if volume_level
+
+          if media_duration && media_position
+            duration_str = format_duration(media_duration)
+            position_str = format_duration(media_position)
+            status_parts << "Position: #{position_str} / #{duration_str}"
+          end
+
+          status_parts.join(' | ')
+        else
+          'Glitch Cube music: unavailable'
+        end
+      rescue StandardError => e
+        format_response(false, "Error getting music status: #{e.message}")
+      end
+    end
+
+    # Resolve player name to full entity ID
+    def self.resolve_player_entity(player_name)
+      return player_name if player_name.start_with?('media_player.')
+
+      # Try to find the entity by name
+      states = ha_client.states
+      media_players = states.select { |state| state['entity_id'].start_with?('media_player.') }
+
+      # Look for exact match first
+      exact_match = media_players.find do |p|
+        p['entity_id'] == "media_player.#{player_name}" ||
+          p.dig('attributes', 'friendly_name')&.downcase == player_name.downcase
+      end
+
+      return exact_match['entity_id'] if exact_match
+
+      # Look for partial match
+      partial_match = media_players.find do |p|
+        p['entity_id'].include?(player_name) ||
+          p.dig('attributes', 'friendly_name')&.downcase&.include?(player_name.downcase)
+      end
+
+      partial_match&.dig('entity_id')
+    rescue StandardError
+      nil
+    end
+
+    # Format duration in seconds to MM:SS
+    def self.format_duration(seconds)
+      return '0:00' unless seconds
+
+      minutes = (seconds / 60).floor
+      secs = (seconds % 60).floor
+
+      "#{minutes}:#{secs.to_s.rjust(2, '0')}"
+    end
+  end
+end
+# frozen_string_literal: true
+
+module Tools
+  # Tool for text-to-speech synthesis through Home Assistant
+  # Provides speech output for conversation responses and notifications
+  class SpeechTool < BaseTool
+    def self.name
+      'speech_synthesis'
+    end
+
+    def self.description
+      'Convert text to speech using Home Assistant TTS services. Supports multiple TTS engines and voice configuration.'
+    end
+
+    def self.category
+      'audio_interface'
+    end
+
+    def self.tool_prompt
+      'Speak text using speak_text(). Configure voice with set_voice(). Check available voices with list_voices().'
+    end
+
+    # List of available tool methods for this class
+    def self.available_tools
+      %w[speak_text get_tts_status]
+    end
+
+    # Prompt description for LLM
+    def self.prompt_description
+      'Text-to-speech synthesis for speaking responses and notifications'
+    end
+
+    # Tool schemas for each method
+    def self.tool_schemas
+      {
+        'speak_text' => {
+          'type' => 'object',
+          'properties' => {
+            'text' => { 'type' => 'string' },
+            'entity_id' => { 'type' => 'string' },
+            'language' => { 'type' => 'string' },
+            'voice' => { 'type' => 'string' }
+          },
+          'required' => ['text']
+        },
+        'get_tts_status' => {
+          'type' => 'object',
+          'properties' => {
+            'entity_id' => { 'type' => 'string' }
+          }
+        }
+      }
+    end
+
+    # Default TTS entity for the Glitch Cube
+    DEFAULT_ENTITY = 'media_player.square_voice'
+
+    # Speak text using Home Assistant TTS
+    def self.speak_text(text:, entity_id: DEFAULT_ENTITY, language: 'en-US', voice: nil, **_kwargs)
+      return format_response(false, 'Text is required for speech synthesis') if text.nil? || text.strip.empty?
+
+      begin
+        start_time = Time.now
+
+        # Prepare options for TTS call
+        options = { entity_id: entity_id }
+        options[:language] = language if language
+        options[:voice] = voice if voice
+
+        # Use Home Assistant client for TTS
+        success = ha_client.speak(text, **options)
+
+        duration_ms = ((Time.now - start_time) * 1000).round
+
+        # Log the TTS call
+        Services::Logging::SimpleLogger.log_tts(
+          message: text,
+          success: success,
+          duration: duration_ms,
+          entity_id: entity_id,
+          language: language,
+          voice: voice
+        )
+
+        if success
+          voice_desc = voice ? " using voice '#{voice}'" : ''
+          lang_desc = language == 'en-US' ? '' : " in #{language}"
+          entity_desc = entity_id == DEFAULT_ENTITY ? '' : " on #{entity_id}"
+
+          "Spoke: '#{text}'#{voice_desc}#{lang_desc}#{entity_desc}"
+        else
+          'Failed to synthesize speech'
+        end
+      rescue StandardError => e
+        duration_ms = ((Time.now - start_time) * 1000).round if defined?(start_time)
+
+        # Log the error
+        Services::Logging::SimpleLogger.log_tts(
+          message: text,
+          success: false,
+          duration: duration_ms || 0,
+          error: e.message,
+          entity_id: entity_id
+        )
+
+        "Failed to speak text: #{e.message}"
+      end
+    end
+
+    # List available TTS voices and languages
+    def self.list_voices(verbose: false)
+      result = []
+      result << '=== AVAILABLE TTS VOICES ==='
+
+      begin
+        # Get TTS service configuration from Home Assistant
+        services = ha_client.get_services || {}
+        tts_services = services.slice('tts')
+
+        if tts_services.empty?
+          result << 'No TTS services available'
+          return result.join("\n")
+        end
+
+        tts_services.each do |domain, service_info|
+          service_info.each do |service_name, service_details|
+            result << "Service: #{domain}.#{service_name}"
+
+            next unless verbose && service_details['fields']
+
+            # Show available parameters
+            fields = service_details['fields']
+
+            if fields['language'] && fields['language']['values']
+              languages = fields['language']['values'].keys
+              result << "  Languages: #{languages.join(', ')}"
+            end
+
+            if fields['voice'] && fields['voice']['values']
+              voices = fields['voice']['values'].keys
+              result << "  Voices: #{voices.join(', ')}"
+            end
+
+            result << "  Description: #{service_details['description']}" if service_details['description']
+          end
+        end
+
+        # Show available media players that can play TTS
+        result << ''
+        result << '=== AVAILABLE MEDIA PLAYERS ==='
+
+        states = ha_client.states || []
+        media_players = states.select { |state| state['entity_id'].start_with?('media_player.') }
+
+        available_players = []
+        media_players.each do |player|
+          next if player['state'] == 'unavailable'
+
+          entity_id = player['entity_id']
+          friendly_name = player.dig('attributes', 'friendly_name') || entity_id
+          available_players << "#{entity_id} (#{friendly_name})"
+        end
+
+        result << available_players.join("\n  ")
+      rescue StandardError => e
+        result << "Error listing TTS voices: #{e.message}"
+      end
+
+      result.join("\n")
+    end
+
+    # Set default voice for subsequent TTS calls (placeholder for future enhancement)
+    def self.set_voice(voice:, language: 'en-US')
+      # This could be expanded to store voice preferences in configuration
+      # For now, just validate the voice exists
+
+      voices_info = list_voices(verbose: true)
+
+      if voices_info.include?(voice)
+        "Set default voice to '#{voice}' for language '#{language}'"
+      else
+        "Voice '#{voice}' not found. Available voices:\n#{voices_info}"
+      end
+    rescue StandardError => e
+      "Failed to set voice: #{e.message}"
+    end
+
+    # Get current TTS status and configuration
+    def self.get_tts_status(entity_id: DEFAULT_ENTITY)
+      # Get media player state
+      state = ha_client.state(entity_id)
+
+      if state && state['state'] != 'unavailable'
+        result = []
+        result << "TTS Entity: #{entity_id}"
+        result << "State: #{state['state']}"
+
+        # Media info
+        media_title = state.dig('attributes', 'media_title')
+        result << "Playing: #{media_title}" if media_title
+
+        # Volume
+        volume = state.dig('attributes', 'volume_level')
+        result << "Volume: #{(volume * 100).round}%" if volume
+
+        # Device info
+        friendly_name = state.dig('attributes', 'friendly_name')
+        result << "Device: #{friendly_name}" if friendly_name && friendly_name != entity_id
+
+        result.join(' | ')
+      else
+        "TTS entity #{entity_id} is unavailable"
+      end
+    rescue StandardError => e
+      "Error getting TTS status: #{e.message}"
+    end
+
+    # Quick announcement method for system messages
+    def self.announce(message:, priority: 'normal')
+      case priority
+      when 'high'
+      when 'low'
+      end
+      entity = DEFAULT_ENTITY
+
+      speak_text(text: message, entity_id: entity)
+    rescue StandardError => e
+      "Failed to make announcement: #{e.message}"
+    end
+  end
+end

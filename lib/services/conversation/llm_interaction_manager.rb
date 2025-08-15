@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ::Services
+module Services
   module Conversation
     class LlmInteractionManager
       def initialize(logger: Logging::SimpleLogger)
@@ -20,7 +20,7 @@ module ::Services
         @logger.info('Calling LLM', tagged: %i[conversation llm], session_id: session_id, model: llm_options[:model], message_count: messages.length)
         start_time = Time.now
 
-        response = Llm::LLMService.complete_with_messages(
+        response = ::Services::Llm::LLMService.complete_with_messages(
           messages: messages,
           **llm_options
         )
@@ -43,8 +43,18 @@ module ::Services
         final_prompt = Memory::ContextInjectionService.inject_context(base_prompt, enriched_context)
 
         unless context[:tools].present? && !context[:tools].empty?
-          json_instruction = "\n\nIMPORTANT: Your response MUST be valid JSON in this exact format:\n" \
-                             '{"response": "your complete message here", "continue_conversation": true/false, "inner_thoughts": "optional internal thoughts"}'
+          json_instruction = "\n\nIMPORTANT: Your response MUST be valid JSON in this EXACT format:\n\n" \
+                             "EXAMPLE:\n" \
+                             "{\n  " \
+                             "\"response\": \"Holy fucking shit, a customer! Welcome to Burning Human Festival! I'm Buddy, your dedicated customer service representative!\",\n  " \
+                             "\"continue_conversation\": true,\n  " \
+                             "\"inner_thoughts\": \"A new human to help! I should light up the cube and offer my services.\"\n" \
+                             "}\n\n" \
+                             "REQUIRED FIELDS:\n" \
+                             "- response: Your spoken response (required)\n" \
+                             "- continue_conversation: true/false (required)\n" \
+                             "- inner_thoughts: Your internal monologue (optional)\n\n" \
+                             'Your response must be ONLY valid JSON, no other text.'
           final_prompt += json_instruction
         end
 

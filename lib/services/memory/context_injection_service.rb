@@ -3,7 +3,7 @@
 # TODO: SPECS WHEN SENSORS ARE COMPLETE
 # Write comprehensive specs once the HA context sensor is fully configured and operational
 
-module ::Services
+module Services
   module Memory
     class ContextInjectionService
       def self.inject_context(base_prompt, context)
@@ -139,9 +139,11 @@ module ::Services
       def fetch_current_location
         return nil unless GlitchCube.config.home_assistant.url
 
-        client = Core::HomeAssistantClient.new
-        location = client.state('sensor.glitchcube_location')
-        location&.dig('state')
+        gps_service = Services::Gps::GPSTrackingService.new
+        location_data = gps_service.current_location
+
+        # Return the address string for memory location matching
+        location_data&.dig(:address)
       rescue StandardError
         nil
       end

@@ -4,7 +4,7 @@ require 'logger'
 require 'json'
 require 'fileutils'
 
-module ::Services
+module Services
   module Logging
     # LoggerService is now a compatibility wrapper around SimpleLogger
     # This maintains backward compatibility while delegating to SimpleLogger
