@@ -20,7 +20,7 @@ module GlitchCube
       anthropic_api_key: nil,
       helicone_api_key: nil,
       default_tools_model: 'mistralai/mistral-medium-3.1',
-      default_model: 'anthropic-claude-sonnet-4',
+      default_model: 'anthropic/claude-sonnet-4',
       port: 4567,
       session_secret: nil, # Auto-generated if not provided
       rack_env: 'development',

@@ -60,15 +60,8 @@ module Services
           # Parse and return response
           parse_response(response, model, options)
         rescue StandardError => e
-          if GlitchCube.config.debug?
-            Logging::SimpleLogger.debug(
-              'LLM error details',
-              tagged: %i[llm error debug],
-              error_class: e.class.name,
-              error_message: e.message,
-              backtrace: e.backtrace&.first(3)
-            )
-          end
+          # ALWAYS log error details including response body if available
+          log_error_details(e, model)
           handle_error(e)
         end
 
@@ -223,7 +216,7 @@ module Services
 
           # Consolidated request logging
           if GlitchCube.config.debug?
-            Logging::SimpleLogger.debug(
+            ::Services::Logging::SimpleLogger.debug(
               'LLM API REQUEST',
               tagged: %i[llm api_request],
               model: params[:model],
@@ -240,7 +233,7 @@ module Services
               **params[:extras]
             }
 
-            Logging::SimpleLogger.debug(
+            ::Services::Logging::SimpleLogger.debug(
               'RAW HTTP REQUEST',
               tagged: %i[llm raw_request],
               url: 'https://openrouter.ai/api/v1/chat/completions',
@@ -255,9 +248,9 @@ module Services
             **params[:extras]
           }
 
-          Logging::SimpleLogger.error("RAW REQUEST THAT'S FAILING",
-                                      payload_json: raw_payload.to_json,
-                                      payload_size: raw_payload.to_json.bytesize)
+          ::Services::Logging::SimpleLogger.error("RAW REQUEST THAT'S FAILING",
+                                                  payload_json: raw_payload.to_json,
+                                                  payload_size: raw_payload.to_json.bytesize)
           # Make the actual API call using the gem's signature:
           # complete(messages, model: 'model', extras: { all other params })
           response = client.complete(
@@ -268,7 +261,7 @@ module Services
 
           # Detailed response logging for debugging (only when debug mode is on)
           if GlitchCube.config.debug?
-            Logging::SimpleLogger.debug(
+            ::Services::Logging::SimpleLogger.debug(
               'RAW HTTP RESPONSE',
               tagged: %i[llm raw_response],
               status: 200,
@@ -281,7 +274,7 @@ module Services
           if GlitchCube.config.debug? && response.respond_to?(:[]) && response[:choices]
             choice = response[:choices]&.first
             if choice
-              Logging::SimpleLogger.debug(
+              ::Services::Logging::SimpleLogger.debug(
                 'LLM RESPONSE DETAILS',
                 tagged: %i[llm api_response],
                 finish_reason: choice[:finish_reason],
@@ -337,12 +330,25 @@ module Services
           Components::ErrorHandler.handle_error(error)
         end
 
+        def log_error_details(error, model)
+          # Just dump everything - this would have saved hours of debugging!
+          ::Services::Logging::SimpleLogger.error(
+            'LLM SERVICE ERROR DETAILS',
+            tagged: %i[llm error],
+            model: model,
+            error_inspect: error.inspect,
+            error_class: error.class.name,
+            error_message: error.message,
+            response_body: error.respond_to?(:response) && error.response ? error.response[:body] : nil
+          )
+        end
+
         # Removed - delegated to ErrorHandler component
 
         # Removed - delegated to ErrorHandler component
 
         def log_api_request(params)
-          Logging::SimpleLogger.info(
+          ::Services::Logging::SimpleLogger.info(
             'OPENROUTER_REQUEST',
             tagged: %i[llm openrouter_request],
             service: 'openrouter',
@@ -377,7 +383,7 @@ module Services
             end
           end
 
-          Logging::SimpleLogger.info(
+          ::Services::Logging::SimpleLogger.info(
             'OPENROUTER_RESPONSE',
             tagged: %i[llm openrouter_response],
             service: 'openrouter',
