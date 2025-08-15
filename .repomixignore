@@ -1,0 +1,20 @@
+# Add patterns to ignore here, one per line
+# Example:
+# *.log
+# tmp/
+/config
+*.yml
+*.json
+*.md
+*.yaml
+/spec
+/public
+/screenshots
+/vendor
+/views
+/data
+/claude
+/benchmark_scenario
+/.repomix
+*.xml
+*.txt

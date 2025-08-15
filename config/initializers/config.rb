@@ -91,7 +91,7 @@ module GlitchCube
       conversation_tracing_enabled: false,
 
       # Tool Execution
-      tool_calling_pattern: :default, # :default or :back_to_hass
+      tool_calling_pattern: :back_to_hass, # :default or :back_to_hass
       tool_retry: {
         enabled: true,
         max_iterations: 2,
