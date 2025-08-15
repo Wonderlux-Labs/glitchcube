@@ -321,17 +321,15 @@ module Services
         return "I'm working on that..." if tool_calls.nil? || tool_calls.empty?
 
         results = tool_calls.map do |tc|
-          result_text = if tc[:result].is_a?(Hash) && tc[:result][:result]
-                          tc[:result][:result]
-                        elsif tc[:result].is_a?(Hash) && tc[:result][:success] == false
-                          "failed: #{tc[:result][:error]}"
-                        else
-                          'completed'
-                        end
-          "#{tc[:tool_name]} (#{result_text})"
+          # Only check basic success/failure - ignore all data/emojis
+          if tc[:result].is_a?(Hash) && tc[:result][:success] == false
+            "❌ #{tc[:tool_name]}: failed"
+          else
+            "✅ #{tc[:tool_name]}: completed"
+          end
         end
 
-        "Actions taken: #{results.join(', ')}"
+        "Actions completed: #{results.join(', ')}"
       end
 
       # Validate message structure before sending to OpenRouter

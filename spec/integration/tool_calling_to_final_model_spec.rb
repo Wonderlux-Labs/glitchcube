@@ -128,7 +128,7 @@ RSpec.describe 'Tool calling to final model flow', type: :integration do
       # Test the new immediate conversion method
       summary = flow_manager.send(:create_simple_tool_summary, executed_tools)
 
-      expect(summary).to eq('Actions taken: set_state (✅ Set all to yellow at 150)')
+      expect(summary).to eq('Actions completed: ✅ set_state: completed')
       puts "Tool summary: #{summary}"
     end
 
@@ -140,7 +140,7 @@ RSpec.describe 'Tool calling to final model flow', type: :integration do
       expected_after_tool = [
         { role: 'system', content: 'Test system prompt' },
         { role: 'user', content: 'Turn the lights yellow' },
-        { role: 'assistant', content: 'Actions taken: set_state (✅ Set all to yellow at 150)' }
+        { role: 'assistant', content: 'Actions completed: ✅ set_state: completed' }
       ]
 
       # Verify no tool_calls or tool_call_id keys exist in the expected result
@@ -208,7 +208,7 @@ RSpec.describe 'Tool calling to final model flow', type: :integration do
                  response_text
                end
 
-      tool_summary = 'Actions taken: set_state (completed)'
+      tool_summary = 'Actions completed: ✅ set_state: completed'
       content = "#{intent}. #{tool_summary}".strip
       content = 'Working on your request...' if content.empty?
 
@@ -233,7 +233,7 @@ RSpec.describe 'Tool calling to final model flow', type: :integration do
 
       # Verify the combined message is properly formatted
       assistant_msg = messages.find { |m| m[:role] == 'assistant' }
-      expect(assistant_msg[:content]).to eq("I'll help you with that. Actions taken: set_state (completed)")
+      expect(assistant_msg[:content]).to eq("I'll help you with that. Actions completed: ✅ set_state: completed")
 
       puts '✅ Fix verified - proper message structure:'
       puts "Final message: #{assistant_msg[:content]}"

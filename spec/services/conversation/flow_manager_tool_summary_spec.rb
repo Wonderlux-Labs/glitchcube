@@ -27,9 +27,12 @@ RSpec.describe Services::Conversation::FlowManager, 'create_simple_tool_summary'
         }
       end
 
-      it 'creates simple summary with result text' do
+      it 'creates simple summary without raw data' do
         result = flow_manager.send(:create_simple_tool_summary, [tool_call])
-        expect(result).to eq('Actions taken: set_light (✅ Set all to yellow at 150)')
+        expect(result).to eq('Actions completed: ✅ set_light: completed')
+        # Verify raw data is NOT included
+        expect(result).not_to include('Set all to yellow at 150')
+        expect(result).not_to include('yellow')
       end
     end
 
@@ -44,7 +47,7 @@ RSpec.describe Services::Conversation::FlowManager, 'create_simple_tool_summary'
 
       it 'shows failure message' do
         result = flow_manager.send(:create_simple_tool_summary, [failed_tool_call])
-        expect(result).to eq('Actions taken: set_light (failed: Device not found)')
+        expect(result).to eq('Actions completed: ❌ set_light: failed')
       end
     end
 
@@ -66,7 +69,7 @@ RSpec.describe Services::Conversation::FlowManager, 'create_simple_tool_summary'
 
       it 'joins multiple tool results' do
         result = flow_manager.send(:create_simple_tool_summary, multiple_tool_calls)
-        expect(result).to eq('Actions taken: set_light (✅ Lights yellow), display_text (✅ Text displayed)')
+        expect(result).to eq('Actions completed: ✅ set_light: completed, ✅ display_text: completed')
       end
     end
 
@@ -81,7 +84,7 @@ RSpec.describe Services::Conversation::FlowManager, 'create_simple_tool_summary'
 
       it 'handles non-hash results' do
         result = flow_manager.send(:create_simple_tool_summary, [simple_tool_call])
-        expect(result).to eq('Actions taken: play_sound (completed)')
+        expect(result).to eq('Actions completed: ✅ play_sound: completed')
       end
     end
   end
