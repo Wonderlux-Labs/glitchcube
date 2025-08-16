@@ -3,14 +3,6 @@
 require 'ostruct'
 require 'securerandom'
 
-PROD_MINI_URL = 'http://100.104.211.107:4567'
-PROD_BACKUP_MINI_URL = 'http://speedygonzo.local:4567'
-SSH_MINI_USER = 'eristmini'
-
-PROD_HASS_URL = '100.126.250.73:8123'
-BACKUP_HASS_URL = 'http://glitch.local:8123'
-SSH_HASS_USER = 'root'
-
 module GlitchCube
   class ConfigBuilder
     DEFAULTS = {
@@ -20,7 +12,7 @@ module GlitchCube
       anthropic_api_key: nil,
       helicone_api_key: nil,
       default_tools_model: 'mistralai/mistral-medium-3.1',
-      default_model: 'x-ai/grok-4',
+      default_model: 'deepseek/deepseek-chat-v3-0324',
       port: 4567,
       session_secret: nil, # Auto-generated if not provided
       rack_env: 'development',
@@ -57,28 +49,40 @@ module GlitchCube
       master_password: nil,
       restart_auth_token: nil,
       restart_log_file: '/tmp/glitchcube_restart.log',
+      app_root: nil, # Auto-detected from Dir.pwd
 
       # AI Configuration
       ai: {
-        temperature: 0.8,
-        max_tokens: 4000, # More reasonable for faster responses
+        temperature: 1,
+        max_tokens: 32_000,
         max_tool_tokens: 32_000,
         max_session_messages: 10
       },
 
       # GPS Configuration
       gps: {
-        device_tracker_entity: 'device_tracker.glitch_cube'
+        device_tracker_entity: nil,
+        allow_spoofing: true,
+        simulate_movement: true, # Auto-enabled in development
+        home_camp_time: '5:30',
+        home_camp_street: 'F'
       },
 
       # Deployment Configuration
       deployment: {
-        mac_mini: true,
+        mac_mini: false,
         github_webhook_secret: nil,
         api_key: nil,
         internal_token: nil,
         hass_vm_host: 'localhost',
-        hass_vm_user: 'homeassistant'
+        hass_vm_user: 'homeassistant',
+        # Production URLs and infrastructure
+        prod_mini_url: 'http://100.104.211.107:4567',
+        backup_mini_url: 'http://speedygonzo.local:4567',
+        ssh_mini_user: 'eristmini',
+        prod_hass_url: '100.126.250.73:8123',
+        backup_hass_url: 'http://glitch.local:8123',
+        ssh_hass_user: 'root'
       },
 
       # Self-Healing Error Handler
@@ -87,8 +91,9 @@ module GlitchCube
       self_healing_error_threshold: 2, # From .env.defaults
 
       # Development/Test
-      debug_mode: false,
+      debug_mode: true,
       conversation_tracing_enabled: false,
+      disable_circuit_breakers: false, # Auto-enabled in test environment
 
       # Tool Execution
       tool_calling_pattern: :back_to_hass, # :default or :back_to_hass
@@ -102,12 +107,12 @@ module GlitchCube
       # Async Tool Configuration (Phase 5)
       enable_async_tools: true, # Feature flag for async tool execution
       async_tools: {
-        immediate_response_timeout: 1.0,    # Max time for immediate acknowledgment
-        background_execution_timeout: 30.0, # Max time for background tool execution
-        follow_up_delay: 2.0,               # Delay before follow-up TTS
-        max_concurrent_threads: 3,          # Limit concurrent async executions
+        immediate_response_timeout: 60,    # Max time for immediate acknowledgment
+        background_execution_timeout: 60, # Max time for background tool execution
+        follow_up_delay: 0,               # Delay before follow-up TTS
+        max_concurrent_threads: 10,          # Single-user system - only 1 thread needed
         thread_cleanup_timeout: 60.0,      # Auto-cleanup thread timeout
-        fallback_to_sync: true             # Fall back to sync if async fails
+        fallback_to_sync: true            # Never fall back to sync for single-user system
       },
 
       # Conversation Configuration
@@ -131,11 +136,13 @@ module GlitchCube
       master_password: 'MASTER_PASSWORD',
       restart_auth_token: 'RESTART_AUTH_TOKEN',
       restart_log_file: 'RESTART_LOG_FILE',
+      app_root: 'APP_ROOT',
       self_healing_mode: 'SELF_HEALING',
       self_healing_min_confidence: 'SELF_HEALING_MIN_CONFIDENCE',
       self_healing_error_threshold: 'SELF_HEALING_ERROR_THRESHOLD',
       debug_mode: 'DEBUG',
       conversation_tracing_enabled: 'CONVERSATION_TRACING',
+      disable_circuit_breakers: 'DISABLE_CIRCUIT_BREAKERS',
       tool_calling_pattern: 'TOOL_CALLING_PATTERN',
       port: 'PORT',
       session_secret: 'SESSION_SECRET',
@@ -177,7 +184,11 @@ module GlitchCube
         completion_timeout: ['COMPLETION_TIMEOUT']
       },
       gps: {
-        device_tracker_entity: ['GPS_DEVICE_TRACKER_ENTITY']
+        device_tracker_entity: ['GPS_DEVICE_TRACKER_ENTITY'],
+        allow_spoofing: ['ALLOW_GPS_SPOOFING'],
+        simulate_movement: ['SIMULATE_CUBE_MOVEMENT'],
+        home_camp_time: ['HOME_CAMP_TIME'],
+        home_camp_street: ['HOME_CAMP_STREET']
       },
       deployment: {
         mac_mini: ['MAC_MINI_DEPLOYMENT'],
@@ -232,7 +243,7 @@ module GlitchCube
         mappings.each do |key, env_vars|
           env_vars.each do |env_var|
             if ENV.key?(env_var)
-              config[group][key] = convert_value(ENV[env_var], DEFAULTS[group][key])
+              config[group][key] = convert_value(ENV.fetch(env_var, nil), DEFAULTS[group][key])
               break
             end
           end
@@ -291,7 +302,7 @@ module GlitchCube
 
     def self.check_missing_required
       required = %w[OPENROUTER_API_KEY HOME_ASSISTANT_TOKEN]
-      required.reject { |var| ENV[var]&.length&.positive? }
+      required.reject { |var| ENV.fetch(var, nil)&.length&.positive? }
     end
 
     # Validation method to ensure required configs are present
@@ -302,7 +313,7 @@ module GlitchCube
       errors << 'OPENROUTER_API_KEY is required' if openrouter_api_key.nil? || openrouter_api_key.empty?
       errors << 'HOME_ASSISTANT_TOKEN is required' if home_assistant.token.nil? || home_assistant.token.empty?
 
-      if production? && ENV['SESSION_SECRET'].nil?
+      if production? && ENV.fetch('SESSION_SECRET', nil).nil?
         errors << 'SESSION_SECRET should be explicitly set in production'
       end
 
@@ -346,6 +357,60 @@ module GlitchCube
     def async_thread_cleanup_timeout = async_tools.thread_cleanup_timeout
     def async_fallback_to_sync? = async_tools.fallback_to_sync
 
+    # GPS Configuration Helpers
+    def gps_spoofing_allowed?
+      development? || test? || gps.allow_spoofing
+    end
+
+    def simulate_cube_movement?
+      development? || gps.simulate_movement
+    end
+
+    def home_camp_coordinates
+      # Calculate coordinates based on BRC address
+      time_str = gps.home_camp_time
+      street = gps.home_camp_street
+
+      # Convert time to angle (2:00 = 30°, 3:00 = 60°, etc.)
+      time_parts = time_str.split(':')
+      hour = time_parts[0].to_i
+      minute = time_parts[1].to_i
+
+      # BRC is rotated ~30° from north, 2:00 points roughly east
+      angle_degrees = (hour * 30) + (minute * 0.5) - 60 # Offset for BRC orientation
+      angle_radians = angle_degrees * Math::PI / 180
+
+      # Distance from center based on street (rough approximation)
+      street_distances = {
+        'Esplanade' => 0.002,
+        'A' => 0.003, 'B' => 0.004, 'C' => 0.005, 'D' => 0.006,
+        'E' => 0.007, 'F' => 0.008, 'G' => 0.009, 'H' => 0.010,
+        'I' => 0.011, 'J' => 0.012, 'K' => 0.013, 'L' => 0.014
+      }
+
+      distance = street_distances[street] || 0.008 # Default to F street distance
+
+      # Center Camp coordinates
+      center_lat = 40.786958
+      center_lng = -119.202994
+
+      # Calculate home coordinates
+      home_lat = center_lat + (distance * Math.sin(angle_radians))
+      home_lng = center_lng + (distance * Math.cos(angle_radians))
+
+      { lat: home_lat, lng: home_lng, address: "#{time_str} & #{street}" }
+    end
+
+    # System Configuration Helpers
+    def application_root
+      app_root || Dir.pwd
+    end
+
+    # Circuit Breaker Configuration Helpers
+    def circuit_breakers_disabled?
+      test? || disable_circuit_breakers
+    end
+
     # Database safety checks to prevent data loss
     def safe_to_migrate?
       return true if test?
@@ -372,7 +437,7 @@ begin
   puts '✅ Configuration loaded successfully'
 rescue StandardError => e
   puts "❌ Configuration error: #{e.message}"
-  raise if ENV['RACK_ENV'] == 'production'
+  raise if ENV.fetch('RACK_ENV', 'development') == 'production'
 end
 
 # Tool registry no longer needs initialization - tools are loaded explicitly

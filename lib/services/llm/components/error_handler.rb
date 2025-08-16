@@ -42,7 +42,7 @@ module Services
             error_info << "Full error: #{error.inspect}"
 
             # Log to debug level so we always see it
-            ::Services::Logging::SimpleLogger.debug(
+            $logger.debug(
               'RAW ERROR DUMP',
               tagged: %i[llm error_debug],
               raw_error_info: error_info.join(' | ')
@@ -71,7 +71,7 @@ module Services
 
             # LOG THE FULL ERROR RESPONSE BODY - this would have saved hours of debugging!
             if error.response[:body]
-              ::Services::Logging::SimpleLogger.error(
+              $logger.error(
                 'LLM API ERROR RESPONSE BODY',
                 tagged: %i[llm error_response],
                 status: status,

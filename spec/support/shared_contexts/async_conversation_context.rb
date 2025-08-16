@@ -49,9 +49,9 @@ RSpec.shared_context 'with async conversation setup' do
 
   # Helper to mock Home Assistant TTS calls
   def mock_ha_tts_calls
-    allow_any_instance_of(Core::HomeAssistantClient)
+    allow_any_instance_of(Services::Core::HomeAssistantClient)
       .to receive(:speak_with_retry).and_return(true)
-    allow_any_instance_of(Core::HomeAssistantClient)
+    allow_any_instance_of(Services::Core::HomeAssistantClient)
       .to receive(:speak_as_persona).and_return(true)
   end
 

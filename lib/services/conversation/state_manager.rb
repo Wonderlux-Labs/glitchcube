@@ -19,18 +19,26 @@ module Services
 
       def record_message(session:, role:, content:, persona:, model_used: nil, prompt_tokens: nil, completion_tokens: nil, cost: nil, response_time_ms: nil, metadata: {})
         @logger.debug("Recording message for session #{session.session_id}", tagged: %i[conversation session], session_id: session.session_id, role: role, persona: persona, content_length: content.to_s.length)
-        session.add_message(
-          role: role,
-          content: content,
-          persona: persona,
-          model_used: model_used,
-          prompt_tokens: prompt_tokens,
-          completion_tokens: completion_tokens,
-          cost: cost,
-          response_time_ms: response_time_ms,
-          metadata: metadata
-        )
-        @logger.info("Message recorded for session #{session.session_id}", tagged: %i[conversation session], session_id: session.session_id, role: role, new_message_count: session.messages.count)
+        begin
+          # Quick sanity check
+          $logger.debug("CONVERSATION EXISTS? #{session.conversation.persisted?} ID=#{session.conversation.id}")
+
+          session.add_message(
+            role: role,
+            content: content,
+            persona: persona,
+            model_used: model_used,
+            prompt_tokens: prompt_tokens,
+            completion_tokens: completion_tokens,
+            cost: cost,
+            response_time_ms: response_time_ms,
+            metadata: metadata
+          )
+          @logger.info("Message recorded for session #{session.session_id}", tagged: %i[conversation session], session_id: session.session_id, role: role, new_message_count: session.messages.count)
+        rescue StandardError => e
+          $logger.error("UNCAUGHT ERROR in record_message: #{e.class} #{e.message}", tagged: %i[uncaught_error])
+          raise
+        end
       end
 
       def get_conversation_analytics(session_id)
@@ -38,9 +46,7 @@ module Services
 
         begin
           # Find the session and conversation
-          session = ConversationSession.find(session_id)
-          return nil unless session
-
+          session = ConversationSession.find_or_create(session_id: session_id)
           conversation = session.conversation
           messages = session.messages
 
@@ -127,7 +133,13 @@ module Services
 
           # Calculate aggregated metrics
           total_conversations = conversations.count
-          total_messages = conversations.joins(:messages).count
+          conversation_ids = conversations.pluck(:id)
+
+          # Use Message queries directly to avoid GROUP BY issues
+          total_messages = Message.where(conversation_id: conversation_ids).count
+          total_cost = Message.where(conversation_id: conversation_ids).sum(:cost) || 0.0
+          total_prompt_tokens = Message.where(conversation_id: conversation_ids).sum(:prompt_tokens) || 0
+          total_completion_tokens = Message.where(conversation_id: conversation_ids).sum(:completion_tokens) || 0
 
           analytics = {
             period: {
@@ -141,12 +153,12 @@ module Services
             average_messages_per_conversation: total_conversations.positive? ? (total_messages.to_f / total_conversations).round(2) : 0,
 
             # Cost analysis
-            total_cost: conversations.joins(:messages).sum('messages.cost') || 0.0,
+            total_cost: total_cost,
             average_cost_per_conversation: 0, # Will calculate below
 
             # Token usage
-            total_prompt_tokens: conversations.joins(:messages).sum('messages.prompt_tokens') || 0,
-            total_completion_tokens: conversations.joins(:messages).sum('messages.completion_tokens') || 0,
+            total_prompt_tokens: total_prompt_tokens,
+            total_completion_tokens: total_completion_tokens,
 
             # Time analysis
             conversations_by_hour: analyze_conversations_by_hour(conversations),
@@ -278,17 +290,21 @@ module Services
       end
 
       def analyze_model_usage(conversations)
-        conversations.joins(:messages)
-                     .where.not(messages: { model_used: nil })
-                     .group('messages.model_used')
-                     .count
+        # Use Message directly to avoid GROUP BY issues with joined tables
+        conversation_ids = conversations.pluck(:id)
+        Message.where(conversation_id: conversation_ids)
+               .where.not(model_used: nil)
+               .group(:model_used)
+               .count
       end
 
       def analyze_persona_usage(conversations)
-        conversations.joins(:messages)
-                     .where.not(messages: { persona: nil })
-                     .group('messages.persona')
-                     .count
+        # Use Message directly to avoid GROUP BY issues with joined tables
+        conversation_ids = conversations.pluck(:id)
+        Message.where(conversation_id: conversation_ids)
+               .where.not(persona: nil)
+               .group(:persona)
+               .count
       end
     end
   end

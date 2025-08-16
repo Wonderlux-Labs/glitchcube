@@ -91,8 +91,8 @@ RSpec.describe Services::PersonaStateService do
     # FIXME: This test is brittle - HA sync expectations don't match current implementation
     # The test expects specific HA sync behavior that may have changed in the implementation
     xit 'syncs with Home Assistant by default' do
-      # Mock Core::HomeAssistantClient class to return our mock instance
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      # Mock Services::Core::HomeAssistantClient class to return our mock instance
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
       # Ensure Redis is available for setting the persona
       allow(described_class).to receive(:redis_available?).and_return(true)
@@ -140,8 +140,8 @@ RSpec.describe Services::PersonaStateService do
 
   describe '.sync_with_home_assistant' do
     it 'updates Home Assistant entity with current persona' do
-      # Mock Core::HomeAssistantClient class to return our mock instance
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      # Mock Services::Core::HomeAssistantClient class to return our mock instance
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
       # Mock Redis to return default persona since that's what actually happens
       allow(mock_redis).to receive(:get).with('glitchcube:current_persona').and_return(nil)
@@ -160,8 +160,8 @@ RSpec.describe Services::PersonaStateService do
     end
 
     it 'returns false on Home Assistant error' do
-      # Mock Core::HomeAssistantClient class to return our mock instance
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      # Mock Services::Core::HomeAssistantClient class to return our mock instance
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
       allow(ha_client).to receive(:set_state).and_raise(StandardError)
 
@@ -171,8 +171,8 @@ RSpec.describe Services::PersonaStateService do
 
   describe '.get_persona_from_home_assistant' do
     it 'returns persona from Home Assistant state' do
-      # Mock Core::HomeAssistantClient class to return our mock instance
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      # Mock Services::Core::HomeAssistantClient class to return our mock instance
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
       allow(ha_client).to receive(:state).with('input_text.current_persona')
                                          .and_return({ 'state' => 'Zorp' })
@@ -181,8 +181,8 @@ RSpec.describe Services::PersonaStateService do
     end
 
     it 'returns default when Home Assistant state is unavailable' do
-      # Mock Core::HomeAssistantClient class to return our mock instance
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      # Mock Services::Core::HomeAssistantClient class to return our mock instance
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
       allow(ha_client).to receive(:state).with('input_text.current_persona')
                                          .and_return({ 'state' => 'unavailable' })
@@ -191,8 +191,8 @@ RSpec.describe Services::PersonaStateService do
     end
 
     it 'returns default on Home Assistant error' do
-      # Mock Core::HomeAssistantClient class to return our mock instance
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      # Mock Services::Core::HomeAssistantClient class to return our mock instance
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
       allow(ha_client).to receive(:state).and_raise(StandardError)
 
@@ -202,8 +202,8 @@ RSpec.describe Services::PersonaStateService do
 
   describe '.sync_from_home_assistant' do
     it 'updates persona from Home Assistant without syncing back' do
-      # Mock Core::HomeAssistantClient class to return our mock instance
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      # Mock Services::Core::HomeAssistantClient class to return our mock instance
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
       # Mock HA client to return a persona state
       allow(ha_client).to receive(:state).with('input_text.current_persona')

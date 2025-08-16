@@ -6,10 +6,10 @@
     {% if host and host not in ['unknown', 'unavailable', ''] %}
       http://{{ host }}:4567/health
     {% else %}
-      http://192.168.0.99:4567/health
+      http://100.88.239.104:4567/health
     {% endif %}
   name: "Glitch Cube API Health"
-  unique_id: "glitchcube_api_health"
+  unique_id: "glitchcube_api_health_rest"
   scan_interval: 30  # Check every 30 seconds
   timeout: 10
   headers:

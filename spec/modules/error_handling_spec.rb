@@ -88,11 +88,11 @@ RSpec.describe ErrorHandling do
       end
     end
 
-    context 'when a Core::CircuitBreaker::CircuitOpenError occurs' do
+    context 'when a Services::Core::CircuitBreaker::CircuitOpenError occurs' do
       it 'handles it as an operational error and returns fallback', :vcr do
-        # Mock the Core::CircuitBreaker error class
-        stub_const('Core::CircuitBreaker::CircuitOpenError', Class.new(StandardError))
-        error = Core::CircuitBreaker::CircuitOpenError.new('Circuit open')
+        # Mock the Services::Core::CircuitBreaker error class
+        stub_const('Services::Core::CircuitBreaker::CircuitOpenError', Class.new(StandardError))
+        error = Services::Core::CircuitBreaker::CircuitOpenError.new('Circuit open')
         fallback = 'default_value'
 
         expect(Services::Logging::SimpleLogger).to receive(:log_api_call).with(
@@ -100,7 +100,7 @@ RSpec.describe ErrorHandling do
             service: 'application',
             endpoint: 'test_operation',
             status: 500,
-            error: 'Core::CircuitBreaker::CircuitOpenError: Circuit open',
+            error: 'Services::Core::CircuitBreaker::CircuitOpenError: Circuit open',
             operation: 'test_operation',
             type: 'circuit_breaker',
             operational: true

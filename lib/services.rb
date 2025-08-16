@@ -24,4 +24,7 @@ module Services
 
   module Admin
   end
+
+  module Core
+  end
 end

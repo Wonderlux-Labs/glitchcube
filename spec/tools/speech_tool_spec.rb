@@ -74,8 +74,8 @@ RSpec.describe Tools::SpeechTool do
   describe '**_kwargs handling' do
     it 'accepts unexpected parameters without crashing' do
       # Mock the HomeAssistant client to prevent actual TTS calls
-      mock_client = double('Core::HomeAssistantClient')
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_client)
+      mock_client = double('Services::Core::HomeAssistantClient')
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(mock_client)
       allow(mock_client).to receive(:speak).and_return({ 'success' => true })
       allow(Services::Logging::SimpleLogger).to receive(:info)
 

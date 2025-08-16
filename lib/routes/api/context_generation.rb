@@ -7,7 +7,7 @@ module Routes
         content_type :json
         # Parse HA webhook request
         data = JSON.parse(request.body.read)
-        model = data['model'] || 'google/gemini-2.0-flash-thinking-exp:free'
+        model = data['model'] || 'google/gemini-2.5/flash'
         prompt = data['prompt']
         sensor = data['sensor'] || 'sensor.glitchcube_context'
         attribute = data['attribute'] || 'state' # or '1hr_summary', '4hr_summary', etc.

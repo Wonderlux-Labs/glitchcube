@@ -21,7 +21,7 @@ module Services
 
         # Bounded thread pool for async tool execution
         @thread_pool = Concurrent::FixedThreadPool.new(
-          GlitchCube.config.async_max_threads,
+          [GlitchCube.config.async_max_threads, 10].max,
           name: 'async-tools'
         )
 
@@ -32,7 +32,7 @@ module Services
 
       def process_conversation(message:, context: {}, persona: nil)
         start_time = Time.now
-        persona_name = persona || context[:persona] || PersonaStateService.get_current_persona
+        persona_name = persona || context[:persona] || Services::PersonaStateService.get_current_persona
         persona_instance = Personas::BasePersona.create(persona_name, context)
 
         context[:tools] ||= persona_instance.tool_schemas
@@ -238,9 +238,9 @@ module Services
       def build_llm_options(context, session_id, with_tools: true)
         options = {
           model: @llm_manager.select_appropriate_model(context, session_id),
-          temperature: context[:temperature] || GlitchCube.config.conversation&.temperature || 0.8,
-          max_tokens: context[:max_tokens] || GlitchCube.config.conversation&.max_tokens || GlitchCube.config.ai.max_tokens,
-          timeout: context[:timeout] || GlitchCube.config.conversation&.completion_timeout || 60
+          temperature: context[:temperature] || 0.8,
+          max_tokens: context[:max_tokens] || 2000,
+          timeout: context[:timeout] || 60
         }
 
         # Simple logic: use tools if available, otherwise rely on prompt-based structured output
@@ -437,7 +437,7 @@ module Services
       # Call LLM with retry logic for JSON schema errors
       def call_llm_with_schema_retry(messages, llm_options, session_id)
         @llm_manager.call_llm(messages: messages, llm_options: llm_options, session_id: session_id)
-      rescue ::Services::Llm::LLMService::JSONSchemaError => e
+      rescue Services::Llm::LLMService::JSONSchemaError => e
         @logger.warn('JSON schema error, retrying without response_format', tagged: %i[conversation llm retry], session_id: session_id, error: e.message)
 
         # Remove response_format and retry
@@ -749,9 +749,9 @@ module Services
       def build_llm_options_for_conversation(context, _session_id)
         {
           model: context[:model] || GlitchCube.config.default_model, # Use conversation model, not tools model
-          temperature: context[:temperature] || GlitchCube.config.conversation&.temperature || 0.8,
-          max_tokens: context[:max_tokens] || GlitchCube.config.conversation&.max_tokens || GlitchCube.config.ai.max_tokens,
-          timeout: context[:timeout] || GlitchCube.config.conversation&.completion_timeout || 60
+          temperature: context[:temperature] || 0.8,
+          max_tokens: context[:max_tokens] || 32000,
+          timeout: context[:timeout] || 60
           # Explicitly NO tools option - this is pure conversation
         }
       end
@@ -867,6 +867,50 @@ module Services
         [success_actions, failed_actions]
       end
 
+      # Helper method to categorize actions by type for immediate acknowledgments
+      def categorize_action_types(actions)
+        action_types = {
+          lights: false,
+          music: false,
+          camera: false,
+          display: false,
+          speech: false,
+          other: false
+        }
+
+        actions.each do |action|
+          action_lower = action.to_s.downcase
+          case action_lower
+          when /light|led|color|brightness|dim|glow/
+            action_types[:lights] = true
+          when /music|play|sound|audio|volume|song/
+            action_types[:music] = true
+          when /camera|photo|picture|vision|look/
+            action_types[:camera] = true
+          when /display|show|text|screen|matrix/
+            action_types[:display] = true
+          when /say|speak|talk|announce|tts/
+            action_types[:speech] = true
+          else
+            action_types[:other] = true
+          end
+        end
+
+        action_types
+      end
+
+      # Determine primary action category for acknowledgment selection
+      def determine_primary_category(action_types)
+        # Count how many categories are active
+        active_categories = action_types.select { |_k, v| v }.keys
+        
+        return :generic if active_categories.empty?
+        return :mixed if active_categories.length > 1
+        
+        # Return the single active category
+        active_categories.first
+      end
+
       def build_targets_array(actions)
         return [] unless actions.is_a?(Array)
 
@@ -902,7 +946,7 @@ module Services
           enhanced_options = {
             model: GlitchCube.config.default_model,
             temperature: 0.7,
-            max_tokens: 200 # Keep it concise for TTS
+            max_tokens: GlitchCube.config.conversation&.max_tokens || 32000 # Use configured token limit
           }
 
           enhanced_response = @llm_manager.call_llm(
@@ -986,9 +1030,6 @@ module Services
         # Don't use async if explicitly disabled for this session
         return false if context[:force_sync]
 
-        # Don't use async in conversation extraction mode for now
-        return false if GlitchCube.config.tool_execution_mode == :conversation_extraction
-
         true
       end
 
@@ -1004,6 +1045,7 @@ module Services
       end
 
       def execute_async_tool_flow(message, session, persona_instance, context)
+        @logger.info("!! IN ASYNC FLOW !!")
         start_time = Time.now
         execution_id = SecureRandom.uuid
 
@@ -1019,7 +1061,7 @@ module Services
         )
 
         # 2. Extract actions from the response
-        action_extractor = Services::Conversation::ActionExtractor.new(logger: @logger)
+        action_extractor = ActionExtractor.new(logger: @logger)
         extracted_actions = action_extractor.extract_actions_only(
           immediate_response.parsed_content || {},
           session.session_id
@@ -1039,9 +1081,9 @@ module Services
             message, execution_id
           )
 
-          # 4. Return immediate acknowledgment to HA
+          # 4. Return immediate response to HA - speak original LLM response while tools execute
           build_immediate_response(
-            persona_instance, extracted_actions, session.session_id
+            immediate_response, extracted_actions, session.session_id
           )
         else
           # No actions detected - use normal synchronous flow
@@ -1049,9 +1091,20 @@ module Services
                        tagged: %i[conversation async_flow no_actions],
                        session_id: session.session_id)
 
-          build_normal_response(
-            immediate_response.response_text, session.session_id
-          )
+          # Handle empty response gracefully
+          response_text = immediate_response.response_text
+          if response_text.nil? || response_text.strip.empty?
+            response_text = generate_fallback_response(persona_instance)
+            @logger.warn('⚠️ Empty LLM response, using fallback',
+                         tagged: %i[conversation async_flow empty_response],
+                         session_id: session.session_id,
+                         model: immediate_response.model,
+                         finish_reason: immediate_response.raw_response&.dig('choices', 0, 'finish_reason'),
+                         completion_tokens: immediate_response.usage&.[](:completion_tokens),
+                         fallback_text: response_text)
+          end
+
+          build_normal_response(response_text, session.session_id)
         end
       end
 
@@ -1066,9 +1119,9 @@ module Services
         # Optimized LLM options for speed
         llm_options = {
           model: context[:model] || GlitchCube.config.default_model,
-          temperature: 0.7, # Consistent but not overly creative
-          max_tokens: 200,  # Limit for faster response
-          timeout: GlitchCube.config.async_immediate_timeout # Configurable immediate timeout
+          temperature: 1, # Consistent but not overly creative
+          max_tokens: GlitchCube.config.conversation&.max_tokens || 32000, # Use configured token limit
+          timeout: GlitchCube.config.conversation&.completion_timeout || 60 # Use configured timeout
         }
 
         # Record the message
@@ -1092,6 +1145,16 @@ module Services
       end
 
       def launch_background_tool_execution(actions, session, persona_instance, original_message, execution_id)
+        # Check for duplicate session processing
+        if @active_tool_threads.key?(session.session_id)
+          @logger.warn('🔄 Session already has active async operation, skipping duplicate',
+                       tagged: %i[conversation async_flow duplicate_session],
+                       session_id: session.session_id,
+                       execution_id: execution_id,
+                       existing_thread_active: @active_tool_threads[session.session_id]&.pending?)
+          return
+        end
+
         # Check thread pool capacity before submitting
         if @thread_pool.remaining_capacity <= 0
           @logger.warn('Thread pool at capacity, falling back to sync execution',
@@ -1163,7 +1226,7 @@ module Services
           # Use Concurrent::Promises for safe timeout handling instead of Timeout.timeout
           promise = Concurrent::Promises.future do
             # Execute tools via Claude conversation agent
-            action_extractor = Services::Conversation::ActionExtractor.new(logger: @logger)
+            action_extractor = ActionExtractor.new(logger: @logger)
             claude_results = action_extractor.execute_actions_via_claude(
               actions, session.session_id, original_message
             )
@@ -1175,18 +1238,26 @@ module Services
                          success: claude_results[:success],
                          duration_ms: ((Time.now - start_time) * 1000).round)
 
-            # Generate contextual follow-up response
-            follow_up_text = generate_smart_follow_up(
-              persona_instance, claude_results, actions, session.session_id
+            # Build final structured HA response using existing infrastructure
+            response_data = {
+              response: 'Completed your request!',
+              continue_conversation: true
+            }
+
+            final_result = build_final_result(
+              response_data,
+              session,
+              OpenStruct.new(model: 'claude', usage: {}, cost: 0), # lightweight stub model
+              { action_results: {
+                  actions: actions,
+                  claude_results: claude_results,
+                  execution_summary: claude_results[:execution_summary]
+                }},
+              persona_instance.name
             )
 
-            # Speak follow-up directly via Home Assistant
-            if follow_up_text && follow_up_text.strip.length > 5
-              speak_follow_up_directly(follow_up_text, persona_instance, session.session_id, execution_id)
-            else
-              @logger.warn('⚠️ Skipping empty or very short follow-up',
-                           follow_up_text: follow_up_text&.inspect)
-            end
+            # Send structured result back to HA conversation pipeline
+            send_conversation_result_to_home_assistant(session.session_id, final_result)
 
             @logger.info('✅ Async tool flow completed successfully',
                          tagged: %i[conversation async_flow complete],
@@ -1205,7 +1276,25 @@ module Services
                         session_id: session.session_id,
                         execution_id: execution_id,
                         timeout_seconds: timeout)
-          speak_timeout_follow_up(persona_instance, session.session_id)
+          # Handle timeout using proper HA conversation flow
+          timeout_response_data = {
+            response: generate_timeout_message(persona_instance.name),
+            continue_conversation: true
+          }
+
+          timeout_final_result = build_final_result(
+            timeout_response_data,
+            session,
+            OpenStruct.new(model: 'claude', usage: {}, cost: 0),
+            { action_results: {
+                actions: actions,
+                claude_results: { success: false, message: 'Tool execution timed out' },
+                execution_summary: 'Tool execution timed out'
+              }},
+            persona_instance.name
+          )
+
+          send_conversation_result_to_home_assistant(session.session_id, timeout_final_result)
         rescue StandardError => e
           @logger.error('💥 Unexpected error during tool execution',
                         tagged: %i[conversation async_flow error],
@@ -1243,41 +1332,57 @@ module Services
         cleaned_response
       end
 
-      def speak_follow_up_directly(text, persona_instance, session_id, execution_id)
-        @logger.info('📢 Speaking follow-up directly',
-                     tagged: %i[conversation async_flow direct_tts],
-                     session_id: session_id,
-                     execution_id: execution_id,
-                     text_preview: text[0..50])
 
-        begin
-          ha_client = Core::HomeAssistantClient.new
-
-          # Use enhanced TTS with persona voice and retry
-          result = ha_client.speak_as_persona(
-            text,
-            persona_instance.name,
-            entity_id: 'media_player.square_voice',
-            async_context: true
-          )
-
-          if result
-            @logger.info('✅ Follow-up TTS successful',
-                         session_id: session_id,
-                         execution_id: execution_id,
-                         persona: persona_instance.name)
-          else
-            @logger.warn('⚠️ Persona TTS failed completely',
-                         session_id: session_id,
-                         persona: persona_instance.name)
-          end
-        rescue StandardError => e
-          @logger.error('💥 Follow-up TTS completely failed',
-                        error: e.message,
-                        session_id: session_id,
-                        execution_id: execution_id)
+      def generate_error_message(persona_name)
+        case persona_name.downcase
+        when 'buddy'
+          'Ah shit, something went wrong with that request!'
+        when 'jax'
+          'Error encountered during task execution.'
+        when 'lomi'
+          'Oh no, I had trouble with that request, friend.'
+        when 'zorp'
+          'Like, something went wrong there, dude.'
+        else
+          'Sorry, I had trouble completing that request.'
         end
       end
+
+      def generate_timeout_message(persona_name)
+        case persona_name.downcase
+        when 'buddy'
+          "That's taking longer than expected, hang tight!"
+        when 'jax'
+          'Task execution timeout encountered.'
+        when 'lomi'
+          "That's taking a bit longer than usual, sweetie."
+        when 'zorp'
+          'Like, that request is taking longer than expected, dude.'
+        else
+          'That request is taking longer than expected.'
+        end
+      end
+
+      def send_conversation_result_to_home_assistant(session_id, result_hash)
+        @logger.info('📡 Sending conversation result back to Home Assistant',
+                     tagged: %i[conversation async_flow ha_result],
+                     session_id: session_id,
+                     response_type: result_hash.dig('response', 'response_type'))
+
+        begin
+          ha_client = Services::Core::HomeAssistantClient.new
+          ha_client.post_conversation_result(
+            session_id: session_id,
+            result: result_hash
+          )
+        rescue StandardError => e
+          @logger.error('💥 Failed to send conversation result to HA',
+                        error: e.message,
+                        session_id: session_id,
+                        backtrace: e.backtrace&.first(3))
+        end
+      end
+
 
       def handle_background_thread_error(error, execution_id, session_id, persona_instance)
         @logger.error('💥 Background tool execution failed',
@@ -1288,63 +1393,55 @@ module Services
                       session_id: session_id,
                       backtrace: error.backtrace&.first(5))
 
-        # Attempt to notify user of failure
-        error_message = generate_error_follow_up(persona_instance, error.message)
-
+        # Attempt to notify user of failure using proper HA conversation flow
         begin
-          speak_follow_up_directly(error_message, persona_instance, session_id, execution_id)
+          error_response_data = {
+            response: generate_error_message(persona_instance.name),
+            continue_conversation: true
+          }
+
+          # Build error result using same infrastructure
+          error_final_result = build_final_result(
+            error_response_data,
+            # Create minimal session stub for error case
+            OpenStruct.new(session_id: session_id, persona: persona_instance.name),
+            OpenStruct.new(model: 'claude', usage: {}, cost: 0),
+            { action_results: {
+                actions: [],
+                claude_results: { success: false, message: "Error: #{error.message}" },
+                execution_summary: "Tool execution failed: #{error.message}"
+              }},
+            persona_instance.name
+          )
+
+          send_conversation_result_to_home_assistant(session_id, error_final_result)
         rescue StandardError => e
-          @logger.error('💥 Failed to notify user of error via TTS',
+          @logger.error('💥 Failed to notify user of error via HA conversation flow',
                         error: e.message,
                         execution_id: execution_id,
                         session_id: session_id)
         end
       end
 
-      def generate_error_follow_up(persona_instance, _error_message)
+
+      def generate_fallback_response(persona_instance)
         case persona_instance.name.downcase
         when 'buddy'
-          'Ah shit, something went wrong with that request!'
+          'Hmm, my brain went blank there! What can I help you with?'
         when 'jax'
-          'Error encountered during task execution.'
+          'Processing error. Please restate your request.'
         when 'lomi'
-          'Oh no, I had trouble with that request, friend.'
+          'Sorry sweetie, I lost my words there. What did you need?'
         else
-          'Sorry, I had trouble completing that request.'
+          'I apologize, could you please repeat that?'
         end
       end
 
-      def speak_timeout_follow_up(persona_instance, _session_id)
-        timeout_message = case persona_instance.name.downcase
-                          when 'buddy'
-                            "That's taking longer than expected, hang tight!"
-                          when 'jax'
-                            'Task execution timeout encountered.'
-                          when 'lomi'
-                            "That's taking a bit longer than usual, sweetie."
-                          else
-                            'That request is taking longer than expected.'
-                          end
 
-        begin
-          ha_client = Core::HomeAssistantClient.new
-          ha_client.speak_as_persona(
-            timeout_message,
-            persona_instance.name,
-            entity_id: 'media_player.square_voice',
-            async_context: true
-          )
-        rescue StandardError => e
-          @logger.error('💥 Failed to speak timeout message', error: e.message)
-        end
-      end
-
-      def build_immediate_response(persona_instance, actions, session_id)
-        acknowledgment = generate_immediate_acknowledgment(persona_instance, actions)
-
+      def build_immediate_response(immediate_response, actions, session_id)
         {
           response_type: 'immediate_speech_with_background_tools',
-          speech_text: acknowledgment,
+          speech_text: immediate_response.response_text,
           continue_conversation: true,
           session_id: session_id,
           action_count: actions.count,
@@ -1363,7 +1460,9 @@ module Services
       end
 
       def generate_immediate_acknowledgment(persona_instance, actions)
-        action_types = categorize_actions(actions)
+        # Convert actions array to format expected by categorize_actions
+        # For immediate acknowledgment, we just need to categorize the actions by type
+        action_types = categorize_action_types(actions)
 
         acknowledgments = case persona_instance.name.downcase
                           when 'buddy'

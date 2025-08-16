@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'securerandom'
+require_relative '../../lib/modules/globals'
 # abstract class
 
 class ConversationSession
@@ -13,30 +14,26 @@ class ConversationSession
     def find_or_create(session_id: nil, context: {})
       session_id ||= SecureRandom.uuid
 
-      # Use ActiveRecord to find or create with explicit save
-      conversation = ::Conversation.find_or_create_by(session_id: session_id) do |c|
-        c.source = context[:source] || 'api'
-        c.persona = context[:persona] || 'neutral'
-        c.started_at = Time.current
-        c.metadata = context.except(:session_id, :source, :persona)
+      existing = Conversation.find_by(session_id: session_id)
+      if existing && existing.updated_at < 3.minutes.ago
+        existing.end!
       end
 
-      # Ensure the record is persisted (find_or_create_by should do this, but let's be explicit)
-      conversation.save! if conversation.new_record?
-
+      # Use ActiveRecord to find or create
+      conversation = existing || Conversation.create!(
+        session_id: session_id,
+        source: context[:source] || 'api',
+        persona: Modules::Globals.persona,
+        started_at: Time.current,
+        metadata: context.except(:session_id, :source, :persona)
+      )
       # Verify it's in the database
-      raise "Failed to persist conversation with session_id: #{session_id}" unless ::Conversation.exists?(session_id: session_id)
+      raise "Failed to persist conversation with session_id: #{session_id}" unless Conversation.exists?(session_id: session_id)
 
       new(conversation)
     end
 
-    # Find existing session (returns nil if not found)
-    def find(session_id)
-      return nil unless session_id
-
-      conversation = ::Conversation.find_by(session_id: session_id)
-      conversation ? new(conversation) : nil
-    end
+    private
   end
 
   def initialize(conversation)
@@ -57,30 +54,7 @@ class ConversationSession
       **extra
     )
 
-    # Update conversation totals if assistant message
-    if role == 'assistant'
-      updates = {
-        total_cost: @conversation.total_cost + (extra[:cost] || 0),
-        total_tokens: @conversation.total_tokens +
-                      (extra[:prompt_tokens] || 0) +
-                      (extra[:completion_tokens] || 0)
-      }
-      updates[:persona] = extra[:persona] if extra[:persona]
-
-      # Store inner_thoughts in flow_data if present
-      if extra[:metadata] && extra[:metadata][:inner_thoughts].present?
-        flow_data = @conversation.flow_data || {}
-        flow_data['inner_thoughts'] ||= []
-        flow_data['inner_thoughts'] << {
-          'timestamp' => Time.now.iso8601,
-          'persona' => extra[:persona],
-          'thought' => extra[:metadata][:inner_thoughts]
-        }
-        updates[:flow_data] = flow_data
-      end
-
-      @conversation.update!(updates)
-    end
+    update_conversation_stats(extra) if role == 'assistant'
 
     message
   end
@@ -97,20 +71,8 @@ class ConversationSession
   # Get messages for LLM context
   def messages_for_llm(limit: nil)
     limit ||= max_context_messages
-
-    # Get recent messages from database
-    recent_messages = @conversation.messages
-                                   .order(created_at: :desc)
-                                   .limit(limit)
-                                   .reverse # Oldest first for context
-
-    # Format for LLM API
-    recent_messages.map do |msg|
-      {
-        role: msg.role,
-        content: msg.content
-      }
-    end
+    recent_messages = fetch_recent_messages(limit)
+    format_messages_for_llm(recent_messages)
   end
 
   # Get conversation summary
@@ -147,6 +109,54 @@ class ConversationSession
   end
 
   private
+
+  def update_conversation_stats(extra)
+    updates = build_conversation_updates(extra)
+    updates[:flow_data] = update_flow_data(extra) if should_update_flow_data?(extra)
+    @conversation.update!(updates)
+  end
+
+  def build_conversation_updates(extra)
+    updates = {
+      total_cost: @conversation.total_cost + (extra[:cost] || 0),
+      total_tokens: @conversation.total_tokens +
+                    (extra[:prompt_tokens] || 0) +
+                    (extra[:completion_tokens] || 0)
+    }
+    updates[:persona] = extra[:persona] if extra[:persona]
+    updates
+  end
+
+  def should_update_flow_data?(extra)
+    extra[:metadata] && extra[:metadata][:inner_thoughts].present?
+  end
+
+  def update_flow_data(extra)
+    flow_data = @conversation.flow_data || {}
+    flow_data['inner_thoughts'] ||= []
+    flow_data['inner_thoughts'] << {
+      'timestamp' => Time.now.iso8601,
+      'persona' => extra[:persona],
+      'thought' => extra[:metadata][:inner_thoughts]
+    }
+    flow_data
+  end
+
+  def fetch_recent_messages(limit)
+    @conversation.messages
+                 .order(created_at: :desc)
+                 .limit(limit)
+                 .reverse # Oldest first for context
+  end
+
+  def format_messages_for_llm(messages)
+    messages.map do |msg|
+      {
+        role: msg.role,
+        content: msg.content
+      }
+    end
+  end
 
   def max_context_messages
     GlitchCube.config.conversation&.max_context_messages || MAX_CONTEXT_MESSAGES

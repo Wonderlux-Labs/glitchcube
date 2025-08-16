@@ -2,6 +2,7 @@
 
 require 'sinatra/base'
 require 'json'
+require_relative '../../modules/globals'
 module Routes
   module Admin
     module Scenarios
@@ -122,7 +123,7 @@ module Routes
             data = JSON.parse(request.body.read)
             scenario_id = data['scenario_id']
             models = data['models'] || []
-            persona = data['persona'] || 'buddy'
+            persona = data['persona'] || Modules::Globals.persona
             scenario = SCENARIOS[scenario_id]
             return { error: 'Scenario not found' }.to_json unless scenario
 
@@ -167,7 +168,7 @@ module Routes
             }
             # Run the custom scenario
             models = data['models'] || ['google/gemini-2.0-flash-exp:free']
-            persona = data['persona'] || 'buddy'
+            persona = data['persona'] || Modules::Globals.persona
             results = []
             models.each do |model|
               result = Services::AdminPages.run_scenario_for_model(custom_scenario, model, persona)

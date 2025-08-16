@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Core::CircuitBreaker, vcr: false do
+RSpec.describe Services::Core::CircuitBreaker, vcr: false do
   # Enable circuit breakers for this spec since they're disabled by default in test
   before do
     allow(Cube::Settings).to receive(:disable_circuit_breakers?).and_return(false)
@@ -82,7 +82,7 @@ RSpec.describe Core::CircuitBreaker, vcr: false do
 
         expect do
           circuit_breaker.call { 'should not execute' }
-        end.to raise_error(Core::CircuitBreaker::CircuitOpenError)
+        end.to raise_error(Services::Core::CircuitBreaker::CircuitOpenError)
       end
 
       it 'attempts reset after recovery timeout' do

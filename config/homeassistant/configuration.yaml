@@ -93,8 +93,45 @@ automation: !include automations.yaml
 # YAML scripts are in packages  
 script: !include scripts.yaml
 
-# Input Helpers are now organized in packages/ by domain
-# UI-created helpers will be stored in Home Assistant's .storage/core.config_entries
+# Input Helpers - consolidated in configuration.yaml to avoid type mixing issues
+input_button:
+  cycle_persona:
+    name: '>> Cycle Persona >>'
+    icon: mdi:account-switch
+
+input_text:
+  memory_query:
+    name: "Memory Query"
+    initial: "burning man"
+    max: 255
+    icon: mdi:magnify
+    
+  current_location:
+    name: "Current Location"
+    initial: "Black Rock City"
+    max: 255
+    icon: mdi:map-marker
+    
+  current_persona:
+    name: "Current Persona"
+    icon: mdi:account
+
+input_number:
+  memory_query_limit:
+    name: "Memory Query Limit"
+    initial: 10
+    min: 1
+    max: 50
+    step: 1
+    icon: mdi:counter
+    
+  recent_memories_limit:
+    name: "Recent Memories Limit" 
+    initial: 10
+    min: 1
+    max: 50
+    step: 1
+    icon: mdi:counter
 
 # Include counters
 counter:

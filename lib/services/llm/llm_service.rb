@@ -216,7 +216,7 @@ module Services
 
           # Consolidated request logging
           if GlitchCube.config.debug?
-            ::Services::Logging::SimpleLogger.debug(
+            $logger.debug(
               'LLM API REQUEST',
               tagged: %i[llm api_request],
               model: params[:model],
@@ -231,7 +231,7 @@ module Services
             user_msg_count = params[:messages].count { |m| m[:role] == 'user' }
             assistant_msg_count = params[:messages].count { |m| m[:role] == 'assistant' }
 
-            ::Services::Logging::SimpleLogger.debug(
+            $logger.debug(
               'LLM REQUEST DETAILS',
               tagged: %i[llm debug_request],
               url: 'https://openrouter.ai/api/v1/chat/completions',
@@ -257,7 +257,7 @@ module Services
 
           # Detailed response logging for debugging (only when debug mode is on)
           if GlitchCube.config.debug?
-            ::Services::Logging::SimpleLogger.debug(
+            $logger.debug(
               'RAW HTTP RESPONSE',
               tagged: %i[llm raw_response],
               status: 200,
@@ -270,7 +270,7 @@ module Services
           if GlitchCube.config.debug? && response.respond_to?(:[]) && response[:choices]
             choice = response[:choices]&.first
             if choice
-              ::Services::Logging::SimpleLogger.debug(
+              $logger.debug(
                 'LLM RESPONSE DETAILS',
                 tagged: %i[llm api_response],
                 finish_reason: choice[:finish_reason],
@@ -328,7 +328,7 @@ module Services
 
         def log_error_details(error, model)
           # Just dump everything - this would have saved hours of debugging!
-          ::Services::Logging::SimpleLogger.error(
+          $logger.error(
             'LLM SERVICE ERROR DETAILS',
             tagged: %i[llm error],
             model: model,
@@ -344,7 +344,7 @@ module Services
         # Removed - delegated to ErrorHandler component
 
         def log_api_request(params)
-          ::Services::Logging::SimpleLogger.info(
+          $logger.info(
             'OPENROUTER_REQUEST',
             tagged: %i[llm openrouter_request],
             service: 'openrouter',
@@ -379,7 +379,7 @@ module Services
             end
           end
 
-          ::Services::Logging::SimpleLogger.info(
+          $logger.info(
             'OPENROUTER_RESPONSE',
             tagged: %i[llm openrouter_response],
             service: 'openrouter',

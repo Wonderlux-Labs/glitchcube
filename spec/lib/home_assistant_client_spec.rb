@@ -2,7 +2,7 @@
 
 require 'spec_helper'
 
-RSpec.describe Core::HomeAssistantClient do
+RSpec.describe Services::Core::HomeAssistantClient do
   let(:client) { described_class.new }
 
   describe 'initialization and configuration' do

@@ -5,7 +5,7 @@ require_relative '../../lib/personas/base_persona'
 require_relative '../../lib/personas/buddy_persona'
 
 RSpec.describe Services::System::CharacterService do
-  let(:mock_home_assistant) { instance_double(Core::HomeAssistantClient) }
+  let(:mock_home_assistant) { instance_double(Services::Core::HomeAssistantClient) }
 
   # Custom matcher for non-empty strings
   def a_string_that_is_not_empty
@@ -13,7 +13,7 @@ RSpec.describe Services::System::CharacterService do
   end
 
   before do
-    # Mock Core::HomeAssistantClient to capture the calls made to it
+    # Mock Services::Core::HomeAssistantClient to capture the calls made to it
     allow(mock_home_assistant).to receive(:speak).and_return(true)
   end
 
@@ -40,7 +40,7 @@ RSpec.describe Services::System::CharacterService do
     context 'when using cloud provider (BUDDY)' do
       let(:buddy) { described_class.new(character: :buddy, home_assistant: mock_home_assistant) }
 
-      it 'passes correct cloud TTS specification to Core::HomeAssistantClient', :vcr do
+      it 'passes correct cloud TTS specification to Services::Core::HomeAssistantClient', :vcr do
         expected_voice_options = {
           tts: :cloud,
           voice: 'DavisNeural',  # Plain voice without mood styling
@@ -94,7 +94,7 @@ RSpec.describe Services::System::CharacterService do
     context 'when using ElevenLabs provider (ZORP)' do
       let(:zorp) { described_class.new(character: :zorp, home_assistant: mock_home_assistant) }
 
-      it 'passes correct ElevenLabs TTS specification to Core::HomeAssistantClient', :vcr do
+      it 'passes correct ElevenLabs TTS specification to Services::Core::HomeAssistantClient', :vcr do
         expected_voice_options = {
           tts: :elevenlabs,
           voice: 'Josh',
@@ -201,10 +201,10 @@ RSpec.describe Services::System::CharacterService do
   end
 
   describe 'Voice verification for each persona' do
-    let(:mock_ha) { instance_double(Core::HomeAssistantClient) }
+    let(:mock_ha) { instance_double(Services::Core::HomeAssistantClient) }
 
     before do
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_ha)
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(mock_ha)
       allow(mock_ha).to receive(:speak).and_return(true)
     end
 

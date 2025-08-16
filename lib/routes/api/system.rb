@@ -57,7 +57,7 @@ module Routes
             end
             # Check HomeAssistant
             ha_ok = begin
-              client = Core::HomeAssistantClient.new
+              client = Services::Core::HomeAssistantClient.new
               client.ping
             rescue StandardError => e
               Services::Logging::SimpleLogger.warn(

@@ -6,7 +6,7 @@ module Services
   module Gps
     class GPSTrackingService
       def initialize
-        @ha_client = ::Core::HomeAssistantClient.new
+        @ha_client = ::Services::Core::HomeAssistantClient.new
       end
 
       # Get current GPS coordinates with full location context
@@ -40,11 +40,52 @@ module Services
         context[:address]
       end
 
+      # Simulate cube movement - pick a destination and walk toward it
+      def simulate_movement!
+        return unless GlitchCube.config.gps_spoofing_allowed?
+
+        begin
+          redis = Redis.new(url: GlitchCube.config.redis_url)
+          current_data = redis.get('current_cube_location')
+          destination_data = redis.get('cube_destination')
+
+          # If no current location, start at a random landmark
+          unless current_data
+            landmark = Landmark.active.order('RANDOM()').first
+            current_location = {
+              lat: landmark.latitude.to_f,
+              lng: landmark.longitude.to_f,
+              timestamp: Time.now.iso8601
+            }
+            redis.setex('current_cube_location', 3600, current_location.to_json)
+            return
+          end
+
+          current = JSON.parse(current_data, symbolize_names: true)
+
+          # If no destination or reached destination, pick a new one
+          if !destination_data || reached_destination?(current, destination_data)
+            new_destination = pick_random_destination
+            redis.setex('cube_destination', 7200, new_destination.to_json) # 2 hour destination
+            destination = new_destination
+          else
+            destination = JSON.parse(destination_data, symbolize_names: true)
+          end
+
+          # Move toward destination (small step)
+          new_location = move_toward_destination(current, destination)
+          redis.setex('current_cube_location', 3600, new_location.to_json)
+        rescue StandardError => e
+          # Fallback - just stay put
+          nil
+        end
+      end
+
       private
 
       def fetch_spoofed_location
-        # Only allow spoofed locations in development
-        return nil unless GlitchCube.config.development?
+        # Allow spoofed locations in development OR if explicitly enabled
+        return nil unless GlitchCube.config.gps_spoofing_allowed?
 
         begin
           redis = Redis.new(url: GlitchCube.config.redis_url)
@@ -64,6 +105,59 @@ module Services
         rescue StandardError
           nil
         end
+      end
+
+      def pick_random_destination
+        # Pick a random landmark as destination
+        landmark = Landmark.active.order('RANDOM()').first
+        {
+          lat: landmark.latitude.to_f,
+          lng: landmark.longitude.to_f,
+          name: landmark.name,
+          timestamp: Time.now.iso8601
+        }
+      end
+
+      def reached_destination?(current, destination_data)
+        destination = JSON.parse(destination_data, symbolize_names: true)
+        distance = calculate_distance(current[:lat], current[:lng], destination[:lat], destination[:lng])
+        distance < 50 # Within 50 meters
+      end
+
+      def move_toward_destination(current, destination)
+        # Calculate direction and take a small step
+        lat_diff = destination[:lat] - current[:lat]
+        lng_diff = destination[:lng] - current[:lng]
+
+        # Step size (about 10-20 meters)
+        step_size = 0.0001
+
+        # Normalize direction and apply step
+        distance = Math.sqrt((lat_diff**2) + (lng_diff**2))
+        return current if distance.zero?
+
+        new_lat = current[:lat] + ((lat_diff / distance) * step_size)
+        new_lng = current[:lng] + ((lng_diff / distance) * step_size)
+
+        {
+          lat: new_lat,
+          lng: new_lng,
+          timestamp: Time.now.iso8601
+        }
+      end
+
+      def calculate_distance(lat1, lng1, lat2, lng2)
+        # Haversine formula for distance in meters
+        rad_per_deg = Math::PI / 180
+        rlat1, rlng1, rlat2, rlng2 = [lat1, lng1, lat2, lng2].map { |d| d * rad_per_deg }
+
+        dlat = rlat2 - rlat1
+        dlng = rlng2 - rlng1
+
+        a = (Math.sin(dlat / 2)**2) + (Math.cos(rlat1) * Math.cos(rlat2) * (Math.sin(dlng / 2)**2))
+        c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+        6_371_000 * c # Earth radius in meters
       end
 
       def determine_map_mode_from_landmarks(landmarks)

@@ -110,7 +110,7 @@ module Jobs
       # Format datetime for input_datetime helper (YYYY-MM-DD HH:MM:SS format)
       datetime_str = run_time.strftime('%Y-%m-%d %H:%M:%S')
 
-      ha_client = Core::HomeAssistantClient.new
+      ha_client = Services::Core::HomeAssistantClient.new
       ha_client.call_service('input_datetime', 'set_datetime', {
                                entity_id: 'input_datetime.last_repeating_jobs_run',
                                datetime: datetime_str

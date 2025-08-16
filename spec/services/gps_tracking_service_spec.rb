@@ -6,10 +6,10 @@ require_relative '../../lib/services/gps/location_context_service'
 
 RSpec.describe Services::Gps::GPSTrackingService do
   let(:service) { described_class.new }
-  let(:ha_client) { instance_double(Core::HomeAssistantClient) }
+  let(:ha_client) { instance_double(Services::Core::HomeAssistantClient) }
 
   before do
-    allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+    allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
     # Add default mock for states method to prevent unexpected message errors
     allow(ha_client).to receive(:states).and_return([])

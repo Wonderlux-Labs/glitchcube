@@ -1,5 +1,5 @@
 # REST LLM Weather Sensor
-- platform: rest 
+- platform: rest
   resource_template: "http://{{ states('input_text.glitchcube_host') }}:4567/api/v1/llm/complete"
   method: POST
   name: "LLM Weather Response"

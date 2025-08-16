@@ -6,7 +6,7 @@ require 'benchmark'
 
 module Services
   class ModelBenchmarkRunner
-    include ::Modules::ErrorHandling
+    include Modules::ErrorHandling
 
     MODES = {
       regression: { vcr: :replay_only, api_calls: false },

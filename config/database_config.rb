@@ -23,7 +23,7 @@ module DatabaseConfig
 
     # Get the current environment
     def environment
-      ENV['RACK_ENV'] || ENV['APP_ENV'] || 'development'
+      ENV.fetch('RACK_ENV', ENV.fetch('APP_ENV', 'development'))
     end
 
     # Check if we're in CI
@@ -45,8 +45,9 @@ module DatabaseConfig
 
     def load_configuration
       # In CI or if DATABASE_URL is explicitly set, use it
-      if ENV['DATABASE_URL'] && !ENV['DATABASE_URL'].empty?
-        parse_database_url(ENV['DATABASE_URL'])
+      database_url = ENV.fetch('DATABASE_URL', nil)
+      if database_url && !database_url.empty?
+        parse_database_url(database_url)
       else
         # Load from database.yml with defaults
         load_from_yaml

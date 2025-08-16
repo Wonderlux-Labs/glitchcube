@@ -65,18 +65,16 @@
   alias: GPS - Current Cube Location
   description: ''
   triggers:
-  - trigger: time_pattern
-    minutes: /5
-  conditions: []
+  - trigger: state
+    entity_id: sensor.cube_current_location_text
+  conditions:
+  - condition: template
+    value_template: "{{ trigger.to_state.state not in ['unknown', 'unavailable', ''] }}"
   actions:
-  - action: rest_command.update_location_context
-    metadata: {}
-    data: {}
-    response_variable: location_response
   - action: input_text.set_value
     metadata: {}
     data:
-      value: '{{ location_response }}'
+      value: '{{ trigger.to_state.state }}'
     target:
       entity_id: input_text.current_location
   mode: single
@@ -140,4 +138,135 @@
           entity_id:
           - select.home_assistant_voice_09739d_assistant
           - select.esp32_s3_box_3_52b3dc_assistant
+  mode: single
+- id: '1755332428238'
+  alias: Siren - Go Back Off
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - siren.small_siren
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 15
+  conditions: []
+  actions:
+  - action: siren.turn_off
+    metadata: {}
+    data: {}
+    target:
+      entity_id: siren.small_siren
+  mode: single
+- id: '1755333596935'
+  alias: Health - Lights Red
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - sensor.glitch_cube_api_health_2
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 15
+  - trigger: state
+    entity_id:
+    - sensor.glitch_cube_api_health_2
+    to: unknown
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 15
+  conditions: []
+  actions:
+  - action: light.turn_on
+    metadata: {}
+    data:
+      rgb_color:
+      - 99
+      - 0
+      - 0
+      flash: long
+    target:
+      entity_id: light.cube_voice_ring
+  - action: light.turn_on
+    metadata: {}
+    data:
+      rgb_color:
+      - 86
+      - 0
+      - 0
+    target:
+      entity_id: light.cart_light
+  mode: single
+- id: '1755333757049'
+  alias: Health Healthy
+  description: Health Healthy
+  triggers:
+  - trigger: state
+    entity_id:
+    - sensor.glitch_cube_api_health_2
+    to: healthy
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 15
+    from: unavailable
+  conditions: []
+  actions:
+  - action: light.turn_on
+    metadata: {}
+    data:
+      rgb_color:
+      - 0
+      - 200
+      - 0
+      flash: long
+    target:
+      entity_id: light.cube_voice_ring
+  - action: light.turn_on
+    metadata: {}
+    data:
+      effect: twinkle
+    target:
+      entity_id: light.cart_light
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 5
+      milliseconds: 0
+  - action: light.turn_on
+    metadata: {}
+    data:
+      brightness_pct: 100
+      rgb_color:
+      - 116
+      - 0
+      - 100
+    target:
+      entity_id: light.cart_light
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 30
+      milliseconds: 0
+  - action: light.turn_on
+    metadata: {}
+    data:
+      effect: none
+    target:
+      entity_id: light.cart_light
+  mode: single
+
+- id: 'cycle_persona_automation'
+  alias: "Cycle Persona Button"
+  description: "Cycles through personas when button is pressed"
+  triggers:
+  - trigger: state
+    entity_id: input_button.cycle_persona
+  conditions: []
+  actions:
+  - action: rest_command.cycle_persona
   mode: single

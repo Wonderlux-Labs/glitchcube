@@ -74,7 +74,14 @@ class Boundary < ActiveRecord::Base
 
   # Check if point is in any city block (means we're "In The City")
   def self.in_city?(lat, lng)
-    point_in_boundary_type?(lat, lng, 'city_block')
+    # Check if inside a city block (original check)
+    return true if point_in_boundary_type?(lat, lng, 'city_block')
+
+    # Check if very close to a plaza (within 35m)
+    # Plazas are the open spaces at intersections in the city
+    Landmark.where(landmark_type: 'plaza')
+            .within_meters(lng, lat, 35)
+            .exists?
   end
 
   # Get which city block contains a point (if any)

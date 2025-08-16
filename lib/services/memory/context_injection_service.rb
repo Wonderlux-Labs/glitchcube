@@ -25,7 +25,7 @@ module Services
         # Try to get the unified context sensor (may not exist yet)
         context_sensor = nil
         begin
-          ha_client = Core::HomeAssistantClient.new
+          ha_client = Services::Core::HomeAssistantClient.new
           context_sensor = ha_client.state('sensor.glitchcube_context')
 
           # Check if sensor actually exists (HA returns specific structure for non-existent entities)

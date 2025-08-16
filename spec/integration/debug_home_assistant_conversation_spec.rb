@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 RSpec.describe 'Debug Home Assistant Conversation API', :vcr do
-  let(:ha_client) { Core::HomeAssistantClient.new }
+  let(:ha_client) { Services::Core::HomeAssistantClient.new }
 
   before do
     allow(Services::Logging::SimpleLogger).to receive(:info)

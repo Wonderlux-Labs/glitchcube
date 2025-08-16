@@ -104,7 +104,7 @@ module Services
         end
 
         def fetch_fresh_entities_by_domain
-          home_assistant = Core::HomeAssistantClient.new
+          home_assistant = Services::Core::HomeAssistantClient.new
           entities = home_assistant.states
 
           return {} if entities.nil? || entities.empty?

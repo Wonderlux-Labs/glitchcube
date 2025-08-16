@@ -14,8 +14,8 @@ module Routes
         rescue StandardError => e
           @current_location = { error: e.message }
         end
-        # Security check: GPS spoofing only available in development/test
-        @show_gps_spoofing = %w[development test].include?(GlitchCube.config.rack_env)
+        # Security check: GPS spoofing only available in development/test or when explicitly enabled
+        @show_gps_spoofing = GlitchCube.config.gps_spoofing_allowed?
         erb :admin
       end
       # Comprehensive conversation show view for debugging
@@ -257,7 +257,7 @@ module Routes
         }
         # Check HA - but don't let it break everything
         begin
-          ha_client = Core::HomeAssistantClient.new
+          ha_client = Services::Core::HomeAssistantClient.new
           # Just check if we can initialize - don't call states yet
           response[:home_assistant] = true
           response[:ha_url] = ha_client.base_url || 'http://glitch.local:8123'
@@ -730,10 +730,10 @@ module Routes
       # Get list of landmarks for typeahead
       app.get '/admin/landmarks' do
         content_type :json
-        # Block GPS spoofing in production for security
-        unless GlitchCube.config.development?
+        # Block GPS spoofing in production for security (unless explicitly enabled)
+        unless GlitchCube.config.gps_spoofing_allowed?
           status 403
-          return { success: false, error: 'GPS spoofing is only available in development environment' }.to_json
+          return { success: false, error: 'GPS spoofing is only available in development environment or when explicitly enabled' }.to_json
         end
         begin
           landmarks = Landmark.active.order(:name).limit(100).map do |landmark|
@@ -755,10 +755,10 @@ module Routes
       # Set spoofed GPS location
       app.post '/admin/spoof_gps' do
         content_type :json
-        # Block GPS spoofing in production for security
-        unless GlitchCube.config.development?
+        # Block GPS spoofing in production for security (unless explicitly enabled)
+        unless GlitchCube.config.gps_spoofing_allowed?
           status 403
-          return { success: false, error: 'GPS spoofing is only available in development environment' }.to_json
+          return { success: false, error: 'GPS spoofing is only available in development environment or when explicitly enabled' }.to_json
         end
         begin
           data = JSON.parse(request.body.read)
@@ -808,10 +808,10 @@ module Routes
       # Clear GPS spoofing (return to real GPS)
       app.delete '/admin/spoof_gps' do
         content_type :json
-        # Block GPS spoofing in production for security
-        unless GlitchCube.config.development?
+        # Block GPS spoofing in production for security (unless explicitly enabled)
+        unless GlitchCube.config.gps_spoofing_allowed?
           status 403
-          return { success: false, error: 'GPS spoofing is only available in development environment' }.to_json
+          return { success: false, error: 'GPS spoofing is only available in development environment or when explicitly enabled' }.to_json
         end
         begin
           require 'redis'

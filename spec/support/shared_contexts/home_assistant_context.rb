@@ -120,7 +120,7 @@ if defined?(RSpec)
 
     before do
       # Ensure all HA calls go through our stubbed client
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
     end
   end
 
@@ -181,7 +181,7 @@ if defined?(RSpec)
     let(:ha_client) { mock_ha_entities(mock_entities) }
 
     before do
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
     end
   end
 
@@ -220,7 +220,7 @@ if defined?(RSpec)
     let(:ha_client) { mock_ha_entities(light_entities) }
 
     before do
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
     end
   end
 
@@ -264,7 +264,7 @@ if defined?(RSpec)
     let(:ha_client) { mock_ha_entities(sensor_entities) }
 
     before do
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
     end
   end
 
@@ -294,7 +294,7 @@ if defined?(RSpec)
     let(:ha_client) { mock_ha_entities(media_entities) }
 
     before do
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
     end
   end
 
@@ -302,7 +302,7 @@ if defined?(RSpec)
     let(:ha_client) { stubbed_ha_client }
 
     before do
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
       # Mock successful tool executions
       allow(ha_client).to receive(:call_service).and_return({ success: true })
@@ -316,7 +316,7 @@ if defined?(RSpec)
     let(:ha_client) { stubbed_ha_client }
 
     before do
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(ha_client)
 
       # Mock service failures
       allow(ha_client).to receive(:call_service)

@@ -87,7 +87,7 @@ module Services
           name: 'ZORP',
           description: 'The Slacker God - Divine party bro',
           tts_provider: :elevenlabs, # Use ElevenLabs as primary
-          voice: 'Josh', # ElevenLabs voice name (mapped to ID in Core::HomeAssistantClient)
+          voice: 'Josh', # ElevenLabs voice name (mapped to ID in Services::Core::HomeAssistantClient)
           language: 'en-US', # Not used by ElevenLabs but kept for consistency
           speed: 90, # Slow, drawn-out delivery
           volume: 0.7,
@@ -188,7 +188,7 @@ module Services
       def initialize(character: :default, home_assistant: nil)
         @character = character.to_sym
         @character_config = CHARACTERS[@character] || CHARACTERS[:default]
-        @home_assistant = home_assistant || Core::HomeAssistantClient.new
+        @home_assistant = home_assistant || Services::Core::HomeAssistantClient.new
 
         # Bridge to Persona system if available
         begin

@@ -68,7 +68,7 @@ module Services
         end
 
         # Register our IP with Home Assistant
-        ha_client = Core::HomeAssistantClient.new
+        ha_client = Services::Core::HomeAssistantClient.new
         begin
           # Set the input_text entity with our current IP
           ha_client.set_state(
@@ -92,7 +92,7 @@ module Services
 
           puts "✅ Registered Glitch Cube at #{current_ip} with Home Assistant"
           true
-        rescue Core::HomeAssistantClient::Error => e
+        rescue Services::Core::HomeAssistantClient::Error => e
           $logger&.log_api_call(
             service: 'host_registration',
             endpoint: 'register_ip',

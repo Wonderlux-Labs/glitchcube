@@ -35,8 +35,8 @@ RSpec.describe 'Conversation Extraction Mode', type: :integration do
       allow(Services::Llm::LLMService).to receive(:complete_with_messages).and_return(mock_llm_response)
 
       # Mock the Home Assistant client call to Claude
-      mock_ha_client = instance_double(Core::HomeAssistantClient)
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
+      mock_ha_client = instance_double(Services::Core::HomeAssistantClient)
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
 
       # Mock Claude's response via Home Assistant
       claude_response = {
@@ -96,8 +96,8 @@ RSpec.describe 'Conversation Extraction Mode', type: :integration do
       allow(Services::Llm::LLMService).to receive(:complete_with_messages).and_return(mock_llm_response)
 
       # Mock the Home Assistant client
-      mock_ha_client = instance_double(Core::HomeAssistantClient)
-      allow(Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
+      mock_ha_client = instance_double(Services::Core::HomeAssistantClient)
+      allow(Services::Core::HomeAssistantClient).to receive(:new).and_return(mock_ha_client)
       allow(mock_ha_client).to receive(:process_voice_command).and_return({
                                                                             'response' => { 'text' => 'Party mode activated!' }
                                                                           })

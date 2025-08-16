@@ -14,7 +14,7 @@ module Services
         CACHE_DURATION = 300
 
         def validate_service_call(domain, service, data, ha_client: nil)
-          ha_client ||= Core::HomeAssistantClient.new
+          ha_client ||= Services::Core::HomeAssistantClient.new
 
           begin
             validation_result = ha_client.validate_service_call(domain, service, data)
@@ -56,7 +56,7 @@ module Services
           end
 
           # Fetch fresh schema
-          ha_client ||= Core::HomeAssistantClient.new
+          ha_client ||= Services::Core::HomeAssistantClient.new
           schema = ha_client.get_service_schema(domain, service)
 
           if schema

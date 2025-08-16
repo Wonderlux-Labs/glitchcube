@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative '../../modules/globals'
 module Routes
   module Api
     module Persona
@@ -9,7 +10,7 @@ module Routes
         app.get '/api/v1/persona' do
           content_type :json
           begin
-            current_persona = Services::PersonaStateService.get_current_persona
+            current_persona = G.persona
             usage_stats = Services::PersonaStateService.get_usage_stats
             json({
                    success: true,

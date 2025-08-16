@@ -21,7 +21,7 @@ module Jobs
       summary = truncate_intelligently(summary, 255)
 
       # Initialize HA client
-      ha_client = Core::HomeAssistantClient.new
+      ha_client = Services::Core::HomeAssistantClient.new
 
       # Update HA sensor
       if attribute == 'state'
@@ -34,7 +34,7 @@ module Jobs
     rescue StandardError => e
       puts "Context generation failed: #{e.message}"
       # Set error state so HA knows
-      ha_client ||= Core::HomeAssistantClient.new
+      ha_client ||= Services::Core::HomeAssistantClient.new
       ha_client.set_state_attribute(sensor, "#{attribute}_error", e.message[0..100])
     end
 

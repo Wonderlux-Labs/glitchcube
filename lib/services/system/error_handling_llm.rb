@@ -544,7 +544,7 @@ module Services
           confidence: analysis[:confidence]
         }
 
-        log_dir = File.join(Cube::Settings.app_root, 'log', 'proposed_fixes')
+        log_dir = File.join(GlitchCube.config.application_root, 'log', 'proposed_fixes')
         FileUtils.mkdir_p(log_dir)
 
         filename = "#{log_dir}/#{Time.now.strftime('%Y%m%d')}_proposed_fixes.jsonl"

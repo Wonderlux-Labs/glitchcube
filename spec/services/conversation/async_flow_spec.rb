@@ -86,13 +86,13 @@ RSpec.describe 'Async Conversation Flow', :vcr do
 
         # Track TTS calls
         tts_calls = []
-        allow_any_instance_of(Core::HomeAssistantClient)
+        allow_any_instance_of(Services::Core::HomeAssistantClient)
           .to receive(:speak_with_retry) do |_instance, message, **options|
             tts_calls << { message: message, options: options }
             true
           end
 
-        allow_any_instance_of(Core::HomeAssistantClient)
+        allow_any_instance_of(Services::Core::HomeAssistantClient)
           .to receive(:speak_as_persona) do |_instance, message, persona, **options|
             tts_calls << { message: message, persona: persona, options: options }
             true

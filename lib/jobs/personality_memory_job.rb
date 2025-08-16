@@ -4,7 +4,7 @@
 
 module Jobs
   class PersonalityMemoryJob < BaseJob
-    include ::Modules::ErrorHandling
+    include Modules::ErrorHandling
 
     sidekiq_options queue: 'low', retry: 2
 
@@ -127,7 +127,7 @@ module Jobs
       # Try to get location and coordinates from Home Assistant
       return { display: 'Somewhere in the dust', coordinates: nil } unless GlitchCube.config.home_assistant.url
 
-      client = Core::HomeAssistantClient.new
+      client = Services::Core::HomeAssistantClient.new
 
       # Get location name
       all_states = client.states

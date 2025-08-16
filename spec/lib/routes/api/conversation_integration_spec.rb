@@ -112,8 +112,8 @@ RSpec.describe 'Conversation Service Integration', :vcr do
 
     context 'when Home Assistant service fails' do
       it 'gracefully degrades HA integration features', :vcr do
-        allow_any_instance_of(Core::HomeAssistantClient).to receive(:call_service)
-          .and_raise(Core::HomeAssistantClient::TimeoutError, 'HA unavailable')
+        allow_any_instance_of(Services::Core::HomeAssistantClient).to receive(:call_service)
+          .and_raise(Services::Core::HomeAssistantClient::TimeoutError, 'HA unavailable')
 
         post '/api/v1/conversation',
              {
@@ -255,7 +255,7 @@ RSpec.describe 'Conversation Service Integration', :vcr do
         .and_raise(Services::Llm::LLMService::LLMError, 'Request timed out after 30 seconds')
 
       # Mock HomeAssistant TTS calls to prevent real network calls during timeout handling
-      allow_any_instance_of(Core::HomeAssistantClient).to receive(:call_service)
+      allow_any_instance_of(Services::Core::HomeAssistantClient).to receive(:call_service)
         .and_return({ 'success' => true })
 
       start_time = Time.now

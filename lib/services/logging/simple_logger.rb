@@ -343,8 +343,8 @@ module Services
 
         def log_directory
           # In CI or when APP_ROOT is set to /custom/path, use a fallback
-          root_dir = if defined?(Cube::Settings) && Cube::Settings.app_root != '/custom/path'
-                       Cube::Settings.app_root
+          root_dir = if defined?(GlitchCube) && GlitchCube.config.application_root != '/custom/path'
+                       GlitchCube.config.application_root
                      elsif ENV['GITHUB_ACTIONS'] == 'true' || ENV['CI'] == 'true'
                        ENV['GITHUB_WORKSPACE'] || Dir.pwd
                      else

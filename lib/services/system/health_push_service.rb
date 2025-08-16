@@ -10,7 +10,7 @@ module Services
 
       def initialize
         @uptime_kuma_url = GlitchCube.config.monitoring.uptime_kuma_push_url
-        @home_assistant_client = Core::HomeAssistantClient.new
+        @home_assistant_client = Services::Core::HomeAssistantClient.new
       end
 
       # Push health status to Uptime Kuma

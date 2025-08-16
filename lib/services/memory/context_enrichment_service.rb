@@ -27,7 +27,7 @@ module Services
       end
 
       def enrich_with_sensors
-        client = Core::HomeAssistantClient.new
+        client = Services::Core::HomeAssistantClient.new
 
         sensor_data = fetch_sensor_data(client)
 

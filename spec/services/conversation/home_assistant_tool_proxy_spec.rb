@@ -3,7 +3,7 @@
 require 'spec_helper'
 
 RSpec.describe Services::Conversation::HomeAssistantToolProxy do
-  let(:ha_client) { instance_double(Core::HomeAssistantClient) }
+  let(:ha_client) { instance_double(Services::Core::HomeAssistantClient) }
   let(:proxy) { described_class.new(ha_client: ha_client) }
   let(:session_id) { 'test-session-123' }
 

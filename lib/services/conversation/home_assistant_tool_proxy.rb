@@ -4,7 +4,7 @@ module Services
   module Conversation
     # Proxies tool execution through Home Assistant's conversation agent
     class HomeAssistantToolProxy
-      def initialize(ha_client: Core::HomeAssistantClient.new, logger: Logging::SimpleLogger)
+      def initialize(ha_client: Services::Core::HomeAssistantClient.new, logger: Logging::SimpleLogger)
         @ha_client = ha_client
         @logger = logger
       end
@@ -352,14 +352,7 @@ module Services
 
         # First, get the raw text through standard extraction
         raw_text = extract_raw_text(ha_response)
-
-        # TEMPORARILY DISABLE AUTOHEALING - IT'S BEING TOO AGGRESSIVE
-        @logger.warn('⚠️ AUTOHEALING DISABLED - USING RAW CLAUDE RESPONSE',
-                     tagged: %i[conversation tools hass_proxy parsing debug],
-                     raw_text_length: raw_text.length,
-                     raw_text_full: raw_text)
-
-        raw_text
+        autoheal_response_text(raw_text)
       end
 
       private

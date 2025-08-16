@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../services/error_handler_service'
+
 module Modules
   module ErrorHandling
     # Expected operational errors that we handle gracefully

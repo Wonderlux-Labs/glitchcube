@@ -92,12 +92,13 @@ class GlitchCubeApp < Sinatra::Base
   register Routes::Api::Gps
   register Routes::Api::Conversation
   register Routes::Api::Tools
-  register Routes::Api::Deployment
+  # register Routes::Api::Deployment  # Not available
   register Routes::Api::System
-  register Routes::Api::Entities
+  # register Routes::Api::Entities   # Not available
   register Routes::Api::Proactive
   register Routes::Api::Llm
   register Routes::Api::Persona
+  register Routes::Api::Memories
 
   # Mount context generation route
   use Routes::Api::ContextGeneration
@@ -294,6 +295,20 @@ if ENV['RACK_ENV'] == 'production'
   else
     Services::Logging::SimpleLogger.warn('Sidekiq not available - skipping host registration', tagged: %i[startup jobs warning])
   end
+end
+
+# Sync current persona with Home Assistant on startup
+begin
+  current_persona = Services::PersonaStateService.get_current_persona
+  Services::Logging::SimpleLogger.info("Syncing current persona with Home Assistant on startup: #{current_persona}", tagged: %i[startup persona])
+
+  if Services::PersonaStateService.sync_with_home_assistant(current_persona)
+    Services::Logging::SimpleLogger.info('Successfully synced persona with Home Assistant', tagged: %i[startup persona success])
+  else
+    Services::Logging::SimpleLogger.warn('Failed to sync persona with Home Assistant - continuing anyway', tagged: %i[startup persona warning])
+  end
+rescue StandardError => e
+  Services::Logging::SimpleLogger.log_error(error: e, message: 'Persona sync failed on startup')
 end
 
 # Start the server when running directly (not via rackup)

@@ -5,7 +5,7 @@ require 'concurrent'
 
 module Modules
   class ConversationModule
-    include ::Modules::ErrorHandling
+    include Modules::ErrorHandling
 
     # Convenience class methods for each persona
     # Class method to switch persona programmatically
@@ -45,7 +45,7 @@ module Modules
     end
 
     def initialize
-      @flow_manager = Services::Conversation::FlowManager.new
+      @simple_flow_manager = Services::Conversation::SimpleFlowManager.new
     end
 
     def call(message:, context: {}, persona: nil)
@@ -55,7 +55,7 @@ module Modules
 
       begin
         start_time = Time.now
-        result = @flow_manager.process_conversation(message: message, context: context, persona: persona)
+        result = @simple_flow_manager.process_conversation(message: message, context: context, persona: persona)
 
         total_duration = ((Time.now - start_time) * 1000).round
         Services::Logging::SimpleLogger.info('Conversation completed', tagged: [:conversation], duration_ms: total_duration)

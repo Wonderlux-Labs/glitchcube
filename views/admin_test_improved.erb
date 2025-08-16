@@ -420,7 +420,7 @@
                 <div style="font-size: 11px; color: #718096;">Party Bro</div>
               </div>
             </div>
-            <input type="hidden" name="persona" id="persona" value="<%= @selected_persona || 'buddy' %>">
+            <input type="hidden" name="persona" id="persona" value="<%= @selected_persona || Services::PersonaStateService.get_current_persona %>">
           </div>
           
           <div class="form-group">

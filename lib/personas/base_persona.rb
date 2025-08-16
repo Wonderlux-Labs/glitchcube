@@ -2,6 +2,7 @@
 
 require 'time'
 require 'tzinfo'
+require 'yaml'
 
 module Personas
   class BasePersona
@@ -19,11 +20,7 @@ module Personas
       # Factory method to create personas
       def create(persona_name, context = {})
         name = normalize_persona_name(persona_name)
-        persona_class = @registry[name]
-
-        # Default to BuddyPersona if persona not found
-        persona_class ||= Personas::BuddyPersona
-
+        persona_class = @registry[name] || Personas::BuddyPersona
         persona_class.new(context)
       end
 
@@ -38,7 +35,7 @@ module Personas
       private
 
       def normalize_persona_name(persona_name)
-        return 'buddy' if persona_name.nil? || persona_name.to_s.strip.empty?
+        return Services::PersonaStateService.get_current_persona if persona_name.nil? || persona_name.to_s.strip.empty?
 
         persona_name.to_s.downcase.strip
       end
@@ -47,29 +44,63 @@ module Personas
     public
 
     PROMPTS_DIR = File.join(File.dirname(__FILE__), '../../prompts')
+    PERSONA_CONFIG_DIR = File.join(PROMPTS_DIR, 'persona')
 
-    attr_reader :name, :context
+    attr_reader :name, :context, :persona_config
 
     def initialize(context = {})
       @context = context
       @name = self.class.name.split('::').last.gsub('Persona', '').downcase
+      @persona_config = load_persona_config
     end
 
-    # Abstract methods that subclasses must implement
+    # Configuration getter methods (load from YML files)
     def prompt_file
-      raise NotImplementedError, "#{self.class} must implement prompt_file"
+      persona_config.dig('system_prompt', 'prompt_file') || "#{name}.txt"
     end
 
     def available_tools
-      raise NotImplementedError, "#{self.class} must implement available_tools"
+      tools = persona_config['available_tools'] || []
+      # Convert string tool names to actual tool classes
+      tools.map do |tool_name|
+        if tool_name.is_a?(String)
+          Object.const_get("Tools::#{tool_name}")
+        else
+          tool_name
+        end
+      end
+    rescue NameError => e
+      puts "Warning: Tool class not found: #{e.message}"
+      []
     end
 
     def fallback_responses
-      raise NotImplementedError, "#{self.class} must implement fallback_responses"
+      persona_config['fallback_responses'] || [
+        "I'm processing your thoughts...",
+        'Let me think about that...',
+        "That's an interesting perspective..."
+      ]
     end
 
     def offline_responses
-      raise NotImplementedError, "#{self.class} must implement offline_responses"
+      persona_config['offline_responses'] || [
+        "I'm currently operating in offline mode.",
+        'My connection is limited right now.',
+        'Working with reduced capabilities at the moment.'
+      ]
+    end
+
+    # Additional configuration accessors
+    def description
+      persona_config['description'] || 'An AI persona'
+    end
+
+    def voice_config
+      persona_config['voice'] || {}
+    end
+
+    def personality_traits
+      persona_config['traits'] || []
     end
 
     # Generate system prompt for this persona
@@ -112,6 +143,37 @@ module Personas
     end
 
     private
+
+    def load_persona_config
+      config_path = File.join(PERSONA_CONFIG_DIR, "#{name}.yml")
+
+      if File.exist?(config_path)
+        YAML.load_file(config_path)
+      else
+        puts "Warning: Persona config file not found: #{config_path}"
+        # Return default config structure
+        {
+          'name' => name.capitalize,
+          'description' => 'An AI persona',
+          'system_prompt' => { 'prompt_file' => "#{name}.txt" },
+          'available_tools' => [],
+          'fallback_responses' => ["I'm processing your thoughts..."],
+          'offline_responses' => ["I'm currently operating in offline mode."],
+          'voice' => {},
+          'traits' => []
+        }
+      end
+    rescue StandardError => e
+      puts "Error loading persona config: #{e.message}"
+      # Return minimal working config
+      {
+        'name' => name.capitalize,
+        'system_prompt' => { 'prompt_file' => "#{name}.txt" },
+        'available_tools' => [],
+        'fallback_responses' => ["I'm processing your thoughts..."],
+        'offline_responses' => ["I'm currently operating in offline mode."]
+      }
+    end
 
     def build_tool_schemas
       return [] if available_tools.empty?

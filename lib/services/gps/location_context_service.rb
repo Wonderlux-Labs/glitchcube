@@ -121,7 +121,7 @@ module Services
       end
 
       def nearest_porto
-        nearest_landmark_of_type('toilet')
+        nearest_landmark_of_type('toilet')&.first
       end
 
       # Distance calculations - now using clean PostGIS helpers

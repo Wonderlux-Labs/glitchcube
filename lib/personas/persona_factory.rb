@@ -9,8 +9,6 @@ module Personas
       'zorp' => ZorpPersona
     }.freeze
 
-    DEFAULT_PERSONA = 'buddy'
-
     # Register all personas on load
     def self.register_all
       PERSONA_MAP.each do |name, klass|
