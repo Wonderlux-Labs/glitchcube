@@ -20,7 +20,7 @@ module GlitchCube
       anthropic_api_key: nil,
       helicone_api_key: nil,
       default_tools_model: 'mistralai/mistral-medium-3.1',
-      default_model: 'anthropic/claude-sonnet-4',
+      default_model: 'x-ai/grok-4',
       port: 4567,
       session_secret: nil, # Auto-generated if not provided
       rack_env: 'development',
@@ -61,7 +61,7 @@ module GlitchCube
       # AI Configuration
       ai: {
         temperature: 0.8,
-        max_tokens: 2000, # From .env.defaults
+        max_tokens: 4000, # More reasonable for faster responses
         max_tool_tokens: 32_000,
         max_session_messages: 10
       },
@@ -92,6 +92,7 @@ module GlitchCube
 
       # Tool Execution
       tool_calling_pattern: :back_to_hass, # :default or :back_to_hass
+      tool_execution_mode: :conversation_extraction, # :native_tools, :back_to_hass, :conversation_extraction
       tool_retry: {
         enabled: true,
         max_iterations: 2,

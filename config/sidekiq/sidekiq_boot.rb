@@ -33,4 +33,17 @@ require_relative '../../app'
 # This ensures all Services and modules are available for the middleware
 require_relative 'sidekiq'
 
+# Clear all Sidekiq queues on startup
+puts '🧹 Clearing all Sidekiq queues...'
+begin
+  require 'sidekiq/api'
+  Sidekiq::Queue.all.each(&:clear)
+  Sidekiq::RetrySet.new.clear
+  Sidekiq::DeadSet.new.clear
+  Sidekiq::ScheduledSet.new.clear
+  puts '✅ All Sidekiq queues cleared'
+rescue StandardError => e
+  puts "⚠️  Failed to clear queues: #{e.message}"
+end
+
 puts '✅ Sidekiq environment loaded successfully'

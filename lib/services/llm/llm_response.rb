@@ -282,25 +282,204 @@ module Services
       def parse_json_content
         return nil unless @content.is_a?(String)
 
-        # Clean content - handle markdown JSON blocks
-        cleaned = @content.strip
-        cleaned = cleaned.gsub(/^```json\s*/, '').gsub(/\s*```$/, '') if cleaned.include?('```')
+        # Enhanced JSON parsing with comprehensive autohealing
+        autoheal_json_response(@content)
+      end
 
-        # First try parsing the cleaned content directly if it starts with JSON
-        if cleaned.start_with?('{') || cleaned.start_with?('[')
-          result = parse_json_safely(cleaned)
-          return result.is_a?(Hash) ? result.with_indifferent_access : result if result
+      # Comprehensive JSON autohealing borrowed from HomeAssistantToolProxy
+      def autoheal_json_response(text)
+        return nil if text.nil? || text.strip.empty?
+
+        original_text = text.dup
+        current_text = text.dup
+        confidence_score = 0.0
+        strategy_used = 'none'
+
+        # Strategy 1: Extract from JSON code blocks (markdown style)
+        if (extracted = extract_from_json_blocks(current_text))
+          current_text = extracted
+          confidence_score = 0.9
+          strategy_used = 'json_block'
+        elsif (extracted = extract_from_pure_json(current_text))
+          # Strategy 2: Parse as pure JSON if it looks like JSON
+          current_text = extracted
+          confidence_score = 0.8
+          strategy_used = 'pure_json'
+        elsif (extracted = extract_meaningful_json_content(current_text))
+          # Strategy 3: Extract from mixed content (status + actual response)
+          current_text = extracted
+          confidence_score = 0.6
+          strategy_used = 'meaningful_extraction'
+        else
+          # Strategy 4: Just clean up artifacts
+          current_text = clean_json_artifacts(current_text)
+          confidence_score = 0.3
+          strategy_used = 'artifact_cleanup'
         end
 
-        # If that fails, try to find JSON within the content
-        # Look for JSON object or array within the text
-        json_match = cleaned.match(/(\{.*\}|\[.*\])/m)
-        if json_match
-          result = parse_json_safely(json_match[1])
-          return result.is_a?(Hash) ? result.with_indifferent_access : result if result
+        # Strategy 5: Final validation and fallback
+        result = validate_and_parse_json(current_text, original_text)
+
+        log_json_autohealing_result(original_text, current_text, result, confidence_score, strategy_used)
+
+        result
+      end
+
+      def extract_from_json_blocks(text)
+        # Handle multiple JSON block formats
+        json_patterns = [
+          /```json\s*\n(.*?)\n```/m,           # Standard markdown JSON
+          /```\s*\n(.*?)\n```/m,               # Generic code block
+          /~~~json\s*\n(.*?)\n~~~/m,           # Alternative markdown
+          %r{<json>(.*?)</json>}m               # XML-style JSON tags
+        ]
+
+        json_patterns.each do |pattern|
+          match = text.match(pattern)
+          next unless match
+
+          json_string = match[1].strip
+          parsed = try_parse_json_response(json_string)
+
+          if parsed
+            # Successfully extracted JSON from code block
+            return parsed
+          end
         end
 
         nil
+      end
+
+      def extract_from_pure_json(text)
+        # Try to parse the entire text as JSON
+        return nil unless text.strip.match?(/^\s*[{\[]/)
+
+        # Clean up common JSON formatting issues
+        cleaned = text.strip
+                      .gsub(/^[^{\[]*([{\[].*[}\]])[^}\]]*$/m, '\1')  # Extract JSON from surrounding text
+                      .gsub(/\n\s*/, ' ')                            # Collapse whitespace
+                      .gsub(/,\s*[}\]]/, '}')                        # Fix trailing commas
+
+        parsed = try_parse_json_response(cleaned)
+
+        if parsed
+          # Successfully extracted from pure JSON
+          return parsed
+        end
+
+        nil
+      end
+
+      def try_parse_json_response(json_string)
+        return nil if json_string.nil? || json_string.strip.empty?
+
+        begin
+          parsed = JSON.parse(json_string)
+          return parsed.is_a?(Hash) ? parsed.with_indifferent_access : parsed
+        rescue JSON::ParserError
+          # JSON parsing failed, will try next strategy
+        end
+
+        nil
+      end
+
+      def extract_meaningful_json_content(text)
+        lines = text.split(/\r?\n/).map(&:strip).reject(&:empty?)
+        return nil if lines.length <= 1
+
+        # Filter out status/system lines
+        noise_patterns = [
+          /^(Tool|Action|Command|Successfully|Executed|Completed|Error|Debug|Info)/i,
+          /^[A-Z_]+:/,                          # Log prefixes like "INFO:"
+          /^\[.*\].*:/,                         # Timestamp/level prefixes
+          /^[🎯🔧📝✅❌🏠📤]/,                    # Emoji prefixes (common in logs)
+          /```/,                                # Markdown artifacts
+          /^\s*[{}"']\s*$/,                     # Lone JSON artifacts
+          /^(null|undefined|true|false)$/i,     # JSON literals
+          /^\d{4}-\d{2}-\d{2}/,                 # Timestamps
+          /executing|processing|starting|finished/i
+        ]
+
+        meaningful_lines = lines.reject do |line|
+          line.length < 5 ||
+            noise_patterns.any? { |pattern| line.match?(pattern) }
+        end
+
+        if meaningful_lines.any?
+          # Look for JSON-like content in meaningful lines
+          meaningful_lines.each do |line|
+            next unless line.match?(/^\s*[{\[]/) && line.match?(/[}\]]\s*$/)
+
+            parsed = try_parse_json_response(line)
+            if parsed
+              # Successfully extracted meaningful JSON content
+              return parsed
+            end
+          end
+        end
+
+        nil
+      end
+
+      def clean_json_artifacts(text)
+        return nil unless text.is_a?(String)
+
+        cleaned = text.dup
+
+        # Remove markdown artifacts
+        cleaned = cleaned.gsub(/```\w*/, '')
+                         .gsub(/~~~\w*/, '')
+                         .gsub(/^\s*[|>]\s*/, '')     # Quote markers
+
+        # Remove JSON artifacts
+        cleaned = cleaned.gsub(/^\s*[{}"']\s*$/, '')
+                         .gsub(/^\s*null\s*$/i, '')
+                         .gsub(/^\s*(true|false)\s*$/i, '')
+
+        # Remove common status prefixes
+        cleaned = cleaned.gsub(/^(OK|SUCCESS|DONE|COMPLETE)[:\s-]*/i, '')
+                         .gsub(/^(ERROR|FAILED|INVALID)[:\s-]*/i, '')
+
+        # Clean up whitespace
+        cleaned = cleaned.strip
+                         .gsub(/\s+/, ' ')            # Collapse multiple spaces
+                         .gsub(/\n\s*\n/, "\n")       # Remove empty lines
+
+        # Remove surrounding quotes if they wrap the entire content
+        if cleaned.match?(/^".*"$/) || cleaned.match?(/^'.*'$/)
+          cleaned = cleaned[1..-2]
+        end
+
+        cleaned.strip
+      end
+
+      def validate_and_parse_json(current_text, original_text)
+        # If current_text is already a parsed hash, return it
+        return current_text if current_text.is_a?(Hash)
+
+        # Try to parse the processed text
+        if current_text.respond_to?(:strip) && !current_text.strip.empty?
+          parsed = try_parse_json_response(current_text)
+          return parsed if parsed
+        end
+
+        # If that fails, try the original text as a last resort
+        if original_text.respond_to?(:strip) && !original_text.strip.empty?
+          parsed = try_parse_json_response(original_text)
+          return parsed if parsed
+        end
+
+        # All JSON parsing strategies failed
+        nil
+      end
+
+      def log_json_autohealing_result(_original_text, _final_text, result, _confidence_score, strategy_used)
+        # Simplified logging for production
+        if result
+          # JSON autohealing succeeded using #{strategy_used} strategy
+        else
+          puts "🔧 [LLMResponse] JSON autohealing failed with strategy: #{strategy_used}"
+        end
       end
 
       def parse_json_safely(str)

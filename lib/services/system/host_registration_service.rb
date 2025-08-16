@@ -106,6 +106,12 @@ module Services
       private
 
       def detect_local_ip
+        # DEVELOPMENT: Use Tailscale IP for testing
+        if ENV['DEVELOPMENT_TAILSCALE_IP']
+          puts "🔧 Using development Tailscale IP: #{ENV['DEVELOPMENT_TAILSCALE_IP']}"
+          return ENV['DEVELOPMENT_TAILSCALE_IP']
+        end
+
         # Connect to a dummy address to determine our local IP
         # This doesn't actually send data, just determines routing
         socket = UDPSocket.new
@@ -138,14 +144,15 @@ module Services
       end
 
       def private_ip?(ip)
-        # Check if IP is in private ranges
+        # Check if IP is in private ranges or Tailscale range
         octets = ip.split('.').map(&:to_i)
         return false unless octets.length == 4
 
-        # 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+        # 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10 (Tailscale/CGNAT)
         (octets[0] == 10) ||
           (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31) ||
-          (octets[0] == 192 && octets[1] == 168)
+          (octets[0] == 192 && octets[1] == 168) ||
+          (octets[0] == 100 && octets[1] >= 64 && octets[1] <= 127)
       end
 
       def extract_host_from_url(url)

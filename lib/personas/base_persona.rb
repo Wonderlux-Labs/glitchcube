@@ -180,18 +180,52 @@ module Personas
     end
 
     def tools_section
-      return '' if tool_schemas.empty?
+      return '' if available_tools.empty?
 
-      tools_lines = ['AVAILABLE TOOLS AND CAPABILITIES:']
-      tools_lines << 'You have access to the following tools that match your character abilities:'
-      tools_lines << ''
+      tool_descriptions = []
+      if GlitchCube.config.tool_execution_mode == :conversation_extraction
+        # Simple format with just name and description for conversation extraction mode
 
-      tool_schemas.each do |tool_schema|
-        function = tool_schema['function']
-        tools_lines << "- #{function['name']}: #{function['description']}"
+        # Get tool classes and show just name/description
+        available_tools.each do |tool_class_name|
+          tool_class = if tool_class_name.is_a?(String)
+                         Object.const_get("Tools::#{tool_class_name.split('_').map(&:capitalize).join}")
+                       else
+                         tool_class_name
+                       end
+
+          next unless tool_class.respond_to?(:name) && tool_class.respond_to?(:description)
+
+          tool_descriptions << "- #{tool_class.name}: #{tool_class.description}"
+        end
+
+        <<~TOOLS
+          AVAILABLE CAPABILITIES:
+          You can control these hardware systems:
+
+          #{tool_descriptions.join("\n")}
+
+          ACTION REQUEST FORMAT:
+          When you want to control hardware, add actions to the "actions" array in your JSON response.
+          Examples: ["Turn lights blue", "Play ambient music", "Set volume to 50%"]
+
+          Be conversational in your response field, actions go in the actions array.
+        TOOLS
+      else
+        # Original full tool schema format for normal tool calling
+
+        tool_schemas.each do |tool_schema|
+          function = tool_schema['function']
+          tool_descriptions << "- #{function['name']}: #{function['description']}"
+        end
+
+        <<~TOOLS
+          AVAILABLE TOOLS AND CAPABILITIES:
+          You have access to the following tools that match your character abilities:
+
+          #{tool_descriptions.join("\n")}
+        TOOLS
       end
-
-      tools_lines.join("\n")
     end
 
     def environment_section
@@ -238,9 +272,16 @@ module Personas
 
         {
           "response": "Your spoken response to the visitor (required)",
+          "actions": ["action 1", "action 2"] or [],
           "continue_conversation": true/false,
           "inner_thoughts": "Optional: Your internal monologue as #{name} - IMPORTANT: Include anything memorable about this person/conversation here"
         }
+
+        ACTIONS FIELD:
+        - When you want to control hardware, add actions to the "actions" array
+        - Each action should be a clear description like "Turn lights blue" or "Play music"#{'  '}
+        - If no actions needed, use empty array: []
+        - NEVER embed actions in the response text
 
         RESPONSE PACING:
         - Quick interactions: 1-2 sentences

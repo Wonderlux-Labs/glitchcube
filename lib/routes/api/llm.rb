@@ -45,17 +45,23 @@ module Routes
               **llm_options
             )
             # Return the response
-            {
+            response_data = {
               success: true,
               text: response.content,
               model: response.model,
-              usage: {
-                prompt_tokens: response.prompt_tokens,
-                completion_tokens: response.completion_tokens,
-                total_tokens: response.total_tokens
-              },
               cost: response.cost
-            }.to_json
+            }
+
+            # Only include usage data if the response supports it
+            if response.respond_to?(:usage) && response.usage
+              response_data[:usage] = {
+                prompt_tokens: response.usage[:prompt_tokens],
+                completion_tokens: response.usage[:completion_tokens],
+                total_tokens: response.usage[:total_tokens]
+              }
+            end
+
+            response_data.to_json
           rescue JSON::ParserError => e
             status 400
             { error: "Invalid JSON: #{e.message}" }.to_json

@@ -42,7 +42,12 @@ module Services
         base_prompt = persona_instance.generate_system_prompt
         final_prompt = Memory::ContextInjectionService.inject_context(base_prompt, enriched_context)
 
-        unless context[:tools].present? && !context[:tools].empty?
+        # Add appropriate instructions based on mode
+        if context[:conversation_extraction_mode]
+          # Conversation extraction mode: no additional instructions - let the LLM respond naturally
+          # Action extraction will happen post-processing
+        elsif !context[:tools].present? || context[:tools].empty?
+          # Original JSON mode for non-tool conversations
           json_instruction = "\n\nIMPORTANT: Your response MUST be valid JSON in this EXACT format:\n\n" \
                              "EXAMPLE:\n" \
                              "{\n  " \

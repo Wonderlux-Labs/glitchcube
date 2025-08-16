@@ -225,32 +225,28 @@ module Services
             )
           end
 
-          # Detailed request logging for debugging (only when debug mode is on)
+          # Debug request logging (summary only, not full payload)
           if GlitchCube.config.debug?
-            request_payload = {
-              messages: params[:messages],
-              model: params[:model],
-              **params[:extras]
-            }
+            system_msg_length = params[:messages].find { |m| m[:role] == 'system' }&.dig(:content)&.length || 0
+            user_msg_count = params[:messages].count { |m| m[:role] == 'user' }
+            assistant_msg_count = params[:messages].count { |m| m[:role] == 'assistant' }
 
             ::Services::Logging::SimpleLogger.debug(
-              'RAW HTTP REQUEST',
-              tagged: %i[llm raw_request],
+              'LLM REQUEST DETAILS',
+              tagged: %i[llm debug_request],
               url: 'https://openrouter.ai/api/v1/chat/completions',
               model: params[:model],
-              payload: request_payload
+              message_breakdown: {
+                total: params[:messages].size,
+                system_prompt_length: system_msg_length,
+                user_messages: user_msg_count,
+                assistant_messages: assistant_msg_count
+              },
+              request_params: params[:extras]
             )
           end
 
-          raw_payload = {
-            messages: params[:messages],
-            model: params[:model],
-            **params[:extras]
-          }
-
-          ::Services::Logging::SimpleLogger.error("RAW REQUEST THAT'S FAILING",
-                                                  payload_json: raw_payload.to_json,
-                                                  payload_size: raw_payload.to_json.bytesize)
+          # Removed: excessive logging of full payload on every request
           # Make the actual API call using the gem's signature:
           # complete(messages, model: 'model', extras: { all other params })
           response = client.complete(
