@@ -177,9 +177,10 @@ module Core
         Services::Logging::SimpleLogger.info(
           'TTS Request',
           tagged: %i[tts home_assistant],
-          message: message,
+          message: message[0..50], # Limit log message length
           target: target_entity,
-          provider: provider
+          provider: provider,
+          async_context: voice_options[:async_context] || false
         )
 
         case provider
@@ -194,7 +195,7 @@ module Core
           tagged: %i[tts home_assistant error],
           provider: provider,
           entity: target_entity,
-          message: message,
+          message: message[0..50],
           error_class: e.class.name,
           error: e.message
         )
@@ -206,13 +207,100 @@ module Core
           tagged: %i[tts home_assistant unexpected],
           provider: provider,
           entity: target_entity,
-          message: message,
+          message: message[0..50],
           error_class: e.class.name,
           error: e.message,
           backtrace: e.backtrace.first(3)
         )
         false
       end
+    end
+
+    # Enhanced speak method with retry for async follow-up responses
+    def speak_with_retry(message, entity_id: nil, voice_options: {}, max_retries: 2)
+      retries = 0
+
+      # For async follow-up, disable queue to speak immediately
+      enhanced_options = voice_options.merge(
+        queue: false,
+        async_context: true
+      )
+
+      while retries <= max_retries
+        result = speak(message, entity_id: entity_id, voice_options: enhanced_options)
+        return result if result
+
+        retries += 1
+        next unless retries <= max_retries
+
+        Services::Logging::SimpleLogger.warn(
+          'TTS failed, retrying',
+          tagged: %i[tts retry],
+          attempt: retries,
+          max_retries: max_retries,
+          entity_id: entity_id || 'media_player.square_voice'
+        )
+        sleep(0.5) # Brief pause before retry
+      end
+
+      Services::Logging::SimpleLogger.error(
+        'TTS failed after all retries',
+        tagged: %i[tts retry_exhausted],
+        max_retries: max_retries,
+        entity_id: entity_id || 'media_player.square_voice'
+      )
+      false
+    end
+
+    # Clean message text for optimal TTS output
+    def clean_message_for_tts(message)
+      cleaned = message
+                .gsub(/^\[.*?\]\s*/, '')     # Remove action markers like [lights on]
+                .gsub(/\*+([^*]+)\*+/, '\1') # Remove emphasis markers *text*
+                .gsub(/`([^`]+)`/, '\1')     # Remove code backticks
+                .gsub(/\s+/, ' ')            # Normalize whitespace
+                .strip
+
+      # Ensure reasonable length for TTS
+      if cleaned.length > 200
+        # Find last complete sentence within limit
+        truncated = cleaned[0..200]
+        last_sentence_end = truncated.rindex(/[.!?]/)
+
+        cleaned = if last_sentence_end && last_sentence_end > 50
+                    truncated[0..last_sentence_end]
+                  else
+                    "#{truncated.strip}..."
+                  end
+      end
+
+      cleaned
+    end
+
+    # Get voice for specific persona (used by async flow)
+    def get_voice_for_persona(persona_name)
+      voice_mappings = {
+        'buddy' => 'JennyNeural',
+        'jax' => 'AriaNeural',
+        'lomi' => 'ZiraNeural',
+        'zorp' => 'GuyNeural'
+      }
+
+      voice_mappings[persona_name.to_s.downcase] || 'JennyNeural'
+    end
+
+    # Speak with persona-specific voice (convenience method for async flow)
+    def speak_as_persona(message, persona_name, entity_id: nil, async_context: true)
+      cleaned_message = clean_message_for_tts(message)
+      voice = get_voice_for_persona(persona_name)
+
+      voice_options = {
+        voice: voice,
+        queue: false,        # No queue for immediate follow-up
+        async_context: async_context
+      }
+
+      speak_with_retry(cleaned_message, entity_id: entity_id, voice_options: voice_options)
     end
 
     private

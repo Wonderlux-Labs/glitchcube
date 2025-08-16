@@ -44,5 +44,5 @@ repeating_jobs_handler:
   cron: "*/5 * * * *"  # Every 5 minutes
   class: "Jobs::RepeatingJobsHandler"
   queue: default
-  description: "Execute miscellaneous repeating services (weather, health checks, battery monitoring)"
-  active: false
+  description: "Execute miscellaneous repeating services (health monitoring)"
+  active: true

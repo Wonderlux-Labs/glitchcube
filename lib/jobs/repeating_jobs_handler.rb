@@ -10,23 +10,11 @@ module Jobs
 
     # Service registry - defines what services to run and their intervals
     SERVICES = {
-      weather_update: {
-        class: 'WeatherService',
-        method: 'update_weather_summary',
-        interval: 30 * 60,  # 30 minutes in seconds
-        description: 'Update weather summary from Home Assistant data'
-      },
-      health_check: {
-        class: 'HealthService',
-        method: 'check_system_health',
+      health_push: {
+        class: 'Services::System::HealthPushService',
+        method: 'push_health_status',
         interval: 15 * 60,  # 15 minutes in seconds
-        description: 'Check system health and update sensors'
-      },
-      battery_monitor: {
-        class: 'BatteryService',
-        method: 'monitor_battery',
-        interval: 60 * 60,  # 1 hour in seconds
-        description: 'Monitor battery levels and alert if low'
+        description: 'Push health status to monitoring services'
       }
     }.freeze
 
@@ -110,7 +98,7 @@ module Jobs
 
     # Define critical services that should halt job execution on failure
     def critical_service?(service_name)
-      [:health_check].include?(service_name)
+      [:health_push].include?(service_name)
     end
 
     def redis

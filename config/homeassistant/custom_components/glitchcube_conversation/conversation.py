@@ -191,6 +191,23 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
                     
                     conversation_data = result_data.get("data", {})
                     
+                    # Route based on custom response type for async flow support
+                    response_type = conversation_data.get("response_type", "normal")
+                    _LOGGER.info("Processing response_type: %s", response_type)
+                    
+                    # Handle different response types
+                    if response_type == "immediate_speech_with_background_tools":
+                        return await self._handle_immediate_speech_with_background_tools(
+                            conversation_data, user_input
+                        )
+                    elif response_type == "error":
+                        return await self._handle_error_response(
+                            conversation_data, user_input
+                        )
+                    else:
+                        # Handle normal responses through the new handler
+                        return await self._handle_normal_response(conversation_data, user_input)
+                    
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout calling Glitch Cube API")
             return self._create_error_response(user_input, "I'm having trouble thinking right now. Please try again.")
@@ -206,60 +223,6 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
         except Exception as e:
             _LOGGER.exception("Unexpected error in conversation processing")
             return self._create_error_response(user_input, "I encountered an unexpected error. Please try again.")
-        
-        # Extract response text
-        response_text = conversation_data.get(RESPONSE_KEY, "I didn't understand that.")
-        
-        # Log complete response details
-        _LOGGER.info("=" * 40)
-        _LOGGER.info("SINATRA RESPONSE DETAILS")
-        _LOGGER.info("Response keys: %s", list(conversation_data.keys()))
-        _LOGGER.info("Response text: %s", response_text[:200] if len(response_text) > 200 else response_text)
-        
-        # Create intent response
-        intent_response = intent.IntentResponse(language=user_input.language)
-        
-        # Get persona and TTS voice info from Sinatra
-        persona = conversation_data.get("persona", "default")
-        tts_voice = conversation_data.get("tts_voice", "JennyNeural")
-        tts_provider = conversation_data.get("tts_provider", "cloud")
-        
-        _LOGGER.info("Persona: %s", persona)
-        _LOGGER.info("TTS Voice: %s", tts_voice)
-        _LOGGER.info("TTS Provider: %s", tts_provider)
-        
-        # Set the speech text for the pipeline
-        # The assist satellite will use the pipeline's configured TTS to speak this
-        intent_response.async_set_speech(response_text)
-        _LOGGER.info("Speech text set for pipeline TTS: %s...", response_text[:50] if response_text else "")
-        
-        # Note: We can't override TTS voice for assist satellites via actions
-        # The satellite uses its pipeline's configured TTS service
-        # To use persona-specific voices, we'd need to:
-        # 1. Configure multiple pipelines with different TTS voices
-        # 2. Or use the announce action on the satellite entity directly
-        if conversation_data.get("tts_voice"):
-            _LOGGER.debug("Persona voice '%s' requested but satellites use pipeline TTS", 
-                         conversation_data.get("tts_voice"))
-        
-        # Phase 3.5: Ultra-simple continuation logic
-        # Let Sinatra decide if conversation should continue based on LLM's decision
-        # The LLM has full context and makes intelligent continuation decisions
-        # Just use continue_conversation directly - no need for inverse
-        continue_conversation = conversation_data.get("continue_conversation", False)
-        
-        _LOGGER.info("=" * 40)
-        _LOGGER.info("FINAL RESULT")
-        _LOGGER.info("Response length: %d", len(response_text))
-        _LOGGER.info("Continue conversation: %s", continue_conversation)
-        _LOGGER.info("Persona: %s", persona)
-        _LOGGER.info("=" * 60)
-        
-        return conversation.ConversationResult(
-            conversation_id=user_input.conversation_id,
-            response=intent_response,
-            continue_conversation=continue_conversation,
-        )
 
     # REMOVED: Complex bidirectional service call methods for Phase 3 simplification
     # All actions now handled by Sinatra via tools:
@@ -269,6 +232,110 @@ class GlitchCubeConversationEntity(conversation.ConversationEntity):
     # - _handle_audio_action() → Now handled by Sinatra tools
     #
     # This creates clean separation: HA = STT + hardware, Sinatra = conversation + tools
+
+    def _extract_response_text(self, conversation_data):
+        """Extract speech text from potentially nested response structure.
+        
+        Handles both simple string responses and complex nested objects from
+        our enhanced conversation system. This fixes the TTS bug where nested
+        objects were being passed directly to async_set_speech.
+        """
+        raw_response = conversation_data.get(RESPONSE_KEY, "")
+        
+        if isinstance(raw_response, dict):
+            # Handle nested HA conversation API structure
+            response_text = (
+                # Try nested speech structure first (from action_done responses)
+                raw_response.get("speech", {}).get("plain", {}).get("speech") or
+                # Try simple response field
+                raw_response.get("response") or
+                # Try claude response in custom data
+                str(raw_response.get("data", {}).get("custom_data", {}).get("claude_response", ""))[:100] or
+                # Final fallback
+                "I had some trouble with that response."
+            )
+        else:
+            # Simple string response - convert to string safely
+            response_text = str(raw_response) if raw_response else "I didn't understand that."
+        
+        # Ensure we always have valid speech text
+        cleaned_text = response_text.strip()
+        if not cleaned_text:
+            cleaned_text = "Sorry, I'm having trouble speaking right now."
+            
+        _LOGGER.debug("Extracted response text: %s", cleaned_text[:100])
+        return cleaned_text
+
+    async def _handle_immediate_speech_with_background_tools(
+        self, conversation_data, user_input
+    ):
+        """Handle immediate speech while tools execute in background.
+        
+        This fires TTS immediately without blocking, then returns a minimal
+        ConversationResult to keep the session alive for potential follow-up.
+        """
+        speech_text = conversation_data.get("speech_text", "On it!")
+        _LOGGER.info("🚀 Executing immediate TTS for background tools: %s", speech_text[:50])
+        
+        try:
+            # Fire TTS immediately without blocking the response
+            await self.hass.services.async_call(
+                'tts',
+                'cloud_say',
+                {
+                    'entity_id': 'media_player.square_voice',
+                    'message': speech_text,
+                    'language': 'en-US'
+                },
+                blocking=False  # Critical: don't wait for TTS completion
+            )
+            _LOGGER.info("✅ Immediate TTS service call successful")
+        except Exception as e:
+            _LOGGER.error("💥 Immediate TTS failed: %s", str(e))
+        
+        # Return minimal result to keep session alive for follow-up
+        intent_response = intent.IntentResponse(language=user_input.language)
+        intent_response.async_set_speech(" ")  # Empty to prevent double-speak
+        
+        return conversation.ConversationResult(
+            conversation_id=user_input.conversation_id,
+            response=intent_response,
+            continue_conversation=True  # Keep session alive for background results
+        )
+
+    async def _handle_error_response(self, conversation_data, user_input):
+        """Handle error responses with appropriate messaging."""
+        error_text = conversation_data.get("speech_text", "I encountered an error.")
+        error_details = conversation_data.get("error_details", "")
+        
+        _LOGGER.error("🚨 Handling error response: %s", error_details)
+        
+        intent_response = intent.IntentResponse(language=user_input.language)
+        intent_response.async_set_speech(error_text)
+        
+        return conversation.ConversationResult(
+            conversation_id=user_input.conversation_id,
+            response=intent_response,
+            continue_conversation=False  # End conversation on error
+        )
+
+    async def _handle_normal_response(self, conversation_data, user_input):
+        """Handle standard synchronous responses."""
+        response_text = self._extract_response_text(conversation_data)
+        
+        intent_response = intent.IntentResponse(language=user_input.language)
+        intent_response.async_set_speech(response_text)
+        
+        continue_conversation = conversation_data.get("continue_conversation", False)
+        
+        _LOGGER.info("📢 Normal response: %s...", response_text[:50])
+        _LOGGER.info("Continue conversation: %s", continue_conversation)
+        
+        return conversation.ConversationResult(
+            conversation_id=user_input.conversation_id,
+            response=intent_response,
+            continue_conversation=continue_conversation
+        )
 
     def _create_error_response(
         self, 

@@ -39,6 +39,9 @@ gem 'redis', '~> 5.4'
 gem 'sidekiq', '~> 7.3'
 gem 'sidekiq-cron', '~> 1.12'
 
+# Thread Safety
+gem 'concurrent-ruby', '~> 1.3'
+
 # HTTP Client
 gem 'httparty', '~> 0.23'
 gem 'net-ping', '~> 2.0'

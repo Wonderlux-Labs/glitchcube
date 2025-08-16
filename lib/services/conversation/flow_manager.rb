@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'securerandom'
+require 'concurrent-ruby'
 
 module Services
   module Conversation
@@ -14,6 +15,19 @@ module Services
         @error_handler = error_handler
         @logger = logger
         @conversation_logger = Logging::ConversationLogger.new
+
+        # Thread-safe active thread tracking
+        @active_tool_threads = Concurrent::Hash.new
+
+        # Bounded thread pool for async tool execution
+        @thread_pool = Concurrent::FixedThreadPool.new(
+          GlitchCube.config.async_max_threads,
+          name: 'async-tools'
+        )
+
+        @logger.info('FlowManager initialized with thread safety',
+                     tagged: %i[conversation flow_manager initialization],
+                     max_threads: GlitchCube.config.async_max_threads)
       end
 
       def process_conversation(message:, context: {}, persona: nil)
@@ -30,6 +44,21 @@ module Services
 
         # Centralized error handling for the entire conversation flow
         begin
+          # Route to async flow if enabled and appropriate
+          if should_use_async_flow?(message, context)
+            @logger.info('🚀 Routing to async tool flow',
+                         tagged: %i[conversation async_flow],
+                         session_id: session.session_id,
+                         persona: persona_name)
+
+            return execute_async_tool_flow(message, session, persona_instance, context)
+          else
+            @logger.info('🔄 Using synchronous flow',
+                         tagged: %i[conversation sync_flow],
+                         session_id: session.session_id,
+                         reason: determine_sync_reason(message, context))
+          end
+
           llm_response, last_tool_calls = execute_conversation_cycle(message, session, persona_instance, context)
           response_data = @response_processor.process_response(llm_response, persona_instance, session.session_id)
 
@@ -939,6 +968,547 @@ module Services
 
         enhanced_response
       end
+
+      # ========================================================================================
+      # ASYNC TOOL EXECUTION FLOW - Phase 3 Implementation
+      # ========================================================================================
+
+      def should_use_async_flow?(message, context)
+        # Check if async tools are enabled globally
+        return true unless GlitchCube.config.async_tools_enabled? == false
+
+        # Don't use async for follow-up questions or clarifications
+        return false if context[:is_follow_up] || message.include?('?')
+
+        # Don't use async for very short messages (likely not tool requests)
+        return false if message.length < 10
+
+        # Don't use async if explicitly disabled for this session
+        return false if context[:force_sync]
+
+        # Don't use async in conversation extraction mode for now
+        return false if GlitchCube.config.tool_execution_mode == :conversation_extraction
+
+        true
+      end
+
+      def determine_sync_reason(message, context)
+        return 'async_disabled' unless GlitchCube.config.async_tools_enabled?
+        return 'follow_up_question' if context[:is_follow_up]
+        return 'contains_question' if message.include?('?')
+        return 'message_too_short' if message.length < 10
+        return 'force_sync_context' if context[:force_sync]
+        return 'conversation_extraction_mode' if GlitchCube.config.tool_execution_mode == :conversation_extraction
+
+        'default_sync'
+      end
+
+      def execute_async_tool_flow(message, session, persona_instance, context)
+        start_time = Time.now
+        execution_id = SecureRandom.uuid
+
+        @logger.info('🚀 Starting async tool flow',
+                     tagged: %i[conversation async_flow start],
+                     session_id: session.session_id,
+                     execution_id: execution_id,
+                     persona: persona_instance.name)
+
+        # 1. Get immediate response from LLM (optimized for speed)
+        immediate_response = generate_immediate_response_fast(
+          message, session, persona_instance, context
+        )
+
+        # 2. Extract actions from the response
+        action_extractor = Services::Conversation::ActionExtractor.new(logger: @logger)
+        extracted_actions = action_extractor.extract_actions_only(
+          immediate_response.parsed_content || {},
+          session.session_id
+        )
+
+        if extracted_actions.any?
+          @logger.info('🔧 Actions detected, launching background execution',
+                       tagged: %i[conversation async_flow actions_detected],
+                       session_id: session.session_id,
+                       execution_id: execution_id,
+                       action_count: extracted_actions.count,
+                       actions: extracted_actions)
+
+          # 3. Launch supervised background thread
+          launch_background_tool_execution(
+            extracted_actions, session, persona_instance,
+            message, execution_id
+          )
+
+          # 4. Return immediate acknowledgment to HA
+          build_immediate_response(
+            persona_instance, extracted_actions, session.session_id
+          )
+        else
+          # No actions detected - use normal synchronous flow
+          @logger.info('💬 No actions detected, using normal flow',
+                       tagged: %i[conversation async_flow no_actions],
+                       session_id: session.session_id)
+
+          build_normal_response(
+            immediate_response.response_text, session.session_id
+          )
+        end
+      end
+
+      def generate_immediate_response_fast(message, session, persona_instance, context)
+        # Build optimized system prompt for immediate response
+        system_prompt = @llm_manager.build_system_prompt(persona_instance, context)
+
+        # Get minimal conversation context (last 2-3 exchanges only)
+        conversation_history = @history_manager.get_conversation_context(session, limit: 3)
+        messages = @llm_manager.prepare_messages(conversation_history, system_prompt, message)
+
+        # Optimized LLM options for speed
+        llm_options = {
+          model: context[:model] || GlitchCube.config.default_model,
+          temperature: 0.7, # Consistent but not overly creative
+          max_tokens: 200,  # Limit for faster response
+          timeout: GlitchCube.config.async_immediate_timeout # Configurable immediate timeout
+        }
+
+        # Record the message
+        @state_manager.record_message(
+          session: session,
+          role: 'user',
+          content: message,
+          persona: persona_instance.name
+        )
+
+        # Get LLM response
+        llm_response = call_llm_with_schema_retry(messages, llm_options, session.session_id)
+
+        @logger.info('⚡ Fast LLM response generated',
+                     tagged: %i[conversation async_flow immediate_response],
+                     session_id: session.session_id,
+                     response_length: llm_response.response_text&.length || 0,
+                     model: llm_response.model)
+
+        llm_response
+      end
+
+      def launch_background_tool_execution(actions, session, persona_instance, original_message, execution_id)
+        # Check thread pool capacity before submitting
+        if @thread_pool.remaining_capacity <= 0
+          @logger.warn('Thread pool at capacity, falling back to sync execution',
+                       tagged: %i[conversation async_flow thread_pool_full],
+                       session_id: session.session_id,
+                       execution_id: execution_id)
+
+          unless GlitchCube.config.async_fallback_to_sync?
+            @logger.error('Thread pool exhausted and sync fallback disabled',
+                          tagged: %i[conversation async_flow thread_pool_exhausted],
+                          session_id: session.session_id,
+                          execution_id: execution_id)
+            return # Gracefully return instead of raising
+          end
+
+          # Execute synchronously as fallback
+          execute_tools_with_monitoring(
+            actions, session, persona_instance, original_message, execution_id
+          )
+          return
+
+        end
+
+        # Submit to thread pool using safer Promises API
+        future = Concurrent::Promises.future_on(@thread_pool) do
+          Thread.current.name = "tools-#{session.session_id[0..8]}-#{execution_id[0..8]}"
+          Thread.current[:execution_id] = execution_id
+          Thread.current[:session_id] = session.session_id
+
+          begin
+            execute_tools_with_monitoring(
+              actions, session, persona_instance, original_message, execution_id
+            )
+          rescue StandardError => e
+            handle_background_thread_error(e, execution_id, session.session_id, persona_instance)
+          ensure
+            # Thread-safe cleanup
+            @active_tool_threads.delete(session.session_id)
+            @logger.info('🧹 Background thread cleanup completed',
+                         tagged: %i[conversation async_flow thread_cleanup],
+                         execution_id: execution_id,
+                         session_id: session.session_id)
+          end
+        end
+
+        # Thread-safe storage of future reference
+        @active_tool_threads[session.session_id] = future
+
+        @logger.info('🚀 Background tool execution launched',
+                     tagged: %i[conversation async_flow thread_launched],
+                     session_id: session.session_id,
+                     execution_id: execution_id,
+                     pool_size: @thread_pool.pool_size,
+                     remaining_capacity: @thread_pool.remaining_capacity)
+      end
+
+      def execute_tools_with_monitoring(actions, session, persona_instance, original_message, execution_id)
+        start_time = Time.now
+        timeout = GlitchCube.config.async_background_timeout # Configurable background execution timeout
+
+        @logger.info('🔧 Starting tool execution with timeout',
+                     tagged: %i[conversation async_flow tool_execution_start],
+                     session_id: session.session_id,
+                     execution_id: execution_id,
+                     timeout_seconds: timeout,
+                     action_count: actions.count)
+
+        begin
+          # Use Concurrent::Promises for safe timeout handling instead of Timeout.timeout
+          promise = Concurrent::Promises.future do
+            # Execute tools via Claude conversation agent
+            action_extractor = Services::Conversation::ActionExtractor.new(logger: @logger)
+            claude_results = action_extractor.execute_actions_via_claude(
+              actions, session.session_id, original_message
+            )
+
+            @logger.info('🎯 Tool execution completed',
+                         tagged: %i[conversation async_flow tool_execution_complete],
+                         session_id: session.session_id,
+                         execution_id: execution_id,
+                         success: claude_results[:success],
+                         duration_ms: ((Time.now - start_time) * 1000).round)
+
+            # Generate contextual follow-up response
+            follow_up_text = generate_smart_follow_up(
+              persona_instance, claude_results, actions, session.session_id
+            )
+
+            # Speak follow-up directly via Home Assistant
+            if follow_up_text && follow_up_text.strip.length > 5
+              speak_follow_up_directly(follow_up_text, persona_instance, session.session_id, execution_id)
+            else
+              @logger.warn('⚠️ Skipping empty or very short follow-up',
+                           follow_up_text: follow_up_text&.inspect)
+            end
+
+            @logger.info('✅ Async tool flow completed successfully',
+                         tagged: %i[conversation async_flow complete],
+                         session_id: session.session_id,
+                         execution_id: execution_id,
+                         total_duration_ms: ((Time.now - start_time) * 1000).round)
+
+            claude_results
+          end
+
+          # Wait for completion with timeout
+          result = promise.value!(timeout)
+        rescue Concurrent::TimeoutError
+          @logger.error('⏰ Tool execution timed out',
+                        tagged: %i[conversation async_flow timeout],
+                        session_id: session.session_id,
+                        execution_id: execution_id,
+                        timeout_seconds: timeout)
+          speak_timeout_follow_up(persona_instance, session.session_id)
+        rescue StandardError => e
+          @logger.error('💥 Unexpected error during tool execution',
+                        tagged: %i[conversation async_flow error],
+                        session_id: session.session_id,
+                        execution_id: execution_id,
+                        error_class: e.class.name,
+                        error: e.message)
+          # Re-raise for proper error handling upstream
+          raise
+        end
+      end
+
+      def generate_smart_follow_up(persona_instance, claude_results, actions, session_id)
+        # Use existing persona response generation with enhancements
+        follow_up_response = generate_persona_response_with_claude_feedback(
+          persona_instance,
+          'Completed your request!', # Base response
+          claude_results,
+          actions,
+          session_id
+        )
+
+        # Clean up the response for TTS
+        cleaned_response = follow_up_response
+                           .gsub(/^\[.*?\]\s*/, '')  # Remove action markers
+                           .gsub(/\*.*?\*/, '')      # Remove emphasis markers
+                           .strip
+
+        @logger.info('🎭 Follow-up response generated',
+                     tagged: %i[conversation async_flow follow_up],
+                     session_id: session_id,
+                     persona: persona_instance.name,
+                     response_preview: cleaned_response[0..50])
+
+        cleaned_response
+      end
+
+      def speak_follow_up_directly(text, persona_instance, session_id, execution_id)
+        @logger.info('📢 Speaking follow-up directly',
+                     tagged: %i[conversation async_flow direct_tts],
+                     session_id: session_id,
+                     execution_id: execution_id,
+                     text_preview: text[0..50])
+
+        begin
+          ha_client = Core::HomeAssistantClient.new
+
+          # Use enhanced TTS with persona voice and retry
+          result = ha_client.speak_as_persona(
+            text,
+            persona_instance.name,
+            entity_id: 'media_player.square_voice',
+            async_context: true
+          )
+
+          if result
+            @logger.info('✅ Follow-up TTS successful',
+                         session_id: session_id,
+                         execution_id: execution_id,
+                         persona: persona_instance.name)
+          else
+            @logger.warn('⚠️ Persona TTS failed completely',
+                         session_id: session_id,
+                         persona: persona_instance.name)
+          end
+        rescue StandardError => e
+          @logger.error('💥 Follow-up TTS completely failed',
+                        error: e.message,
+                        session_id: session_id,
+                        execution_id: execution_id)
+        end
+      end
+
+      def handle_background_thread_error(error, execution_id, session_id, persona_instance)
+        @logger.error('💥 Background tool execution failed',
+                      tagged: %i[conversation async_flow error],
+                      error: error.class.name,
+                      message: error.message,
+                      execution_id: execution_id,
+                      session_id: session_id,
+                      backtrace: error.backtrace&.first(5))
+
+        # Attempt to notify user of failure
+        error_message = generate_error_follow_up(persona_instance, error.message)
+
+        begin
+          speak_follow_up_directly(error_message, persona_instance, session_id, execution_id)
+        rescue StandardError => e
+          @logger.error('💥 Failed to notify user of error via TTS',
+                        error: e.message,
+                        execution_id: execution_id,
+                        session_id: session_id)
+        end
+      end
+
+      def generate_error_follow_up(persona_instance, _error_message)
+        case persona_instance.name.downcase
+        when 'buddy'
+          'Ah shit, something went wrong with that request!'
+        when 'jax'
+          'Error encountered during task execution.'
+        when 'lomi'
+          'Oh no, I had trouble with that request, friend.'
+        else
+          'Sorry, I had trouble completing that request.'
+        end
+      end
+
+      def speak_timeout_follow_up(persona_instance, _session_id)
+        timeout_message = case persona_instance.name.downcase
+                          when 'buddy'
+                            "That's taking longer than expected, hang tight!"
+                          when 'jax'
+                            'Task execution timeout encountered.'
+                          when 'lomi'
+                            "That's taking a bit longer than usual, sweetie."
+                          else
+                            'That request is taking longer than expected.'
+                          end
+
+        begin
+          ha_client = Core::HomeAssistantClient.new
+          ha_client.speak_as_persona(
+            timeout_message,
+            persona_instance.name,
+            entity_id: 'media_player.square_voice',
+            async_context: true
+          )
+        rescue StandardError => e
+          @logger.error('💥 Failed to speak timeout message', error: e.message)
+        end
+      end
+
+      def build_immediate_response(persona_instance, actions, session_id)
+        acknowledgment = generate_immediate_acknowledgment(persona_instance, actions)
+
+        {
+          response_type: 'immediate_speech_with_background_tools',
+          speech_text: acknowledgment,
+          continue_conversation: true,
+          session_id: session_id,
+          action_count: actions.count,
+          timestamp: Time.now.iso8601
+        }
+      end
+
+      def build_normal_response(response_text, session_id)
+        {
+          response_type: 'normal',
+          speech_text: response_text,
+          continue_conversation: false, # Could be determined from LLM response
+          session_id: session_id,
+          timestamp: Time.now.iso8601
+        }
+      end
+
+      def generate_immediate_acknowledgment(persona_instance, actions)
+        action_types = categorize_actions(actions)
+
+        acknowledgments = case persona_instance.name.downcase
+                          when 'buddy'
+                            {
+                              lights: [
+                                'Oh hell yeah, let me light this place up!',
+                                'Fucking brilliant, changing those lights!',
+                                'Light show coming right up!'
+                              ],
+                              music: [
+                                'Oh shit yes, let me get some beats going!',
+                                'Music time, hell yeah!',
+                                'Time to pump up the jams!'
+                              ],
+                              mixed: [
+                                "Oh fuck yeah, I'm all over that!",
+                                'You got it, let me handle that shit!',
+                                'Multiple requests? I got this!'
+                              ],
+                              generic: [
+                                'On it like a fucking rocket!',
+                                'Hell yeah, working on it!',
+                                'Let me get right on that!'
+                              ]
+                            }
+                          when 'jax'
+                            {
+                              lights: [
+                                'Initializing lighting sequence...',
+                                'Adjusting illumination parameters...',
+                                'Configuring light array...'
+                              ],
+                              music: [
+                                'Accessing audio subsystems...',
+                                'Configuring media playback...',
+                                'Loading audio protocols...'
+                              ],
+                              mixed: [
+                                'Processing multiple system requests...',
+                                'Executing batch operations...',
+                                'Initiating multi-system configuration...'
+                              ],
+                              generic: [
+                                'Acknowledged. Processing request...',
+                                'Initiating task execution...',
+                                'Request received and processing...'
+                              ]
+                            }
+                          when 'lomi'
+                            {
+                              lights: [
+                                'Ooh, let me make it pretty for you!',
+                                'Time to set the mood with some lights!',
+                                'Creating beautiful lighting for you!'
+                              ],
+                              music: [
+                                'Music makes everything better!',
+                                'Let me find the perfect vibe!',
+                                'Time for some lovely tunes!'
+                              ],
+                              mixed: [
+                                "On it, sweet friend! This'll be good!",
+                                'Making magic happen for you!',
+                                'Let me take care of all that!'
+                              ],
+                              generic: [
+                                'Coming right up!',
+                                'Let me take care of that for you!',
+                                'On it, friend!'
+                              ]
+                            }
+                          else
+                            {
+                              generic: [
+                                'Working on it!',
+                                'Processing your request...',
+                                'On it!'
+                              ]
+                            }
+                          end
+
+        category = determine_primary_category(action_types)
+        selected_acknowledgments = acknowledgments[category] || acknowledgments[:generic]
+        selected_acknowledgments.sample
+      end
+
+      # Graceful shutdown for thread pool and active threads
+      def shutdown(timeout: 30)
+        @logger.info('🛑 Initiating FlowManager shutdown',
+                     tagged: %i[conversation flow_manager shutdown],
+                     active_threads: @active_tool_threads.size,
+                     timeout: timeout)
+
+        begin
+          # Cancel any active futures
+          @active_tool_threads.each_value do |future|
+            future.cancel if future.respond_to?(:cancel) && !future.complete?
+          end
+
+          # Gracefully shutdown the thread pool
+          @thread_pool.shutdown
+
+          # Wait for completion with timeout
+          unless @thread_pool.wait_for_termination(timeout)
+            @logger.warn('⚠️ Thread pool shutdown timeout, forcing termination',
+                         tagged: %i[conversation flow_manager shutdown timeout])
+            @thread_pool.kill
+          end
+
+          @logger.info('✅ FlowManager shutdown completed successfully',
+                       tagged: %i[conversation flow_manager shutdown complete])
+        rescue StandardError => e
+          @logger.error('💥 Error during FlowManager shutdown',
+                        tagged: %i[conversation flow_manager shutdown error],
+                        error_class: e.class.name,
+                        error: e.message)
+        ensure
+          @active_tool_threads.clear
+        end
+      end
+
+      # Health check for monitoring (public method)
+      def health_check
+        {
+          thread_pool_size: @thread_pool.pool_size,
+          thread_pool_queue_size: @thread_pool.queue_length,
+          thread_pool_remaining_capacity: @thread_pool.remaining_capacity,
+          active_sessions: @active_tool_threads.size,
+          thread_pool_shutdown: @thread_pool.shutdown?,
+          healthy: !@thread_pool.shutdown? && @thread_pool.running?
+        }
+      end
+
+      # Allow access to thread-safe hash for testing (public method)
+      def active_tool_threads_count
+        @active_tool_threads.size
+      end
+
+      # Test whether thread-safe structures are in use (public method)
+      def using_thread_safe_structures?
+        @active_tool_threads.is_a?(Concurrent::Hash) &&
+          @thread_pool.is_a?(Concurrent::FixedThreadPool)
+      end
+
+      private
     end
   end
 end

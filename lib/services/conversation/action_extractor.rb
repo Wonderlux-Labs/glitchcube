@@ -102,71 +102,27 @@ module Services
         return [] if response_text.nil?
         return [] if response_text.respond_to?(:strip) && response_text.strip.empty?
 
-        # Extract actions from JSON response (string or hash)
+        # Extract actions from single LLM response (no conversation history parsing)
 
-        # First try to parse as direct JSON string
-        if response_text.is_a?(String)
-          parsed_json = try_parse_json(response_text)
-          if parsed_json
-            actions = extract_actions_from_parsed_json(parsed_json)
-            return actions if actions.any?
-          end
-        end
-
-        # If response_text is already a hash (parsed JSON), use it directly
+        # If it's already a hash (parsed JSON), use it directly
         if response_text.is_a?(Hash)
-          actions = extract_actions_from_parsed_json(response_text)
-          return actions if actions.any?
+          return extract_actions_from_parsed_json(response_text)
         end
 
-        # No actions found in any format
-        []
-      end
-
-      def try_parse_json(text)
-        return nil unless text.is_a?(String)
-
-        # Attempting to parse JSON from text
-
-        # Try direct parsing first
-        begin
-          parsed = JSON.parse(text)
-          # Successfully parsed JSON directly
-          return parsed.is_a?(Hash) ? parsed.with_indifferent_access : parsed
-        rescue JSON::ParserError => e
-          # Direct JSON parse failed
-        end
-
-        # Try extracting JSON from code blocks
-        if text.include?('```')
-          json_match = text.match(/```(?:json)?\s*\n?(.*?)\n?```/m)
-          if json_match
-            # Found JSON in code block
-            begin
-              parsed = JSON.parse(json_match[1].strip)
-              # Successfully parsed JSON from code block
-              return parsed.is_a?(Hash) ? parsed.with_indifferent_access : parsed
-            rescue JSON::ParserError => e
-              # Code block JSON parse failed
-            end
-          end
-        end
-
-        # Try finding JSON object in text
-        json_match = text.match(/(\{.*\})/m)
-        if json_match
-          # Found JSON object in text
+        # If it's a string, try to parse it as JSON once
+        if response_text.is_a?(String)
           begin
-            parsed = JSON.parse(json_match[1])
-            # Successfully parsed embedded JSON
-            return parsed.is_a?(Hash) ? parsed.with_indifferent_access : parsed
-          rescue JSON::ParserError => e
-            # Embedded JSON parse failed
+            parsed_json = JSON.parse(response_text.strip)
+            if parsed_json.is_a?(Hash)
+              return extract_actions_from_parsed_json(parsed_json.with_indifferent_access)
+            end
+          rescue JSON::ParserError
+            # Not valid JSON, no actions
           end
         end
 
-        # All JSON parsing attempts failed
-        nil
+        # No valid JSON found
+        []
       end
 
       def extract_actions_from_parsed_json(parsed_json)

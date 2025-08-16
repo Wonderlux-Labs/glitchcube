@@ -99,6 +99,17 @@ module GlitchCube
         use_mcp_fallback: true
       },
 
+      # Async Tool Configuration (Phase 5)
+      enable_async_tools: true, # Feature flag for async tool execution
+      async_tools: {
+        immediate_response_timeout: 1.0,    # Max time for immediate acknowledgment
+        background_execution_timeout: 30.0, # Max time for background tool execution
+        follow_up_delay: 2.0,               # Delay before follow-up TTS
+        max_concurrent_threads: 3,          # Limit concurrent async executions
+        thread_cleanup_timeout: 60.0,      # Auto-cleanup thread timeout
+        fallback_to_sync: true             # Fall back to sync if async fails
+      },
+
       # Conversation Configuration
       conversation: {
         completion_timeout: 60  # Default 60 seconds for LLM calls
@@ -135,7 +146,10 @@ module GlitchCube
       log_to_screen: 'LOG_TO_SCREEN',
       log_file_path: 'LOG_FILE_PATH',
       enable_circuit_breakers: 'ENABLE_CIRCUIT_BREAKERS',
-      enable_retries: 'ENABLE_RETRIES'
+      enable_retries: 'ENABLE_RETRIES',
+
+      # Async Tools Feature Flag
+      enable_async_tools: 'ENABLE_ASYNC_TOOLS'
     }.freeze
 
     NESTED_MAPPINGS = {
@@ -177,6 +191,14 @@ module GlitchCube
         enabled: ['TOOL_RETRY_ENABLED'],
         max_iterations: ['TOOL_MAX_ITERATIONS'],
         use_mcp_fallback: ['TOOL_USE_MCP_FALLBACK']
+      },
+      async_tools: {
+        immediate_response_timeout: ['ASYNC_IMMEDIATE_TIMEOUT'],
+        background_execution_timeout: ['ASYNC_BACKGROUND_TIMEOUT'],
+        follow_up_delay: ['ASYNC_FOLLOW_UP_DELAY'],
+        max_concurrent_threads: ['ASYNC_MAX_THREADS'],
+        thread_cleanup_timeout: ['ASYNC_THREAD_CLEANUP_TIMEOUT'],
+        fallback_to_sync: ['ASYNC_FALLBACK_TO_SYNC']
       }
     }.freeze
 
@@ -243,6 +265,14 @@ module GlitchCube
       'test-jwt-token-for-vcr-cassettes'
     end
 
+    # Helper to safely convert ENV variables to booleans
+    def self.boolean_env(env_var, default: false)
+      value = ENV.fetch(env_var, nil)
+      return default if value.nil? || value.empty?
+
+      %w[true 1 yes on].include?(value.downcase)
+    end
+
     def self.instance
       @instance ||= new(ConfigBuilder.build.to_h)
     end
@@ -300,6 +330,21 @@ module GlitchCube
     def development? = rack_env == 'development'
     def test? = rack_env == 'test'
     def production? = rack_env == 'production'
+
+    # Async Tools Configuration Helpers
+    def async_tools_enabled?
+      return true unless test? || ENV.fetch('ENABLE_ASYNC_TOOLS', 'true').downcase == 'false'
+
+      false
+    end
+
+    def async_tools_disabled? = !async_tools_enabled?
+    def async_immediate_timeout = async_tools.immediate_response_timeout
+    def async_background_timeout = async_tools.background_execution_timeout
+    def async_follow_up_delay = async_tools.follow_up_delay
+    def async_max_threads = async_tools.max_concurrent_threads
+    def async_thread_cleanup_timeout = async_tools.thread_cleanup_timeout
+    def async_fallback_to_sync? = async_tools.fallback_to_sync
 
     # Database safety checks to prevent data loss
     def safe_to_migrate?
